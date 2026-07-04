@@ -11,6 +11,7 @@ __recovery/
 *.otares
 *.db
 *.exe
+*.map
 
 # Build outputs
 bin/
@@ -44,3 +45,10 @@ scratch_*
 
 # Local scratch directories (credentials and temporary scripts)
 scratch/
+
+# Delphi String Resource Files
+*.drc
+
+# Code Coverage reports
+*CodeCoverage*
+coverage.xml

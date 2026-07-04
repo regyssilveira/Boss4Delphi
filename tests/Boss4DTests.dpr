@@ -4,6 +4,7 @@ program Boss4DTests;
 {$APPTYPE CONSOLE}
 {$ENDIF}
 {$STRONGLINKTYPES ON}
+{$DYNAMICBASE OFF}
 
 uses
   System.SysUtils,
