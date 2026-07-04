@@ -1,0 +1,92 @@
+program Boss4D;
+
+{$APPTYPE CONSOLE}
+
+//{$R *.res}
+
+uses
+  System.SysUtils,
+  System.Generics.Collections,
+  Boss4D.Core.Ports in 'Core/Ports/Boss4D.Core.Ports.pas',
+  Boss4D.Core.Domain.Consts in 'Core/Domain/Boss4D.Core.Domain.Consts.pas',
+  Boss4D.Core.Domain.Env in 'Core/Domain/Boss4D.Core.Domain.Env.pas',
+  Boss4D.Core.Domain.SemVer in 'Core/Domain/Boss4D.Core.Domain.SemVer.pas',
+  Boss4D.Core.Domain.Dependency in 'Core/Domain/Boss4D.Core.Domain.Dependency.pas',
+  Boss4D.Core.Domain.Package in 'Core/Domain/Boss4D.Core.Domain.Package.pas',
+  Boss4D.Core.Domain.Lock in 'Core/Domain/Boss4D.Core.Domain.Lock.pas',
+  Boss4D.Adapters.Json in 'Adapters/Json/Boss4D.Adapters.Json.pas',
+  Boss4D.Adapters.Logger in 'Adapters/Logger/Boss4D.Adapters.Logger.pas',
+  Boss4D.Adapters.Http in 'Adapters/Http/Boss4D.Adapters.Http.pas',
+  Boss4D.Adapters.Git in 'Adapters/Git/Boss4D.Adapters.Git.pas',
+  Boss4D.Adapters.Registry in 'Adapters/Registry/Boss4D.Adapters.Registry.pas',
+  Boss4D.Adapters.Compiler in 'Adapters/Compiler/Boss4D.Adapters.Compiler.pas',
+  Boss4D.Core.Services.Init in 'Core/Services/Boss4D.Core.Services.Init.pas',
+  Boss4D.Core.Services.Config in 'Core/Services/Boss4D.Core.Services.Config.pas',
+  Boss4D.Core.Services.Install in 'Core/Services/Boss4D.Core.Services.Install.pas',
+  Boss4D.CLI.Parser in 'CLI/Boss4D.CLI.Parser.pas';
+
+var
+  LArgs: TArray<string>;
+  I: Integer;
+
+  // Adaptadores (Interfaces - Ciclo de vida gerido por contagem de referencias)
+  LLogger: IBoss4DLogger;
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LGitClient: IBoss4DGitClient;
+  LHttpClient: IBoss4DHttpClient;
+  LRegistry: IBoss4DRegistryService;
+  LCompiler: IBoss4DCompiler;
+
+  // Servicos
+  LInitService: TBoss4DInitService;
+  LInstallService: TBoss4DInstallService;
+  LConfigService: TBoss4DConfigService;
+
+  // Parser
+  LParser: TBoss4DCommandLineParser;
+begin
+  try
+    // Captura os argumentos do terminal
+    SetLength(LArgs, ParamCount);
+    for I := 1 to ParamCount do
+      LArgs[I - 1] := ParamStr(I);
+
+    // Inicializa adaptadores de infraestrutura concretos
+    LLogger := TBoss4DConsoleLoggerAdapter.Create;
+    LPackageRepo := TBoss4DPackageJsonRepository.Create;
+    LLockRepo := TBoss4DLockJsonRepository.Create;
+    LHttpClient := TBoss4DHttpNativeAdapter.Create;
+    LRegistry := TBoss4DWindowsRegistryAdapter.Create;
+    LCompiler := TBoss4DDelphiCompilerAdapter.Create(LRegistry, LLogger);
+
+    // Carrega configuracoes globais para instanciar o Git Client
+    LConfigService := TBoss4DConfigService.Create(LLogger);
+    var LGlobalConfig := LConfigService.Load;
+    try
+      LGitClient := TBoss4DGitCliAdapter.Create(LGlobalConfig.GitShallow);
+    finally
+      LGlobalConfig.Free;
+    end;
+
+    // Inicializa os servicos de negocio
+    LInitService := TBoss4DInitService.Create(LPackageRepo, LLogger);
+    LInstallService := TBoss4DInstallService.Create(
+      LPackageRepo, LLockRepo, LGitClient, LHttpClient, LCompiler, LLogger);
+
+    // Inicializa o Parser de CLI
+    LParser := TBoss4DCommandLineParser.Create(LLogger, LInitService, LInstallService, LConfigService);
+    try
+      LParser.ParseAndExecute(LArgs);
+    finally
+      LParser.Free;
+      LInstallService.Free;
+      LInitService.Free;
+      LConfigService.Free;
+    end;
+
+  except
+    on E: Exception do
+      Writeln('Erro fatal do Boss4D: ' + E.Message);
+  end;
+end.
