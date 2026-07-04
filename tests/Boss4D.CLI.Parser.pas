@@ -3,7 +3,7 @@ unit Boss4D.CLI.Parser;
 interface
 
 uses
-  Boss4D.Core.Ports, Boss4D.Core.Services.Init,
+  System.SysUtils, Boss4D.Core.Ports, Boss4D.Core.Services.Init,
   Boss4D.Core.Services.Install, Boss4D.Core.Services.Config;
 
 type
@@ -32,9 +32,6 @@ type
   end;
 
 implementation
-
-uses
-  System.SysUtils;
 
 { TBoss4DCommandLineParser }
 
@@ -119,7 +116,7 @@ begin
   LDepToInstall := '';
   if Length(AArgs) > 1 then
     LDepToInstall := AArgs[1];
-
+  
   FInstallService.Execute(LDepToInstall);
 end;
 

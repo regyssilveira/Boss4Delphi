@@ -3,8 +3,7 @@ unit Boss4D.Tests.Json;
 interface
 
 uses
-  DUnitX.TestFramework, System.SysUtils, System.IOUtils, Boss4D.Core.Domain.Package,
-  Boss4D.Core.Domain.Lock, Boss4D.Core.Domain.Dependency, Boss4D.Adapters.Json;
+  DUnitX.TestFramework, Boss4D.Adapters.Json;
 
 type
   [TestFixture]
@@ -26,6 +25,10 @@ type
   end;
 
 implementation
+
+uses
+  System.SysUtils, System.IOUtils, Boss4D.Core.Domain.Package,
+  Boss4D.Core.Domain.Lock, Boss4D.Core.Domain.Dependency;
 
 { TTestsJson }
 
@@ -75,8 +78,8 @@ begin
       Assert.AreEqual(1, LLoadedPkg.Projects.Count);
       Assert.AreEqual('Source/Project1.dproj', LLoadedPkg.Projects[0]);
       Assert.IsTrue(LLoadedPkg.Dependencies.ContainsKey('github.com/hashload/horse'));
-      Assert.AreEqual('^3.0.0', LLoadedPkg.Dependencies.Items['github.com/hashload/horse']);
-      Assert.AreEqual('msbuild', LLoadedPkg.Scripts.Items['build']);
+      Assert.AreEqual('^3.0.0', LLoadedPkg.Dependencies['github.com/hashload/horse']);
+      Assert.AreEqual('msbuild', LLoadedPkg.Scripts['build']);
       Assert.AreEqual('36.0', LLoadedPkg.Engines.Compiler);
       Assert.AreEqual('Win32', LLoadedPkg.Engines.Platforms[0]);
     finally
@@ -100,10 +103,10 @@ begin
   try
     LLock.Hash := 'somehashvalue';
     LLock.Updated := '2026-07-04T12:00:00Z';
-    
+
     // Adiciona dependencia travada
     LLock.AddDependency(LDep, '3.1.0', 'commithash');
-    
+
     // Adiciona artefatos a dependencia travada
     if LLock.GetInstalled(LDep, LLockedDep) then
     begin
@@ -119,7 +122,7 @@ begin
       Assert.AreEqual(LLock.Hash, LLoadedLock.Hash);
       Assert.AreEqual(LLock.Updated, LLoadedLock.Updated);
       Assert.IsTrue(LLoadedLock.Installed.ContainsKey(LDep.GetKey));
-      
+
       var LInstalled: TBoss4DLockedDependency;
       Assert.IsTrue(LLoadedLock.GetInstalled(LDep, LInstalled));
       Assert.AreEqual('horse', LInstalled.Name);

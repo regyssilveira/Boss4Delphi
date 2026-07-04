@@ -3,7 +3,7 @@ unit Boss4D.Core.Ports;
 interface
 
 uses
-  Boss4D.Core.Domain.Package, Boss4D.Core.Domain.Dependency,
+  System.SysUtils, Boss4D.Core.Domain.Package, Boss4D.Core.Domain.Dependency,
   Boss4D.Core.Domain.Lock;
 
 type

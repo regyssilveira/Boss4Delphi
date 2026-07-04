@@ -3,7 +3,7 @@ unit Boss4D.Tests.SemVer;
 interface
 
 uses
-  DUnitX.TestFramework, System.SysUtils, Boss4D.Core.Domain.SemVer;
+  DUnitX.TestFramework;
 
 type
   [TestFixture]
@@ -35,6 +35,9 @@ type
   end;
 
 implementation
+
+uses
+  System.SysUtils, Boss4D.Core.Domain.SemVer;
 
 { TTestsSemVer }
 

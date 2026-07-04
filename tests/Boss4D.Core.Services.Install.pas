@@ -4,7 +4,7 @@ interface
 
 uses
   System.Generics.Collections, System.Threading, Boss4D.Core.Ports,
-  Boss4D.Core.Domain.Dependency, Boss4D.Core.Domain.Lock;
+  Boss4D.Core.Domain.Package, Boss4D.Core.Domain.Dependency, Boss4D.Core.Domain.Lock;
 
 type
   { Servico de caso de uso para instalacao e atualizacao de dependencias (boss install) }
@@ -39,8 +39,7 @@ implementation
 
 uses
   System.SysUtils, System.Classes, System.IOUtils, System.Hash,
-  Boss4D.Core.Domain.Package, Boss4D.Core.Domain.SemVer, Boss4D.Core.Domain.Consts,
-  Boss4D.Core.Domain.Env;
+  Boss4D.Core.Domain.SemVer, Boss4D.Core.Domain.Consts, Boss4D.Core.Domain.Env;
 
 { TBoss4DInstallService }
 
@@ -71,7 +70,7 @@ var
   LSubDeps: TArray<TBoss4DDependency>;
 begin
   var LDepKey := ADep.GetKey;
-
+  
   // Evita processamento em loop infinito (dependencias circulares)
   if AProcessedDeps.Contains(LDepKey) then
     Exit;
@@ -137,7 +136,7 @@ begin
 
   // Busca arquivos dproj no diretorio da dependencia
   LFiles := TDirectory.GetFiles(LTargetDir, '*' + EXT_DPROJ, TSearchOption.soAllDirectories);
-
+  
   if Length(LFiles) > 0 then
   begin
     for var LFile in LFiles do
@@ -188,7 +187,7 @@ begin
         ProcessDependency(LDep, LLock, LProcessedDeps);
         LPkg.AddDependency(LDep.Repository, LDep.Version);
         FPackageRepo.Save(LPkg, LPkgPath);
-
+        
         // Build da dependencia especifica
         BuildDependency(LDep, LLock);
       finally
@@ -269,7 +268,7 @@ begin
     begin
       var LRange := TBoss4DSemVerRange.Create(ADep.Version);
       var LBestSemVer := Default(TBoss4DSemVer);
-
+      
       for var LTag in LVersions do
       begin
         var LVer := TBoss4DSemVer.Create(LTag);
@@ -283,7 +282,7 @@ begin
       if LBestSemVer.IsValid then
         Result := LBestSemVer.ToString;
     end;
-
+    
     // Se nao encontrou nenhuma tag satisfatoria para o range SemVer, tenta usar a versao literal
     if Result.IsEmpty then
     begin

@@ -49,7 +49,7 @@ var
 begin
   Result := TBoss4DGlobalConfig.Create;
   LPath := GetGlobalConfigPath;
-
+  
   if not TFile.Exists(LPath) then
   begin
     // Retorna configuracoes padroes
@@ -90,7 +90,7 @@ var
   LJSONStr: string;
 begin
   LPath := GetGlobalConfigPath;
-
+  
   // Garante que o diretorio home (~/.boss) existe antes de salvar
   var LHomeDir := TPath.GetDirectoryName(LPath);
   if not TDirectory.Exists(LHomeDir) then
@@ -100,7 +100,7 @@ begin
   try
     LJSONObj.AddPair('delphiPath', AConfig.DelphiPath);
     LJSONObj.AddPair('gitShallow', AConfig.GitShallow);
-
+    
     LJSONStr := LJSONObj.Format(2);
     TFile.WriteAllText(LPath, LJSONStr, TEncoding.UTF8);
   finally

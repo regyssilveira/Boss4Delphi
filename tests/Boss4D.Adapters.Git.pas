@@ -42,7 +42,7 @@ function TBoss4DGitCliAdapter.ExecuteGit(const AArgs: string; const AWorkingDir:
 var
   LSA: TSecurityAttributes;
   LReadPipe, LWritePipe: THandle;
-  LStartInfo: TStartupInfo;
+  LStartInfo: TStartUpInfo;
   LProcInfo: TProcessInformation;
   LBuffer: array[0..255] of AnsiChar;
   LBytesRead: DWORD;
@@ -62,8 +62,8 @@ begin
     Exit;
 
   try
-    FillChar(LStartInfo, SizeOf(TStartupInfo), 0);
-    LStartInfo.cb := SizeOf(TStartupInfo);
+    FillChar(LStartInfo, SizeOf(TStartUpInfo), 0);
+    LStartInfo.cb := SizeOf(TStartUpInfo);
     LStartInfo.dwFlags := STARTF_USESTDHANDLES or STARTF_USESHOWWINDOW;
     LStartInfo.hStdOutput := LWritePipe;
     LStartInfo.hStdError := LWritePipe;
@@ -93,7 +93,7 @@ begin
         until LBytesRead = 0;
 
         WaitForSingleObject(LProcInfo.hProcess, INFINITE);
-
+        
         var LExitCode: DWORD := 0;
         GetExitCodeProcess(LProcInfo.hProcess, LExitCode);
         Result := LExitCode = 0;

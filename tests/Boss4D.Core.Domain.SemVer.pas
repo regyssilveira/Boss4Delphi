@@ -2,6 +2,8 @@ unit Boss4D.Core.Domain.SemVer;
 
 interface
 
+uses
+  System.SysUtils;
 
 type
   { Representa uma versao individual no padrao Semantic Versioning (SemVer 2.0.0) }
@@ -60,7 +62,7 @@ type
 implementation
 
 uses
-  System.SysUtils, System.RegularExpressions, System.Classes;
+  System.RegularExpressions, System.Classes;
 
 function CompareInt(const AVal1, AVal2: Integer): Integer;
 begin
@@ -155,15 +157,15 @@ begin
     FMajor := StrToInt(LMatch.Groups[1].Value);
     FMinor := StrToInt(LMatch.Groups[2].Value);
     FPatch := StrToInt(LMatch.Groups[3].Value);
-
+    
     FPreRelease := '';
     if LMatch.Groups.Count > 4 then
       FPreRelease := LMatch.Groups[4].Value;
-
+      
     FBuild := '';
     if LMatch.Groups.Count > 5 then
       FBuild := LMatch.Groups[5].Value;
-
+      
     FIsValid := True;
   end;
 end;
@@ -208,7 +210,7 @@ var
 begin
   if APre1 = APre2 then
     Exit(0);
-
+  
   // Versoes sem prerelease tem maior precedencia (ex: 1.0.0 > 1.0.0-alpha)
   if APre1.IsEmpty then Exit(1);
   if APre2.IsEmpty then Exit(-1);
@@ -356,7 +358,7 @@ var
 
     LStrCopy := AStr.Replace('*', 'x').Replace('X', 'x');
     LParts := LStrCopy.Split(['.']);
-
+    
     if Length(LParts) > 0 then
     begin
       Result := True;

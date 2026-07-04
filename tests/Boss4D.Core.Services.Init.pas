@@ -22,7 +22,7 @@ implementation
 
 uses
   System.SysUtils, System.IOUtils, Boss4D.Core.Domain.Package,
-  Boss4D.Core.Domain.Env;
+  Boss4D.Core.Domain.Consts, Boss4D.Core.Domain.Env;
 
 { TBoss4DInitService }
 

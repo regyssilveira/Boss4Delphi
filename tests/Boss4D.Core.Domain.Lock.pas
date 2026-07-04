@@ -3,7 +3,7 @@ unit Boss4D.Core.Domain.Lock;
 interface
 
 uses
-  System.Generics.Collections, Boss4D.Core.Domain.Dependency;
+  System.SysUtils, System.Generics.Collections, Boss4D.Core.Domain.Dependency;
 
 type
   { Representa os artefatos compilados de uma dependencia }
@@ -61,9 +61,6 @@ type
   end;
 
 implementation
-
-uses
-  System.SysUtils;
 
 { TBoss4DDependencyArtifacts }
 

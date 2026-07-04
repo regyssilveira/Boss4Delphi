@@ -2,6 +2,8 @@ unit Boss4D.Core.Domain.Env;
 
 interface
 
+uses
+  Boss4D.Core.Domain.Consts;
 
 function GetBossHome: string;
 function GetCacheDir: string;
@@ -13,7 +15,7 @@ function GetGlobalConfigPath: string;
 implementation
 
 uses
-  System.SysUtils, System.IOUtils, Boss4D.Core.Domain.Consts;
+  System.SysUtils, System.IOUtils;
 
 function GetBossHome: string;
 var
@@ -29,7 +31,7 @@ begin
     {$ENDIF}
     if LHome.IsEmpty then
       LHome := TPath.GetHomePath; // Fallback para diretorio home padrao do Delphi
-
+    
     LHome := TPath.Combine(LHome, FOLDER_BOSS_HOME);
   end;
   Result := LHome;

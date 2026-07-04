@@ -3,7 +3,7 @@ unit Boss4D.Adapters.Logger;
 interface
 
 uses
-  System.SyncObjs, Boss4D.Core.Ports;
+  System.SysUtils, System.SyncObjs, Boss4D.Core.Ports;
 
 type
   { Adaptador de log colorido e thread-safe para console e arquivo }
@@ -29,7 +29,7 @@ type
 implementation
 
 uses
-  System.SysUtils, System.IOUtils, System.Classes
+  System.IOUtils, System.Classes
   {$IFDEF MSWINDOWS}, Winapi.Windows{$ENDIF};
 
 { TBoss4DConsoleLoggerAdapter }
@@ -159,7 +159,7 @@ begin
 
   LTimestamp := FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz', Now);
   var LFormattedMsg := Format('%s [%s] %s', [LTimestamp, LPrefix, AMessage]);
-
+  
   try
     TFile.AppendAllText(FLogFilePath, LFormattedMsg + sLineBreak, TEncoding.UTF8);
   except

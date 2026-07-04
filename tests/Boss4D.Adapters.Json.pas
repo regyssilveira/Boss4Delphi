@@ -25,7 +25,8 @@ type
 implementation
 
 uses
-  System.SysUtils, System.IOUtils, System.JSON, System.Generics.Collections;
+  System.SysUtils, System.Classes, System.IOUtils, System.JSON, System.Generics.Collections,
+  Boss4D.Core.Domain.Dependency;
 
 // Funcoes auxiliares locais de leitura segura para evitar excecoes no System.JSON
 function ReadString(const AObj: TJSONObject; const AKey: string): string;
@@ -412,7 +413,7 @@ begin
 
       // Artifacts
       LArtifactsObj := TJSONObject.Create;
-
+      
       LBinArr := TJSONArray.Create;
       for var LArt in LPair.Value.Artifacts.Bin do LBinArr.Add(LArt);
       LArtifactsObj.AddPair('bin', LBinArr);
@@ -433,7 +434,7 @@ begin
 
       LInstalledObj.AddPair(LPair.Key, LDepObj);
     end;
-
+    
     LJSONObj.AddPair('installedModules', LInstalledObj);
 
     LJSONStr := LJSONObj.Format(2);

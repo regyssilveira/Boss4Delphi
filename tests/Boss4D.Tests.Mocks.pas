@@ -3,8 +3,8 @@ unit Boss4D.Tests.Mocks;
 interface
 
 uses
-  System.SysUtils, System.Generics.Collections, System.IOUtils, Boss4D.Core.Ports,
-  Boss4D.Core.Domain.Dependency, Boss4D.Core.Domain.Lock, Boss4D.Core.Domain.Package;
+  System.Generics.Collections, Boss4D.Core.Ports, Boss4D.Core.Domain.Dependency,
+  Boss4D.Core.Domain.Lock;
 
 type
   { Mock para simulacao do cliente Git }
@@ -33,8 +33,6 @@ type
     constructor Create;
     destructor Destroy; override;
 
-    procedure AddMockResponse(const AURL: string; const AResponse: string; const ACode: Integer = 200);
-
     function Get(const AURL: string; out AResponse: string): Integer;
   end;
 
@@ -60,6 +58,9 @@ type
   end;
 
 implementation
+
+uses
+  System.SysUtils, System.IOUtils, Boss4D.Core.Domain.Package;
 
 { TGitClientMock }
 
@@ -102,13 +103,12 @@ function TGitClientMock.GetVersions(const ACacheDir: string): TArray<string>;
 begin
   var LFolder := TPath.GetFileName(ACacheDir).ToLower;
   var LRepo: string;
-  
   if FCacheMap.TryGetValue(LFolder, LRepo) then
   begin
     if FTags.ContainsKey(LRepo) then
-      Exit(FTags.Items[LRepo]);
+      Exit(FTags[LRepo]);
   end;
-  
+
   // Retorno padrao se nao mapeado
   Result := TArray<string>.Create('v1.0.0', 'v1.1.0', 'v2.0.0');
 end;
@@ -144,18 +144,13 @@ begin
   inherited Destroy;
 end;
 
-procedure THttpClientMock.AddMockResponse(const AURL: string; const AResponse: string; const ACode: Integer = 200);
-begin
-  FResponses.Add(AURL.ToLower, AResponse);
-  FResponseCodes.Add(AURL.ToLower, ACode);
-end;
 
 function THttpClientMock.Get(const AURL: string; out AResponse: string): Integer;
 begin
   AResponse := '';
   if FResponses.TryGetValue(AURL.ToLower, AResponse) then
   begin
-    Exit(FResponseCodes.Items[AURL.ToLower]);
+    Exit(FResponseCodes[AURL.ToLower]);
   end;
   Result := 404; // Not Found padrao
 end;

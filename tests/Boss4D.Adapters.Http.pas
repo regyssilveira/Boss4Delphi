@@ -29,7 +29,7 @@ begin
   LClient := THTTPClient.Create;
   try
     LClient.UserAgent := 'Boss4D/1.0 (Delphi 13 Nativo Dependency Manager)';
-
+    
     // Configura alguns timeouts padrão razoáveis
     LClient.ConnectionTimeout := 10000; // 10 segundos
     LClient.ResponseTimeout := 15000;   // 15 segundos

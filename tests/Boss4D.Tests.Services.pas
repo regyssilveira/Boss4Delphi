@@ -3,11 +3,7 @@ unit Boss4D.Tests.Services;
 interface
 
 uses
-  DUnitX.TestFramework, System.SysUtils, System.IOUtils, System.Generics.Collections,
-  Boss4D.Core.Ports, Boss4D.Core.Domain.Package, Boss4D.Core.Domain.Lock,
-  Boss4D.Core.Domain.Dependency, Boss4D.Core.Domain.Consts, Boss4D.Core.Domain.Env,
-  Boss4D.Core.Services.Init, Boss4D.Core.Services.Config, Boss4D.Core.Services.Install,
-  Boss4D.CLI.Parser, Boss4D.Adapters.Json, Boss4D.Adapters.Compiler, Boss4D.Tests.Mocks;
+  DUnitX.TestFramework, Boss4D.Core.Ports;
 
 type
   { MockLogger simples para nao poluir o console de testes e capturar saidas }
@@ -52,7 +48,11 @@ type
 implementation
 
 uses
-  Winapi.Windows;
+  Winapi.Windows, System.SysUtils, System.IOUtils, System.Generics.Collections,
+  Boss4D.Core.Domain.Package, Boss4D.Core.Domain.Lock, Boss4D.Core.Domain.Dependency,
+  Boss4D.Core.Domain.Consts, Boss4D.Core.Domain.Env, Boss4D.Core.Services.Init,
+  Boss4D.Core.Services.Config, Boss4D.Core.Services.Install, Boss4D.CLI.Parser,
+  Boss4D.Adapters.Json, Boss4D.Adapters.Compiler, Boss4D.Tests.Mocks;
 
 { TTestLogger }
 

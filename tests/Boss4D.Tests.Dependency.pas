@@ -3,7 +3,7 @@ unit Boss4D.Tests.Dependency;
 interface
 
 uses
-  DUnitX.TestFramework, Boss4D.Core.Domain.Dependency;
+  DUnitX.TestFramework;
 
 type
   [TestFixture]
@@ -30,6 +30,9 @@ type
   end;
 
 implementation
+
+uses
+  Boss4D.Core.Domain.Dependency;
 
 { TTestsDependency }
 

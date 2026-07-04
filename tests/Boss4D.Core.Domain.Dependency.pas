@@ -2,6 +2,8 @@ unit Boss4D.Core.Domain.Dependency;
 
 interface
 
+uses
+  System.SysUtils;
 
 type
   { Representa uma dependencia individual do projeto }
@@ -30,7 +32,7 @@ type
 implementation
 
 uses
-  System.SysUtils, System.RegularExpressions, System.Hash;
+  System.RegularExpressions, System.Hash;
 
 { TBoss4DDependency }
 
@@ -121,7 +123,7 @@ begin
   LRepo := ADepStr;
   LVer := '>=0.0.0';
   LLastAtIdx := ADepStr.LastIndexOf('@');
-
+  
   if LLastAtIdx >= 0 then
   begin
     LFirstAtIdx := ADepStr.IndexOf('@');
