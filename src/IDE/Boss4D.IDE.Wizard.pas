@@ -155,20 +155,62 @@ var
   GWizardIdx: Integer = -1;
 
 procedure Register;
+var
+  LBitmap: Vcl.Graphics.TBitmap;
+  LSplashServices: IOTASplashScreenServices;
+  LAboutServices: IOTAAboutBoxServices;
 begin
   {$IFDEF IDE_PLUGIN}
   RegisterPackageWizard(TBoss4DIDEWizard.Create as IOTAWizard);
 
-  var LSplashServices: IOTASplashScreenServices;
-  if Supports(BorlandIDEServices, IOTASplashScreenServices, LSplashServices) then
+  // Registro na Splash Screen usando a variavel global oficial da ToolsAPI
+  if Supports(SplashScreenServices, IOTASplashScreenServices, LSplashServices) then
   begin
-    LSplashServices.AddPluginBitmap(
-      'Boss4D IDE Integration Plugin',
-      0,
-      False,
-      'Registered',
-      ''
-    );
+    LBitmap := Vcl.Graphics.TBitmap.Create;
+    try
+      LBitmap.SetSize(24, 24);
+      LBitmap.Canvas.Brush.Color := clPurple;
+      LBitmap.Canvas.FillRect(Rect(0, 0, 24, 24));
+      LBitmap.Canvas.Font.Color := clWhite;
+      LBitmap.Canvas.Font.Name := 'Segoe UI';
+      LBitmap.Canvas.Font.Style := [fsBold];
+      LBitmap.Canvas.TextOut(4, 4, 'B4D');
+
+      LSplashServices.AddPluginBitmap(
+        'Boss4D IDE Integration Plugin',
+        LBitmap.Handle,
+        False,
+        'Registered',
+        'Production'
+      );
+    finally
+      LBitmap.Free;
+    end;
+  end;
+
+  // Registro no About Box usando BorlandIDEServices
+  if Supports(BorlandIDEServices, IOTAAboutBoxServices, LAboutServices) then
+  begin
+    LBitmap := Vcl.Graphics.TBitmap.Create;
+    try
+      LBitmap.SetSize(24, 24);
+      LBitmap.Canvas.Brush.Color := clPurple;
+      LBitmap.Canvas.FillRect(Rect(0, 0, 24, 24));
+      LBitmap.Canvas.Font.Color := clWhite;
+      LBitmap.Canvas.Font.Name := 'Segoe UI';
+      LBitmap.Canvas.Font.Style := [fsBold];
+      LBitmap.Canvas.TextOut(4, 4, 'B4D');
+
+      LAboutServices.AddPluginInfo(
+        'Boss4D IDE Integration Plugin',
+        'Plugin do Boss4D para gerenciamento nativo de dependencias',
+        LBitmap.Handle,
+        False,
+        '1.0.0'
+      );
+    finally
+      LBitmap.Free;
+    end;
   end;
   {$ENDIF}
 end;
