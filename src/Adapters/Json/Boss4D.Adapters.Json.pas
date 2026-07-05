@@ -300,6 +300,7 @@ procedure TBoss4DPackageJsonRepository.Save(const APackage: TBoss4DPackage; cons
 var
   LJSONObj: TJSONObject;
   LJSONStr: string;
+  LEncoding: TEncoding;
 begin
   LJSONObj := TJSONObject.Create;
   try
@@ -321,7 +322,12 @@ begin
     SavePackageToolchain(LJSONObj, APackage);
 
     LJSONStr := LJSONObj.Format(2);
-    TFile.WriteAllText(APackagePath, LJSONStr, TEncoding.UTF8);
+    LEncoding := TUTF8Encoding.Create(False); // UTF-8 sem BOM para compatibilidade com o parser Go original
+    try
+      TFile.WriteAllText(APackagePath, LJSONStr, LEncoding);
+    finally
+      LEncoding.Free;
+    end;
   finally
     LJSONObj.Free;
   end;
@@ -396,6 +402,7 @@ var
   LArtifactsObj: TJSONObject;
   LBinArr, LDcpArr, LDcuArr, LBplArr: TJSONArray;
   LJSONStr: string;
+  LEncoding: TEncoding;
 begin
   LJSONObj := TJSONObject.Create;
   try
@@ -437,7 +444,12 @@ begin
     LJSONObj.AddPair('installedModules', LInstalledObj);
 
     LJSONStr := LJSONObj.Format(2);
-    TFile.WriteAllText(ALockPath, LJSONStr, TEncoding.UTF8);
+    LEncoding := TUTF8Encoding.Create(False); // UTF-8 sem BOM para compatibilidade com o parser Go original
+    try
+      TFile.WriteAllText(ALockPath, LJSONStr, LEncoding);
+    finally
+      LEncoding.Free;
+    end;
   finally
     LJSONObj.Free;
   end;
