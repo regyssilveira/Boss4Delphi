@@ -480,13 +480,24 @@ begin
 end;
 
 procedure TBoss4DProjectManagerMenu.RunBoss4DCommand(const AProjectDir: string; const ACommand: string);
+{$IFDEF IDE_PLUGIN}
+var
+  LMessageServices: IOTAMessageServices;
+  LGroup: IOTAMessageGroup;
+{$ENDIF}
 begin
   {$IFDEF IDE_PLUGIN}
+  if not Supports(BorlandIDEServices, IOTAMessageServices, LMessageServices) then
+    Exit;
+
+  LGroup := LMessageServices.AddMessageGroup('Boss4D');
+  LMessageServices.ClearMessageGroup(LGroup);
+  LMessageServices.ShowMessageView(LGroup);
+  LMessageServices.AddTitleMessage('Executando: boss4d ' + ACommand, LGroup);
+
   TThread.CreateAnonymousThread(
     procedure
     var
-      LMessageServices: IOTAMessageServices;
-      LGroup: IOTAMessageGroup;
       LSA: TSecurityAttributes;
       LReadPipe, LWritePipe: THandle;
       LStartInfo: TStartupInfo;
@@ -500,22 +511,6 @@ begin
       LTextBuffer: string;
       LPos: Integer;
     begin
-      if not Supports(BorlandIDEServices, IOTAMessageServices, LMessageServices) then
-        Exit;
-
-      LGroup := LMessageServices.AddMessageGroup('Boss4D');
-      
-      TThread.Queue(nil,
-        TThreadProcedure(
-          procedure
-          begin
-            LMessageServices.ClearMessageGroup(LGroup);
-            LMessageServices.ShowMessageView(LGroup);
-            LMessageServices.AddTitleMessage('Executando: boss4d ' + ACommand, LGroup);
-          end
-        )
-      );
-
       LExecutable := 'boss4d.exe';
       LHomePath := TPath.Combine(GetEnvironmentVariable('USERPROFILE'), '.boss\bin');
       if TFile.Exists(TPath.Combine(LHomePath, 'boss4d.exe')) then
