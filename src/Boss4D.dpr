@@ -29,6 +29,7 @@ uses
   Boss4D.Core.Services.License in 'Core/Services/Boss4D.Core.Services.License.pas',
   Boss4D.Core.Services.Tree in 'Core/Services/Boss4D.Core.Services.Tree.pas',
   Boss4D.Core.Services.Outdated in 'Core/Services/Boss4D.Core.Services.Outdated.pas',
+  Boss4D.Core.Services.IDEIntegration in 'Core/Services/Boss4D.Core.Services.IDEIntegration.pas',
   Boss4D.CLI.Parser in 'CLI/Boss4D.CLI.Parser.pas';
 
 var

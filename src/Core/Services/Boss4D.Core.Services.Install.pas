@@ -46,7 +46,9 @@ implementation
 uses
   System.SysUtils, System.Classes, System.IOUtils, System.Hash,
   Boss4D.Core.Domain.Package, Boss4D.Core.Domain.SemVer, Boss4D.Core.Domain.Consts,
-  Boss4D.Core.Domain.Env;
+  Boss4D.Core.Domain.Env,
+  Boss4D.Adapters.Registry,
+  Boss4D.Core.Services.IDEIntegration;
 
 { TBoss4DInstallService }
 
@@ -295,6 +297,15 @@ begin
     FLockRepo.Save(LLock, LLockPath);
 
     FLogger.Log(TBoss4DLogLevel.Info, 'Instalacao concluida com sucesso!');
+
+    // Dispara a integracao automatica de Library Paths na IDE
+    var LRegistry: IBoss4DRegistryService := TBoss4DWindowsRegistryAdapter.Create;
+    var LIDEIntegration := TBoss4DIDEIntegrationService.Create(LRegistry, FLogger);
+    try
+      LIDEIntegration.IntegrateLibraryPaths(APlatform);
+    finally
+      LIDEIntegration.Free;
+    end;
   finally
     LTasks.Free;
     LProcessedDeps.Free;

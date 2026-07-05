@@ -73,19 +73,24 @@ type
 
     [Test]
     procedure TestMultiplatformCompilation;
+
+    [Test]
+    procedure TestIDEIntegration;
   end;
 
 implementation
 
 uses
   Winapi.Windows, System.SysUtils, System.IOUtils, System.Generics.Collections,
+  System.Win.Registry,
   Boss4D.Core.Domain.Package, Boss4D.Core.Domain.Lock, Boss4D.Core.Domain.Dependency,
   Boss4D.Core.Domain.Consts, Boss4D.Core.Domain.Env, Boss4D.Core.Services.Init,
   Boss4D.Core.Services.Config, Boss4D.Core.Services.Install, Boss4D.CLI.Parser,
   Boss4D.Adapters.Json, Boss4D.Adapters.Compiler, Boss4D.Tests.Mocks,
   Boss4D.Core.Services.Cache, Boss4D.Core.Services.Run,
   Boss4D.Core.Services.Doctor, Boss4D.Core.Services.License,
-  Boss4D.Core.Services.Tree, Boss4D.Core.Services.Outdated;
+  Boss4D.Core.Services.Tree, Boss4D.Core.Services.Outdated,
+  Boss4D.Core.Services.IDEIntegration;
 
 { TTestLogger }
 
@@ -779,6 +784,61 @@ begin
     Assert.IsTrue(TFile.Exists(TPath.Combine(TDirectory.GetCurrentDirectory, FILE_PACKAGE_LOCK)));
   finally
     LInstall.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDEIntegration;
+var
+  LRegistryMock: IBoss4DRegistryService;
+  LIntegration: TBoss4DIDEIntegrationService;
+  LReg: TRegistry;
+  LTestKey: string;
+  LSearchPath: string;
+begin
+  LRegistryMock := TRegistryMock.Create;
+  LIntegration := TBoss4DIDEIntegrationService.Create(LRegistryMock, TTestLogger.Create);
+  try
+    // 1. Redireciona o Registro para nossa pasta de teste isolada
+    LIntegration.RegistryKeyPrefix := 'Software\Boss4DTests\BDS\';
+    
+    // 2. Prepara o Registro criando a chave de teste da versao 22.0
+    LReg := TRegistry.Create(KEY_WRITE);
+    try
+      LReg.RootKey := HKEY_CURRENT_USER;
+      LTestKey := 'Software\Boss4DTests\BDS\22.0\Library\Win32';
+      Assert.IsTrue(LReg.CreateKey(LTestKey));
+      LReg.OpenKey(LTestKey, True);
+      LReg.WriteString('Search Path', 'C:\PastaExistente');
+    finally
+      LReg.Free;
+    end;
+
+    // 3. Executa a integracao para a plataforma Win32
+    LIntegration.IntegrateLibraryPaths('Win32');
+
+    // 4. Valida se o caminho do DCU unificado foi inserido com sucesso
+    LReg := TRegistry.Create(KEY_READ);
+    try
+      LReg.RootKey := HKEY_CURRENT_USER;
+      Assert.IsTrue(LReg.OpenKey(LTestKey, False));
+      LSearchPath := LReg.ReadString('Search Path');
+      
+      Assert.IsTrue(LSearchPath.Contains('C:\PastaExistente'));
+      Assert.IsTrue(LSearchPath.Contains('modules\dcu'));
+    finally
+      LReg.Free;
+    end;
+
+    // 5. Limpa a chave do Registro de teste
+    LReg := TRegistry.Create(KEY_WRITE);
+    try
+      LReg.RootKey := HKEY_CURRENT_USER;
+      LReg.DeleteKey('Software\Boss4DTests');
+    finally
+      LReg.Free;
+    end;
+  finally
+    LIntegration.Free;
   end;
 end;
 
