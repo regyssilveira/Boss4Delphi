@@ -387,6 +387,18 @@ boss4d plugin install github.com/regyssilveira/RadIA-Plugin
   🚀 Plugin "RadIAPlugin" instalado e registrado com sucesso!
   ```
 
+### Instalando o Plugin Oficial do Boss4D no Delphi
+O Boss4D acompanha um plugin nativo de IDE (`Boss4D.IDE.Plugin`) que adiciona atalhos de gerenciamento no Project Manager e canaliza mensagens de build diretamente no Message View.
+
+* **Como instalar**:
+  1. Abra o arquivo de projeto do pacote `src/IDE/Boss4D.IDE.Plugin.dproj` na sua IDE do Delphi.
+  2. No Project Manager, clique com o botão direito no pacote e selecione **Install**.
+  3. A IDE carregará o Wizard e exibirá uma confirmação de registro.
+* **Como usar**:
+  1. No Project Manager, clique com o botão direito sobre o seu projeto ou grupo de projetos.
+  2. Navegue até o menu **Boss4D** e escolha **Boss4D Init** (para inicializar) ou **Boss4D Install** (para baixar e compilar dependências).
+  3. O progresso da compilação e download da CLI será impresso em tempo real na aba **Boss4D** do painel inferior Message View no rodapé da IDE.
+
 ---
 
 ## 📦 13. Integração e Ponte com GetIt (`getit`)
