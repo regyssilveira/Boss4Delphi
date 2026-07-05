@@ -27,8 +27,7 @@ uses
   System.SysUtils,
   System.IOUtils,
   System.Generics.Collections,
-  Boss4D.Core.Domain.Env,
-  Winapi.Windows;
+  Boss4D.Core.Domain.Env;
 
 { TBoss4DGitCliAdapter }
 

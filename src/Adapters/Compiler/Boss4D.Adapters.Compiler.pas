@@ -38,8 +38,7 @@ uses
   Boss4D.Core.Domain.Consts,
   Boss4D.Core.Domain.Env,
   Boss4D.Core.Domain.Package,
-  Boss4D.Adapters.Json,
-  Winapi.Windows;
+  Boss4D.Adapters.Json;
 
 { TBoss4DDelphiCompilerAdapter }
 
