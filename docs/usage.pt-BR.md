@@ -294,6 +294,21 @@ Além de repositórios remotos privados, você pode declarar dependências locai
 * Caminhos Locais: `"file:///d:/Projetos/MinhaLib"` ou `"d:\Projetos\MinhaLib"`
 * Caminhos de Rede UNC: `"\\servidor\compartilhado\MinhaLib"`
 
+### 🌳 Suporte a Workspaces (Monorepos)
+Em repositórios contendo múltiplos subprojetos Delphi que compartilham dependências, declare as pastas do workspace no `boss.json` raiz:
+```json
+{
+  "name": "meu-monorepo",
+  "workspaces": [
+    "subprojects/*"
+  ]
+}
+```
+Ao executar `boss4d install` na raiz do monorepo, o resolvedor:
+1. Mapeia e unifica recursivamente todas as dependências declaradas na raiz e nos subprojetos.
+2. Baixa e compila uma única vez na pasta `modules/` raiz.
+3. Cria Junções de Diretório (`Directory Junctions` via `mklink /J` no Windows) da pasta `modules/` raiz dentro de cada subprojeto automaticamente, eliminando duplicações de arquivos e permitindo a compilação local transparente na IDE.
+
 ---
 
 ## 🌐 10. Compilação Multiplataforma (`--platform`)
@@ -326,21 +341,78 @@ boss4d install github.com/hashload/horse -p Win64
 Você pode instalar utilitários de linha de comando feitos em Delphi de forma global em sua máquina com apenas um comando. O Boss4D baixa as fontes, compila de forma nativa e distribui o executável final em uma pasta global adicionável ao seu PATH.
 
 ```bash
+# Instalar uma ferramenta globalmente
 boss4d tool install -g github.com/hashload/boss
+
+# Atualizar uma ferramenta global instalada
+boss4d tool update boss github.com/hashload/boss
+
+# Desinstalar uma ferramenta global
+boss4d tool uninstall boss
 ```
 
-* **Exemplo de Saída**:
+* **Exemplo de Saída (`uninstall`)**:
   ```text
+  ✅ Ferramenta "boss" desinstalada com sucesso.
+  ```
+
+* **Exemplo de Saída (`update`)**:
+  ```text
+  Atualizando ferramenta "boss"...
   Iniciando instalacao global da ferramenta: github.com/hashload/boss
     Clonando fontes...
     Compilando executavel...
   🚀 Ferramenta "boss" instalada com sucesso em: C:\Users\regys\.boss\bin\boss.exe
-  Dica: Certifique-se de adicionar a pasta "C:\Users\regys\.boss\bin" ao PATH do sistema.
   ```
 
 ---
 
-## 🔍 12. Comandos Utilitários
+---
+
+## 🔌 12. Instalação de Plugins e Extensões da IDE (`plugin`)
+
+Você pode compilar e instalar plugins, assistentes e assistentes de inteligência artificial (como o *RadIA-Plugin*) diretamente na IDE do RAD Studio de forma totalmente automatizada. O Boss4D detecta as IDEs instaladas no Registry, compila o arquivo de extensão (.bpl), copia-o para a pasta `%APPDATA%\Boss4D\plugins\` e o registra na chave `Known IDE Packages` correspondente do RAD Studio.
+
+```bash
+boss4d plugin install github.com/regyssilveira/RadIA-Plugin
+```
+
+* **Exemplo de Saída**:
+  ```text
+  Iniciando instalacao de plugin de IDE: github.com/regyssilveira/RadIA-Plugin
+    Clonando fontes do plugin...
+    Compilando plugin...
+    Registrando plugin no RAD Studio...
+    [OK] Plugin registrado em Known IDE Packages (Delphi 23.0).
+  🚀 Plugin "RadIAPlugin" instalado e registrado com sucesso!
+  ```
+
+---
+
+## 📦 13. Integração e Ponte com GetIt (`getit`)
+
+O Boss4D fornece uma ponte direta e integrada com o repositório oficial Embarcadero GetIt. Isso permite a instalação automatizada e silenciosa de bibliotecas oficiais diretamente através do utilitário `GetItCmd.exe` da IDE Delphi, além do gerenciamento de conectividade online/offline da IDE em ambientes corporativos.
+
+```bash
+# Instalar um pacote oficial do GetIt
+boss4d getit install Jcl
+
+# Mudar o GetIt para modo online
+boss4d getit mode-online
+
+# Mudar o GetIt para modo offline (corporativo)
+boss4d getit mode-offline
+```
+
+* **Exemplo de Saída (`getit install`)**:
+  ```text
+  Iniciando instalacao via GetIt: Jcl
+  🚀 Pacote "Jcl" instalado com sucesso via GetIt!
+  ```
+
+---
+
+## 🔍 14. Comandos Utilitários
 
 ### Verificar Versão da CLI
 Exibe a versão atual do binário:

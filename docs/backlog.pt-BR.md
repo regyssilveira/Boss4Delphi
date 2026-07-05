@@ -47,8 +47,8 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## ⚙️ Épico 4: Integração de Componentes e Library Paths na IDE
 *Objetivo: Automatizar as tarefas de configuração manual pós-instalação de componentes de Design-Time na paleta de componentes do Delphi.*
 
-- [ ] **[Story] Injeção e Registro de BPLs de Design-Time**
-  - Analisar as dependências recém-baixadas, localizar as BPLs de Design-time geradas e registrá-las no registro do Windows do Delphi (`HKEY_CURRENT_USER\Software\Embarcadero\BDS\<versao>\Known Packages`) para que os componentes apareçam na paleta da IDE automaticamente.
+- [x] **[Story] Injeção e Registro de BPLs de Design-Time**
+  - Analisar as dependências recém-baixadas, localizar as BPLs de Design-time geradas e registrá-las no registro do Windows do Delphi (`HKEY_CURRENT_USER\Software\Embarcadero\BDS\<versao>\Known Packages` e `Known IDE Packages`) para que os componentes apareçam na paleta da IDE automaticamente.
 - [x] **[Story] Gerenciamento Automático de Library Paths da IDE**
   - Injetar de forma inteligente as pastas de DCU unificadas (`modules/dcu`) ou caminhos de busca no Library Path global do RAD Studio do desenvolvedor, eliminando a necessidade de configurar os caminhos manualmente após a instalação.
 - [ ] **[Story] DCU Megafolders e Otimização de Cache**
@@ -71,7 +71,7 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 
 - [x] **[Story] Instalação Global de Ferramentas (`boss4d tool install -g <repo>`)**
   - Baixar, compilar e registrar no PATH do Windows executáveis utilitários criados em Delphi (ex: formatadores de código, geradores de código, linters).
-- [ ] **[Story] Gerenciamento de Versões de Ferramentas**
+- [x] **[Story] Gerenciamento de Versões de Ferramentas**
   - Permitir a atualização (`boss4d tool update`) e desinstalação (`boss4d tool uninstall`) de utilitários globais.
 
 ---
@@ -89,9 +89,9 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 🗂️ Épico 8: Suporte a Workspaces e Multi-Projetos (Monorepos)
 *Objetivo: Facilitar a manutenção de múltiplos projetos locais Delphi sob o mesmo repositório que compartilham dependências comuns (Inspirado em Rust/npm Workspaces).*
 
-- [ ] **[Story] Manifesto de Workspaces no `boss.json` raiz**
+- [x] **[Story] Manifesto de Workspaces no `boss.json` raiz**
   - Suportar a declaração de `"workspaces": [ "projects/*" ]` no manifesto da raiz do repositório.
-- [ ] **[Story] Compartilhamento Inteligente da pasta `modules/`**
+- [x] **[Story] Compartilhamento Inteligente da pasta `modules/`**
   - Evitar downloads e compilações redundantes mantendo todas as dependências centralizadas na pasta `modules/` raiz, com o resolvedor interligando as referências relativas dos subprojetos internos automaticamente.
 
 ---
@@ -99,19 +99,19 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 🔌 Épico 9: Instalação de Plugins e Extensões Globais do RAD Studio
 *Objetivo: Permitir a instalação automatizada e registro de plugins e assistentes da própria IDE do Delphi (como o RadIA-Plugin) de forma global na máquina.*
 
-- [ ] **[Story] Suporte a Tipo "Plugin" no `boss.json`**
+- [x] **[Story] Suporte a Tipo "Plugin" no `boss.json`**
   - Reconhecer e configurar manifestos com o atributo `"type": "plugin"` ou `"type": "ide-extension"`.
-- [ ] **[Story] Instalação de Plugins via CLI (`boss4d plugin install <repo>`)**
-  - Clonar o repositório do assistente, compilar sua BPL de design-time, movê-la para o diretório central de plugins `%APPDATA%\Boss4D\plugins\` e registrá-la automaticamente no Registro do Windows do RAD Studio sob a chave `Known Packages` das IDEs detectadas.
+- [x] **[Story] Instalação de Plugins via CLI (`boss4d plugin install <repo>`)**
+  - Clonar o repositório do assistente, compilar sua BPL de design-time, movê-la para o diretório central de plugins `%APPDATA%\Boss4D\plugins\` e registrá-la automaticamente no Registro do Windows do RAD Studio sob a chave `Known Packages` e `Known IDE Packages` das IDEs detectadas.
 
 ---
 
 ## 📦 Épico 10: Integração e Ponte com o GetIt Package Manager
 *Objetivo: Integrar e unificar o gerenciamento de dependências Git open-source com o catálogo de pacotes comerciais e oficiais do GetIt do Delphi.*
 
-- [ ] **[Story] Interação de Ponte com o `GetItCmd.exe`**
+- [x] **[Story] Interação de Ponte com o `GetItCmd.exe`**
   - Executar comandos de busca, listagem e instalação de dependências oficiais chamando silenciosamente o utilitário CLI do GetIt nativo do Delphi ativo.
-- [ ] **[Story] Configuração do Modo Online/Offline do GetIt**
+- [x] **[Story] Configuração do Modo Online/Offline do GetIt**
   - Disponibilizar atalhos CLI no Boss4D para reconfigurar a conectividade do GetIt (ex: `boss4d getit mode-online`) de forma simplificada em ambientes corporativos ou pós-instalação da IDE.
 
 ---

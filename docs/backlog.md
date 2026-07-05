@@ -47,8 +47,8 @@ This document details the future planning, new features (backlog), and architect
 ## ⚙️ Epic 4: IDE Component and Library Path Integration
 *Objective: Automate post-install configuration tasks of Design-time components inside the Delphi component palette.*
 
-- [ ] **[Story] Design-Time BPL Injection and Registration**
-  - Parse newly downloaded dependencies, locate generated Design-time BPLs, and register them in the Delphi Windows Registry (`HKEY_CURRENT_USER\Software\Embarcadero\BDS\<version>\Known Packages`) so components show up in the IDE palette automatically.
+- [x] **[Story] Design-Time BPL Injection and Registration**
+  - Parse newly downloaded dependencies, locate generated Design-time BPLs, and register them in the Delphi Windows Registry (`HKEY_CURRENT_USER\Software\Embarcadero\BDS\<version>\Known Packages` and `Known IDE Packages`) so components show up in the IDE palette automatically.
 - [x] **[Story] Automatic IDE Library Path Management**
   - Intelligently inject unified DCU folders (`modules/dcu`) or search paths into the developer's global RAD Studio Library Path, eliminating the need to configure search paths manually.
 - [ ] **[Story] DCU Megafolders and Cache Optimization**
@@ -71,7 +71,7 @@ This document details the future planning, new features (backlog), and architect
 
 - [x] **[Story] Global Tool Installation (`boss4d tool install -g <repo>`)**
   - Download, compile, and register Delphi-based utility executables (e.g., code formatters, code generators, linters) in the Windows PATH.
-- [ ] **[Story] Tool Version Management**
+- [x] **[Story] Tool Version Management**
   - Allow upgrading (`boss4d tool update`) and uninstalling (`boss4d tool uninstall`) global utilities.
 
 ---
@@ -89,9 +89,9 @@ This document details the future planning, new features (backlog), and architect
 ## 🗂️ Epic 8: Workspaces and Multi-Project Support (Monorepos)
 *Objective: Simplify maintenance of multiple local Delphi projects sharing common dependencies under the same repository (Inspired by Rust/npm Workspaces).*
 
-- [ ] **[Story] Workspaces Manifesto in root `boss.json`**
+- [x] **[Story] Workspaces Manifesto in root `boss.json`**
   - Support declaring `"workspaces": [ "projects/*" ]` in the root repository manifest.
-- [ ] **[Story] Intelligent Folder Sharing for `modules/`**
+- [x] **[Story] Intelligent Folder Sharing for `modules/`**
   - Prevent redundant downloads and builds by centralizing all dependencies in the root `modules/` folder, with the resolver automatically mapping relative references for internal subprojects.
 
 ---
@@ -99,19 +99,19 @@ This document details the future planning, new features (backlog), and architect
 ## 🔌 Epic 9: RAD Studio Global Plugin and Extension Installation
 *Objective: Allow automated installation and registration of Delphi IDE plugins and assistants (like the RadIA-Plugin) globally on the system.*
 
-- [ ] **[Story] "Plugin" Type Support in `boss.json`**
+- [x] **[Story] "Plugin" Type Support in `boss.json`**
   - Recognize and configure manifests with a `"type": "plugin"` or `"type": "ide-extension"` attribute.
-- [ ] **[Story] Plugin Installation via CLI (`boss4d plugin install <repo>`)**
-  - Clone the assistant's repository, compile its design-time BPL, move it to the central plugins directory `%APPDATA%\Boss4D\plugins\`, and register it automatically in the Windows Registry under the `Known Packages` key of all detected RAD Studio versions.
+- [x] **[Story] Plugin Installation via CLI (`boss4d plugin install <repo>`)**
+  - Clone the assistant's repository, compile its design-time BPL, move it to the central plugins directory `%APPDATA%\Boss4D\plugins\`, and register it automatically in the Windows Registry under the `Known Packages` and `Known IDE Packages` key of all detected RAD Studio versions.
 
 ---
 
 ## 📦 Epic 10: Integration and Bridge with GetIt Package Manager
 *Objective: Integrate and unify open-source Git dependency management with Delphi's official commercial and native GetIt package catalog.*
 
-- [ ] **[Story] Bridge Interaction with `GetItCmd.exe`**
+- [x] **[Story] Bridge Interaction with `GetItCmd.exe`**
   - Execute search, list, and install commands for official Embarcadero dependencies by silently calling the native GetIt CLI utility of the active Delphi installation.
-- [ ] **[Story] GetIt Online/Offline Mode Configuration**
+- [x] **[Story] GetIt Online/Offline Mode Configuration**
   - Expose CLI shortcuts in Boss4D to easily reconfigure GetIt connectivity (e.g., `boss4d getit mode-online`) in corporate environments or post-IDE installation.
 
 ---
