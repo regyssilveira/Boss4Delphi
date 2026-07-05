@@ -91,6 +91,9 @@ type
 
     [Test]
     procedure TestWorkspacesMonorepos;
+
+    [Test]
+    procedure TestGetItBridge;
   end;
 
 implementation
@@ -105,7 +108,7 @@ uses
   Boss4D.Core.Services.Cache, Boss4D.Core.Services.Run,
   Boss4D.Core.Services.Doctor, Boss4D.Core.Services.License,
   Boss4D.Core.Services.Tree, Boss4D.Core.Services.Outdated,
-  Boss4D.Core.Services.IDEIntegration, Boss4D.Core.Services.Tool, Boss4D.Core.Services.Workspace;
+  Boss4D.Core.Services.IDEIntegration, Boss4D.Core.Services.Tool, Boss4D.Core.Services.Workspace, Boss4D.Core.Services.GetIt;
 
 { TTestLogger }
 
@@ -1100,6 +1103,36 @@ begin
     ExecuteCommandLine('cmd.exe /c rmdir "' + TPath.Combine(LApp2Dir, 'modules') + '"', LMonorepoRoot, LOutput);
     if TDirectory.Exists(LMonorepoRoot) then
       TDirectory.Delete(LMonorepoRoot, True);
+  end;
+end;
+
+procedure TTestsServices.TestGetItBridge;
+var
+  LRegistryMock: IBoss4DRegistryService;
+  LGetItService: TBoss4DGetItBridgeService;
+  LTempDir: string;
+  LFakeGetItCmd: string;
+begin
+  LTempDir := TPath.Combine(TPath.GetTempPath, 'boss4d_getit_test_' + TGUID.NewGuid.ToString);
+  TDirectory.CreateDirectory(LTempDir);
+  TDirectory.CreateDirectory(TPath.Combine(LTempDir, 'bin'));
+
+  LFakeGetItCmd := TPath.Combine(TPath.Combine(LTempDir, 'bin'), 'GetItCmd.exe');
+  TFile.Copy('C:\Windows\System32\cmd.exe', LFakeGetItCmd, True);
+
+  LRegistryMock := TRegistryMock.Create;
+  TRegistryMock(LRegistryMock).Path22 := LTempDir;
+  TRegistryMock(LRegistryMock).Path23 := LTempDir;
+
+  LGetItService := TBoss4DGetItBridgeService.Create(LRegistryMock, TTestLogger.Create);
+  try
+    LGetItService.InstallPackage('horse');
+    LGetItService.SetGetItMode(True);
+    LGetItService.SetGetItMode(False);
+  finally
+    LGetItService.Free;
+    if TDirectory.Exists(LTempDir) then
+      TDirectory.Delete(LTempDir, True);
   end;
 end;
 

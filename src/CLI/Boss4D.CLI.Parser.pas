@@ -8,7 +8,8 @@ uses
   Boss4D.Core.Services.Cache, Boss4D.Core.Services.Run,
   Boss4D.Core.Services.Doctor, Boss4D.Core.Services.License,
   Boss4D.Core.Services.Tree, Boss4D.Core.Services.Outdated,
-  Boss4D.Core.Services.Tool, Boss4D.Core.Services.IDEIntegration;
+  Boss4D.Core.Services.Tool, Boss4D.Core.Services.IDEIntegration,
+  Boss4D.Core.Services.GetIt;
 
 type
   { Interpretador e orquestrador de comandos da linha de comando (CLI) }
@@ -34,6 +35,7 @@ type
     procedure HandleOutdated(const AArgs: TArray<string>);
     procedure HandleTool(const AArgs: TArray<string>);
     procedure HandlePlugin(const AArgs: TArray<string>);
+    procedure HandleGetIt(const AArgs: TArray<string>);
   public
     constructor Create(
       const ALogger: IBoss4DLogger;
@@ -150,7 +152,9 @@ begin
   else if LCommand = 'tool' then
     HandleTool(AArgs)
   else if LCommand = 'plugin' then
-    HandlePlugin(AArgs);
+    HandlePlugin(AArgs)
+  else if LCommand = 'getit' then
+    HandleGetIt(AArgs);
 end;
 
 procedure TBoss4DCommandLineParser.HandleInit(const AArgs: TArray<string>);
@@ -498,6 +502,45 @@ begin
     LLock.Free;
     LDep.Free;
     LIDEIntegration.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleGetIt(const AArgs: TArray<string>);
+var
+  LGetItService: TBoss4DGetItBridgeService;
+begin
+  if Length(AArgs) < 2 then
+  begin
+    FLogger.Log(TBoss4DLogLevel.Warning, 'Uso invalido do comando getit.');
+    FLogger.Log(TBoss4DLogLevel.Info, 'Uso:');
+    FLogger.Log(TBoss4DLogLevel.Info, '  boss4d getit install <pacote>');
+    FLogger.Log(TBoss4DLogLevel.Info, '  boss4d getit mode-online');
+    FLogger.Log(TBoss4DLogLevel.Info, '  boss4d getit mode-offline');
+    Exit;
+  end;
+
+  LGetItService := TBoss4DGetItBridgeService.Create(FRegistry, FLogger);
+  try
+    if SameText(AArgs[1], 'install') then
+    begin
+      if Length(AArgs) < 3 then
+        raise Exception.Create('Informe o nome do pacote para instalar.');
+      LGetItService.InstallPackage(AArgs[2]);
+    end
+    else if SameText(AArgs[1], 'mode-online') then
+    begin
+      LGetItService.SetGetItMode(True);
+    end
+    else if SameText(AArgs[1], 'mode-offline') then
+    begin
+      LGetItService.SetGetItMode(False);
+    end
+    else
+    begin
+      FLogger.Log(TBoss4DLogLevel.Warning, 'Subcomando getit invalido: ' + AArgs[1]);
+    end;
+  finally
+    LGetItService.Free;
   end;
 end;
 
