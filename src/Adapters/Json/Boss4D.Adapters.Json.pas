@@ -279,6 +279,7 @@ begin
       Result.Description := ReadString(LJSONObj, 'description');
       Result.Version := ReadString(LJSONObj, 'version');
       Result.Homepage := ReadString(LJSONObj, 'homepage');
+      Result.License := ReadString(LJSONObj, 'license');
       Result.MainSrc := ReadString(LJSONObj, 'mainsrc');
       Result.BrowsingPath := ReadString(LJSONObj, 'browsingpath');
 
@@ -308,6 +309,9 @@ begin
     LJSONObj.AddPair('description', APackage.Description);
     LJSONObj.AddPair('version', APackage.Version);
     LJSONObj.AddPair('homepage', APackage.Homepage);
+
+    if not APackage.License.IsEmpty then
+      LJSONObj.AddPair('license', APackage.License);
 
     if not APackage.MainSrc.IsEmpty then
       LJSONObj.AddPair('mainsrc', APackage.MainSrc);
@@ -375,6 +379,7 @@ begin
             LLockedDep.Name := ReadString(LDepObj, 'name');
             LLockedDep.Version := ReadString(LDepObj, 'version');
             LLockedDep.Hash := ReadString(LDepObj, 'hash');
+            LLockedDep.Checksum := ReadString(LDepObj, 'checksum');
 
             var LArtifactsObj := ReadObject(LDepObj, 'artifacts');
             if Assigned(LArtifactsObj) then
@@ -416,6 +421,9 @@ begin
       LDepObj.AddPair('name', LPair.Value.Name);
       LDepObj.AddPair('version', LPair.Value.Version);
       LDepObj.AddPair('hash', LPair.Value.Hash);
+
+      if not LPair.Value.Checksum.IsEmpty then
+        LDepObj.AddPair('checksum', LPair.Value.Checksum);
 
       // Artifacts
       LArtifactsObj := TJSONObject.Create;
