@@ -1,5 +1,9 @@
 # Boss4D
 
+<p align="center">
+  <img src="docs/imgs/header_boss4d.jpg" alt="Boss4D Header" width="100%">
+</p>
+
 O **Boss4D** é um gerenciador de dependências nativo e moderno para projetos Delphi, desenvolvido do zero com foco em **Delphi 13 em diante**. Ele é uma migração direta e otimizada do projeto original [HashLoad BOSS](https://github.com/HashLoad/boss) (escrito originalmente em Go), tornando-o nativo da própria plataforma para a qual é utilizado.
 
 ---
