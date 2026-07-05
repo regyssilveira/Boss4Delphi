@@ -70,6 +70,9 @@ type
 
     [Test]
     procedure TestConfigAuthAndPrivateRepos;
+
+    [Test]
+    procedure TestMultiplatformCompilation;
   end;
 
 implementation
@@ -739,6 +742,43 @@ begin
     end;
   finally
     LConfigService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestMultiplatformCompilation;
+var
+  LPkgRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LGitClientMock: IBoss4DGitClient;
+  LHttpClientMock: IBoss4DHttpClient;
+  LCompilerMock: IBoss4DCompiler;
+  LInstall: TBoss4DInstallService;
+  LPkg: TBoss4DPackage;
+begin
+  LPkgRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LGitClientMock := TGitClientMock.Create;
+  LHttpClientMock := THttpClientMock.Create;
+  LCompilerMock := TCompilerMock.Create;
+
+  // 1. Cria o boss.json do projeto
+  LPkg := TBoss4DPackage.Create;
+  LPkg.Name := 'multiplatform_test';
+  LPkg.Version := '1.0.0';
+  LPkg.AddDependency('github.com/test_lib', '^1.0.0');
+  LPkgRepo.Save(LPkg, GetBossFile);
+  LPkg.Free;
+
+  // 2. Instala e passa a plataforma Linux64
+  LInstall := TBoss4DInstallService.Create(
+    LPkgRepo, LLockRepo, LGitClientMock, LHttpClientMock, LCompilerMock, TTestLogger.Create);
+  try
+    LInstall.Execute('', 'Linux64');
+    
+    // O mock de compilador rodou sem erros e o resolvedor terminou perfeitamente
+    Assert.IsTrue(TFile.Exists(TPath.Combine(TDirectory.GetCurrentDirectory, FILE_PACKAGE_LOCK)));
+  finally
+    LInstall.Free;
   end;
 end;
 

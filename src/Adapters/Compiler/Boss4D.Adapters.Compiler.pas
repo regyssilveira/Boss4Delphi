@@ -23,8 +23,8 @@ type
     constructor Create(const ARegistry: IBoss4DRegistryService; const ALogger: IBoss4DLogger);
 
     function FindRsvarsPath(out ARsvarsPath: string; out APlatform: string): Boolean;
-    function Compile(const ADprojPath: string; const ADep: TBoss4DDependency; const ARootLock: TBoss4DLock): Boolean;
-    function BuildSearchPath(const ADep: TBoss4DDependency): string;
+    function Compile(const ADprojPath: string; const ADep: TBoss4DDependency; const ARootLock: TBoss4DLock; const APlatform: string = ''): Boolean;
+    function BuildSearchPath(const ADep: TBoss4DDependency; const APlatform: string = ''): string;
   end;
 
 implementation
@@ -159,7 +159,7 @@ begin
             ' /p:platform=' + APlatform + ' ';
 end;
 
-function TBoss4DDelphiCompilerAdapter.BuildSearchPath(const ADep: TBoss4DDependency): string;
+function TBoss4DDelphiCompilerAdapter.BuildSearchPath(const ADep: TBoss4DDependency; const APlatform: string = ''): string;
 var
   LSearchPath: string;
   LPackagePath: string;
@@ -194,7 +194,7 @@ begin
     var LSubDeps := LPackageData.GetParsedDependencies;
     for var LSubDep in LSubDeps do
     begin
-      LSearchPath := LSearchPath + ';' + BuildSearchPath(LSubDep);
+      LSearchPath := LSearchPath + ';' + BuildSearchPath(LSubDep, APlatform);
       LSubDep.Free;
     end;
   finally
@@ -211,7 +211,7 @@ begin
 end;
 
 function TBoss4DDelphiCompilerAdapter.Compile(const ADprojPath: string; const ADep: TBoss4DDependency;
-  const ARootLock: TBoss4DLock): Boolean;
+  const ARootLock: TBoss4DLock; const APlatform: string = ''): Boolean;
 var
   LRsvarsPath, LPlatform: string;
   LAbsDir, LBuildLog, LBuildBat, LCfgPath: string;
@@ -226,6 +226,9 @@ begin
     FLogger.Log(TBoss4DLogLevel.Error, 'Delphi Environment (rsvars.bat) nao encontrado no registro.');
     Exit;
   end;
+
+  if not APlatform.IsEmpty then
+    LPlatform := APlatform;
 
   FLogger.Log(TBoss4DLogLevel.Info, '  Compilando ' + TPath.GetFileName(ADprojPath));
 
@@ -245,7 +248,7 @@ begin
     LCfgContent.AppendLine('-I"' + LDcpPath + '"');
     LCfgContent.AppendLine('-U"' + LDcpPath + '"');
 
-    var LSearchPathStr := BuildSearchPath(ADep);
+    var LSearchPathStr := BuildSearchPath(ADep, LPlatform);
     if not LSearchPathStr.IsEmpty then
     begin
       var LPaths := LSearchPathStr.Split([';']);

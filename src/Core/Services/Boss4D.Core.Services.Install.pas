@@ -21,7 +21,7 @@ type
 
     procedure ProcessDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock;
       const AProcessedDeps: TList<string>);
-    procedure BuildDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock);
+    procedure BuildDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock; const APlatform: string = '');
     function ResolveSemVerRange(const ARangeStr, ACacheDir: string): string;
     function ResolveDependencyVersion(const ADep: TBoss4DDependency; const ACacheDir: string): string;
     function CalculateDirectoryChecksum(const ADirPath: string): string;
@@ -37,7 +37,7 @@ type
 
     destructor Destroy; override;
 
-    procedure Execute(const AInstallSingle: string = '');
+    procedure Execute(const AInstallSingle: string = ''; const APlatform: string = '');
     procedure RunInstallTask(const ADep: TBoss4DDependency; const ALock: TBoss4DLock; const ATasks: TList<ITask>);
   end;
 
@@ -175,7 +175,7 @@ begin
   end;
 end;
 
-procedure TBoss4DInstallService.BuildDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock);
+procedure TBoss4DInstallService.BuildDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock; const APlatform: string = '');
 var
   LTargetDir: string;
   LFiles: TArray<string>;
@@ -192,7 +192,7 @@ begin
     for var LFile in LFiles do
     begin
       // Executa compilação nativa
-      FCompiler.Compile(LFile, ADep, ALock);
+      FCompiler.Compile(LFile, ADep, ALock, APlatform);
     end;
   end
   else
@@ -201,7 +201,7 @@ begin
   end;
 end;
 
-procedure TBoss4DInstallService.Execute(const AInstallSingle: string = '');
+procedure TBoss4DInstallService.Execute(const AInstallSingle: string = ''; const APlatform: string = '');
 var
   LPkgPath: string;
   LLockPath: string;
@@ -239,7 +239,7 @@ begin
         FPackageRepo.Save(LPkg, LPkgPath);
 
         // Build da dependencia especifica
-        BuildDependency(LDep, LLock);
+        BuildDependency(LDep, LLock, APlatform);
       finally
         LDep.Free;
       end;
@@ -282,7 +282,7 @@ begin
       // FASE 2: Compilacao (deve ser sequencial para evitar lock no msbuild)
       for var LDep in LActiveDeps do
       begin
-        BuildDependency(LDep, LLock);
+        BuildDependency(LDep, LLock, APlatform);
       end;
 
       // Limpa os objetos de dependencias do array

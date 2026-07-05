@@ -39,8 +39,8 @@ type
   { Mock para simulacao do Compilador Delphi }
   TCompilerMock = class(TInterfacedObject, IBoss4DCompiler)
   public
-    function Compile(const ADprojPath: string; const ADep: TBoss4DDependency; const ARootLock: TBoss4DLock): Boolean;
-    function BuildSearchPath(const ADep: TBoss4DDependency): string;
+    function Compile(const ADprojPath: string; const ADep: TBoss4DDependency; const ARootLock: TBoss4DLock; const APlatform: string = ''): Boolean;
+    function BuildSearchPath(const ADep: TBoss4DDependency; const APlatform: string = ''): string;
   end;
 
   { Mock para simulacao do Registro do Windows }
@@ -158,13 +158,13 @@ end;
 { TCompilerMock }
 
 function TCompilerMock.Compile(const ADprojPath: string; const ADep: TBoss4DDependency;
-  const ARootLock: TBoss4DLock): Boolean;
+  const ARootLock: TBoss4DLock; const APlatform: string = ''): Boolean;
 begin
   // Apenas simula sucesso de compilacao
   Result := True;
 end;
 
-function TCompilerMock.BuildSearchPath(const ADep: TBoss4DDependency): string;
+function TCompilerMock.BuildSearchPath(const ADep: TBoss4DDependency; const APlatform: string = ''): string;
 begin
   Result := '';
 end;

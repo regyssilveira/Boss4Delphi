@@ -52,8 +52,8 @@ type
   { Contrato para compilacao de dependencias Delphi e search paths }
   IBoss4DCompiler = interface
     ['{69527D56-F14E-43D4-A746-2D7227D60006}']
-    function Compile(const ADprojPath: string; const ADep: TBoss4DDependency; const ARootLock: TBoss4DLock): Boolean;
-    function BuildSearchPath(const ADep: TBoss4DDependency): string;
+    function Compile(const ADprojPath: string; const ADep: TBoss4DDependency; const ARootLock: TBoss4DLock; const APlatform: string = ''): Boolean;
+    function BuildSearchPath(const ADep: TBoss4DDependency; const APlatform: string = ''): string;
   end;
 
   { Contrato para deteccao das IDEs Delphi no Windows Registry }

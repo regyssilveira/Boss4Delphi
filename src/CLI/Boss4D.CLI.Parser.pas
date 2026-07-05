@@ -82,6 +82,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  init                 Inicializa um novo arquivo boss.json no diretorio atual.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -q, --quiet (modo silencioso).');
   FLogger.Log(TBoss4DLogLevel.Info, '  install              Instala todas as dependencias declaradas no boss.json.');
+  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -p, --platform <plataforma> (Win32, Win64, Linux64, etc.).');
   FLogger.Log(TBoss4DLogLevel.Info, '  install <dep>        Instala uma dependencia especifica.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Exemplo: boss4d install github.com/hashload/horse@^3.0.0');
   FLogger.Log(TBoss4DLogLevel.Info, '  config delphi use <caminho>  Configura o caminho global do compilador Delphi.');
@@ -155,12 +156,34 @@ end;
 procedure TBoss4DCommandLineParser.HandleInstall(const AArgs: TArray<string>);
 var
   LDepToInstall: string;
+  LPlatform: string;
+  I: Integer;
 begin
   LDepToInstall := '';
-  if Length(AArgs) > 1 then
-    LDepToInstall := AArgs[1];
+  LPlatform := '';
 
-  FInstallService.Execute(LDepToInstall);
+  I := 1;
+  while I < Length(AArgs) do
+  begin
+    if SameText(AArgs[I], '--platform') or SameText(AArgs[I], '-p') then
+    begin
+      if I + 1 < Length(AArgs) then
+      begin
+        LPlatform := AArgs[I + 1];
+        Inc(I, 2);
+      end
+      else
+        Inc(I);
+    end
+    else
+    begin
+      if not AArgs[I].StartsWith('-') then
+        LDepToInstall := AArgs[I];
+      Inc(I);
+    end;
+  end;
+
+  FInstallService.Execute(LDepToInstall, LPlatform);
 end;
 
 procedure TBoss4DCommandLineParser.HandleConfig(const AArgs: TArray<string>);
