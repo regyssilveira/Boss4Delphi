@@ -135,7 +135,7 @@ begin
     if TryStrToFloat(LVerStr, LVerFloat, LFormatSettings) then
     begin
       if LVerFloat >= 20.3 then
-        Result := '24.0' // Delphi 13 Florence (ProjectVersion >= 20.3)
+        Result := '37.0' // Delphi 13 Florence (ProjectVersion >= 20.3)
       else if LVerFloat >= 20.0 then
         Result := '23.0' // Delphi 12 Athens (ProjectVersion >= 20.0)
       else if LVerFloat >= 19.2 then

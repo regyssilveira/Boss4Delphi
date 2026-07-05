@@ -1235,7 +1235,7 @@ begin
     LRegistryMock := TRegistryMock.Create;
     TRegistryMock(LRegistryMock).Path22 := LTempDir11;
     TRegistryMock(LRegistryMock).Path23 := LTempDir12;
-    TRegistryMock(LRegistryMock).Path24 := LTempDir13;
+    TRegistryMock(LRegistryMock).Path37 := LTempDir13;
 
     // 1. Testa deteccao do Delphi 11 (Alexandria) -> ProjectVersion 19.5
     LDprojContent := 
