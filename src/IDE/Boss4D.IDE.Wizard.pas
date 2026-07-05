@@ -157,11 +157,7 @@ var
 procedure Register;
 begin
   {$IFDEF IDE_PLUGIN}
-  var LWizardServices: IOTAWizardServices;
-  if Supports(BorlandIDEServices, IOTAWizardServices, LWizardServices) then
-  begin
-    GWizardIdx := LWizardServices.AddWizard(TBoss4DIDEWizard.Create);
-  end;
+  RegisterPackageWizard(TBoss4DIDEWizard.Create as IOTAWizard);
 
   var LSplashServices: IOTASplashScreenServices;
   if Supports(BorlandIDEServices, IOTASplashScreenServices, LSplashServices) then

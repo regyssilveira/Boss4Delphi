@@ -88,8 +88,8 @@ procedure RegisterPlugin(BDSVersion: string; SubFolder: string);
 var
   RegKey: string;
 begin
-  RegKey := 'Software\Embarcadero\BDS\' + BDSVersion + '\Wizards';
-  if RegWriteStringValue(HKCU, RegKey, 'Boss4D.IDE.Plugin', ExpandConstant('{app}\plugins\' + SubFolder + '\Boss4D.IDE.Plugin.bpl')) then
+  RegKey := 'Software\Embarcadero\BDS\' + BDSVersion + '\Known IDE Packages';
+  if RegWriteStringValue(HKCU, RegKey, ExpandConstant('{app}\plugins\' + SubFolder + '\Boss4D.IDE.Plugin.bpl'), 'Boss4D - RAD Studio IDE Integration Plugin') then
     Log('Plugin registrado com sucesso na IDE ' + BDSVersion)
   else
     Log('Falha ao registrar o plugin na IDE ' + BDSVersion);
@@ -98,11 +98,13 @@ end;
 procedure UnregisterPlugin(BDSVersion: string; SubFolder: string);
 var
   RegKey: string;
+  BPLPath: string;
 begin
-  RegKey := 'Software\Embarcadero\BDS\' + BDSVersion + '\Wizards';
-  if RegValueExists(HKCU, RegKey, 'Boss4D.IDE.Plugin') then
+  RegKey := 'Software\Embarcadero\BDS\' + BDSVersion + '\Known IDE Packages';
+  BPLPath := ExpandConstant('{app}\plugins\' + SubFolder + '\Boss4D.IDE.Plugin.bpl');
+  if RegValueExists(HKCU, RegKey, BPLPath) then
   begin
-    if RegDeleteValue(HKCU, RegKey, 'Boss4D.IDE.Plugin') then
+    if RegDeleteValue(HKCU, RegKey, BPLPath) then
       Log('Plugin removido com sucesso da IDE ' + BDSVersion)
     else
       Log('Falha ao remover o plugin da IDE ' + BDSVersion);
