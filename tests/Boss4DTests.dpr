@@ -44,6 +44,7 @@ uses
   Boss4D.Tests.SemVer in 'Boss4D.Tests.SemVer.pas',
   Boss4D.Tests.Dependency in 'Boss4D.Tests.Dependency.pas',
   Boss4D.Tests.Json in 'Boss4D.Tests.Json.pas',
+  Boss4D.IDE.Wizard in '..\src\IDE\Boss4D.IDE.Wizard.pas',
   Boss4D.Tests.Services in 'Boss4D.Tests.Services.pas';
 
 var

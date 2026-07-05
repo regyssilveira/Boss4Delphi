@@ -100,6 +100,9 @@ type
 
     [Test]
     procedure TestAutodetectDelphiVersionFromDproj;
+
+    [Test]
+    procedure TestIDEWizardInitialization;
   end;
 
 implementation
@@ -114,7 +117,8 @@ uses
   Boss4D.Core.Services.Cache, Boss4D.Core.Services.Run,
   Boss4D.Core.Services.Doctor, Boss4D.Core.Services.License,
   Boss4D.Core.Services.Tree, Boss4D.Core.Services.Outdated,
-  Boss4D.Core.Services.IDEIntegration, Boss4D.Core.Services.Tool, Boss4D.Core.Services.Workspace, Boss4D.Core.Services.GetIt;
+  Boss4D.Core.Services.IDEIntegration, Boss4D.Core.Services.Tool, Boss4D.Core.Services.Workspace, Boss4D.Core.Services.GetIt,
+  Boss4D.IDE.Wizard;
 
 { TTestLogger }
 
@@ -1278,6 +1282,26 @@ begin
     if TDirectory.Exists(LTempDir11) then TDirectory.Delete(LTempDir11, True);
     if TDirectory.Exists(LTempDir12) then TDirectory.Delete(LTempDir12, True);
     if TDirectory.Exists(LTempDir13) then TDirectory.Delete(LTempDir13, True);
+  end;
+end;
+
+procedure TTestsServices.TestIDEWizardInitialization;
+var
+  LMenu: TBoss4DProjectManagerMenu;
+begin
+  LMenu := TBoss4DProjectManagerMenu.Create('Boss4D Install', 'mnuBoss4DInstall', 'mnuBoss4D', 'Boss4DInstallVerb', 'C:\Proj', 'install', 120);
+  try
+    Assert.AreEqual<string>('Boss4D Install', LMenu.GetCaption);
+    Assert.AreEqual<string>('mnuBoss4DInstall', LMenu.GetName);
+    Assert.AreEqual<string>('mnuBoss4D', LMenu.GetParent);
+    Assert.AreEqual<string>('Boss4DInstallVerb', LMenu.GetVerb);
+    Assert.AreEqual<Integer>(120, LMenu.GetPosition);
+    Assert.IsFalse(LMenu.GetIsMultiSelectable);
+
+    LMenu.SetIsMultiSelectable(True);
+    Assert.IsTrue(LMenu.GetIsMultiSelectable);
+  finally
+    LMenu.Free;
   end;
 end;
 
