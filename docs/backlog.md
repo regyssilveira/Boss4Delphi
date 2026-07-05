@@ -49,7 +49,7 @@ This document details the future planning, new features (backlog), and architect
 
 - [ ] **[Story] Design-Time BPL Injection and Registration**
   - Parse newly downloaded dependencies, locate generated Design-time BPLs, and register them in the Delphi Windows Registry (`HKEY_CURRENT_USER\Software\Embarcadero\BDS\<version>\Known Packages`) so components show up in the IDE palette automatically.
-- [ ] **[Story] Automatic IDE Library Path Management**
+- [x] **[Story] Automatic IDE Library Path Management**
   - Intelligently inject unified DCU folders (`modules/dcu`) or search paths into the developer's global RAD Studio Library Path, eliminating the need to configure search paths manually.
 - [ ] **[Story] DCU Megafolders and Cache Optimization**
   - Optimally unify compiled project files into centralized folders grouped by platform/configuration, improving subsequent build times.
@@ -69,7 +69,7 @@ This document details the future planning, new features (backlog), and architect
 ## 🛠️ Epic 6: Global CLI Tool Distribution (`boss4d tool`)
 *Objective: Allow Delphi developers to install and use development utilities globally on their machine (Inspired by `dotnet tool` from .NET).*
 
-- [ ] **[Story] Global Tool Installation (`boss4d tool install -g <repo>`)**
+- [x] **[Story] Global Tool Installation (`boss4d tool install -g <repo>`)**
   - Download, compile, and register Delphi-based utility executables (e.g., code formatters, code generators, linters) in the Windows PATH.
 - [ ] **[Story] Tool Version Management**
   - Allow upgrading (`boss4d tool update`) and uninstalling (`boss4d tool uninstall`) global utilities.
@@ -79,9 +79,9 @@ This document details the future planning, new features (backlog), and architect
 ## 🌳 Epic 7: Advanced Dependency Diagnostics (`boss4d tree` / `outdated`)
 *Objective: Provide deep visibility into the transitive dependency tree and package update status (Inspired by `cargo tree` from Rust and `pub outdated` from Dart/Flutter).*
 
-- [ ] **[Story] Dependency Tree Visualization (`boss4d tree`)**
+- [x] **[Story] Dependency Tree Visualization (`boss4d tree`)**
   - Graphically print the project's dependency structure in the console, highlighting which sub-dependencies belong to which packages and resolving visual conflicts.
-- [ ] **[Story] Outdated Packages Report (`boss4d outdated`)**
+- [x] **[Story] Outdated Packages Report (`boss4d outdated`)**
   - Asynchronously query GitHub for the latest SemVer-compatible tags for each dependency, generating a table displaying the current version, compatible declared version, and latest available version.
 
 ---
@@ -139,9 +139,9 @@ This document details the future planning, new features (backlog), and architect
 ## 🔒 Epic 13: Private Repositories and Authentication Credentials
 *Objective: Allow installation of dependencies from private Git repositories and internal corporate network servers.*
 
-- [ ] **[Story] Local Network Path Support (`file:///`)**
+- [x] **[Story] Local Network Path Support (`file:///`)**
   - Allow installing dependencies and packages stored in shared folders within the corporate intranet.
-- [ ] **[Story] Secure Token and Key Storage**
+- [x] **[Story] Secure Token and Key Storage**
   - Develop a secure credentials configuration area (SSH Keys and GitHub/GitLab/Bitbucket Personal Access Tokens) for the Boss4D resolver to pull from private repositories.
 
 ---
@@ -159,7 +159,7 @@ This document details the future planning, new features (backlog), and architect
 ## 📱 Epic 15: Full Multiplatform Compilation (Linux, macOS, Mobile)
 *Objective: Enable automatic building of dependencies for all target platforms supported by the Delphi compiler (dcclinux64, dccios, dccandroid, etc.).*
 
-- [ ] **[Story] Platform Selection Flag (`boss4d install --platform`)**
+- [x] **[Story] Platform Selection Flag (`boss4d install --platform`)**
   - Support target-platform compilation parameters in the command line interface.
-- [ ] **[Story] Cross-Compiler Orchestration**
+- [x] **[Story] Cross-Compiler Orchestration**
   - Update the compiler adapter to invoke the respective Delphi cross-compiling executables and supply correct search path variables for each target platform.

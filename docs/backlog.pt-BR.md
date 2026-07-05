@@ -49,7 +49,7 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 
 - [ ] **[Story] Injeção e Registro de BPLs de Design-Time**
   - Analisar as dependências recém-baixadas, localizar as BPLs de Design-time geradas e registrá-las no registro do Windows do Delphi (`HKEY_CURRENT_USER\Software\Embarcadero\BDS\<versao>\Known Packages`) para que os componentes apareçam na paleta da IDE automaticamente.
-- [ ] **[Story] Gerenciamento Automático de Library Paths da IDE**
+- [x] **[Story] Gerenciamento Automático de Library Paths da IDE**
   - Injetar de forma inteligente as pastas de DCU unificadas (`modules/dcu`) ou caminhos de busca no Library Path global do RAD Studio do desenvolvedor, eliminando a necessidade de configurar os caminhos manualmente após a instalação.
 - [ ] **[Story] DCU Megafolders e Otimização de Cache**
   - Unificar de forma otimizada os arquivos compilados do projeto em pastas centralizadas por plataforma/configuração, melhorando o tempo de build subsequente.
@@ -69,7 +69,7 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 🛠️ Épico 6: Distribuição de Ferramentas CLI Globais (`boss4d tool`)
 *Objetivo: Permitir que desenvolvedores Delphi instalem e utilizem utilitários de desenvolvimento de forma global na máquina (Inspirado no `dotnet tool` do .NET).*
 
-- [ ] **[Story] Instalação Global de Ferramentas (`boss4d tool install -g <repo>`)**
+- [x] **[Story] Instalação Global de Ferramentas (`boss4d tool install -g <repo>`)**
   - Baixar, compilar e registrar no PATH do Windows executáveis utilitários criados em Delphi (ex: formatadores de código, geradores de código, linters).
 - [ ] **[Story] Gerenciamento de Versões de Ferramentas**
   - Permitir a atualização (`boss4d tool update`) e desinstalação (`boss4d tool uninstall`) de utilitários globais.
@@ -79,9 +79,9 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 🌳 Épico 7: Diagnóstico Avançado de Dependências (`boss4d tree` / `outdated`)
 *Objetivo: Fornecer visibilidade profunda sobre a árvore de dependências transitivas e o status de atualização de pacotes (Inspirado em `cargo tree` do Rust e `pub outdated` do Dart/Flutter).*
 
-- [ ] **[Story] Exibição de Árvore de Dependências (`boss4d tree`)**
+- [x] **[Story] Exibição de Árvore de Dependências (`boss4d tree`)**
   - Imprimir graficamente no console a estrutura de dependências do projeto, indicando quais subdependências pertencem a quais pacotes e resolvendo conflitos visuais.
-- [ ] **[Story] Relatório de Pacotes Desatualizados (`boss4d outdated`)**
+- [x] **[Story] Relatório de Pacotes Desatualizados (`boss4d outdated`)**
   - Consultar de forma assíncrona as últimas tags compatíveis com SemVer no GitHub para cada dependência e gerar uma tabela exibindo a versão atual, versão compatível declarada e versão mais recente do autor.
 
 ---
@@ -139,9 +139,9 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 🔒 Épico 13: Repositórios Privados e Credenciais de Autenticação
 *Objetivo: Permitir a instalação de dependências a partir de repositórios Git privados e servidores de rede internos corporativos.*
 
-- [ ] **[Story] Suporte a Caminhos de Rede Local (`file:///`)**
+- [x] **[Story] Suporte a Caminhos de Rede Local (`file:///`)**
   - Permitir a instalação de dependências e pacotes salvos em pastas compartilhadas da intranet corporativa.
-- [ ] **[Story] Armazenamento Seguro de Tokens e Chaves**
+- [x] **[Story] Armazenamento Seguro de Tokens e Chaves**
   - Desenvolver uma área de configuração segura de credenciais de acesso (SSH Keys e Personal Access Tokens do GitHub/GitLab/Bitbucket) para o resolvedor do Boss4D consumir repositórios privados.
 
 ---
@@ -159,7 +159,7 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 📱 Épico 15: Compilação Multiplataforma Completa (Linux, macOS, Mobile)
 *Objetivo: Permitir o build automático de dependências para todas as plataformas suportadas pelo compilador Delphi (dcclinux64, dccios, dccandroid, etc.).*
 
-- [ ] **[Story] Flag de Seleção de Plataforma (`boss4d install --platform`)**
+- [x] **[Story] Flag de Seleção de Plataforma (`boss4d install --platform`)**
   - Suportar a passagem de parâmetros de plataforma-alvo de compilação na linha de comando.
-- [ ] **[Story] Orquestração de Compiladores Cruzados**
+- [x] **[Story] Orquestração de Compiladores Cruzados**
   - Ajustar o adaptador de compilação para invocar os respectivos executáveis de cross-compiling do Delphi e passar as variáveis e caminhos corretos de busca para cada plataforma.

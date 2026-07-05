@@ -182,7 +182,112 @@ Cadastre seus scripts na seção `"scripts"` do seu `boss.json`:
 
 ---
 
-## 🔍 8. Comandos Utilitários
+## 🌳 8. Diagnóstico de Dependências (`tree` e `outdated`)
+
+### Visualizando a Árvore de Dependências
+Para analisar visualmente toda a hierarquia de módulos instalados em seu projeto e entender quais submódulos são carregados recursivamente:
+
+```bash
+boss4d tree
+```
+
+* **Exemplo de Saída**:
+  ```text
+  meu-projeto (1.0.0)
+  ├── github.com/hashload/horse (3.1.0)
+  │   └── github.com/hashload/dataset-serialize (2.4.0)
+  └── github.com/viniciusanchez/restrequest4delphi (1.5.0)
+  ```
+
+### Verificando Pacotes Desatualizados
+Para comparar as versões declaradas no seu arquivo `boss-lock.json` com as versões de tags mais recentes disponíveis remotamente nos repositórios Git:
+
+```bash
+boss4d outdated
+```
+
+* **Exemplo de Saída**:
+  ```text
+  Buscando informacoes de atualizacao de pacotes...
+  Dependencia: github.com/hashload/horse
+    Versao instalada: 3.1.0
+    Versao mais recente disponivel: 3.5.2
+    Status: Desatualizado
+
+  Dependencia: github.com/viniciusanchez/restrequest4delphi
+    Versao instalada: 1.5.0
+    Versao mais recente disponivel: 1.5.0
+    Status: Atualizado
+  ```
+
+---
+
+## 🔐 9. Repositórios Privados e Credenciais (`config auth`)
+
+O Boss4D suporta dependências privadas hospedadas no GitHub ou GitLab. Para configurar tokens de autenticação PAT (Personal Access Token) globais com segurança (as credenciais são salvas criptografadas no arquivo `boss.cfg.json` local e ocultadas automaticamente com `***` nos logs de erro):
+
+```bash
+boss4d config auth github ghp_meutokengithubsecreto
+boss4d config auth gitlab glpat-meutokengitlabsecreto
+```
+
+* **Exemplo de Saída**:
+  ```text
+  ✅ Token de autenticacao do GitHub configurado com sucesso.
+  ```
+
+### Suporte a Caminhos Locais e de Rede
+Além de repositórios remotos privados, você pode declarar dependências locais de forma direta em seu `boss.json`:
+* Caminhos Locais: `"file:///d:/Projetos/MinhaLib"` ou `"d:\Projetos\MinhaLib"`
+* Caminhos de Rede UNC: `"\\servidor\compartilhado\MinhaLib"`
+
+---
+
+## 🌐 10. Compilação Multiplataforma (`--platform`)
+
+Por padrão, o Boss4D compila dependências para Windows (Win32/Win64). Para automatizar o build de dependências em projetos direcionados a outras plataformas suportadas pelo compilador Delphi (ex: Win64, Linux64, Android, OSX64):
+
+```bash
+boss4d install --platform Linux64
+boss4d install github.com/hashload/horse -p Win64
+```
+
+* **Exemplo de Saída**:
+  ```text
+  Baixando dependencias do projeto...
+  Compilando modulos instalados...
+    Compilando horse.dproj
+    Compilado com sucesso!
+  Instalacao concluida com sucesso!
+  Iniciando integracao de Library Paths na IDE...
+    [OK] Library Path atualizado para Delphi 23.0 (Linux64).
+  Integracao concluida!
+  ```
+
+* **Integração de Library Path na IDE**: O Boss4D detecta automaticamente as chaves do Delphi instaladas na sua máquina e atualiza o `Search Path` no Registro do Windows com o caminho absoluto das DCUs do Boss (`modules\dcu`) para a plataforma selecionada, garantindo conformidade imediata com a IDE RAD Studio.
+
+---
+
+## 🚀 11. Instalação Global de Ferramentas CLI (`tool`)
+
+Você pode instalar utilitários de linha de comando feitos em Delphi de forma global em sua máquina com apenas um comando. O Boss4D baixa as fontes, compila de forma nativa e distribui o executável final em uma pasta global adicionável ao seu PATH.
+
+```bash
+boss4d tool install -g github.com/hashload/boss
+```
+
+* **Exemplo de Saída**:
+  ```text
+  Iniciando instalacao global da ferramenta: github.com/hashload/boss
+    Clonando fontes...
+    Compilando executavel...
+  🚀 Ferramenta "boss" instalada com sucesso em: C:\Users\regys\.boss\bin\boss.exe
+  Dica: Certifique-se de adicionar a pasta "C:\Users\regys\.boss\bin" ao PATH do sistema.
+  ```
+
+---
+
+## 🔍 12. Comandos Utilitários
 
 ### Verificar Versão da CLI
 Exibe a versão atual do binário:

@@ -181,7 +181,112 @@ Essential for corporate environments that require open-source licensing validati
 
 ---
 
-## 🔍 8. Utility Commands
+## 🌳 8. Dependency Diagnostics (`tree` and `outdated`)
+
+### Viewing Dependency Tree
+To visually analyze the complete dependency hierarchy installed in your project and understand what sub-modules are loaded recursively:
+
+```bash
+boss4d tree
+```
+
+* **Example Output**:
+  ```text
+  meu-projeto (1.0.0)
+  ├── github.com/hashload/horse (3.1.0)
+  │   └── github.com/hashload/dataset-serialize (2.4.0)
+  └── github.com/viniciusanchez/restrequest4delphi (1.5.0)
+  ```
+
+### Checking for Outdated Packages
+To compare the versions locked in your `boss-lock.json` with the latest tags available on their remote Git repositories:
+
+```bash
+boss4d outdated
+```
+
+* **Example Output**:
+  ```text
+  Buscando informacoes de atualizacao de pacotes...
+  Dependencia: github.com/hashload/horse
+    Versao instalada: 3.1.0
+    Versao mais recente disponivel: 3.5.2
+    Status: Desatualizado
+
+  Dependencia: github.com/viniciusanchez/restrequest4delphi
+    Versao instalada: 1.5.0
+    Versao mais recente disponivel: 1.5.0
+    Status: Atualizado
+  ```
+
+---
+
+## 🔐 9. Private Repositories & Credentials (`config auth`)
+
+Boss4D supports private packages hosted on GitHub or GitLab. Configure Personal Access Tokens (PATs) globally with security (stored encrypted in `boss.cfg.json` and automatically masked with `***` in error logs):
+
+```bash
+boss4d config auth github ghp_mysecretgithubtoken
+boss4d config auth gitlab glpat-mysecretgitlabtoken
+```
+
+* **Example Output**:
+  ```text
+  ✅ Token de autenticacao do GitHub configurado com sucesso.
+  ```
+
+### Local Paths and UNC Network Paths
+In addition to private remote repositories, you can reference local repositories in your `boss.json`:
+* Local Drive Paths: `"file:///d:/Projects/MyLib"` or `"d:\Projects\MyLib"`
+* UNC Network Shares: `"\\server\shared\MyLib"`
+
+---
+
+## 🌐 10. Multiplatform Compilation (`--platform`)
+
+By default, Boss4D compiles packages targeting Windows (Win32/Win64). Automate library builds for other platforms supported by your Delphi compiler (e.g. Win64, Linux64, Android, OSX64):
+
+```bash
+boss4d install --platform Linux64
+boss4d install github.com/hashload/horse -p Win64
+```
+
+* **Example Output**:
+  ```text
+  Baixando dependencias do projeto...
+  Compilando modulos instalados...
+    Compilando horse.dproj
+    Compilado com sucesso!
+  Instalacao concluida com sucesso!
+  Iniciando integracao de Library Paths na IDE...
+    [OK] Library Path atualizado para Delphi 23.0 (Linux64).
+  Integracao concluida!
+  ```
+
+* **IDE Library Path Integration**: Boss4D automatically updates your Delphi Global `Search Path` in the Windows Registry to include the absolute path of Boss compiled DCUs (`modules\dcu`) for the target platform, making dependencies instantly visible to the Delphi RAD Studio IDE.
+
+---
+
+## 🚀 11. Global CLI Tools Installation (`tool`)
+
+Install command-line utilities written in Delphi globally on your machine with one command. Boss4D clones the tool, compiles it using MSBuild, and copies the resulting binary into a global folder added to your system's PATH.
+
+```bash
+boss4d tool install -g github.com/hashload/boss
+```
+
+* **Example Output**:
+  ```text
+  Iniciando instalacao global da ferramenta: github.com/hashload/boss
+    Clonando fontes...
+    Compilando executavel...
+  🚀 Ferramenta "boss" instalada com sucesso em: C:\Users\regys\.boss\bin\boss.exe
+  Dica: Certifique-se de adicionar a pasta "C:\Users\regys\.boss\bin" ao PATH do sistema.
+  ```
+
+---
+
+## 🔍 12. Utility Commands
 
 ### Checking CLI Version
 Prints the current native binary version:
