@@ -448,6 +448,12 @@ Prints all available commands and flags:
 boss4d help
 ```
 
+### Cleaning Project Dependencies
+Deletes the local `modules/` folder and `boss-lock.json` file to reset dependencies of the current project:
+```bash
+boss4d clean
+```
+
 ---
 
 ## 🖥️ 15. Standalone Graphical User Interface (GUI)

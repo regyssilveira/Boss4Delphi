@@ -451,6 +451,12 @@ Lista todos os comandos e opções suportados com descrições breves:
 boss4d help
 ```
 
+### Limpar Dependências do Projeto
+Apaga a pasta `modules/` e o arquivo `boss-lock.json` para reinicializar as dependências do projeto local:
+```bash
+boss4d clean
+```
+
 ---
 
 ## 🖥️ 15. Interface Gráfica Standalone (GUI)
