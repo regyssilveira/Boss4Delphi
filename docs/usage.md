@@ -103,7 +103,85 @@ Shallow clones download only the latest commits, significantly speeding up packa
 
 ---
 
-## 🔍 4. Utility Commands
+## 🩺 4. Environment Diagnostics (`doctor`)
+
+The `doctor` command runs structured diagnostics to ensure your local compilation environment is healthy.
+
+* **Run default diagnostic**:
+  ```bash
+  boss4d doctor
+  ```
+  This command validates the installation and availability of the **Git CLI**, maps the **RAD Studio/Delphi** installations in the Windows Registry, and checks if tools like `dcc32` and `msbuild` are available in your `PATH`.
+
+* **Auto-Correction (`-fix` / `--fix`)**:
+  ```bash
+  boss4d doctor -fix
+  ```
+  Attempts to auto-resolve compiler issues. If Delphi versions are found in the Registry but missing from the path, it configures the latest detected release version in the global Boss4D settings as the default compiler root.
+
+---
+
+## 🧹 5. Cache Management (`cache`)
+
+Boss4D caches cloned Git repositories globally to make subsequent installations instantaneous.
+
+* **Check total cache size**:
+  ```bash
+  boss4d cache size
+  ```
+* **Clear all global cache**:
+  ```bash
+  boss4d cache clean
+  ```
+* **Prune obsolete caches**:
+  ```bash
+  boss4d cache prune
+  ```
+  Scans and removes cached package folders that have not been modified or accessed for more than 30 days to free up disk space.
+
+---
+
+## 📜 6. Custom Scripts Execution (`run`)
+
+You can define custom task scripts (such as build, test, lint, or staging tasks) directly in the `"scripts"` object inside `boss.json` and execute them via CLI:
+
+```json
+{
+  "name": "my-delphi-project",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "tests\\Win32\\Debug\\Boss4DTests.exe",
+    "build": "msbuild my-delphi-project.dproj /p:Configuration=Release"
+  }
+}
+```
+
+* **Run a custom script**:
+  ```bash
+  boss4d run test
+  boss4d run build
+  ```
+  This executes the CLI command mapped to the script and prints all output and execution logs directly into the terminal.
+
+---
+
+## 📄 7. License Compliance Auditing (`license`)
+
+Essential for corporate environments that require open-source licensing validation before compiling releases or releasing code.
+
+* **Generate compliance report**:
+  ```bash
+  boss4d license report
+  ```
+  Scans all modules installed under the `modules/` directory, reading the `"license"` attribute in their `boss.json` manifest, or scanning local license files (like `LICENSE`, `COPYING`).
+
+  It generates two audit files inside the local `docs/` folder:
+  1. `docs/license_report.md`: A formatted Markdown table listing dependency name, installed version, detected license, and source of information.
+  2. `docs/license_report.csv`: A raw data CSV file ideal for automated compliance parsing in security pipelines.
+
+---
+
+## 🔍 8. Utility Commands
 
 ### Checking CLI Version
 Prints the current native binary version:

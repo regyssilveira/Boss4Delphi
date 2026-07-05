@@ -103,7 +103,86 @@ Clones rasos baixam apenas os commits mais recentes do histórico do Git, tornan
 
 ---
 
-## 🔍 4. Comandos Utilitários
+## 🩺 4. Auto-Diagnóstico do Ambiente (`doctor`)
+
+O comando `doctor` executa uma série de verificações estruturadas no seu ambiente de desenvolvimento para garantir que a compilação paralela ocorra perfeitamente.
+
+* **Executar verificação padrão**:
+  ```bash
+  boss4d doctor
+  ```
+  O diagnóstico valida a instalação e conectividade do **Git CLI**, as versões do **RAD Studio/Delphi** registradas no Windows, e se as ferramentas de compilação (`dcc32`, `msbuild`) estão configuradas e acessíveis no `PATH`.
+  
+* **Auto-Correção e Configuração Automatizada (`-fix`)**:
+  ```bash
+  boss4d doctor -fix
+  ```
+  Se executado com o parâmetro `-fix`, o Boss4D mapeia automaticamente as instalações do Delphi em sua máquina e configura a versão mais recente identificada no registro como padrão de compilação global do utilitário.
+
+---
+
+## 🧹 5. Gerenciamento do Cache Global (`cache`)
+
+O Boss4D armazena cópias em cache dos repositórios Git clonados para que instalações subsequentes de projetos que compartilham dependências sejam instantâneas e sem tráfego de rede desnecessário.
+
+* **Exibir tamanho total do cache**:
+  ```bash
+  boss4d cache size
+  ```
+* **Limpar todo o cache global**:
+  ```bash
+  boss4d cache clean
+  ```
+* **Expurgar caches obsoletos**:
+  ```bash
+  boss4d cache prune
+  ```
+  Remove automaticamente do disco pastas de caches de dependências que não foram alteradas ou acessadas nos últimos 30 dias, prevenindo acúmulo desnecessário de gigabytes em seu HD.
+
+---
+
+## 📜 6. Execução de Scripts Customizados (`run`)
+
+O desenvolvedor pode centralizar e padronizar rotinas de build, testes de integração ou tarefas repetitivas diretamente no manifesto `boss.json` do projeto, eliminando arquivos `.bat` ad-hoc.
+
+Cadastre seus scripts na seção `"scripts"` do seu `boss.json`:
+```json
+{
+  "name": "meu-projeto",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "tests\\Win32\\Debug\\Boss4DTests.exe",
+    "build": "msbuild meu-projeto.dproj /p:Configuration=Release"
+  }
+}
+```
+
+* **Executar um script cadastrado**:
+  ```bash
+  boss4d run test
+  boss4d run build
+  ```
+  O comando executa o comando associado e exibe o log de saída e status diretamente no seu terminal de trabalho.
+
+---
+
+## 📄 7. Auditoria de Licenças e Conformidade (`license`)
+
+Útil para empresas que exigem conformidade legal de código aberto antes de publicar softwares ou compilar releases.
+
+* **Gerar relatório de compliance**:
+  ```bash
+  boss4d license report
+  ```
+  O comando varre todos os submódulos instalados na pasta `modules/`, inspeciona o campo `"license"` dos pacotes e lê arquivos físicos locais como `LICENSE` ou `COPYING`.
+  
+  Ele gera automaticamente os seguintes arquivos de auditoria sob a pasta `docs/`:
+  1. `docs/license_report.md`: Um documento Markdown visual contendo a tabela organizada com dependência, versão, licença detectada e a origem do dado.
+  2. `docs/license_report.csv`: Uma tabela de dados brutos (formato CSV) ideal para ser consumida em pipelines automáticos de segurança e compliance.
+
+---
+
+## 🔍 8. Comandos Utilitários
 
 ### Verificar Versão da CLI
 Exibe a versão atual do binário:
