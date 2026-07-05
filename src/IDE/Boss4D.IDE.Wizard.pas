@@ -67,7 +67,7 @@ type
       const ProjectManagerMenuList: IInterfaceList; IsMultiSelect: Boolean);
   end;
 
-  TBoss4DIDEBootManager = class
+  TBoss4DIDEWizard = class(TNotifierObject, IOTAWizard)
   private
     FTimer: TTimer;
     FNotifier: IOTAProjectMenuItemCreatorNotifier;
@@ -76,6 +76,12 @@ type
   public
     constructor Create;
     destructor Destroy; override;
+
+    { IOTAWizard }
+    function GetIDString: string;
+    function GetName: string;
+    function GetState: TWizardState;
+    procedure Execute;
   end;
 
 procedure Register;
@@ -83,16 +89,26 @@ procedure Register;
 implementation
 
 uses
-  Winapi.Windows, System.IOUtils, System.Diagnostics, System.Threading, System.JSON;
+  Winapi.Windows, System.IOUtils, System.Diagnostics, System.Threading, System.JSON, Vcl.Forms;
+
+const
+  GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS = $00000004;
+
+function GetModuleHandleEx(ADwFlags: DWORD; ALpModuleName: PChar; var APhModule: HMODULE): BOOL; stdcall;
+  external 'kernel32.dll' name 'GetModuleHandleExW';
 
 var
-  GBootManager: TBoss4DIDEBootManager = nil;
+  GWizardIndex: Integer = -1;
+  GModuleHandle: HMODULE = 0;
 
-{ TBoss4DIDEBootManager }
+{ TBoss4DIDEWizard }
 
-constructor TBoss4DIDEBootManager.Create;
+constructor TBoss4DIDEWizard.Create;
 begin
   inherited Create;
+  // Incrementa contagem de referencias da BPL para mante-la na memoria
+  GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, PChar(@Register), GModuleHandle);
+
   FMenuCreatorIdx := -1;
   FTimer := nil;
   FNotifier := TBoss4DProjectMenuItemCreatorNotifier.Create;
@@ -110,7 +126,7 @@ begin
   end;
 end;
 
-destructor TBoss4DIDEBootManager.Destroy;
+destructor TBoss4DIDEWizard.Destroy;
 begin
   if Assigned(FTimer) then
   begin
@@ -125,10 +141,18 @@ begin
       LProjectManager.RemoveMenuItemCreatorNotifier(FMenuCreatorIdx);
     end;
   end;
+
+  // Libera a referencia da BPL na memoria se nao for shutdown geral
+  if (not Application.Terminated) and (GModuleHandle <> 0) then
+  begin
+    FreeLibrary(GModuleHandle);
+    GModuleHandle := 0;
+  end;
+
   inherited Destroy;
 end;
 
-procedure TBoss4DIDEBootManager.OnTimerEvent(Sender: TObject);
+procedure TBoss4DIDEWizard.OnTimerEvent(Sender: TObject);
 begin
   var LProjectManager: IOTAProjectManager;
   if Supports(BorlandIDEServices, IOTAProjectManager, LProjectManager) then
@@ -141,14 +165,38 @@ begin
   end;
 end;
 
+function TBoss4DIDEWizard.GetIDString: string;
+begin
+  Result := 'Boss4D.IDE.Plugin.Wizard';
+end;
+
+function TBoss4DIDEWizard.GetName: string;
+begin
+  Result := 'Boss4D IDE Wizard';
+end;
+
+function TBoss4DIDEWizard.GetState: TWizardState;
+begin
+  Result := [wsEnabled];
+end;
+
+procedure TBoss4DIDEWizard.Execute;
+begin
+  // Nada a executar sob demanda
+end;
+
 procedure Register;
 var
   LBitmap: Vcl.Graphics.TBitmap;
   LSplashServices: IOTASplashScreenServices;
   LAboutServices: IOTAAboutBoxServices;
+  LWizardServices: IOTAWizardServices;
 begin
   // Impede o descarregamento sob demanda do pacote pela IDE
   ForceDemandLoadState(dlDisable);
+
+  if not Assigned(BorlandIDEServices) then
+    Exit;
 
   // Registro na Splash Screen usando a variavel global oficial da ToolsAPI com check de seguranca
   if Assigned(SplashScreenServices) and Supports(SplashScreenServices, IOTASplashScreenServices, LSplashServices) then
@@ -200,8 +248,15 @@ begin
     end;
   end;
 
-  // Instancia o Boot Manager para gerenciar menus de forma tardia e segura
-  GBootManager := TBoss4DIDEBootManager.Create;
+  // Adiciona o Wizard na IDE
+  if Supports(BorlandIDEServices, IOTAWizardServices, LWizardServices) then
+  begin
+    try
+      GWizardIndex := LWizardServices.AddWizard(TBoss4DIDEWizard.Create);
+    except
+      // Silencia falhas no startup
+    end;
+  end;
 end;
 
 
