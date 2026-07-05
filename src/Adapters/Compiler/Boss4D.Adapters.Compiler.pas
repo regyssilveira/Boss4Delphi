@@ -134,7 +134,9 @@ begin
     var LFormatSettings := TFormatSettings.Invariant;
     if TryStrToFloat(LVerStr, LVerFloat, LFormatSettings) then
     begin
-      if LVerFloat >= 20.0 then
+      if LVerFloat >= 20.3 then
+        Result := '24.0' // Delphi 13 Florence (ProjectVersion >= 20.3)
+      else if LVerFloat >= 20.0 then
         Result := '23.0' // Delphi 12 Athens (ProjectVersion >= 20.0)
       else if LVerFloat >= 19.2 then
         Result := '22.0' // Delphi 11 Alexandria (ProjectVersion 19.3, 19.4, 19.5)
@@ -179,15 +181,23 @@ begin
     end;
   end;
 
-  // 3. Se nao detectado ou nao instalado, faz o fallback para a versao mais recente no Registro
+  // 3. Se nao detectado ou nao instalado, faz o fallback para a versao mais recente instalada no Registro
   if LRootDir.IsEmpty then
   begin
     LVersions := FRegistry.GetInstalledDelphiVersions;
     if Length(LVersions) > 0 then
     begin
       TArray.Sort<string>(LVersions);
-      var LLatestVersion := LVersions[Length(LVersions) - 1];
-      LRootDir := FRegistry.GetDelphiPath(LLatestVersion);
+      for var I := Length(LVersions) - 1 downto 0 do
+      begin
+        var LVer := LVersions[I];
+        var LTempPath := FRegistry.GetDelphiPath(LVer);
+        if not LTempPath.IsEmpty and TFile.Exists(TPath.Combine(TPath.Combine(LTempPath, 'bin'), 'rsvars.bat')) then
+        begin
+          LRootDir := LTempPath;
+          Break;
+        end;
+      end;
     end;
   end;
 

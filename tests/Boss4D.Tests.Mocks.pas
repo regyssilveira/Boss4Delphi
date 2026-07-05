@@ -48,6 +48,7 @@ type
   private
     FPath22: string;
     FPath23: string;
+    FPath24: string;
   public
     constructor Create;
     function GetInstalledDelphiVersions: TArray<string>;
@@ -55,6 +56,7 @@ type
 
     property Path22: string read FPath22 write FPath22;
     property Path23: string read FPath23 write FPath23;
+    property Path24: string read FPath24 write FPath24;
   end;
 
 implementation
@@ -182,11 +184,12 @@ begin
   inherited Create;
   FPath22 := 'C:\Delphi11_Mock';
   FPath23 := 'C:\Delphi12_Mock';
+  FPath24 := 'C:\Delphi13_Mock';
 end;
 
 function TRegistryMock.GetInstalledDelphiVersions: TArray<string>;
 begin
-  Result := TArray<string>.Create('22.0', '23.0');
+  Result := TArray<string>.Create('22.0', '23.0', '24.0');
 end;
 
 function TRegistryMock.GetDelphiPath(const AVersion: string): string;
@@ -195,6 +198,8 @@ begin
     Result := FPath22
   else if AVersion = '23.0' then
     Result := FPath23
+  else if AVersion = '24.0' then
+    Result := FPath24
   else
     Result := '';
 end;
