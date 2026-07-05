@@ -97,6 +97,9 @@ type
 
     [Test]
     procedure TestDCUMegafoldersStructure;
+
+    [Test]
+    procedure TestAutodetectDelphiVersionFromDproj;
   end;
 
 implementation
@@ -1201,6 +1204,54 @@ begin
       // ignora se nao existir
     end;
     LReg.Free;
+  end;
+end;
+
+procedure TTestsServices.TestAutodetectDelphiVersionFromDproj;
+var
+  LRegistryMock: IBoss4DRegistryService;
+  LCompiler: TBoss4DDelphiCompilerAdapter;
+  LTempDir11, LTempDir12: string;
+  LDprojFile: string;
+  LDprojContent: string;
+  LRsvarsPath: string;
+  LPlatform: string;
+begin
+  LTempDir11 := TPath.Combine(TPath.GetTempPath, 'boss4d_mock_delphi11_' + TGUID.NewGuid.ToString);
+  LTempDir12 := TPath.Combine(TPath.GetTempPath, 'boss4d_mock_delphi12_' + TGUID.NewGuid.ToString);
+
+  TDirectory.CreateDirectory(TPath.Combine(LTempDir11, 'bin'));
+  TDirectory.CreateDirectory(TPath.Combine(LTempDir12, 'bin'));
+
+  TFile.WriteAllText(TPath.Combine(TPath.Combine(LTempDir11, 'bin'), 'rsvars.bat'), '@echo off', TEncoding.UTF8);
+  TFile.WriteAllText(TPath.Combine(TPath.Combine(LTempDir12, 'bin'), 'rsvars.bat'), '@echo off', TEncoding.UTF8);
+
+  LDprojFile := TPath.Combine(TDirectory.GetCurrentDirectory, 'test_mock_project.dproj');
+  LDprojContent := 
+    '<?xml version="1.0" encoding="utf-8"?>'#13#10 +
+    '<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">'#13#10 +
+    '  <PropertyGroup>'#13#10 +
+    '    <ProjectVersion>19.5</ProjectVersion>'#13#10 +
+    '  </PropertyGroup>'#13#10 +
+    '</Project>';
+  TFile.WriteAllText(LDprojFile, LDprojContent, TEncoding.UTF8);
+
+  try
+    LRegistryMock := TRegistryMock.Create;
+    TRegistryMock(LRegistryMock).Path22 := LTempDir11;
+    TRegistryMock(LRegistryMock).Path23 := LTempDir12;
+
+    LCompiler := TBoss4DDelphiCompilerAdapter.Create(LRegistryMock, TTestLogger.Create);
+    try
+      Assert.IsTrue(LCompiler.FindRsvarsPath(LRsvarsPath, LPlatform));
+      Assert.IsTrue(LRsvarsPath.Contains(LTempDir11), 'Nao priorizou a versao do Delphi 11 do dproj. Usou: ' + LRsvarsPath);
+    finally
+      LCompiler.Free;
+    end;
+  finally
+    if TFile.Exists(LDprojFile) then TFile.Delete(LDprojFile);
+    if TDirectory.Exists(LTempDir11) then TDirectory.Delete(LTempDir11, True);
+    if TDirectory.Exists(LTempDir12) then TDirectory.Delete(LTempDir12, True);
   end;
 end;
 

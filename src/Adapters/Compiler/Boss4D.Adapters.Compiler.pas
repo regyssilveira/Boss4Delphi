@@ -13,6 +13,7 @@ type
     FLogger: IBoss4DLogger;
 
     function GetConfiguredDelphiPath: string;
+    function DetectDelphiVersionFromDproj: string;
     function ExecuteBatch(const ABatchPath: string; const AWorkingDir: string; out AOutput: string): Boolean;
     function GetCompilerParameters(
       const ARootPath: string;
@@ -30,6 +31,7 @@ type
 implementation
 
 uses
+  Winapi.Windows,
   System.SysUtils,
   System.Classes,
   System.IOUtils,
@@ -96,10 +98,67 @@ begin
   end;
 end;
 
+function TBoss4DDelphiCompilerAdapter.DetectDelphiVersionFromDproj: string;
+var
+  LFiles: TArray<string>;
+  LContent: string;
+  LStartIdx, LEndIdx: Integer;
+  LVerStr: string;
+  LVerFloat: Double;
+begin
+  Result := '';
+  try
+    if not TDirectory.Exists(TDirectory.GetCurrentDirectory) then
+      Exit;
+
+    LFiles := TDirectory.GetFiles(TDirectory.GetCurrentDirectory, '*.dproj');
+    if Length(LFiles) = 0 then
+      Exit;
+
+    LContent := TFile.ReadAllText(LFiles[0]);
+    LStartIdx := LContent.IndexOf('<ProjectVersion>');
+    if LStartIdx = -1 then
+      Exit;
+
+    Inc(LStartIdx, Length('<ProjectVersion>'));
+    LEndIdx := LContent.IndexOf('</ProjectVersion>', LStartIdx);
+    if LEndIdx = -1 then
+      Exit;
+
+    LVerStr := LContent.Substring(LStartIdx, LEndIdx - LStartIdx).Trim;
+    if LVerStr.IsEmpty then
+      Exit;
+
+    LVerStr := LVerStr.Replace(',', '.');
+    
+    var LFormatSettings := TFormatSettings.Invariant;
+    if TryStrToFloat(LVerStr, LVerFloat, LFormatSettings) then
+    begin
+      if LVerFloat >= 20.0 then
+        Result := '23.0'
+      else if LVerFloat >= 19.5 then
+        Result := '22.0'
+      else if LVerFloat >= 19.0 then
+        Result := '21.0'
+      else if LVerFloat >= 18.5 then
+        Result := '20.0'
+      else if LVerFloat >= 18.0 then
+        Result := '19.0'
+      else if LVerFloat >= 17.0 then
+        Result := '18.0'
+      else if LVerFloat >= 16.0 then
+        Result := '17.0';
+    end;
+  except
+    // Falha silenciosa por seguranca
+  end;
+end;
+
 function TBoss4DDelphiCompilerAdapter.FindRsvarsPath(out ARsvarsPath: string; out APlatform: string): Boolean;
 var
   LVersions: TArray<string>;
   LRootDir: string;
+  LDetectedVer: string;
 begin
   Result := False;
   ARsvarsPath := '';
@@ -108,13 +167,24 @@ begin
   // 1. Tenta obter o caminho preferencial configurado globalmente no boss.cfg.json
   LRootDir := GetConfiguredDelphiPath;
 
-  // 2. Se nao configurado de forma explicita, autodetecta a versao mais recente no Registro
+  // 2. Se nao houver configuracao explicita, tenta autodetectar a versao pelo dproj do projeto atual
+  if LRootDir.IsEmpty then
+  begin
+    LDetectedVer := DetectDelphiVersionFromDproj;
+    if not LDetectedVer.IsEmpty then
+    begin
+      LRootDir := FRegistry.GetDelphiPath(LDetectedVer);
+      if not LRootDir.IsEmpty then
+        FLogger.Log(TBoss4DLogLevel.Debug, '  Detectado Delphi %s pelo arquivo .dproj local.', [LDetectedVer]);
+    end;
+  end;
+
+  // 3. Se nao detectado ou nao instalado, faz o fallback para a versao mais recente no Registro
   if LRootDir.IsEmpty then
   begin
     LVersions := FRegistry.GetInstalledDelphiVersions;
     if Length(LVersions) > 0 then
     begin
-      // Ordena as versoes e pega a mais recente (Delphi 13 tem indice maior)
       TArray.Sort<string>(LVersions);
       var LLatestVersion := LVersions[Length(LVersions) - 1];
       LRootDir := FRegistry.GetDelphiPath(LLatestVersion);
