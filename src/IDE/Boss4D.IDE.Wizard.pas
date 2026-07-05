@@ -502,7 +502,7 @@ begin
       LReadPipe, LWritePipe: THandle;
       LStartInfo: TStartupInfo;
       LProcInfo: TProcessInformation;
-      LBuffer: array[0..1023] of AnsiChar;
+      LBuffer: TBytes;
       LBytesRead: DWORD;
       LOutputLine: string;
       LCmdLine: string;
@@ -519,6 +519,7 @@ begin
         LExecutable := TPath.Combine(LHomePath, 'boss.exe');
 
       LCmdLine := '"' + LExecutable + '" ' + ACommand;
+      SetLength(LBuffer, 4096);
 
       LSA.nLength := SizeOf(TSecurityAttributes);
       LSA.bInheritHandle := True;
@@ -541,10 +542,9 @@ begin
             LWritePipe := 0;
 
             LTextBuffer := '';
-            while ReadFile(LReadPipe, LBuffer, SizeOf(LBuffer) - 1, LBytesRead, nil) and (LBytesRead > 0) do
+            while ReadFile(LReadPipe, LBuffer[0], Length(LBuffer), LBytesRead, nil) and (LBytesRead > 0) do
             begin
-              LBuffer[LBytesRead] := #0;
-              LTextBuffer := LTextBuffer + string(AnsiString(LBuffer));
+              LTextBuffer := LTextBuffer + TEncoding.UTF8.GetString(LBuffer, 0, LBytesRead);
 
               while True do
               begin
