@@ -89,7 +89,7 @@ procedure Register;
 implementation
 
 uses
-  Winapi.Windows, System.IOUtils, System.Diagnostics, System.Threading, System.JSON, Vcl.Forms;
+  Winapi.Windows, System.IOUtils, System.Diagnostics, System.Threading, System.JSON;
 
 const
   GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS = $00000004;
@@ -764,9 +764,5 @@ end;
 initialization
 
 finalization
-  if Assigned(GBootManager) then
-  begin
-    FreeAndNil(GBootManager);
-  end;
 
 end.
