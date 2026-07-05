@@ -111,6 +111,24 @@ begin
   end;
 end;
 
+procedure CleanObsoleteRegistry(BDSVersion: string; BPLName: string);
+var
+  RegKey1, RegKey2: string;
+  BPLPath: string;
+begin
+  BPLPath := ExpandConstant('{app}\plugins\' + BPLName);
+  
+  // Limpa da chave Known Packages
+  RegKey1 := 'Software\Embarcadero\BDS\' + BDSVersion + '\Known Packages';
+  if RegValueExists(HKCU, RegKey1, BPLPath) then
+    RegDeleteValue(HKCU, RegKey1, BPLPath);
+
+  // Limpa da chave Known IDE Packages
+  RegKey2 := 'Software\Embarcadero\BDS\' + BDSVersion + '\Known IDE Packages';
+  if RegValueExists(HKCU, RegKey2, BPLPath) then
+    RegDeleteValue(HKCU, RegKey2, BPLPath);
+end;
+
 procedure AddToPath;
 var
   PathStr: string;
@@ -167,6 +185,11 @@ procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
   begin
+    // Limpa registros obsoletos de instalacoes anteriores para evitar conflito de units na IDE
+    CleanObsoleteRegistry('22.0', 'Boss4D.IDE.Plugin_11.bpl');
+    CleanObsoleteRegistry('23.0', 'Boss4D.IDE.Plugin_12.bpl');
+    CleanObsoleteRegistry('37.0', 'Boss4D.IDE.Plugin_13.bpl');
+
     // Delphi 11 (Alexandria)
     if Delphi11Idx <> -1 then
     begin
