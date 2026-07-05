@@ -15,9 +15,9 @@ Source: "..\dist\bin\boss4d.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "..\dist\bin\boss4d_x64.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "..\dist\bin\Boss4D.GUI.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "..\dist\bin\Boss4D.GUI_x64.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
-Source: "..\dist\plugins\11\Boss4D.IDE.Plugin.bpl"; DestDir: "{app}\plugins\11"; Flags: ignoreversion; Check: IsDelphi11Installed
-Source: "..\dist\plugins\12\Boss4D.IDE.Plugin.bpl"; DestDir: "{app}\plugins\12"; Flags: ignoreversion; Check: IsDelphi12Installed
-Source: "..\dist\plugins\13\Boss4D.IDE.Plugin.bpl"; DestDir: "{app}\plugins\13"; Flags: ignoreversion; Check: IsDelphi13Installed
+Source: "..\dist\plugins\11\Boss4D.IDE.Plugin.bpl"; DestDir: "{commondocs}\Embarcadero\Studio\22.0\Bpl"; Flags: ignoreversion; Check: IsDelphi11Installed
+Source: "..\dist\plugins\12\Boss4D.IDE.Plugin.bpl"; DestDir: "{commondocs}\Embarcadero\Studio\23.0\Bpl"; Flags: ignoreversion; Check: IsDelphi12Installed
+Source: "..\dist\plugins\13\Boss4D.IDE.Plugin.bpl"; DestDir: "{commondocs}\Embarcadero\Studio\37.0\Bpl"; Flags: ignoreversion; Check: IsDelphi13Installed
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
@@ -87,53 +87,63 @@ end;
 procedure RegisterPlugin(BDSVersion: string; SubFolder: string);
 var
   RegKey: string;
+  BPLPath: string;
 begin
+  BPLPath := ExpandConstant('{commondocs}\Embarcadero\Studio\' + BDSVersion + '\Bpl\Boss4D.IDE.Plugin.bpl');
+  
+  // Registra estritamente na chave Known IDE Packages (correto para Plugins)
   RegKey := 'Software\Embarcadero\BDS\' + BDSVersion + '\Known IDE Packages';
-  if RegWriteStringValue(HKCU, RegKey, ExpandConstant('{app}\plugins\' + SubFolder + '\Boss4D.IDE.Plugin.bpl'), 'Boss4D - RAD Studio IDE Integration Plugin') then
-    Log('Plugin registrado com sucesso na IDE ' + BDSVersion)
+  if RegWriteStringValue(HKCU, RegKey, BPLPath, 'Boss4D - RAD Studio IDE Integration Plugin') then
+    Log('Plugin registrado com sucesso na chave Known IDE Packages da IDE ' + BDSVersion)
   else
-    Log('Falha ao registrar o plugin na IDE ' + BDSVersion);
+    Log('Falha ao registrar o plugin na chave Known IDE Packages da IDE ' + BDSVersion);
 end;
 
 procedure UnregisterPlugin(BDSVersion: string; SubFolder: string);
 var
-  RegKey: string;
+  RegKey1, RegKey2: string;
   BPLPath: string;
 begin
-  RegKey := 'Software\Embarcadero\BDS\' + BDSVersion + '\Known IDE Packages';
-  BPLPath := ExpandConstant('{app}\plugins\' + SubFolder + '\Boss4D.IDE.Plugin.bpl');
-  if RegValueExists(HKCU, RegKey, BPLPath) then
-  begin
-    if RegDeleteValue(HKCU, RegKey, BPLPath) then
-      Log('Plugin removido com sucesso da IDE ' + BDSVersion)
-    else
-      Log('Falha ao remover o plugin da IDE ' + BDSVersion);
-  end;
+  BPLPath := ExpandConstant('{commondocs}\Embarcadero\Studio\' + BDSVersion + '\Bpl\Boss4D.IDE.Plugin.bpl');
+  
+  // Remove da Known IDE Packages
+  RegKey1 := 'Software\Embarcadero\BDS\' + BDSVersion + '\Known IDE Packages';
+  if RegValueExists(HKCU, RegKey1, BPLPath) then
+    RegDeleteValue(HKCU, RegKey1, BPLPath);
+
+  // Remove da Known Packages (limpeza de seguranca caso tenha sido registrado antes)
+  RegKey2 := 'Software\Embarcadero\BDS\' + BDSVersion + '\Known Packages';
+  if RegValueExists(HKCU, RegKey2, BPLPath) then
+    RegDeleteValue(HKCU, RegKey2, BPLPath);
+
+  // Deleta o arquivo fisico de BPL na desinstalacao
+  if FileExists(BPLPath) then
+    DeleteFile(BPLPath);
 end;
 
 procedure CleanObsoleteRegistry(BDSVersion: string; BPLName: string);
 var
   RegKey1, RegKey2, RegKey3: string;
-  BPLPath: string;
+  BPLPathObsolete: string;
 begin
-  BPLPath := ExpandConstant('{app}\plugins\' + BPLName);
+  BPLPathObsolete := ExpandConstant('{app}\plugins\' + BPLName);
   
   // Limpa da chave Known Packages
   RegKey1 := 'Software\Embarcadero\BDS\' + BDSVersion + '\Known Packages';
-  if RegValueExists(HKCU, RegKey1, BPLPath) then
-    RegDeleteValue(HKCU, RegKey1, BPLPath);
+  if RegValueExists(HKCU, RegKey1, BPLPathObsolete) then
+    RegDeleteValue(HKCU, RegKey1, BPLPathObsolete);
 
   // Limpa da chave Known IDE Packages
   RegKey2 := 'Software\Embarcadero\BDS\' + BDSVersion + '\Known IDE Packages';
-  if RegValueExists(HKCU, RegKey2, BPLPath) then
-    RegDeleteValue(HKCU, RegKey2, BPLPath);
+  if RegValueExists(HKCU, RegKey2, BPLPathObsolete) then
+    RegDeleteValue(HKCU, RegKey2, BPLPathObsolete);
 
   // Limpa da chave Wizards
   RegKey3 := 'Software\Embarcadero\BDS\' + BDSVersion + '\Wizards';
   if RegValueExists(HKCU, RegKey3, 'Boss4D.IDE.Plugin') then
     RegDeleteValue(HKCU, RegKey3, 'Boss4D.IDE.Plugin');
-  if RegValueExists(HKCU, RegKey3, BPLPath) then
-    RegDeleteValue(HKCU, RegKey3, BPLPath);
+  if RegValueExists(HKCU, RegKey3, BPLPathObsolete) then
+    RegDeleteValue(HKCU, RegKey3, BPLPathObsolete);
   if RegValueExists(HKCU, RegKey3, 'Boss4D.IDE.Plugin_11') then
     RegDeleteValue(HKCU, RegKey3, 'Boss4D.IDE.Plugin_11');
   if RegValueExists(HKCU, RegKey3, 'Boss4D.IDE.Plugin_12') then
