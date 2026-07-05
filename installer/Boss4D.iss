@@ -8,6 +8,7 @@ OutputBaseFilename=Boss4D_Setup
 Compression=lzma
 SolidCompression=yes
 PrivilegesRequired=lowest
+ChangesEnvironment=yes
 
 [Files]
 Source: "..\dist\bin\boss4d.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
@@ -17,6 +18,15 @@ Source: "..\dist\bin\Boss4D.GUI_x64.exe"; DestDir: "{app}\bin"; Flags: ignorever
 Source: "..\dist\plugins\Boss4D.IDE.Plugin_11.bpl"; DestDir: "{app}\plugins"; Flags: ignoreversion; Check: IsDelphi11Installed
 Source: "..\dist\plugins\Boss4D.IDE.Plugin_12.bpl"; DestDir: "{app}\plugins"; Flags: ignoreversion; Check: IsDelphi12Installed
 Source: "..\dist\plugins\Boss4D.IDE.Plugin_13.bpl"; DestDir: "{app}\plugins"; Flags: ignoreversion; Check: IsDelphi13Installed
+
+[Tasks]
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+
+[Icons]
+Name: "{group}\Boss4D GUI"; Filename: "{app}\bin\Boss4D.GUI_x64.exe"; Check: Is64BitInstallMode
+Name: "{group}\Boss4D GUI"; Filename: "{app}\bin\Boss4D.GUI.exe"; Check: not Is64BitInstallMode
+Name: "{userdesktop}\Boss4D GUI"; Filename: "{app}\bin\Boss4D.GUI_x64.exe"; Tasks: desktopicon; Check: Is64BitInstallMode
+Name: "{userdesktop}\Boss4D GUI"; Filename: "{app}\bin\Boss4D.GUI.exe"; Tasks: desktopicon; Check: not Is64BitInstallMode
 
 [Code]
 var
