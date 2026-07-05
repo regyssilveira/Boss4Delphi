@@ -210,8 +210,8 @@ begin
   // Impede o descarregamento sob demanda do pacote pela IDE
   ForceDemandLoadState(dlDisable);
 
-  // Registro na Splash Screen usando a variavel global oficial da ToolsAPI
-  if Supports(SplashScreenServices, IOTASplashScreenServices, LSplashServices) then
+  // Registro na Splash Screen usando a variavel global oficial da ToolsAPI com check de seguranca
+  if Assigned(SplashScreenServices) and Supports(SplashScreenServices, IOTASplashScreenServices, LSplashServices) then
   begin
     LBitmap := Vcl.Graphics.TBitmap.Create;
     try
@@ -235,8 +235,8 @@ begin
     end;
   end;
 
-  // Registro no About Box usando BorlandIDEServices
-  if Supports(BorlandIDEServices, IOTAAboutBoxServices, LAboutServices) then
+  // Registro no About Box usando BorlandIDEServices com check de seguranca
+  if Assigned(BorlandIDEServices) and Supports(BorlandIDEServices, IOTAAboutBoxServices, LAboutServices) then
   begin
     LBitmap := Vcl.Graphics.TBitmap.Create;
     try
