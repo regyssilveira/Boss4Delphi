@@ -21,11 +21,11 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 🔌 Épico 2: Integração com RAD Studio IDE (Plugin / Wizard)
 *Objetivo: Integrar o gerenciador de dependências diretamente no fluxo de trabalho do desenvolvedor dentro do RAD Studio.*
 
-- [ ] **[Story] Menu de Contexto no Project Manager**
+- [x] **[Story] Menu de Contexto no Project Manager**
   - Adicionar as opções "Boss4D Init" e "Boss4D Install" no clique direito do gerenciador de projetos da IDE do Delphi.
-- [ ] **[Story] IDE Package Manager Wizard**
+- [x] **[Story] IDE Package Manager Wizard**
   - Criar um Wizard interno (Plugin via ToolsAPI do Delphi) para buscar e gerenciar pacotes diretamente de dentro da IDE.
-- [ ] **[Story] Atalhos de Teclado e Atalho de Build**
+- [x] **[Story] Atalhos de Teclado e Atalho de Build**
   - Sincronizar o build de dependências com as teclas de atalho de compilação nativas da IDE.
 
 ---
