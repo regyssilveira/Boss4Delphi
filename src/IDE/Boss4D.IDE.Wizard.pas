@@ -3,7 +3,7 @@ unit Boss4D.IDE.Wizard;
 interface
 
 uses
-  System.SysUtils, System.Classes, Vcl.Menus, Vcl.Forms, Vcl.StdCtrls, Vcl.Controls, Vcl.Graphics
+  System.SysUtils, System.Classes, Vcl.Menus, Vcl.Forms, Vcl.StdCtrls, Vcl.Controls, Vcl.Graphics, Vcl.ExtCtrls
   {$IFDEF IDE_PLUGIN}
   , ToolsAPI
   {$ENDIF};
@@ -131,6 +131,8 @@ type
   private
     FMenuCreatorIdx: Integer;
     FNotifier: IOTAProjectMenuItemCreatorNotifier;
+    FTimer: TTimer;
+    procedure OnTimerEvent(Sender: TObject);
   public
     constructor Create;
     destructor Destroy; override;
@@ -736,17 +738,30 @@ begin
   inherited Create;
   FMenuCreatorIdx := -1;
   FNotifier := TBoss4DProjectMenuItemCreatorNotifier.Create;
+  FTimer := nil;
   {$IFDEF IDE_PLUGIN}
   var LProjectManager: IOTAProjectManager;
   if Supports(BorlandIDEServices, IOTAProjectManager, LProjectManager) then
   begin
     FMenuCreatorIdx := LProjectManager.AddMenuItemCreatorNotifier(FNotifier);
+  end
+  else
+  begin
+    FTimer := TTimer.Create(nil);
+    FTimer.Interval := 1000;
+    FTimer.OnTimer := OnTimerEvent;
+    FTimer.Enabled := True;
   end;
   {$ENDIF}
 end;
 
 destructor TBoss4DIDEWizard.Destroy;
 begin
+  if Assigned(FTimer) then
+  begin
+    FTimer.Enabled := False;
+    FreeAndNil(FTimer);
+  end;
   {$IFDEF IDE_PLUGIN}
   var LProjectManager: IOTAProjectManager;
   if (FMenuCreatorIdx <> -1) and Supports(BorlandIDEServices, IOTAProjectManager, LProjectManager) then
@@ -755,6 +770,21 @@ begin
   end;
   {$ENDIF}
   inherited Destroy;
+end;
+
+procedure TBoss4DIDEWizard.OnTimerEvent(Sender: TObject);
+begin
+  {$IFDEF IDE_PLUGIN}
+  var LProjectManager: IOTAProjectManager;
+  if Supports(BorlandIDEServices, IOTAProjectManager, LProjectManager) then
+  begin
+    FMenuCreatorIdx := LProjectManager.AddMenuItemCreatorNotifier(FNotifier);
+    if FMenuCreatorIdx <> -1 then
+    begin
+      FTimer.Enabled := False;
+    end;
+  end;
+  {$ENDIF}
 end;
 
 function TBoss4DIDEWizard.GetIDString: string;
