@@ -29,8 +29,7 @@ type
 implementation
 
 uses
-  System.SysUtils, System.IOUtils
-  {$IFDEF MSWINDOWS}, Winapi.Windows{$ENDIF};
+  System.SysUtils, System.IOUtils, Winapi.Windows;
 
 { TBoss4DConsoleLoggerAdapter }
 
@@ -80,7 +79,6 @@ begin
 end;
 
 procedure TBoss4DConsoleLoggerAdapter.SetConsoleColor(const ALevel: TBoss4DLogLevel);
-{$IFDEF MSWINDOWS}
 var
   LHandle: THandle;
   LColorAttr: Word;
@@ -100,31 +98,14 @@ begin
   end;
   SetConsoleTextAttribute(LHandle, LColorAttr);
 end;
-{$ELSE}
-begin
-  // No-op ou sequencias ANSI para Linux
-  case ALevel of
-    TBoss4DLogLevel.Debug: Write( #27'[36m' );
-    TBoss4DLogLevel.Info: Write( #27'[0m' );
-    TBoss4DLogLevel.Warning: Write( #27'[33m' );
-    TBoss4DLogLevel.Error: Write( #27'[31m' );
-  end;
-end;
-{$ENDIF}
 
 procedure TBoss4DConsoleLoggerAdapter.ResetConsoleColor;
-{$IFDEF MSWINDOWS}
 var
   LHandle: THandle;
 begin
   LHandle := GetStdHandle(STD_OUTPUT_HANDLE);
   SetConsoleTextAttribute(LHandle, FOREGROUND_RED or FOREGROUND_GREEN or FOREGROUND_BLUE);
 end;
-{$ELSE}
-begin
-  Write( #27'[0m' );
-end;
-{$ENDIF}
 
 procedure TBoss4DConsoleLoggerAdapter.WriteToConsole(const ALevel: TBoss4DLogLevel; const AMessage: string);
 var
@@ -133,8 +114,8 @@ begin
   case ALevel of
     TBoss4DLogLevel.Debug:   LPrefix := '[DEBUG] ';
     TBoss4DLogLevel.Info:    LPrefix := ''; // Info nao precisa de prefixo para manter o visual limpo do CLI original
-    TBoss4DLogLevel.Warning: LPrefix := '⚠️  [WARN] ';
-    TBoss4DLogLevel.Error:   LPrefix := '❌ [ERROR] ';
+    TBoss4DLogLevel.Warning: LPrefix := '[WARN] ';
+    TBoss4DLogLevel.Error:   LPrefix := '[ERROR] ';
   end;
 
   SetConsoleColor(ALevel);

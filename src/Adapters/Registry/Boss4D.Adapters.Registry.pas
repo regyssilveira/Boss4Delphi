@@ -16,13 +16,12 @@ type
 implementation
 
 uses
-  System.SysUtils, System.Generics.Collections, Boss4D.Core.Domain.Consts
-  {$IFDEF MSWINDOWS}, System.Win.Registry, System.Classes, Winapi.Windows{$ENDIF};
+  System.SysUtils, System.Generics.Collections, Boss4D.Core.Domain.Consts,
+  System.Win.Registry, System.Classes, Winapi.Windows;
 
 { TBoss4DWindowsRegistryAdapter }
 
 function TBoss4DWindowsRegistryAdapter.GetInstalledDelphiVersions: TArray<string>;
-{$IFDEF MSWINDOWS}
 var
   LReg: TRegistry;
   LSubKeys: TStringList;
@@ -55,14 +54,8 @@ begin
     LResultList.Free;
   end;
 end;
-{$ELSE}
-begin
-  Result := nil;
-end;
-{$ENDIF}
 
 function TBoss4DWindowsRegistryAdapter.GetDelphiPath(const AVersion: string): string;
-{$IFDEF MSWINDOWS}
 var
   LReg: TRegistry;
 begin
@@ -78,10 +71,5 @@ begin
     LReg.Free;
   end;
 end;
-{$ELSE}
-begin
-  Result := '';
-end;
-{$ENDIF}
 
 end.

@@ -74,7 +74,7 @@ begin
     end;
 
     FPackageRepo.Save(LPkg, LFilePath);
-    FLogger.Log(TBoss4DLogLevel.Info, '✅ boss.json inicializado com sucesso em %s', [LFilePath]);
+    FLogger.Log(TBoss4DLogLevel.Info, 'Pronto. boss.json inicializado com sucesso em %s', [LFilePath]);
   finally
     LPkg.Free;
   end;

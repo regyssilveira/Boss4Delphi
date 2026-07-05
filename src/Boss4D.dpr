@@ -5,6 +5,7 @@ program Boss4D;
 uses
   System.SysUtils,
   System.Generics.Collections,
+  Winapi.Windows,
   Boss4D.Core.Ports in 'Core/Ports/Boss4D.Core.Ports.pas',
   Boss4D.Core.Domain.Consts in 'Core/Domain/Boss4D.Core.Domain.Consts.pas',
   Boss4D.Core.Domain.Env in 'Core/Domain/Boss4D.Core.Domain.Env.pas',
@@ -44,6 +45,8 @@ var
   // Parser
   LParser: TBoss4DCommandLineParser;
 begin
+  SetConsoleOutputCP(CP_UTF8);
+  SetConsoleCP(CP_UTF8);
   try
     // Captura os argumentos do terminal
     SetLength(LArgs, ParamCount);

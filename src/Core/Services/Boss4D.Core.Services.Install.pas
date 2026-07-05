@@ -81,7 +81,7 @@ begin
   LCacheDir := TPath.Combine(GetCacheDir, ADep.HashName);
   LTargetDir := TPath.Combine(GetModulesDir, ADep.Name);
 
-  FLogger.Log(TBoss4DLogLevel.Info, '⏳ Resolvendo %s (%s)...', [ADep.Name, ADep.Version]);
+  FLogger.Log(TBoss4DLogLevel.Info, 'Resolvendo %s (%s)...', [ADep.Name, ADep.Version]);
 
   // 1. Garante que o repositorio de cache existe
   if not TDirectory.Exists(LCacheDir) then
@@ -206,7 +206,7 @@ begin
         Exit;
       end;
 
-      FLogger.Log(TBoss4DLogLevel.Info, '📦 Baixando dependencias do projeto...');
+      FLogger.Log(TBoss4DLogLevel.Info, 'Baixando dependencias do projeto...');
 
       // FASE 1: Downloads concorrentes das dependencias de primeiro nivel usando PPL
       for var LDep in LActiveDeps do
@@ -217,7 +217,7 @@ begin
       // Aguarda todos os downloads completarem
       TTask.WaitForAll(LTasks.ToArray);
 
-      FLogger.Log(TBoss4DLogLevel.Info, '🔨 Compilando modulos instalados...');
+      FLogger.Log(TBoss4DLogLevel.Info, 'Compilando modulos instalados...');
 
       // FASE 2: Compilacao (deve ser sequencial para evitar lock no msbuild)
       for var LDep in LActiveDeps do
@@ -234,7 +234,7 @@ begin
     LLock.Updated := FormatDateTime('yyyy-mm-dd"T"hh:nn:ss"Z"', Now);
     FLockRepo.Save(LLock, LLockPath);
 
-    FLogger.Log(TBoss4DLogLevel.Info, '✨ Instalacao concluida com sucesso!');
+    FLogger.Log(TBoss4DLogLevel.Info, 'Instalacao concluida com sucesso!');
   finally
     LTasks.Free;
     LProcessedDeps.Free;
