@@ -20,7 +20,7 @@ jobs:
           echo ========================================================
           echo Carregando Variaveis de Ambiente do Delphi
           echo ========================================================
-          call "C:\Program Files (x86)\Embarcadero\Studio\23.0\bin\rsvars.bat"
+          call "C:\Program Files (x86)\Embarcadero\Studio\37.0\bin\rsvars.bat"
           
           echo ========================================================
           echo Compilando Boss4D em Win32
