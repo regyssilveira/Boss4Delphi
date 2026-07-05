@@ -3,7 +3,7 @@ unit Boss4D.Core.Services.Install;
 interface
 
 uses
-  System.Generics.Collections, System.Threading, Boss4D.Core.Ports,
+  System.Generics.Collections, System.Threading, System.SyncObjs, Boss4D.Core.Ports,
   Boss4D.Core.Domain.Dependency, Boss4D.Core.Domain.Lock;
 
 type
@@ -16,6 +16,7 @@ type
     FHttpClient: IBoss4DHttpClient;
     FCompiler: IBoss4DCompiler;
     FLogger: IBoss4DLogger;
+    FGitCriticalSection: TCriticalSection;
 
     procedure ProcessDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock;
       const AProcessedDeps: TList<string>);
@@ -31,6 +32,8 @@ type
       const ACompiler: IBoss4DCompiler;
       const ALogger: IBoss4DLogger
     );
+
+    destructor Destroy; override;
 
     procedure Execute(const AInstallSingle: string = '');
     procedure RunInstallTask(const ADep: TBoss4DDependency; const ALock: TBoss4DLock; const ATasks: TList<ITask>);
@@ -61,6 +64,13 @@ begin
   FHttpClient := AHttpClient;
   FCompiler := ACompiler;
   FLogger := ALogger;
+  FGitCriticalSection := TCriticalSection.Create;
+end;
+
+destructor TBoss4DInstallService.Destroy;
+begin
+  FGitCriticalSection.Free;
+  inherited Destroy;
 end;
 
 procedure TBoss4DInstallService.ProcessDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock;
@@ -83,28 +93,33 @@ begin
 
   FLogger.Log(TBoss4DLogLevel.Info, 'Resolvendo %s (%s)...', [ADep.Name, ADep.Version]);
 
-  // 1. Garante que o repositorio de cache existe
-  if not TDirectory.Exists(LCacheDir) then
-  begin
-    FLogger.Log(TBoss4DLogLevel.Debug, 'Clonando no cache global: ' + ADep.Repository);
-    FGitClient.CloneCache(ADep, LCacheDir);
-  end
-  else
-  begin
-    FLogger.Log(TBoss4DLogLevel.Debug, 'Atualizando cache existente: ' + ADep.Repository);
-    FGitClient.UpdateCache(ADep, LCacheDir);
+  FGitCriticalSection.Enter;
+  try
+    // 1. Garante que o repositorio de cache existe
+    if not TDirectory.Exists(LCacheDir) then
+    begin
+      FLogger.Log(TBoss4DLogLevel.Debug, 'Clonando no cache global: ' + ADep.Repository);
+      FGitClient.CloneCache(ADep, LCacheDir);
+    end
+    else
+    begin
+      FLogger.Log(TBoss4DLogLevel.Debug, 'Atualizando cache existente: ' + ADep.Repository);
+      FGitClient.UpdateCache(ADep, LCacheDir);
+    end;
+
+    // 2. Resolve a melhor versao disponivel usando SemVer se a versao informada for um range
+    LResolvedVersion := ResolveDependencyVersion(ADep, LCacheDir);
+
+    FLogger.Log(TBoss4DLogLevel.Debug, 'Versao selecionada para %s: %s', [ADep.Name, LResolvedVersion]);
+
+    // 3. Executa o checkout local da versao selecionada na pasta modules/
+    FGitClient.Checkout(LCacheDir, LResolvedVersion, LTargetDir);
+
+    // 4. Adiciona no arquivo lock
+    ALock.AddDependency(ADep, LResolvedVersion, ADep.HashName);
+  finally
+    FGitCriticalSection.Leave;
   end;
-
-  // 2. Resolve a melhor versao disponivel usando SemVer se a versao informada for um range
-  LResolvedVersion := ResolveDependencyVersion(ADep, LCacheDir);
-
-  FLogger.Log(TBoss4DLogLevel.Debug, 'Versao selecionada para %s: %s', [ADep.Name, LResolvedVersion]);
-
-  // 3. Executa o checkout local da versao selecionada na pasta modules/
-  FGitClient.Checkout(LCacheDir, LResolvedVersion, LTargetDir);
-
-  // 4. Adiciona no arquivo lock
-  ALock.AddDependency(ADep, LResolvedVersion, ADep.HashName);
 
   // 5. Recursividade: Analisa subdependencias do modulo recem-baixado
   var LPkgPath := TPath.Combine(LTargetDir, FILE_PACKAGE);
