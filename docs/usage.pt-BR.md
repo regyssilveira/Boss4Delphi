@@ -14,11 +14,15 @@ Para começar a gerenciar dependências em um projeto Delphi novo ou existente, 
 boss4d init
 ```
 
-* **Modo Interativo**: Por padrão, o assistente perguntará no console o nome e a versão inicial do seu projeto.
 * **Modo Silencioso (`-q` ou `--quiet`)**: Cria o arquivo instantaneamente usando valores padrão (o nome da pasta atual como nome do projeto e a versão `1.0.0`):
   ```bash
   boss4d init --quiet
   ```
+
+  * **Exemplo de Saída**:
+    ```text
+    Pronto. boss.json inicializado com sucesso em D:\Projetos\meu-projeto\boss.json
+    ```
 
 Este comando gera um arquivo **`boss.json`** na pasta raiz:
 ```json
@@ -63,6 +67,15 @@ Para instalar todas as dependências declaradas em um `boss.json` existente (por
 boss4d install
 ```
 
+* **Exemplo de Saída**:
+  ```text
+  Baixando dependencias do projeto...
+  Compilando modulos instalados...
+    Compilando horse.dproj
+    Compilado com sucesso!
+  Instalacao concluida com sucesso!
+  ```
+
 Este comando lê o `boss.json`, resolve a árvore de dependências recursivas concorrentemente e gera ou atualiza o arquivo **`boss-lock.json`** que trava as versões exatas baixadas.
 
 ---
@@ -101,6 +114,11 @@ Clones rasos baixam apenas os commits mais recentes do histórico do Git, tornan
   boss4d config git shallow false
   ```
 
+* **Exemplo de Saída**:
+  ```text
+  ✅ Configuracao git shallow definida para: False
+  ```
+
 ---
 
 ## 🩺 4. Auto-Diagnóstico do Ambiente (`doctor`)
@@ -118,6 +136,18 @@ O comando `doctor` executa uma série de verificações estruturadas no seu ambi
   boss4d doctor -fix
   ```
   Se executado com o parâmetro `-fix`, o Boss4D mapeia automaticamente as instalações do Delphi em sua máquina e configura a versão mais recente identificada no registro como padrão de compilação global do utilitário.
+
+* **Exemplo de Saída (`boss4d doctor`)**:
+  ```text
+  [INFO] Iniciando verificacoes de diagnostico...
+  [OK] Git instalado e acessivel no PATH (versao 2.45.0)
+  [OK] Conectividade com GitHub estabelecida com sucesso.
+  [OK] Versoes do Delphi detectadas no registro: 22.0, 23.0
+  [OK] Compilador dcc32 localizado no PATH.
+  [OK] MSBuild localizado no PATH.
+  [OK] Diretorio modules/ possui permissoes de leitura e escrita.
+  [INFO] Diagnostico concluido! Seu ambiente esta configurado corretamente.
+  ```
 
 ---
 
@@ -138,6 +168,16 @@ O Boss4D armazena cópias em cache dos repositórios Git clonados para que insta
   boss4d cache prune
   ```
   Remove automaticamente do disco pastas de caches de dependências que não foram alteradas ou acessadas nos últimos 30 dias, prevenindo acúmulo desnecessário de gigabytes em seu HD.
+
+* **Exemplo de Saída (`boss4d cache size`)**:
+  ```text
+  Tamanho total do cache global do Git: 145.28 MB
+  ```
+
+* **Exemplo de Saída (`boss4d cache clean`)**:
+  ```text
+  ✅ Cache global limpo com sucesso! 45 pastas removidas.
+  ```
 
 ---
 
@@ -164,6 +204,13 @@ Cadastre seus scripts na seção `"scripts"` do seu `boss.json`:
   ```
   O comando executa o comando associado e exibe o log de saída e status diretamente no seu terminal de trabalho.
 
+* **Exemplo de Saída**:
+  ```text
+  > Win32\Debug\Boss4DTests.exe
+  DUnitX - Starting Tests...
+  Tests Passed: 44
+  ```
+
 ---
 
 ## 📄 7. Auditoria de Licenças e Conformidade (`license`)
@@ -179,6 +226,12 @@ Cadastre seus scripts na seção `"scripts"` do seu `boss.json`:
   Ele gera automaticamente os seguintes arquivos de auditoria sob a pasta `docs/`:
   1. `docs/license_report.md`: Um documento Markdown visual contendo a tabela organizada com dependência, versão, licença detectada e a origem do dado.
   2. `docs/license_report.csv`: Uma tabela de dados brutos (formato CSV) ideal para ser consumida em pipelines automáticos de segurança e compliance.
+
+* **Exemplo de Saída**:
+  ```text
+  ✅ Relatorio de conformidade gerado com sucesso em: docs/license_report.md
+  ✅ Relatorio em formato CSV gerado com sucesso em: docs/license_report.csv
+  ```
 
 ---
 
