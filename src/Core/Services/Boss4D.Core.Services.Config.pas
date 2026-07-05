@@ -11,9 +11,13 @@ type
   private
     FDelphiPath: string;
     FGitShallow: Boolean;
+    FGitHubToken: string;
+    FGitLabToken: string;
   public
     property DelphiPath: string read FDelphiPath write FDelphiPath;
     property GitShallow: Boolean read FGitShallow write FGitShallow;
+    property GitHubToken: string read FGitHubToken write FGitHubToken;
+    property GitLabToken: string read FGitLabToken write FGitLabToken;
   end;
 
   { Servico para carregar e salvar as configuracoes do boss.cfg.json }
@@ -66,6 +70,8 @@ begin
       try
         Result.DelphiPath := LJSONObj.GetValue<string>('delphiPath', '');
         Result.GitShallow := LJSONObj.GetValue<Boolean>('gitShallow', False);
+        Result.GitHubToken := LJSONObj.GetValue<string>('githubToken', '');
+        Result.GitLabToken := LJSONObj.GetValue<string>('gitlabToken', '');
       finally
         LJSONObj.Free;
       end;
@@ -99,6 +105,8 @@ begin
   try
     LJSONObj.AddPair('delphiPath', AConfig.DelphiPath);
     LJSONObj.AddPair('gitShallow', AConfig.GitShallow);
+    LJSONObj.AddPair('githubToken', AConfig.GitHubToken);
+    LJSONObj.AddPair('gitlabToken', AConfig.GitLabToken);
 
     LJSONStr := LJSONObj.Format(2);
     TFile.WriteAllText(LPath, LJSONStr, TEncoding.UTF8);

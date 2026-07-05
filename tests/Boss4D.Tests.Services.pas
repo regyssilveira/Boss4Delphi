@@ -67,6 +67,9 @@ type
 
     [Test]
     procedure TestOutdatedService;
+
+    [Test]
+    procedure TestConfigAuthAndPrivateRepos;
   end;
 
 implementation
@@ -689,6 +692,53 @@ begin
     Assert.IsTrue(LLogger.LastLogMessage.Contains('Desatualizado'));
   finally
     LOutdated.Free;
+  end;
+end;
+
+procedure TTestsServices.TestConfigAuthAndPrivateRepos;
+var
+  LConfigService: TBoss4DConfigService;
+  LConfig: TBoss4DGlobalConfig;
+  LDep: TBoss4DDependency;
+begin
+  LConfigService := TBoss4DConfigService.Create(TTestLogger.Create);
+  try
+    // 1. Salva as credenciais mockadas
+    LConfig := TBoss4DGlobalConfig.Create;
+    try
+      LConfig.GitHubToken := 'my_github_secret_pat';
+      LConfig.GitLabToken := 'my_gitlab_secret_pat';
+      LConfigService.Save(LConfig);
+    finally
+      LConfig.Free;
+    end;
+
+    // 2. Carrega e valida os tokens salvos
+    LConfig := LConfigService.Load;
+    try
+      Assert.AreEqual<string>('my_github_secret_pat', LConfig.GitHubToken);
+      Assert.AreEqual<string>('my_gitlab_secret_pat', LConfig.GitLabToken);
+    finally
+      LConfig.Free;
+    end;
+
+    // 3. Valida suporte a file:/// no GetURL
+    LDep := TBoss4DDependency.Create('file:///d:/Projetos/MinhaLib', '1.0.0');
+    try
+      Assert.AreEqual<string>('file:///d:/Projetos/MinhaLib', LDep.GetURL);
+    finally
+      LDep.Free;
+    end;
+
+    // 4. Valida suporte a caminhos de drives locais (ex: D:\MinhaLib) no GetURL
+    LDep := TBoss4DDependency.Create('d:\Projetos\MinhaLib', '1.0.0');
+    try
+      Assert.AreEqual<string>('d:\Projetos\MinhaLib', LDep.GetURL);
+    finally
+      LDep.Free;
+    end;
+  finally
+    LConfigService.Free;
   end;
 end;
 

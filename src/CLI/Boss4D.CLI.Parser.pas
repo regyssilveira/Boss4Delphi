@@ -86,6 +86,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '                       Exemplo: boss4d install github.com/hashload/horse@^3.0.0');
   FLogger.Log(TBoss4DLogLevel.Info, '  config delphi use <caminho>  Configura o caminho global do compilador Delphi.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config git shallow <true/false> Configura uso de shallow clones globais.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  config auth <github/gitlab> <token> Configura tokens de autenticacao global.');
   FLogger.Log(TBoss4DLogLevel.Info, '  cache                Gerenciamento do cache global do Git.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Subcomandos: size, clean, prune.');
   FLogger.Log(TBoss4DLogLevel.Info, '  run <script>         Executa um script customizado definido no boss.json.');
@@ -188,12 +189,37 @@ begin
       LConfig.Free;
     end;
   end
+  else if (Length(AArgs) >= 4) and SameText(AArgs[1], 'auth') then
+  begin
+    var LConfig := FConfigService.Load;
+    try
+      if SameText(AArgs[2], 'github') then
+      begin
+        LConfig.GitHubToken := AArgs[3];
+        FConfigService.Save(LConfig);
+        FLogger.Log(TBoss4DLogLevel.Info, '✅ Token de autenticacao do GitHub configurado com sucesso.');
+      end
+      else if SameText(AArgs[2], 'gitlab') then
+      begin
+        LConfig.GitLabToken := AArgs[3];
+        FConfigService.Save(LConfig);
+        FLogger.Log(TBoss4DLogLevel.Info, '✅ Token de autenticacao do GitLab configurado com sucesso.');
+      end
+      else
+      begin
+        FLogger.Log(TBoss4DLogLevel.Warning, 'Provedor de autenticacao "%s" desconhecido. Use github ou gitlab.', [AArgs[2]]);
+      end;
+    finally
+      LConfig.Free;
+    end;
+  end
   else
   begin
     FLogger.Log(TBoss4DLogLevel.Warning, 'Uso invalido do comando config.');
     FLogger.Log(TBoss4DLogLevel.Info, 'Comandos aceitos:');
     FLogger.Log(TBoss4DLogLevel.Info, '  boss4d config delphi use <caminho>');
     FLogger.Log(TBoss4DLogLevel.Info, '  boss4d config git shallow <true/false>');
+    FLogger.Log(TBoss4DLogLevel.Info, '  boss4d config auth <github/gitlab> <token>');
   end;
 end;
 

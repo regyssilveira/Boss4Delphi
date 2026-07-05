@@ -27,7 +27,9 @@ uses
   System.SysUtils,
   System.IOUtils,
   System.Generics.Collections,
-  Boss4D.Core.Domain.Env;
+  Boss4D.Core.Domain.Env,
+  Boss4D.Adapters.Logger,
+  Boss4D.Core.Services.Config;
 
 { TBoss4DGitCliAdapter }
 
@@ -46,20 +48,68 @@ procedure TBoss4DGitCliAdapter.CloneCache(const ADep: TBoss4DDependency; const A
 var
   LArgs: string;
   LOutput: string;
+  LParentDir: string;
+  LConfigService: TBoss4DConfigService;
+  LConfig: TBoss4DGlobalConfig;
+  LURL: string;
+  LMaskedOutput: string;
 begin
   // Cria diretorio pai se nao existir
-  var LParentDir := TDirectory.GetParent(ATargetDir);
+  LParentDir := TDirectory.GetParent(ATargetDir);
   if not TDirectory.Exists(LParentDir) then
     TDirectory.CreateDirectory(LParentDir);
+
+  LURL := ADep.GetURL;
+  LConfigService := TBoss4DConfigService.Create(TBoss4DConsoleLoggerAdapter.Create);
+  try
+    LConfig := LConfigService.Load;
+    try
+      if LURL.Contains('github.com') and not LConfig.GitHubToken.IsEmpty then
+      begin
+        if LURL.StartsWith('https://') then
+          LURL := 'https://' + LConfig.GitHubToken + '@' + LURL.Substring(8)
+        else
+          LURL := 'https://' + LConfig.GitHubToken + '@' + LURL;
+      end
+      else if LURL.Contains('gitlab.com') and not LConfig.GitLabToken.IsEmpty then
+      begin
+        if LURL.StartsWith('https://') then
+          LURL := 'https://oauth2:' + LConfig.GitLabToken + '@' + LURL.Substring(8)
+        else
+          LURL := 'https://oauth2:' + LConfig.GitLabToken + '@' + LURL;
+      end;
+    finally
+      LConfig.Free;
+    end;
+  finally
+    LConfigService.Free;
+  end;
 
   LArgs := 'clone ';
   if FGitShallow then
     LArgs := LArgs + '--depth=1 ';
 
-  LArgs := LArgs + '"' + ADep.GetURL + '" "' + ATargetDir + '"';
+  LArgs := LArgs + '"' + LURL + '" "' + ATargetDir + '"';
 
   if not ExecuteGit(LArgs, '', LOutput) then
-    raise Exception.CreateFmt('Erro ao clonar o repositorio %s: %s', [ADep.Repository, LOutput]);
+  begin
+    LMaskedOutput := LOutput;
+    LConfigService := TBoss4DConfigService.Create(TBoss4DConsoleLoggerAdapter.Create);
+    try
+      LConfig := LConfigService.Load;
+      try
+        if not LConfig.GitHubToken.IsEmpty then
+          LMaskedOutput := LMaskedOutput.Replace(LConfig.GitHubToken, '***');
+        if not LConfig.GitLabToken.IsEmpty then
+          LMaskedOutput := LMaskedOutput.Replace(LConfig.GitLabToken, '***');
+      finally
+        LConfig.Free;
+      end;
+    finally
+      LConfigService.Free;
+    end;
+    raise Exception.CreateFmt('Erro ao clonar o repositorio %s: %s', [ADep.Repository, LMaskedOutput]);
+  end;
 end;
 
 procedure TBoss4DGitCliAdapter.UpdateCache(const ADep: TBoss4DDependency; const ACacheDir: string);
