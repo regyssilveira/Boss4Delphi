@@ -102,6 +102,7 @@ cd /d d:\Projetos\BossDelphi
 ## 📖 Additional Documentation
 * **[CLI Usage Manual](docs/usage.md)**: Detailed step-by-step guide covering all command options and dependency configurations.
 * **[Contribution Guide](CONTRIBUTING.md)**: Coding standards and guidelines for contribution.
+* **[Release Guide](RELEASE_GUIDE.md)**: Passos e instruções para compilar com Delphi 13 (37.0) e publicar releases no GitHub.
 
 ---
 
