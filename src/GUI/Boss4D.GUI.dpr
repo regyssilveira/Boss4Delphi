@@ -2,8 +2,7 @@ program Boss4D.GUI;
 
 uses
   Vcl.Forms,
-  Vcl.Themes,
-  Vcl.Styles,
+
   Boss4D.GUI.Main in 'Boss4D.GUI.Main.pas' {FormMain},
   Boss4D.Core.Domain.Consts in '..\Core\Domain\Boss4D.Core.Domain.Consts.pas',
   Boss4D.Core.Domain.Env in '..\Core\Domain\Boss4D.Core.Domain.Env.pas',
@@ -37,7 +36,7 @@ uses
 begin
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
-  TStyleManager.TrySetStyle('Carbon');
+
   Application.CreateForm(TFormMain, FormMain);
   Application.Run;
 end.
