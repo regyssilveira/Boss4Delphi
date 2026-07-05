@@ -24,6 +24,7 @@ type
     procedure BuildDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock);
     function ResolveSemVerRange(const ARangeStr, ACacheDir: string): string;
     function ResolveDependencyVersion(const ADep: TBoss4DDependency; const ACacheDir: string): string;
+    function CalculateDirectoryChecksum(const ADirPath: string): string;
   public
     constructor Create(
       const APackageRepo: IBoss4DPackageRepository;
@@ -129,8 +130,26 @@ begin
     // 3. Executa o checkout local da versao selecionada na pasta modules/
     FGitClient.Checkout(LCacheDir, LResolvedVersion, LTargetDir);
 
-    // 4. Adiciona no arquivo lock
-    ALock.AddDependency(ADep, LResolvedVersion, ADep.HashName);
+    // Calcular Checksum da pasta de destino instalada
+    var LChecksum := CalculateDirectoryChecksum(LTargetDir);
+
+    // Se a dependência já constava no arquivo lock existente, validar se o checksum atual bate!
+    var LExistingLocked: TBoss4DLockedDependency;
+    if ALock.GetInstalled(ADep, LExistingLocked) then
+    begin
+      if not LExistingLocked.Checksum.IsEmpty and (LExistingLocked.Checksum <> LChecksum) then
+      begin
+        raise Exception.CreateFmt(
+          'ERRO DE SEGURANCA: O checksum da dependencia "%s" (%s) nao confere com o esperado!' + sLineBreak +
+          '  -> Calculado: %s' + sLineBreak +
+          '  -> Esperado do Lock: %s',
+          [ADep.Name, LResolvedVersion, LChecksum, LExistingLocked.Checksum]
+        );
+      end;
+    end;
+
+    // 4. Adiciona no arquivo lock com a sobrecarga de checksum
+    ALock.AddDependency(ADep, LResolvedVersion, ADep.HashName, LChecksum);
   finally
     FGitCriticalSection.Leave;
   end;
@@ -246,7 +265,17 @@ begin
       end;
 
       // Aguarda todos os downloads completarem
-      TTask.WaitForAll(LTasks.ToArray);
+      try
+        TTask.WaitForAll(LTasks.ToArray);
+      except
+        on E: EAggregateException do
+        begin
+          if E.Count > 0 then
+            raise Exception.Create(E.InnerExceptions[0].Message)
+          else
+            raise;
+        end;
+      end;
 
       FLogger.Log(TBoss4DLogLevel.Info, 'Compilando modulos instalados...');
 
@@ -276,8 +305,10 @@ end;
 
 procedure TBoss4DInstallService.RunInstallTask(const ADep: TBoss4DDependency; const ALock: TBoss4DLock;
   const ATasks: TList<ITask>);
+var
+  LProc: TProc;
 begin
-  ATasks.Add(TTask.Run(procedure
+  LProc := procedure
     var LLocalProcessed: TList<string>;
     begin
       LLocalProcessed := TList<string>.Create;
@@ -286,7 +317,9 @@ begin
       finally
         LLocalProcessed.Free;
       end;
-    end));
+    end;
+
+  ATasks.Add(TTask.Run(LProc));
 end;
 
 function TBoss4DInstallService.ResolveSemVerRange(const ARangeStr, ACacheDir: string): string;
@@ -329,6 +362,41 @@ begin
       Result := '' // Checkout na branch padrao
     else
       Result := ADep.Version;
+  end;
+end;
+
+function TBoss4DInstallService.CalculateDirectoryChecksum(const ADirPath: string): string;
+var
+  LFiles: TArray<string>;
+  LSHA2: THashSHA2;
+  LBytes: TBytes;
+begin
+  Result := '';
+  if not TDirectory.Exists(ADirPath) then
+    Exit;
+
+  try
+    LSHA2 := THashSHA2.Create(THashSHA2.TSHA2Version.SHA256);
+    LFiles := TDirectory.GetFiles(ADirPath, '*', TSearchOption.soAllDirectories);
+    TArray.Sort<string>(LFiles);
+
+    for var LFile in LFiles do
+    begin
+      // Ignora subpastas do Git ou arquivos temporarios de build se existirem
+      if LFile.Contains('.git' + TPath.DirectorySeparatorChar) then
+        Continue;
+
+      try
+        LBytes := TFile.ReadAllBytes(LFile);
+        if Length(LBytes) > 0 then
+          LSHA2.Update(LBytes, Length(LBytes));
+      except
+        // Silencia falhas em arquivos bloqueados
+      end;
+    end;
+    Result := LSHA2.HashAsString;
+  except
+    // Retorna vazio em caso de erro grave
   end;
 end;
 

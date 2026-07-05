@@ -29,6 +29,7 @@ type
     FName: string;
     FVersion: string;
     FHash: string;
+    FChecksum: string;
     FArtifacts: TBoss4DDependencyArtifacts;
     FChanged: Boolean;
   public
@@ -38,6 +39,7 @@ type
     property Name: string read FName write FName;
     property Version: string read FVersion write FVersion;
     property Hash: string read FHash write FHash;
+    property Checksum: string read FChecksum write FChecksum;
     property Artifacts: TBoss4DDependencyArtifacts read FArtifacts;
     property Changed: Boolean read FChanged write FChanged;
   end;
@@ -52,7 +54,8 @@ type
     constructor Create;
     destructor Destroy; override;
 
-    procedure AddDependency(const ADep: TBoss4DDependency; const AVersion, AHash: string);
+    procedure AddDependency(const ADep: TBoss4DDependency; const AVersion, AHash: string); overload;
+    procedure AddDependency(const ADep: TBoss4DDependency; const AVersion, AHash, AChecksum: string); overload;
     function GetInstalled(const ADep: TBoss4DDependency; out ALockedDep: TBoss4DLockedDependency): Boolean;
 
     property Hash: string read FHash write FHash;
@@ -112,6 +115,11 @@ begin
 end;
 
 procedure TBoss4DLock.AddDependency(const ADep: TBoss4DDependency; const AVersion, AHash: string);
+begin
+  AddDependency(ADep, AVersion, AHash, '');
+end;
+
+procedure TBoss4DLock.AddDependency(const ADep: TBoss4DDependency; const AVersion, AHash, AChecksum: string);
 var
   LKey: string;
   LLocked: TBoss4DLockedDependency;
@@ -123,6 +131,7 @@ begin
     LLocked.Name := ADep.Name;
     LLocked.Version := AVersion;
     LLocked.Hash := AHash;
+    LLocked.Checksum := AChecksum;
     LLocked.Changed := True;
     FInstalled.Add(LKey, LLocked);
   end
@@ -130,6 +139,7 @@ begin
   begin
     LLocked.Version := AVersion;
     LLocked.Hash := AHash;
+    LLocked.Checksum := AChecksum;
     LLocked.Changed := True;
   end;
 end;

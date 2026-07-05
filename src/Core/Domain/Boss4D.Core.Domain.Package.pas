@@ -40,6 +40,7 @@ type
     FDescription: string;
     FVersion: string;
     FHomepage: string;
+    FLicense: string;
     FMainSrc: string;
     FBrowsingPath: string;
     FProjects: TList<string>;
@@ -61,6 +62,7 @@ type
     property Description: string read FDescription write FDescription;
     property Version: string read FVersion write FVersion;
     property Homepage: string read FHomepage write FHomepage;
+    property License: string read FLicense write FLicense;
     property MainSrc: string read FMainSrc write FMainSrc;
     property BrowsingPath: string read FBrowsingPath write FBrowsingPath;
     property Projects: TList<string> read FProjects;

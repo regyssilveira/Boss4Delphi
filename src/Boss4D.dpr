@@ -23,6 +23,10 @@ uses
   Boss4D.Core.Services.Init in 'Core/Services/Boss4D.Core.Services.Init.pas',
   Boss4D.Core.Services.Config in 'Core/Services/Boss4D.Core.Services.Config.pas',
   Boss4D.Core.Services.Install in 'Core/Services/Boss4D.Core.Services.Install.pas',
+  Boss4D.Core.Services.Cache in 'Core/Services/Boss4D.Core.Services.Cache.pas',
+  Boss4D.Core.Services.Run in 'Core/Services/Boss4D.Core.Services.Run.pas',
+  Boss4D.Core.Services.Doctor in 'Core/Services/Boss4D.Core.Services.Doctor.pas',
+  Boss4D.Core.Services.License in 'Core/Services/Boss4D.Core.Services.License.pas',
   Boss4D.CLI.Parser in 'CLI/Boss4D.CLI.Parser.pas';
 
 var
@@ -77,7 +81,7 @@ begin
       LPackageRepo, LLockRepo, LGitClient, LHttpClient, LCompiler, LLogger);
 
     // Inicializa o Parser de CLI
-    LParser := TBoss4DCommandLineParser.Create(LLogger, LInitService, LInstallService, LConfigService);
+    LParser := TBoss4DCommandLineParser.Create(LLogger, LInitService, LInstallService, LConfigService, LPackageRepo, LRegistry);
     try
       LParser.ParseAndExecute(LArgs);
     finally

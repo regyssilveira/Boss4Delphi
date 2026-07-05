@@ -4,7 +4,9 @@ interface
 
 uses
   Boss4D.Core.Ports, Boss4D.Core.Services.Init,
-  Boss4D.Core.Services.Install, Boss4D.Core.Services.Config;
+  Boss4D.Core.Services.Install, Boss4D.Core.Services.Config,
+  Boss4D.Core.Services.Cache, Boss4D.Core.Services.Run,
+  Boss4D.Core.Services.Doctor, Boss4D.Core.Services.License;
 
 type
   { Interpretador e orquestrador de comandos da linha de comando (CLI) }
@@ -14,18 +16,26 @@ type
     FInitService: TBoss4DInitService;
     FInstallService: TBoss4DInstallService;
     FConfigService: TBoss4DConfigService;
+    FPackageRepo: IBoss4DPackageRepository;
+    FRegistry: IBoss4DRegistryService;
 
     procedure ShowHelp;
     procedure ShowVersion;
     procedure HandleInit(const AArgs: TArray<string>);
     procedure HandleInstall(const AArgs: TArray<string>);
     procedure HandleConfig(const AArgs: TArray<string>);
+    procedure HandleCache(const AArgs: TArray<string>);
+    procedure HandleRun(const AArgs: TArray<string>);
+    procedure HandleDoctor(const AArgs: TArray<string>);
+    procedure HandleLicense(const AArgs: TArray<string>);
   public
     constructor Create(
       const ALogger: IBoss4DLogger;
       const AInitService: TBoss4DInitService;
       const AInstallService: TBoss4DInstallService;
-      const AConfigService: TBoss4DConfigService
+      const AConfigService: TBoss4DConfigService;
+      const APackageRepo: IBoss4DPackageRepository;
+      const ARegistry: IBoss4DRegistryService
     );
 
     procedure ParseAndExecute(const AArgs: TArray<string>);
@@ -42,7 +52,9 @@ constructor TBoss4DCommandLineParser.Create(
   const ALogger: IBoss4DLogger;
   const AInitService: TBoss4DInitService;
   const AInstallService: TBoss4DInstallService;
-  const AConfigService: TBoss4DConfigService
+  const AConfigService: TBoss4DConfigService;
+  const APackageRepo: IBoss4DPackageRepository;
+  const ARegistry: IBoss4DRegistryService
 );
 begin
   inherited Create;
@@ -50,6 +62,8 @@ begin
   FInitService := AInitService;
   FInstallService := AInstallService;
   FConfigService := AConfigService;
+  FPackageRepo := APackageRepo;
+  FRegistry := ARegistry;
 end;
 
 procedure TBoss4DCommandLineParser.ShowHelp;
@@ -67,6 +81,12 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '                       Exemplo: boss4d install github.com/hashload/horse@^3.0.0');
   FLogger.Log(TBoss4DLogLevel.Info, '  config delphi use <caminho>  Configura o caminho global do compilador Delphi.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config git shallow <true/false> Configura uso de shallow clones globais.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  cache                Gerenciamento do cache global do Git.');
+  FLogger.Log(TBoss4DLogLevel.Info, '                       Subcomandos: size, clean, prune.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  run <script>         Executa um script customizado definido no boss.json.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  doctor               Executa diagnosticos do ambiente de compilacao.');
+  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -fix, --fix (tenta auto-configurar a versao delphi).');
+  FLogger.Log(TBoss4DLogLevel.Info, '  license report       Gera relatorios de conformidade de licencas em docs/.');
   FLogger.Log(TBoss4DLogLevel.Info, '  version, -v, --version Exibe a versao atual do Boss4D.');
   FLogger.Log(TBoss4DLogLevel.Info, '  help, -h, --help     Exibe este menu de ajuda.');
   FLogger.Log(TBoss4DLogLevel.Info, '');
@@ -96,7 +116,15 @@ begin
   else if (LCommand = 'install') or (LCommand = 'i') then
     HandleInstall(AArgs)
   else if LCommand = 'config' then
-    HandleConfig(AArgs);
+    HandleConfig(AArgs)
+  else if LCommand = 'cache' then
+    HandleCache(AArgs)
+  else if LCommand = 'run' then
+    HandleRun(AArgs)
+  else if LCommand = 'doctor' then
+    HandleDoctor(AArgs)
+  else if LCommand = 'license' then
+    HandleLicense(AArgs);
 end;
 
 procedure TBoss4DCommandLineParser.HandleInit(const AArgs: TArray<string>);
@@ -155,6 +183,92 @@ begin
     FLogger.Log(TBoss4DLogLevel.Info, 'Comandos aceitos:');
     FLogger.Log(TBoss4DLogLevel.Info, '  boss4d config delphi use <caminho>');
     FLogger.Log(TBoss4DLogLevel.Info, '  boss4d config git shallow <true/false>');
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleCache(const AArgs: TArray<string>);
+var
+  LCacheService: TBoss4DCacheService;
+  LSubCommand: string;
+begin
+  if Length(AArgs) < 2 then
+  begin
+    FLogger.Log(TBoss4DLogLevel.Warning, 'Uso invalido do comando cache.');
+    FLogger.Log(TBoss4DLogLevel.Info, 'Comandos aceitos:');
+    FLogger.Log(TBoss4DLogLevel.Info, '  boss4d cache size      Exibe o tamanho em disco do cache global.');
+    FLogger.Log(TBoss4DLogLevel.Info, '  boss4d cache clean     Limpa todo o cache global.');
+    FLogger.Log(TBoss4DLogLevel.Info, '  boss4d cache prune     Remove caches obsoletos (mais de 30 dias).');
+    Exit;
+  end;
+
+  LSubCommand := AArgs[1].ToLower;
+  LCacheService := TBoss4DCacheService.Create(FLogger);
+  try
+    if LSubCommand = 'size' then
+      FLogger.Log(TBoss4DLogLevel.Info, 'Tamanho do cache global: ' + LCacheService.GetFormattedSize)
+    else if LSubCommand = 'clean' then
+      LCacheService.Clean
+    else if LSubCommand = 'prune' then
+      LCacheService.Prune(30)
+    else
+      FLogger.Log(TBoss4DLogLevel.Warning, 'Subcomando "%s" invalido para o comando cache.', [LSubCommand]);
+  finally
+    LCacheService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleRun(const AArgs: TArray<string>);
+var
+  LRunService: TBoss4DRunService;
+begin
+  if Length(AArgs) < 2 then
+  begin
+    FLogger.Log(TBoss4DLogLevel.Warning, 'Defina o nome do script a ser executado.');
+    FLogger.Log(TBoss4DLogLevel.Info, 'Uso: boss4d run <nome_do_script>');
+    Exit;
+  end;
+
+  LRunService := TBoss4DRunService.Create(FPackageRepo, FLogger);
+  try
+    LRunService.Execute(AArgs[1]);
+  finally
+    LRunService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleDoctor(const AArgs: TArray<string>);
+var
+  LDoctorService: TBoss4DDoctorService;
+  LFix: Boolean;
+begin
+  LFix := False;
+  if (Length(AArgs) > 1) and ((AArgs[1] = '-fix') or (AArgs[1] = '--fix')) then
+    LFix := True;
+
+  LDoctorService := TBoss4DDoctorService.Create(FRegistry, FLogger);
+  try
+    LDoctorService.Check(LFix);
+  finally
+    LDoctorService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleLicense(const AArgs: TArray<string>);
+var
+  LLicenseService: TBoss4DLicenseService;
+begin
+  if (Length(AArgs) < 2) or not SameText(AArgs[1], 'report') then
+  begin
+    FLogger.Log(TBoss4DLogLevel.Warning, 'Uso invalido do comando license.');
+    FLogger.Log(TBoss4DLogLevel.Info, 'Uso: boss4d license report');
+    Exit;
+  end;
+
+  LLicenseService := TBoss4DLicenseService.Create(FPackageRepo, FLogger);
+  try
+    LLicenseService.GenerateReport;
+  finally
+    LLicenseService.Free;
   end;
 end;
 

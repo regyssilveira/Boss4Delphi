@@ -46,6 +46,21 @@ type
 
     [Test]
     procedure TestCompilerAutodetectAndOverride;
+
+    [Test]
+    procedure TestCacheService;
+
+    [Test]
+    procedure TestRunService;
+
+    [Test]
+    procedure TestDoctorService;
+
+    [Test]
+    procedure TestLicenseService;
+
+    [Test]
+    procedure TestChecksumVerification;
   end;
 
 implementation
@@ -55,7 +70,9 @@ uses
   Boss4D.Core.Domain.Package, Boss4D.Core.Domain.Lock, Boss4D.Core.Domain.Dependency,
   Boss4D.Core.Domain.Consts, Boss4D.Core.Domain.Env, Boss4D.Core.Services.Init,
   Boss4D.Core.Services.Config, Boss4D.Core.Services.Install, Boss4D.CLI.Parser,
-  Boss4D.Adapters.Json, Boss4D.Adapters.Compiler, Boss4D.Tests.Mocks;
+  Boss4D.Adapters.Json, Boss4D.Adapters.Compiler, Boss4D.Tests.Mocks,
+  Boss4D.Core.Services.Cache, Boss4D.Core.Services.Run,
+  Boss4D.Core.Services.Doctor, Boss4D.Core.Services.License;
 
 { TTestLogger }
 
@@ -293,7 +310,7 @@ begin
   LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo, LGitMock, LHttpMock, LCompilerMock, LLogger);
   LConfigService := TBoss4DConfigService.Create(LLogger);
 
-  LParser := TBoss4DCommandLineParser.Create(LLogger, LInit, LInstall, LConfigService);
+  LParser := TBoss4DCommandLineParser.Create(LLogger, LInit, LInstall, LConfigService, LPackageRepo, TRegistryMock.Create);
   try
     // Testa o comando "version"
     LParser.ParseAndExecute(TArray<string>.Create('version'));
@@ -360,6 +377,208 @@ begin
     LCompiler.Free;
     if TFile.Exists(LCfgPath) then
       TFile.Delete(LCfgPath);
+  end;
+end;
+
+procedure TTestsServices.TestCacheService;
+var
+  LCacheService: TBoss4DCacheService;
+  LCacheDir: string;
+  LTestFile: string;
+begin
+  LCacheService := TBoss4DCacheService.Create(TTestLogger.Create);
+  try
+    LCacheDir := GetCacheDir;
+    // O setup limpou a pasta, então deve começar vazia
+    Assert.AreEqual<Int64>(0, LCacheService.GetCacheSize);
+
+    // Cria um arquivo fictício de teste no cache
+    TDirectory.CreateDirectory(TPath.Combine(LCacheDir, 'test_repo'));
+    LTestFile := TPath.Combine(LCacheDir, 'test_repo\readme.md');
+    TFile.WriteAllText(LTestFile, 'hello cache test content', TEncoding.UTF8);
+
+    Assert.IsTrue(LCacheService.GetCacheSize > 0);
+
+    // Limpa o cache
+    LCacheService.Clean;
+    Assert.AreEqual<Int64>(0, LCacheService.GetCacheSize);
+
+    // Executa prune
+    Assert.AreEqual<Integer>(0, LCacheService.Prune(30));
+  finally
+    LCacheService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestRunService;
+var
+  LPkgRepo: IBoss4DPackageRepository;
+  LPkg: TBoss4DPackage;
+  LRunService: TBoss4DRunService;
+  LBossJsonPath: string;
+begin
+  LBossJsonPath := GetBossFile;
+  LPkgRepo := TBoss4DPackageJsonRepository.Create;
+  LPkg := TBoss4DPackage.Create;
+  try
+    LPkg.Name := 'test_run';
+    LPkg.Version := '1.0.0';
+    // Adiciona um script simulado simples e portável
+    LPkg.Scripts.Add('test_cmd', 'cmd /c echo hello');
+    LPkgRepo.Save(LPkg, LBossJsonPath);
+
+    LRunService := TBoss4DRunService.Create(LPkgRepo, TTestLogger.Create);
+    try
+      // Executa o script que deve completar com sucesso (exit code 0)
+      Assert.IsTrue(LRunService.Execute('test_cmd'));
+      
+      // Tenta executar script inexistente
+      Assert.IsFalse(LRunService.Execute('inexistent_cmd'));
+    finally
+      LRunService.Free;
+    end;
+  finally
+    LPkg.Free;
+  end;
+end;
+
+procedure TTestsServices.TestDoctorService;
+var
+  LRegistryMock: TRegistryMock;
+  LDoctorService: TBoss4DDoctorService;
+begin
+  LRegistryMock := TRegistryMock.Create;
+  LDoctorService := TBoss4DDoctorService.Create(LRegistryMock, TTestLogger.Create);
+  try
+    // Roda a verificação de auto-diagnóstico sem fix (deve completar com ou sem avisos)
+    LDoctorService.Check(False);
+    
+    // Roda a verificação aplicando fix
+    LDoctorService.Check(True);
+  finally
+    LDoctorService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestLicenseService;
+var
+  LPkgRepo: IBoss4DPackageRepository;
+  LPkg: TBoss4DPackage;
+  LDepPkg: TBoss4DPackage;
+  LLicenseService: TBoss4DLicenseService;
+  LDepDir: string;
+  LReportMD: string;
+  LReportCSV: string;
+begin
+  LPkgRepo := TBoss4DPackageJsonRepository.Create;
+  LPkg := TBoss4DPackage.Create;
+  try
+    LPkg.Name := 'test_compliance';
+    LPkg.Version := '1.0.0';
+    LPkgRepo.Save(LPkg, GetBossFile);
+
+    // Simula uma dependência instalada em modules/horse/boss.json com licença MIT
+    LDepDir := TPath.Combine(GetModulesDir, 'horse');
+    TDirectory.CreateDirectory(LDepDir);
+    
+    LDepPkg := TBoss4DPackage.Create;
+    try
+      LDepPkg.Name := 'horse';
+      LDepPkg.Version := '3.1.0';
+      LDepPkg.License := 'MIT';
+      LPkgRepo.Save(LDepPkg, TPath.Combine(LDepDir, FILE_PACKAGE));
+    finally
+      LDepPkg.Free;
+    end;
+
+    // Gera o relatório de licenças
+    LLicenseService := TBoss4DLicenseService.Create(LPkgRepo, TTestLogger.Create);
+    try
+      LLicenseService.GenerateReport;
+
+      LReportMD := TPath.Combine(TDirectory.GetCurrentDirectory, 'docs\license_report.md');
+      LReportCSV := TPath.Combine(TDirectory.GetCurrentDirectory, 'docs\license_report.csv');
+
+      Assert.IsTrue(TFile.Exists(LReportMD));
+      Assert.IsTrue(TFile.Exists(LReportCSV));
+
+      var LMDContent := TFile.ReadAllText(LReportMD, TEncoding.UTF8);
+      Assert.IsTrue(LMDContent.Contains('horse'));
+      Assert.IsTrue(LMDContent.Contains('MIT'));
+    finally
+      LLicenseService.Free;
+    end;
+  finally
+    LPkg.Free;
+  end;
+end;
+
+procedure TTestsServices.TestChecksumVerification;
+var
+  LPkgRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LGitClientMock: IBoss4DGitClient;
+  LHttpClientMock: IBoss4DHttpClient;
+  LCompilerMock: IBoss4DCompiler;
+  LInstall: TBoss4DInstallService;
+  LLock: TBoss4DLock;
+  LPkg: TBoss4DPackage;
+  LDep: TBoss4DDependency;
+  LLockedDep: TBoss4DLockedDependency;
+  LTargetDir: string;
+begin
+  LPkgRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LGitClientMock := TGitClientMock.Create;
+  LHttpClientMock := THttpClientMock.Create;
+  LCompilerMock := TCompilerMock.Create;
+
+  LPkg := TBoss4DPackage.Create;
+  LPkg.Name := 'test_integrity';
+  LPkg.Version := '1.0.0';
+  LPkg.AddDependency('github.com/test/lib', '^1.0.0');
+  LPkgRepo.Save(LPkg, GetBossFile);
+  LPkg.Free;
+
+  LInstall := TBoss4DInstallService.Create(
+    LPkgRepo, LLockRepo, LGitClientMock, LHttpClientMock, LCompilerMock, TTestLogger.Create);
+  try
+    // 1. Instala pela primeira vez (gera o lock e o checksum inicial)
+    LInstall.Execute('');
+    
+    Assert.IsTrue(TFile.Exists(TPath.Combine(TDirectory.GetCurrentDirectory, FILE_PACKAGE_LOCK)));
+
+    LLock := LLockRepo.Load(TPath.Combine(TDirectory.GetCurrentDirectory, FILE_PACKAGE_LOCK));
+    try
+      LDep := TBoss4DDependency.Create('github.com/test/lib', '^1.0.0');
+      try
+        Assert.IsTrue(LLock.GetInstalled(LDep, LLockedDep));
+        Assert.IsFalse(LLockedDep.Checksum.IsEmpty); // Deve ter computado hash SHA-256
+        
+        // Simula uma alteração indevida de arquivos na dependência instalada
+        LTargetDir := TPath.Combine(GetModulesDir, LLockedDep.Name);
+        TFile.WriteAllText(TPath.Combine(LTargetDir, 'unauthorized.txt'), 'tampered content', TEncoding.UTF8);
+
+        // 2. Tenta re-instalar (deve disparar erro de segurança, pois o checksum calculado diverge do trancado!)
+        var LFailed := False;
+        try
+          LInstall.Execute('');
+        except
+          on E: Exception do
+          begin
+            LFailed := True;
+            Assert.IsTrue(E.Message.Contains('ERRO DE SEGURANCA'));
+          end;
+        end;
+        Assert.IsTrue(LFailed, 'Deveria ter disparado erro de seguranca de checksum');
+      finally
+        LDep.Free;
+      end;
+    finally
+      LLock.Free;
+    end;
+  finally
+    LInstall.Free;
   end;
 end;
 
