@@ -145,9 +145,16 @@ begin
     LModuleName := ADep.Name;
 
   LBinPath := TPath.Combine(ARootPath, TPath.Combine(LModuleName, FOLDER_BIN));
-  LBplPath := TPath.Combine(ARootPath, TPath.Combine(LModuleName, FOLDER_BPL));
-  LDcpPath := TPath.Combine(ARootPath, TPath.Combine(LModuleName, FOLDER_DCP));
-  LDcuPath := TPath.Combine(ARootPath, TPath.Combine(LModuleName, FOLDER_DCU));
+  LBplPath := TPath.Combine(ARootPath, TPath.Combine(FOLDER_BPL, TPath.Combine(APlatform, 'Debug')));
+  LDcpPath := TPath.Combine(ARootPath, TPath.Combine(FOLDER_DCP, TPath.Combine(APlatform, 'Debug')));
+  LDcuPath := TPath.Combine(ARootPath, TPath.Combine(FOLDER_DCU, TPath.Combine(APlatform, 'Debug')));
+
+  if not TDirectory.Exists(LBplPath) then
+    TDirectory.CreateDirectory(LBplPath);
+  if not TDirectory.Exists(LDcpPath) then
+    TDirectory.CreateDirectory(LDcpPath);
+  if not TDirectory.Exists(LDcuPath) then
+    TDirectory.CreateDirectory(LDcuPath);
 
   Result := ' /p:DCC_BplOutput="' + LBplPath + '"' +
             ' /p:DCC_DcpOutput="' + LDcpPath + '"' +
@@ -241,8 +248,14 @@ begin
   // 1. Cria o boss.cfg para guardar os Search Paths gigantes (Prevenindo a Issue #205)
   LCfgContent := TStringBuilder.Create;
   try
-    var LDcuPath := TPath.Combine(GetModulesDir, FOLDER_DCU);
-    var LDcpPath := TPath.Combine(GetModulesDir, FOLDER_DCP);
+    var LDcuPath := TPath.Combine(GetModulesDir, TPath.Combine(FOLDER_DCU, TPath.Combine(LPlatform, 'Debug')));
+    var LDcpPath := TPath.Combine(GetModulesDir, TPath.Combine(FOLDER_DCP, TPath.Combine(LPlatform, 'Debug')));
+
+    if not TDirectory.Exists(LDcuPath) then
+      TDirectory.CreateDirectory(LDcuPath);
+    if not TDirectory.Exists(LDcpPath) then
+      TDirectory.CreateDirectory(LDcpPath);
+
     LCfgContent.AppendLine('-I"' + LDcuPath + '"');
     LCfgContent.AppendLine('-U"' + LDcuPath + '"');
     LCfgContent.AppendLine('-I"' + LDcpPath + '"');
@@ -271,8 +284,12 @@ begin
   // 2. Cria o script batch que carrega o rsvars.bat e executa o msbuild com a diretiva @boss.cfg
   LBatchContent := TStringList.Create;
   try
+    var LBplPath := TPath.Combine(GetModulesDir, TPath.Combine(FOLDER_BPL, TPath.Combine(LPlatform, 'Debug')));
+    if not TDirectory.Exists(LBplPath) then
+      TDirectory.CreateDirectory(LBplPath);
+
     LBatchContent.Add('call "' + LRsvarsPath + '"');
-    LBatchContent.Add('set PATH=%PATH%;' + TPath.Combine(GetModulesDir, FOLDER_BPL) + ';');
+    LBatchContent.Add('set PATH=%PATH%;' + LBplPath + ';');
 
     var LMsbuildCmd := 'msbuild "' + TPath.GetFullPath(ADprojPath) + '" /p:Configuration=Debug ' +
                        GetCompilerParameters(GetModulesDir, ADep, LPlatform) +

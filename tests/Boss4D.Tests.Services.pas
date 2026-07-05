@@ -94,6 +94,9 @@ type
 
     [Test]
     procedure TestGetItBridge;
+
+    [Test]
+    procedure TestDCUMegafoldersStructure;
   end;
 
 implementation
@@ -1133,6 +1136,71 @@ begin
     LGetItService.Free;
     if TDirectory.Exists(LTempDir) then
       TDirectory.Delete(LTempDir, True);
+  end;
+end;
+
+procedure TTestsServices.TestDCUMegafoldersStructure;
+var
+  LRegistryMock: IBoss4DRegistryService;
+  LIDEIntegration: TBoss4DIDEIntegrationService;
+  LReg: TRegistry;
+  LSubKey: string;
+  LValue: string;
+begin
+  LRegistryMock := TRegistryMock.Create;
+  LIDEIntegration := TBoss4DIDEIntegrationService.Create(LRegistryMock, TTestLogger.Create);
+  try
+    LIDEIntegration.RegistryKeyPrefix := 'Software\Boss4DTests\BDS\';
+    
+    LReg := TRegistry.Create(KEY_READ or KEY_WRITE);
+    try
+      LReg.RootKey := HKEY_CURRENT_USER;
+      LReg.DeleteKey('Software\Boss4DTests');
+    except
+      // ignora se nao existir
+    end;
+    LReg.Free;
+
+    LIDEIntegration.IntegrateLibraryPaths('Win32');
+    LIDEIntegration.IntegrateLibraryPaths('Win64');
+
+    LReg := TRegistry.Create(KEY_READ);
+    try
+      LReg.RootKey := HKEY_CURRENT_USER;
+      
+      LSubKey := 'Software\Boss4DTests\BDS\22.0\Library\Win32';
+      if LReg.OpenKey(LSubKey, False) then
+      begin
+        LValue := LReg.ReadString('Search Path');
+        Assert.IsTrue(LValue.Contains(TPath.Combine('modules', TPath.Combine('dcu', TPath.Combine('Win32', 'Debug')))));
+        LReg.CloseKey;
+      end
+      else
+        Assert.Fail('Nao foi possivel abrir a chave de Registro Win32 de teste.');
+
+      LSubKey := 'Software\Boss4DTests\BDS\22.0\Library\Win64';
+      if LReg.OpenKey(LSubKey, False) then
+      begin
+        LValue := LReg.ReadString('Search Path');
+        Assert.IsTrue(LValue.Contains(TPath.Combine('modules', TPath.Combine('dcu', TPath.Combine('Win64', 'Debug')))));
+        LReg.CloseKey;
+      end
+      else
+        Assert.Fail('Nao foi possivel abrir a chave de Registro Win64 de teste.');
+    finally
+      LReg.Free;
+    end;
+  finally
+    LIDEIntegration.Free;
+    
+    LReg := TRegistry.Create(KEY_READ or KEY_WRITE);
+    try
+      LReg.RootKey := HKEY_CURRENT_USER;
+      LReg.DeleteKey('Software\Boss4DTests');
+    except
+      // ignora se nao existir
+    end;
+    LReg.Free;
   end;
 end;
 

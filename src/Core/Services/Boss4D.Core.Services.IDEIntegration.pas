@@ -52,7 +52,7 @@ begin
     LReg.RootKey := FRegistryRoot;
     LSubKey := FRegistryKeyPrefix + AVersion + '\Library\' + APlatform;
 
-    if LReg.OpenKey(LSubKey, False) then
+    if LReg.OpenKey(LSubKey, True) then
     begin
       LCurrentPath := LReg.ReadString('Search Path');
       
@@ -90,8 +90,6 @@ begin
     Exit;
   end;
 
-  LPathToInject := TPath.Combine(TDirectory.GetCurrentDirectory, TPath.Combine('modules', FOLDER_DCU));
-
   if not APlatform.IsEmpty then
     LPlatforms := TArray<string>.Create(APlatform)
   else
@@ -101,6 +99,8 @@ begin
   begin
     for LPlat in LPlatforms do
     begin
+      LPathToInject := TPath.Combine(TDirectory.GetCurrentDirectory,
+        TPath.Combine('modules', TPath.Combine(FOLDER_DCU, TPath.Combine(LPlat, 'Debug'))));
       UpdateSearchPathForVersion(LVer, LPlat, LPathToInject);
     end;
   end;
