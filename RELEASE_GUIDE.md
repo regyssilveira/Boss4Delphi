@@ -11,16 +11,28 @@ Este documento detalha o ambiente correto do Delphi e as etapas necessárias par
 
 ---
 
-## 🔨 2. Compilação Local de Produção
-Antes de qualquer release, compile os executáveis oficiais em Win32 e Win64:
+## 🔨 2. Compilação Local de Produção e Setup
+Antes de qualquer release, compile todos os executáveis oficiais e os plugins de IDE de forma automatizada:
 1. Abra o console do terminal na pasta raiz do projeto.
 2. Execute o script de lote de produção:
    ```cmd
-   scratch\compile_production.bat
+   build_release.bat
    ```
-3. Valide que os novos arquivos executáveis foram gerados com sucesso na pasta `bin/`:
-   * `bin/boss4d-win32.exe`
-   * `bin/boss4d-win64.exe`
+3. O script criará a pasta `dist/` e gerará os executáveis de produção (Win32/Win64 da CLI e da GUI) e os plugins de IDE:
+   * `dist/bin/boss4d.exe` (CLI x86)
+   * `dist/bin/boss4d_x64.exe` (CLI x64)
+   * `dist/bin/Boss4D.GUI.exe` (GUI x86)
+   * `dist/bin/Boss4D.GUI_x64.exe` (GUI x64)
+   * `dist/plugins/Boss4D.IDE.Plugin_11.bpl` (Delphi 11)
+   * `dist/plugins/Boss4D.IDE.Plugin_12.bpl` (Delphi 12)
+   * `dist/plugins/Boss4D.IDE.Plugin_13.bpl` (Delphi 13)
+
+4. Compile o instalador offline usando o Inno Setup:
+   ```cmd
+   & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\Boss4D.iss
+   ```
+5. Valide que o instalador final foi gerado com sucesso em:
+   * `installer/Output/Boss4D_Setup.exe`
 
 ---
 
@@ -58,12 +70,12 @@ git push --force origin v1.0.0
 O sandbox de agentes IA injeta uma variável de ambiente chamada `GITHUB_TOKEN` contendo um token temporário inválido para o repositório físico do usuário. Para que o utilitário do GitHub CLI (`gh`) use a credencial real do desenvolvedor gravada na máquina do Windows, a variável deve ser limpa antes de enviar os assets:
 
 ### Comando de Atualização / Upload Oficial
-Execute o seguinte comando no terminal do Windows para subir os novos executáveis (a flag `--clobber` substitui arquivos antigos de mesmo nome de forma transparente):
+Execute o seguinte comando no terminal do Windows para subir o instalador offline final (a flag `--clobber` substitui arquivos antigos de mesmo nome de forma transparente):
 
 ```powershell
 # 1. Limpa o token dummy da IA para ativar as credenciais reais do Windows
 $env:GITHUB_TOKEN = $null
 
-# 2. Faz o upload e substituição dos executáveis na release correspondente
-gh release upload v1.0.0 bin\boss4d-win32.exe bin\boss4d-win64.exe --clobber
+# 2. Faz o upload e substituição do instalador final na release correspondente
+gh release upload v1.0.0 installer\Output\Boss4D_Setup.exe --clobber
 ```
