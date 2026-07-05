@@ -38,8 +38,8 @@ uses
   Boss4D.Core.Domain.Consts,
   Boss4D.Core.Domain.Env,
   Boss4D.Core.Domain.Package,
-  Boss4D.Adapters.Json
-  {$IFDEF MSWINDOWS}, Winapi.Windows{$ENDIF};
+  Boss4D.Adapters.Json,
+  Winapi.Windows;
 
 { TBoss4DDelphiCompilerAdapter }
 
@@ -207,83 +207,9 @@ end;
 
 function TBoss4DDelphiCompilerAdapter.ExecuteBatch(const ABatchPath: string; const AWorkingDir: string;
   out AOutput: string): Boolean;
-{$IFDEF MSWINDOWS}
-var
-  LSA: TSecurityAttributes;
-  LReadPipe, LWritePipe: THandle;
-  LStartInfo: TStartupInfo;
-  LProcInfo: TProcessInformation;
-  LBuffer: array[0..255] of AnsiChar;
-  LBytesRead: DWORD;
-  LCommandLine: string;
-  LWorkingDir: string;
-  LTempOutput: string;
 begin
-  Result := False;
-  AOutput := '';
-  LTempOutput := '';
-
-  LSA.nLength := SizeOf(TSecurityAttributes);
-  LSA.bInheritHandle := True;
-  LSA.lpSecurityDescriptor := nil;
-
-  if not CreatePipe(LReadPipe, LWritePipe, @LSA, 0) then
-    Exit;
-
-  try
-    FillChar(LStartInfo, SizeOf(TStartupInfo), 0);
-    LStartInfo.cb := SizeOf(TStartupInfo);
-    LStartInfo.dwFlags := STARTF_USESTDHANDLES or STARTF_USESHOWWINDOW;
-    LStartInfo.hStdOutput := LWritePipe;
-    LStartInfo.hStdError := LWritePipe;
-    LStartInfo.wShowWindow := SW_HIDE;
-
-    LCommandLine := 'cmd.exe /c "' + ABatchPath + '"';
-    UniqueString(LCommandLine);
-
-    LWorkingDir := AWorkingDir;
-    if LWorkingDir.IsEmpty then
-      LWorkingDir := TDirectory.GetCurrentDirectory;
-
-    if CreateProcess(nil, PChar(LCommandLine), nil, nil, True, 0, nil, PChar(LWorkingDir), LStartInfo, LProcInfo) then
-    begin
-      try
-        CloseHandle(LWritePipe);
-        LWritePipe := 0;
-
-        repeat
-          LBytesRead := 0;
-          if ReadFile(LReadPipe, LBuffer[0], SizeOf(LBuffer) - 1, LBytesRead, nil) and (LBytesRead > 0) then
-          begin
-            LBuffer[LBytesRead] := #0;
-            LTempOutput := LTempOutput + string(AnsiString(LBuffer));
-          end;
-        until LBytesRead = 0;
-
-        WaitForSingleObject(LProcInfo.hProcess, INFINITE);
-
-        var LExitCode: DWORD := 0;
-        GetExitCodeProcess(LProcInfo.hProcess, LExitCode);
-        Result := LExitCode = 0;
-      finally
-        CloseHandle(LProcInfo.hProcess);
-        CloseHandle(LProcInfo.hThread);
-      end;
-    end;
-  finally
-    if LWritePipe <> 0 then
-      CloseHandle(LWritePipe);
-    CloseHandle(LReadPipe);
-  end;
-
-  AOutput := LTempOutput.Trim;
+  Result := ExecuteCommandLine('cmd.exe /c "' + ABatchPath + '"', AWorkingDir, AOutput);
 end;
-{$ELSE}
-begin
-  Result := False;
-  AOutput := '';
-end;
-{$ENDIF}
 
 function TBoss4DDelphiCompilerAdapter.Compile(const ADprojPath: string; const ADep: TBoss4DDependency;
   const ARootLock: TBoss4DLock): Boolean;
