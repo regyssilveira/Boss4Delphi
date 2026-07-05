@@ -53,3 +53,43 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
   - Injetar de forma inteligente as pastas de DCU unificadas (`modules/dcu`) ou caminhos de busca no Library Path global do RAD Studio do desenvolvedor, eliminando a necessidade de configurar os caminhos manualmente após a instalação.
 - [ ] **[Story] DCU Megafolders e Otimização de Cache**
   - Unificar de forma otimizada os arquivos compilados do projeto em pastas centralizadas por plataforma/configuração, melhorando o tempo de build subsequente.
+
+---
+
+## 📜 Épico 5: Execução de Scripts Customizados (`boss4d run <script>`)
+*Objetivo: Permitir a automatização e padronização de tarefas e fluxos de trabalho nos projetos Delphi (Inspirado no `npm run` do Node.js).*
+
+- [ ] **[Story] Declaração de Scripts no `boss.json`**
+  - Adicionar suporte a um bloco `"scripts": { "build": "msbuild ...", "test": "Win32\\Debug\\Tests.exe" }` no manifesto do projeto.
+- [ ] **[Story] Comando CLI `boss4d run <script>`**
+  - Executar o script especificado invocando o subprocesso correto no shell do Windows e repassando logs e códigos de erro de saída de forma transparente.
+
+---
+
+## 🛠️ Épico 6: Distribuição de Ferramentas CLI Globais (`boss4d tool`)
+*Objetivo: Permitir que desenvolvedores Delphi instalem e utilizem utilitários de desenvolvimento de forma global na máquina (Inspirado no `dotnet tool` do .NET).*
+
+- [ ] **[Story] Instalação Global de Ferramentas (`boss4d tool install -g <repo>`)**
+  - Baixar, compilar e registrar no PATH do Windows executáveis utilitários criados em Delphi (ex: formatadores de código, geradores de código, linters).
+- [ ] **[Story] Gerenciamento de Versões de Ferramentas**
+  - Permitir a atualização (`boss4d tool update`) e desinstalação (`boss4d tool uninstall`) de utilitários globais.
+
+---
+
+## 🌳 Épico 7: Diagnóstico Avançado de Dependências (`boss4d tree` / `outdated`)
+*Objetivo: Fornecer visibilidade profunda sobre a árvore de dependências transitivas e o status de atualização de pacotes (Inspirado em `cargo tree` do Rust e `pub outdated` do Dart/Flutter).*
+
+- [ ] **[Story] Exibição de Árvore de Dependências (`boss4d tree`)**
+  - Imprimir graficamente no console a estrutura de dependências do projeto, indicando quais subdependências pertencem a quais pacotes e resolvendo conflitos visuais.
+- [ ] **[Story] Relatório de Pacotes Desatualizados (`boss4d outdated`)**
+  - Consultar de forma assíncrona as últimas tags compatíveis com SemVer no GitHub para cada dependência e gerar uma tabela exibindo a versão atual, versão compatível declarada e versão mais recente do autor.
+
+---
+
+## 🗂️ Épico 8: Suporte a Workspaces e Multi-Projetos (Monorepos)
+*Objetivo: Facilitar a manutenção de múltiplos projetos locais Delphi sob o mesmo repositório que compartilham dependências comuns (Inspirado em Rust/npm Workspaces).*
+
+- [ ] **[Story] Manifesto de Workspaces no `boss.json` raiz**
+  - Suportar a declaração de `"workspaces": [ "projects/*" ]` no manifesto da raiz do repositório.
+- [ ] **[Story] Compartilhamento Inteligente da pasta `modules/`**
+  - Evitar downloads e compilações redundantes mantendo todas as dependências centralizadas na pasta `modules/` raiz, com o resolvedor interligando as referências relativas dos subprojetos internos automaticamente.

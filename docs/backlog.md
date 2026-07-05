@@ -53,3 +53,43 @@ This document details the future planning, new features (backlog), and architect
   - Intelligently inject unified DCU folders (`modules/dcu`) or search paths into the developer's global RAD Studio Library Path, eliminating the need to configure search paths manually.
 - [ ] **[Story] DCU Megafolders and Cache Optimization**
   - Optimally unify compiled project files into centralized folders grouped by platform/configuration, improving subsequent build times.
+
+---
+
+## 📜 Epic 5: Custom Script Execution (`boss4d run <script>`)
+*Objective: Allow automation and standardization of tasks and workflows in Delphi projects (Inspired by `npm run` from Node.js).*
+
+- [ ] **[Story] Script Declaration in `boss.json`**
+  - Add support for a `"scripts": { "build": "msbuild ...", "test": "Win32\\Debug\\Tests.exe" }` block in the project manifest.
+- [ ] **[Story] CLI Command `boss4d run <script>`**
+  - Execute the specified script by invoking the correct subprocess in the Windows shell, seamlessly forwarding output logs and exit error codes.
+
+---
+
+## 🛠️ Epic 6: Global CLI Tool Distribution (`boss4d tool`)
+*Objective: Allow Delphi developers to install and use development utilities globally on their machine (Inspired by `dotnet tool` from .NET).*
+
+- [ ] **[Story] Global Tool Installation (`boss4d tool install -g <repo>`)**
+  - Download, compile, and register Delphi-based utility executables (e.g., code formatters, code generators, linters) in the Windows PATH.
+- [ ] **[Story] Tool Version Management**
+  - Allow upgrading (`boss4d tool update`) and uninstalling (`boss4d tool uninstall`) global utilities.
+
+---
+
+## 🌳 Epic 7: Advanced Dependency Diagnostics (`boss4d tree` / `outdated`)
+*Objective: Provide deep visibility into the transitive dependency tree and package update status (Inspired by `cargo tree` from Rust and `pub outdated` from Dart/Flutter).*
+
+- [ ] **[Story] Dependency Tree Visualization (`boss4d tree`)**
+  - Graphically print the project's dependency structure in the console, highlighting which sub-dependencies belong to which packages and resolving visual conflicts.
+- [ ] **[Story] Outdated Packages Report (`boss4d outdated`)**
+  - Asynchronously query GitHub for the latest SemVer-compatible tags for each dependency, generating a table displaying the current version, compatible declared version, and latest available version.
+
+---
+
+## 🗂️ Epic 8: Workspaces and Multi-Project Support (Monorepos)
+*Objective: Simplify maintenance of multiple local Delphi projects sharing common dependencies under the same repository (Inspired by Rust/npm Workspaces).*
+
+- [ ] **[Story] Workspaces Manifesto in root `boss.json`**
+  - Support declaring `"workspaces": [ "projects/*" ]` in the root repository manifest.
+- [ ] **[Story] Intelligent Folder Sharing for `modules/`**
+  - Prevent redundant downloads and builds by centralizing all dependencies in the root `modules/` folder, with the resolver automatically mapping relative references for internal subprojects.
