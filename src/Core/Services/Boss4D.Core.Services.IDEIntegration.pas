@@ -118,6 +118,21 @@ begin
   LVersions := FRegistry.GetInstalledDelphiVersions;
   for LVer in LVersions do
   begin
+    // Limpeza preventiva de Known IDE Packages caso exista
+    LReg := TRegistry.Create(KEY_WRITE);
+    try
+      LReg.RootKey := FRegistryRoot;
+      LSubKey := FRegistryKeyPrefix + LVer + '\Known IDE Packages';
+      if LReg.OpenKey(LSubKey, False) then
+      begin
+        if LReg.ValueExists(ABPLPath) then
+          LReg.DeleteValue(ABPLPath);
+      end;
+    finally
+      LReg.Free;
+    end;
+
+    // Registro em Known Packages
     LReg := TRegistry.Create(KEY_WRITE);
     try
       LReg.RootKey := FRegistryRoot;
@@ -134,28 +149,8 @@ begin
 end;
 
 procedure TBoss4DIDEIntegrationService.RegisterIDEPackage(const ABPLPath: string; const ADescription: string = '');
-var
-  LVersions: TArray<string>;
-  LVer: string;
-  LReg: TRegistry;
-  LSubKey: string;
 begin
-  LVersions := FRegistry.GetInstalledDelphiVersions;
-  for LVer in LVersions do
-  begin
-    LReg := TRegistry.Create(KEY_WRITE);
-    try
-      LReg.RootKey := FRegistryRoot;
-      LSubKey := FRegistryKeyPrefix + LVer + '\Known IDE Packages';
-      if LReg.OpenKey(LSubKey, True) then
-      begin
-        LReg.WriteString(ABPLPath, ADescription);
-        FLogger.Log(TBoss4DLogLevel.Info, '  [OK] Plugin registrado em Known IDE Packages (Delphi %s).', [LVer]);
-      end;
-    finally
-      LReg.Free;
-    end;
-  end;
+  RegisterDesignTimePackage(ABPLPath, ADescription);
 end;
 
 end.

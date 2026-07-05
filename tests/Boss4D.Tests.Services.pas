@@ -937,10 +937,14 @@ begin
       LReg.RootKey := HKEY_CURRENT_USER;
       Assert.IsTrue(LReg.OpenKey(LTestKeyPackages, False));
       Assert.AreEqual<string>('Componente Fake', LReg.ReadString('C:\fake_component.bpl'));
+      Assert.AreEqual<string>('Plugin Fake', LReg.ReadString('C:\fake_plugin.bpl'));
       LReg.CloseKey;
 
-      Assert.IsTrue(LReg.OpenKey(LTestKeyIDEPackages, False));
-      Assert.AreEqual<string>('Plugin Fake', LReg.ReadString('C:\fake_plugin.bpl'));
+      if LReg.OpenKey(LTestKeyIDEPackages, False) then
+      begin
+        Assert.AreEqual<string>('', LReg.ReadString('C:\fake_plugin.bpl'));
+        LReg.CloseKey;
+      end;
     finally
       LReg.Free;
     end;
@@ -1034,8 +1038,15 @@ begin
     var LReg := TRegistry.Create(KEY_READ);
     try
       LReg.RootKey := HKEY_CURRENT_USER;
-      Assert.IsTrue(LReg.OpenKey('Software\Boss4DTests\BDS\22.0\Known IDE Packages', False));
+      Assert.IsTrue(LReg.OpenKey('Software\Boss4DTests\BDS\22.0\Known Packages', False));
       Assert.AreEqual<string>('Fake Plugin Extension', LReg.ReadString(LDestBPL));
+      LReg.CloseKey;
+
+      if LReg.OpenKey('Software\Boss4DTests\BDS\22.0\Known IDE Packages', False) then
+      begin
+        Assert.AreEqual<string>('', LReg.ReadString(LDestBPL));
+        LReg.CloseKey;
+      end;
     finally
       LReg.Free;
     end;
@@ -1350,8 +1361,8 @@ begin
           if LMenuItem.GetName = 'mnuBoss4DRun_build' then
           begin
             LFoundBuildScript := True;
-            Assert.AreEqual<string>('build', LMenuItem.GetCaption);
-            Assert.AreEqual<string>('mnuBoss4DRun', LMenuItem.GetParent);
+            Assert.AreEqual<string>('Boss4D Run: build', LMenuItem.GetCaption);
+            Assert.AreEqual<string>('', LMenuItem.GetParent);
             Assert.AreEqual<string>('Boss4DRun_buildVerb', LMenuItem.GetVerb);
             Break;
           end;

@@ -3,8 +3,71 @@ unit Boss4D.IDE.Wizard;
 interface
 
 uses
-  System.SysUtils, System.Classes, Vcl.Menus, Vcl.Forms, Vcl.StdCtrls, Vcl.Controls, Vcl.Graphics, Vcl.ExtCtrls,
-  ToolsAPI, DesignIntf;
+  System.SysUtils, System.Classes, Vcl.Menus, Vcl.Forms, Vcl.StdCtrls, Vcl.Controls, Vcl.Graphics, Vcl.ExtCtrls
+  {$IFDEF IDE_PLUGIN}
+  , ToolsAPI, DesignIntf
+  {$ENDIF};
+
+{$IFNDEF IDE_PLUGIN}
+type
+  IOTAProject = interface(IUnknown)
+    ['{842BB564-9642-4D3C-80E2-C68C090886AA}']
+    function GetFileName: string;
+    property FileName: string read GetFileName;
+  end;
+
+  TNotifierObject = class(TInterfacedObject)
+  end;
+
+  IOTALocalMenu = interface(IUnknown)
+    ['{335D2E7C-E22A-4D46-9D92-B7AE1A3DE8E0}']
+    function GetCaption: string;
+    function GetChecked: Boolean;
+    function GetEnabled: Boolean;
+    function GetHelpContext: Integer;
+    function GetName: string;
+    function GetParent: string;
+    function GetPosition: Integer;
+    function GetVerb: string;
+    procedure SetCaption(const Value: string);
+    procedure SetChecked(Value: Boolean);
+    procedure SetEnabled(Value: Boolean);
+    procedure SetHelpContext(Value: Integer);
+    procedure SetName(const Value: string);
+    procedure SetParent(const Value: string);
+    procedure SetPosition(Value: Integer);
+    procedure SetVerb(const Value: string);
+  end;
+
+  IOTAProjectManagerMenu = interface(IOTALocalMenu)
+    ['{5E3B2F18-306E-4922-9067-3F71843C51FA}']
+    function GetIsMultiSelectable: Boolean;
+    procedure SetIsMultiSelectable(Value: Boolean);
+    procedure Execute(const MenuContextList: IInterfaceList);
+    function PreExecute(const MenuContextList: IInterfaceList): Boolean;
+    function PostExecute(const MenuContextList: IInterfaceList): Boolean;
+  end;
+
+  IOTAProjectMenuItemCreatorNotifier = interface(IUnknown)
+    ['{8209348C-2114-439C-AD4E-BFB7049A636A}']
+    procedure AddMenu(const Project: IOTAProject; const IdentList: TStrings;
+      const ProjectManagerMenuList: IInterfaceList; IsMultiSelect: Boolean);
+  end;
+
+  IOTAWizard = interface(IUnknown)
+    ['{0B902A2E-BF56-4BEB-848D-5D88406F8EA9}']
+    function GetIDString: string;
+    function GetName: string;
+  end;
+
+  TOTAProjectMock = class(TInterfacedObject, IOTAProject)
+  private
+    FFileName: string;
+  public
+    constructor Create(const AFileName: string);
+    function GetFileName: string;
+  end;
+{$ENDIF}
 
 type
   TBoss4DInstallDialog = class(TForm)
@@ -20,7 +83,7 @@ type
     property EditVersion: TEdit read FEditVersion;
   end;
 
-  TBoss4DProjectManagerMenu = class(TNotifierObject, IOTAProjectManagerMenu)
+  TBoss4DProjectManagerMenu = class(TNotifierObject, IOTALocalMenu, IOTAProjectManagerMenu)
   private
     FCaption: string;
     FName: string;
@@ -80,8 +143,10 @@ type
     { IOTAWizard }
     function GetIDString: string;
     function GetName: string;
+    {$IFDEF IDE_PLUGIN}
     function GetState: TWizardState;
     procedure Execute;
+    {$ENDIF}
   end;
 
 procedure Register;
@@ -107,17 +172,21 @@ constructor TBoss4DIDEWizard.Create;
 begin
   inherited Create;
   // Incrementa contagem de referencias da BPL para mante-la na memoria
+  {$IFDEF IDE_PLUGIN}
   GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, PChar(@Register), GModuleHandle);
+  {$ENDIF}
 
   FMenuCreatorIdx := -1;
   FTimer := nil;
   FNotifier := TBoss4DProjectMenuItemCreatorNotifier.Create;
+  {$IFDEF IDE_PLUGIN}
   var LProjectManager: IOTAProjectManager;
   if Supports(BorlandIDEServices, IOTAProjectManager, LProjectManager) then
   begin
     FMenuCreatorIdx := LProjectManager.AddMenuItemCreatorNotifier(FNotifier);
   end
   else
+  {$ENDIF}
   begin
     FTimer := TTimer.Create(nil);
     FTimer.Interval := 1000;
@@ -133,6 +202,7 @@ begin
     FTimer.Enabled := False;
     FreeAndNil(FTimer);
   end;
+  {$IFDEF IDE_PLUGIN}
   if (FMenuCreatorIdx <> -1) and Assigned(BorlandIDEServices) then
   begin
     var LProjectManager: IOTAProjectManager;
@@ -141,19 +211,23 @@ begin
       LProjectManager.RemoveMenuItemCreatorNotifier(FMenuCreatorIdx);
     end;
   end;
+  {$ENDIF}
 
   // Libera a referencia da BPL na memoria se nao for shutdown geral
+  {$IFDEF IDE_PLUGIN}
   if (not Application.Terminated) and (GModuleHandle <> 0) then
   begin
     FreeLibrary(GModuleHandle);
     GModuleHandle := 0;
   end;
+  {$ENDIF}
 
   inherited Destroy;
 end;
 
 procedure TBoss4DIDEWizard.OnTimerEvent(Sender: TObject);
 begin
+  {$IFDEF IDE_PLUGIN}
   var LProjectManager: IOTAProjectManager;
   if Supports(BorlandIDEServices, IOTAProjectManager, LProjectManager) then
   begin
@@ -163,6 +237,7 @@ begin
       FTimer.Enabled := False;
     end;
   end;
+  {$ENDIF}
 end;
 
 function TBoss4DIDEWizard.GetIDString: string;
@@ -175,6 +250,7 @@ begin
   Result := 'Boss4D IDE Wizard';
 end;
 
+{$IFDEF IDE_PLUGIN}
 function TBoss4DIDEWizard.GetState: TWizardState;
 begin
   Result := [wsEnabled];
@@ -184,8 +260,10 @@ procedure TBoss4DIDEWizard.Execute;
 begin
   // Nada a executar sob demanda
 end;
+{$ENDIF}
 
 procedure Register;
+{$IFDEF IDE_PLUGIN}
 var
   LBitmap: Vcl.Graphics.TBitmap;
   LSplashServices: IOTASplashScreenServices;
@@ -258,6 +336,10 @@ begin
     end;
   end;
 end;
+{$ELSE}
+begin
+end;
+{$ENDIF}
 
 
 
@@ -564,9 +646,9 @@ begin
             LScript := LScripts.Pairs[I];
             var LScriptName := LScript.JsonString.Value;
             AMenuList.Add(TBoss4DProjectManagerMenu.Create(
-              LScriptName,
+              'Boss4D Run: ' + LScriptName,
               'mnuBoss4DRun_' + LScriptName,
-              'mnuBoss4DRun',
+              '',
               'Boss4DRun_' + LScriptName + 'Verb',
               AProjectDir,
               'run ' + LScriptName,
@@ -601,22 +683,12 @@ begin
   if (LProjectDir = '') or (not TDirectory.Exists(LProjectDir)) then
     Exit;
 
-  // 1. Menu Principal "Boss4D"
-  ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
-    'Boss4D',
-    'mnuBoss4D',
-    '',
-    'Boss4DVerb',
-    LProjectDir,
-    '',
-    100
-  ));
-
-  // 2. Submenus estaticos principais
+  // Project Manager menus must reference existing IDE parents. Keep Boss4D
+  // commands at the top level to avoid parent resolution errors.
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
     'Boss4D Init',
     'mnuBoss4DInit',
-    'mnuBoss4D',
+    '',
     'Boss4DInitVerb',
     LProjectDir,
     'init --quiet',
@@ -626,7 +698,7 @@ begin
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
     'Boss4D Install',
     'mnuBoss4DInstall',
-    'mnuBoss4D',
+    '',
     'Boss4DInstallVerb',
     LProjectDir,
     'install',
@@ -636,7 +708,7 @@ begin
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
     'Boss4D Install Package...',
     'mnuBoss4DInstallPkg',
-    'mnuBoss4D',
+    '',
     'Boss4DInstallPkgVerb',
     LProjectDir,
     'install-dialog',
@@ -646,7 +718,7 @@ begin
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
     'Boss4D Outdated',
     'mnuBoss4DOutdated',
-    'mnuBoss4D',
+    '',
     'Boss4DOutdatedVerb',
     LProjectDir,
     'outdated',
@@ -656,42 +728,20 @@ begin
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
     'Boss4D Dependency Tree',
     'mnuBoss4DTree',
-    'mnuBoss4D',
+    '',
     'Boss4DTreeVerb',
     LProjectDir,
     'tree',
     150
   ));
 
-  // 3. Submenu "Run Script" (Pai)
-  ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
-    'Run Script',
-    'mnuBoss4DRun',
-    'mnuBoss4D',
-    'Boss4DRunVerb',
-    LProjectDir,
-    '',
-    160
-  ));
-
-  // Popula os submenus dinamicos de Scripts
+  // Popula os comandos dinamicos de scripts
   AddScriptsSubmenus(LProjectDir, ProjectManagerMenuList);
 
-  // 4. Submenu "GetIt Bridge" (Pai)
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
-    'GetIt Bridge',
-    'mnuBoss4DGetIt',
-    'mnuBoss4D',
-    'Boss4DGetItVerb',
-    LProjectDir,
-    '',
-    170
-  ));
-
-  ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
-    'Set Online Mode',
+    'Boss4D GetIt: Set Online Mode',
     'mnuBoss4DGetItOnline',
-    'mnuBoss4DGetIt',
+    '',
     'Boss4DGetItOnlineVerb',
     LProjectDir,
     'getit mode-online',
@@ -699,20 +749,20 @@ begin
   ));
 
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
-    'Set Offline Mode',
+    'Boss4D GetIt: Set Offline Mode',
     'mnuBoss4DGetItOffline',
-    'mnuBoss4DGetIt',
+    '',
     'Boss4DGetItOfflineVerb',
     LProjectDir,
     'getit mode-offline',
     190
   ));
 
-  // 5. Demais utilitarios no nivel principal do Boss4D
+  // Demais utilitarios
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
     'Boss4D Doctor',
     'mnuBoss4DDoctor',
-    'mnuBoss4D',
+    '',
     'Boss4DDoctorVerb',
     LProjectDir,
     'doctor',
@@ -722,28 +772,17 @@ begin
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
     'Boss4D License Report',
     'mnuBoss4DLicense',
-    'mnuBoss4D',
+    '',
     'Boss4DLicenseVerb',
     LProjectDir,
     'license report',
     310
   ));
 
-  // 6. Submenu "Cache" (Pai)
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
-    'Cache',
-    'mnuBoss4DCache',
-    'mnuBoss4D',
-    'Boss4DCacheVerb',
-    LProjectDir,
-    '',
-    320
-  ));
-
-  ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
-    'Clean Cache',
+    'Boss4D Cache: Clean',
     'mnuBoss4DCacheClean',
-    'mnuBoss4DCache',
+    '',
     'Boss4DCacheCleanVerb',
     LProjectDir,
     'cache clean',
@@ -751,15 +790,29 @@ begin
   ));
 
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
-    'Prune Cache',
+    'Boss4D Cache: Prune',
     'mnuBoss4DCachePrune',
-    'mnuBoss4DCache',
+    '',
     'Boss4DCachePruneVerb',
     LProjectDir,
     'cache prune',
     340
   ));
 end;
+
+{$IFNDEF IDE_PLUGIN}
+{ TOTAProjectMock }
+constructor TOTAProjectMock.Create(const AFileName: string);
+begin
+  inherited Create;
+  FFileName := AFileName;
+end;
+
+function TOTAProjectMock.GetFileName: string;
+begin
+  Result := FFileName;
+end;
+{$ENDIF}
 
 initialization
 

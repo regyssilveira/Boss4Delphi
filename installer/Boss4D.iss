@@ -88,15 +88,21 @@ procedure RegisterPlugin(BDSVersion: string; SubFolder: string);
 var
   RegKey: string;
   BPLPath: string;
+  OldRegKey: string;
 begin
   BPLPath := ExpandConstant('{commondocs}\Embarcadero\Studio\' + BDSVersion + '\Bpl\Boss4D.IDE.Plugin.bpl');
   
-  // Registra estritamente na chave Known IDE Packages (correto para Plugins)
-  RegKey := 'Software\Embarcadero\BDS\' + BDSVersion + '\Known IDE Packages';
+  // Limpa registro antigo em Known IDE Packages caso exista
+  OldRegKey := 'Software\Embarcadero\BDS\' + BDSVersion + '\Known IDE Packages';
+  if RegValueExists(HKCU, OldRegKey, BPLPath) then
+    RegDeleteValue(HKCU, OldRegKey, BPLPath);
+
+  // Registra na chave Known Packages (como design-time package)
+  RegKey := 'Software\Embarcadero\BDS\' + BDSVersion + '\Known Packages';
   if RegWriteStringValue(HKCU, RegKey, BPLPath, 'Boss4D - RAD Studio IDE Integration Plugin') then
-    Log('Plugin registrado com sucesso na chave Known IDE Packages da IDE ' + BDSVersion)
+    Log('Plugin registrado com sucesso na chave Known Packages da IDE ' + BDSVersion)
   else
-    Log('Falha ao registrar o plugin na chave Known IDE Packages da IDE ' + BDSVersion);
+    Log('Falha ao registrar o plugin na chave Known Packages da IDE ' + BDSVersion);
 end;
 
 procedure UnregisterPlugin(BDSVersion: string; SubFolder: string);

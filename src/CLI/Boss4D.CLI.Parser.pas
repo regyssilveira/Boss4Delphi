@@ -493,7 +493,7 @@ begin
     TFile.Copy(LBPLFiles[0], LDestBPL, True);
 
     FLogger.Log(TBoss4DLogLevel.Info, '  Registrando plugin no RAD Studio...');
-    LIDEIntegration.RegisterIDEPackage(LDestBPL, LPluginName + ' - IDE Extension');
+    LIDEIntegration.RegisterDesignTimePackage(LDestBPL, LPluginName + ' - IDE Extension');
 
     FLogger.Log(TBoss4DLogLevel.Info, '🚀 Plugin "%s" instalado e registrado com sucesso!', [LPluginName]);
   finally

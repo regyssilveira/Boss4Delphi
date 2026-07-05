@@ -384,20 +384,20 @@ boss4d tool uninstall boss
 
 ## 🔌 12. Instalação de Plugins e Extensões da IDE (`plugin`)
 
-Você pode compilar e instalar plugins, assistentes e assistentes de inteligência artificial (como o *RadIA-Plugin*) diretamente na IDE do RAD Studio de forma totalmente automatizada. O Boss4D detecta as IDEs instaladas no Registry, compila o arquivo de extensão (.bpl), copia-o para a pasta `%APPDATA%\Boss4D\plugins\` e o registra na chave `Known IDE Packages` correspondente do RAD Studio.
+Você pode compilar e instalar plugins e assistentes diretamente na IDE do RAD Studio de forma totalmente automatizada. O Boss4D detecta as IDEs instaladas no Registry, compila o arquivo de extensão (.bpl), copia-o para a pasta `%APPDATA%\Boss4D\plugins\` e o registra na chave `Known Packages` correspondente do RAD Studio.
 
 ```bash
-boss4d plugin install github.com/regyssilveira/RadIA-Plugin
+boss4d plugin install github.com/user/my-plugin
 ```
 
 * **Exemplo de Saída**:
   ```text
-  Iniciando instalacao de plugin de IDE: github.com/regyssilveira/RadIA-Plugin
+  Iniciando instalacao de plugin de IDE: github.com/user/my-plugin
     Clonando fontes do plugin...
     Compilando plugin...
     Registrando plugin no RAD Studio...
-    [OK] Plugin registrado em Known IDE Packages (Delphi 23.0).
-  🚀 Plugin "RadIAPlugin" instalado e registrado com sucesso!
+    [OK] Plugin registrado em Known Packages (Delphi 23.0).
+  🚀 Plugin "my-plugin" instalado e registrado com sucesso!
   ```
 
 ### Instalando o Plugin Oficial do Boss4D no Delphi
