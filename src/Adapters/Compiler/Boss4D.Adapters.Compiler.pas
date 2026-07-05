@@ -135,19 +135,19 @@ begin
     if TryStrToFloat(LVerStr, LVerFloat, LFormatSettings) then
     begin
       if LVerFloat >= 20.0 then
-        Result := '23.0'
-      else if LVerFloat >= 19.5 then
-        Result := '22.0'
+        Result := '23.0' // Delphi 12 Athens (ProjectVersion >= 20.0)
+      else if LVerFloat >= 19.2 then
+        Result := '22.0' // Delphi 11 Alexandria (ProjectVersion 19.3, 19.4, 19.5)
       else if LVerFloat >= 19.0 then
-        Result := '21.0'
-      else if LVerFloat >= 18.5 then
-        Result := '20.0'
+        Result := '21.0' // Delphi 10.4 Sydney (ProjectVersion 19.0)
+      else if LVerFloat >= 18.4 then
+        Result := '20.0' // Delphi 10.3 Rio (ProjectVersion 18.4, 18.5, 18.8)
+      else if LVerFloat >= 18.1 then
+        Result := '19.0' // Delphi 10.2 Tokyo (ProjectVersion 18.1, 18.2, 18.3)
       else if LVerFloat >= 18.0 then
-        Result := '19.0'
+        Result := '18.0' // Delphi 10.1 Berlin (ProjectVersion 18.0)
       else if LVerFloat >= 17.0 then
-        Result := '18.0'
-      else if LVerFloat >= 16.0 then
-        Result := '17.0';
+        Result := '17.0'; // Delphi 10 Seattle / XE8 (ProjectVersion 17.0)
     end;
   except
     // Falha silenciosa por seguranca
