@@ -97,7 +97,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Manual de Uso da CLI](docs/usage.pt-BR.md)**: Guia completo detalhado de todos os parâmetros e opções de instalação de dependências.
 * **[Guia de Contribuição](CONTRIBUTING.pt-BR.md)**: Padrões de código e fluxo de desenvolvimento para contribuir com o projeto.
 * **[Guia de Lançamento de Release](RELEASE_GUIDE.md)**: Passos e instruções para compilar com Delphi 13 (37.0) e publicar releases no GitHub.
-* **[Backlog do Projeto](BACKLOG.pt-BR.md)**: Planejamento futuro de novas funcionalidades, diagnóstico CLI (`boss4d doctor`), interface visual (GUI) e integração com o RAD Studio.
+* **[Backlog do Projeto](docs/backlog.pt-BR.md)**: Planejamento futuro de novas funcionalidades, diagnóstico CLI (`boss4d doctor`), interface visual (GUI) e integração com o RAD Studio.
 
 ---
 

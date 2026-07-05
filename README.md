@@ -103,7 +103,7 @@ cd /d d:\Projetos\BossDelphi
 * **[CLI Usage Manual](docs/usage.md)**: Detailed step-by-step guide covering all command options and dependency configurations.
 * **[Contribution Guide](CONTRIBUTING.md)**: Coding standards and guidelines for contribution.
 * **[Release Guide](RELEASE_GUIDE.md)**: Steps and instructions to compile with Delphi 13 (37.0) and publish releases on GitHub.
-* **[Project Backlog](BACKLOG.md)**: Future features, CLI diagnostics (`boss4d doctor`), visual interface (GUI), and RAD Studio integration roadmap.
+* **[Project Backlog](docs/backlog.md)**: Future features, CLI diagnostics (`boss4d doctor`), visual interface (GUI), and RAD Studio integration roadmap.
 
 ---
 
