@@ -98,6 +98,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Guia de Contribuição](CONTRIBUTING.pt-BR.md)**: Padrões de código e fluxo de desenvolvimento para contribuir com o projeto.
 * **[Guia de Lançamento de Release](RELEASE_GUIDE.md)**: Passos e instruções para compilar com Delphi 13 (37.0) e publicar releases no GitHub.
 * **[Backlog do Projeto](docs/backlog.pt-BR.md)**: Planejamento futuro de novas funcionalidades, diagnóstico CLI (`boss4d doctor`), interface visual (GUI) e integração com o RAD Studio.
+* **[Priorização do Backlog](docs/backlog_prioritization.pt-BR.md)**: Análise de ROI Técnico priorizando a implementação dos 15 épicos do projeto.
 
 ---
 

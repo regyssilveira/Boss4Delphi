@@ -104,6 +104,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Contribution Guide](CONTRIBUTING.md)**: Coding standards and guidelines for contribution.
 * **[Release Guide](RELEASE_GUIDE.md)**: Steps and instructions to compile with Delphi 13 (37.0) and publish releases on GitHub.
 * **[Project Backlog](docs/backlog.md)**: Future features, CLI diagnostics (`boss4d doctor`), visual interface (GUI), and RAD Studio integration roadmap.
+* **[Backlog Prioritization](docs/backlog_prioritization.md)**: Technical ROI analysis prioritizing the 15 project epics.
 
 ---
 
