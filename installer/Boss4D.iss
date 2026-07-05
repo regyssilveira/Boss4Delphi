@@ -81,6 +81,22 @@ begin
     Log('Falha ao registrar o plugin na IDE ' + BDSVersion);
 end;
 
+procedure UnregisterPlugin(BDSVersion: string; BPLName: string);
+var
+  RegKey: string;
+  BPLPath: string;
+begin
+  RegKey := 'Software\Embarcadero\BDS\' + BDSVersion + '\Known Packages';
+  BPLPath := ExpandConstant('{app}\plugins\' + BPLName);
+  if RegValueExists(HKCU, RegKey, BPLPath) then
+  begin
+    if RegDeleteValue(HKCU, RegKey, BPLPath) then
+      Log('Plugin removido com sucesso da IDE ' + BDSVersion)
+    else
+      Log('Falha ao remover o plugin da IDE ' + BDSVersion);
+  end;
+end;
+
 procedure AddToPath;
 var
   PathStr: string;
@@ -101,21 +117,84 @@ begin
   end;
 end;
 
+procedure RemoveFromPath;
+var
+  PathStr: string;
+  BinPath: string;
+  PosBin: Integer;
+begin
+  BinPath := ExpandConstant('{app}\bin');
+  if RegQueryStringValue(HKCU, 'Environment', 'PATH', PathStr) then
+  begin
+    PosBin := Pos(BinPath, PathStr);
+    if PosBin > 0 then
+    begin
+      if PosBin = 1 then
+      begin
+        if Length(PathStr) > Length(BinPath) then
+          Delete(PathStr, 1, Length(BinPath) + 1)
+        else
+          PathStr := '';
+      end
+      else
+      begin
+        Delete(PathStr, PosBin - 1, Length(BinPath) + 1);
+      end;
+      
+      if PathStr = '' then
+        RegDeleteValue(HKCU, 'Environment', 'PATH')
+      else
+        RegWriteExpandStringValue(HKCU, 'Environment', 'PATH', PathStr);
+    end;
+  end;
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
   begin
-    // Grava no Registro das IDEs selecionadas
-    if (Delphi11Idx <> -1) and IDEOptionPage.Values[Delphi11Idx] then
-      RegisterPlugin('22.0', 'Boss4D.IDE.Plugin_11.bpl');
+    // Delphi 11 (Alexandria)
+    if Delphi11Idx <> -1 then
+    begin
+      if IDEOptionPage.Values[Delphi11Idx] then
+        RegisterPlugin('22.0', 'Boss4D.IDE.Plugin_11.bpl')
+      else
+        UnregisterPlugin('22.0', 'Boss4D.IDE.Plugin_11.bpl');
+    end;
 
-    if (Delphi12Idx <> -1) and IDEOptionPage.Values[Delphi12Idx] then
-      RegisterPlugin('23.0', 'Boss4D.IDE.Plugin_12.bpl');
+    // Delphi 12 (Athens)
+    if Delphi12Idx <> -1 then
+    begin
+      if IDEOptionPage.Values[Delphi12Idx] then
+        RegisterPlugin('23.0', 'Boss4D.IDE.Plugin_12.bpl')
+      else
+        UnregisterPlugin('23.0', 'Boss4D.IDE.Plugin_12.bpl');
+    end;
 
-    if (Delphi13Idx <> -1) and IDEOptionPage.Values[Delphi13Idx] then
-      RegisterPlugin('37.0', 'Boss4D.IDE.Plugin_13.bpl');
+    // Delphi 13 (Florence)
+    if Delphi13Idx <> -1 then
+    begin
+      if IDEOptionPage.Values[Delphi13Idx] then
+        RegisterPlugin('37.0', 'Boss4D.IDE.Plugin_13.bpl')
+      else
+        UnregisterPlugin('37.0', 'Boss4D.IDE.Plugin_13.bpl');
+    end;
 
     // Adiciona pasta bin no PATH do Usuario
     AddToPath;
+  end;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usPostUninstall then
+  begin
+    // Limpa registros de todas as IDEs
+    UnregisterPlugin('22.0', 'Boss4D.IDE.Plugin_11.bpl');
+    UnregisterPlugin('23.0', 'Boss4D.IDE.Plugin_12.bpl');
+    UnregisterPlugin('37.0', 'Boss4D.IDE.Plugin_13.bpl');
+
+    // Limpa variavel de ambiente PATH
+    RemoveFromPath;
   end;
 end;
