@@ -5,7 +5,7 @@ interface
 uses
   System.SysUtils, System.Classes, Vcl.Menus, Vcl.Forms, Vcl.StdCtrls, Vcl.Controls, Vcl.Graphics, Vcl.ExtCtrls
   {$IFDEF IDE_PLUGIN}
-  , ToolsAPI
+  , ToolsAPI, DesignIntf
   {$ENDIF};
 
 {$IFNDEF IDE_PLUGIN}
@@ -127,23 +127,15 @@ type
       const ProjectManagerMenuList: IInterfaceList; IsMultiSelect: Boolean);
   end;
 
-  TBoss4DIDEWizard = class(TNotifierObject, IOTAWizard)
+  TBoss4DIDEBootManager = class
   private
-    FMenuCreatorIdx: Integer;
-    FNotifier: IOTAProjectMenuItemCreatorNotifier;
     FTimer: TTimer;
+    FNotifier: IOTAProjectMenuItemCreatorNotifier;
+    FMenuCreatorIdx: Integer;
     procedure OnTimerEvent(Sender: TObject);
   public
     constructor Create;
     destructor Destroy; override;
-
-    { IOTAWizard }
-    function GetIDString: string;
-    function GetName: string;
-    {$IFDEF IDE_PLUGIN}
-    function GetState: TWizardState;
-    procedure Execute;
-    {$ENDIF}
   end;
 
 procedure Register;
@@ -154,7 +146,66 @@ uses
   Winapi.Windows, System.IOUtils, System.Diagnostics, System.Threading, System.JSON;
 
 var
-  GWizardIdx: Integer = -1;
+  GBootManager: TBoss4DIDEBootManager = nil;
+
+{ TBoss4DIDEBootManager }
+
+constructor TBoss4DIDEBootManager.Create;
+begin
+  inherited Create;
+  FMenuCreatorIdx := -1;
+  FTimer := nil;
+  {$IFDEF IDE_PLUGIN}
+  FNotifier := TBoss4DProjectMenuItemCreatorNotifier.Create;
+  var LProjectManager: IOTAProjectManager;
+  if Supports(BorlandIDEServices, IOTAProjectManager, LProjectManager) then
+  begin
+    FMenuCreatorIdx := LProjectManager.AddMenuItemCreatorNotifier(FNotifier);
+  end
+  else
+  begin
+    FTimer := TTimer.Create(nil);
+    FTimer.Interval := 1000;
+    FTimer.OnTimer := OnTimerEvent;
+    FTimer.Enabled := True;
+  end;
+  {$ENDIF}
+end;
+
+destructor TBoss4DIDEBootManager.Destroy;
+begin
+  if Assigned(FTimer) then
+  begin
+    FTimer.Enabled := False;
+    FreeAndNil(FTimer);
+  end;
+  {$IFDEF IDE_PLUGIN}
+  if (FMenuCreatorIdx <> -1) and Assigned(BorlandIDEServices) then
+  begin
+    var LProjectManager: IOTAProjectManager;
+    if Supports(BorlandIDEServices, IOTAProjectManager, LProjectManager) then
+    begin
+      LProjectManager.RemoveMenuItemCreatorNotifier(FMenuCreatorIdx);
+    end;
+  end;
+  {$ENDIF}
+  inherited Destroy;
+end;
+
+procedure TBoss4DIDEBootManager.OnTimerEvent(Sender: TObject);
+begin
+  {$IFDEF IDE_PLUGIN}
+  var LProjectManager: IOTAProjectManager;
+  if Supports(BorlandIDEServices, IOTAProjectManager, LProjectManager) then
+  begin
+    FMenuCreatorIdx := LProjectManager.AddMenuItemCreatorNotifier(FNotifier);
+    if FMenuCreatorIdx <> -1 then
+    begin
+      FTimer.Enabled := False;
+    end;
+  end;
+  {$ENDIF}
+end;
 
 procedure Register;
 var
@@ -163,7 +214,8 @@ var
   LAboutServices: IOTAAboutBoxServices;
 begin
   {$IFDEF IDE_PLUGIN}
-  RegisterPackageWizard(TBoss4DIDEWizard.Create as IOTAWizard);
+  // Impede o descarregamento sob demanda do pacote pela IDE
+  ForceDemandLoadState(dlDisable);
 
   // Registro na Splash Screen usando a variavel global oficial da ToolsAPI
   if Supports(SplashScreenServices, IOTASplashScreenServices, LSplashServices) then
@@ -214,6 +266,9 @@ begin
       LBitmap.Free;
     end;
   end;
+
+  // Instancia o Boot Manager para gerenciar menus de forma tardia e segura
+  GBootManager := TBoss4DIDEBootManager.Create;
   {$ENDIF}
 end;
 
@@ -731,85 +786,14 @@ begin
   ));
 end;
 
-{ TBoss4DIDEWizard }
-
-constructor TBoss4DIDEWizard.Create;
-begin
-  inherited Create;
-  FMenuCreatorIdx := -1;
-  FNotifier := TBoss4DProjectMenuItemCreatorNotifier.Create;
-  FTimer := nil;
-  {$IFDEF IDE_PLUGIN}
-  var LProjectManager: IOTAProjectManager;
-  if Supports(BorlandIDEServices, IOTAProjectManager, LProjectManager) then
-  begin
-    FMenuCreatorIdx := LProjectManager.AddMenuItemCreatorNotifier(FNotifier);
-  end
-  else
-  begin
-    FTimer := TTimer.Create(nil);
-    FTimer.Interval := 1000;
-    FTimer.OnTimer := OnTimerEvent;
-    FTimer.Enabled := True;
-  end;
-  {$ENDIF}
-end;
-
-destructor TBoss4DIDEWizard.Destroy;
-begin
-  if Assigned(FTimer) then
-  begin
-    FTimer.Enabled := False;
-    FreeAndNil(FTimer);
-  end;
-  {$IFDEF IDE_PLUGIN}
-  var LProjectManager: IOTAProjectManager;
-  if (FMenuCreatorIdx <> -1) and Supports(BorlandIDEServices, IOTAProjectManager, LProjectManager) then
-  begin
-    LProjectManager.RemoveMenuItemCreatorNotifier(FMenuCreatorIdx);
-  end;
-  {$ENDIF}
-  inherited Destroy;
-end;
-
-procedure TBoss4DIDEWizard.OnTimerEvent(Sender: TObject);
-begin
-  {$IFDEF IDE_PLUGIN}
-  var LProjectManager: IOTAProjectManager;
-  if Supports(BorlandIDEServices, IOTAProjectManager, LProjectManager) then
-  begin
-    FMenuCreatorIdx := LProjectManager.AddMenuItemCreatorNotifier(FNotifier);
-    if FMenuCreatorIdx <> -1 then
-    begin
-      FTimer.Enabled := False;
-    end;
-  end;
-  {$ENDIF}
-end;
-
-function TBoss4DIDEWizard.GetIDString: string;
-begin
-  Result := 'Boss4D.IDE.Plugin.Wizard';
-end;
-
-function TBoss4DIDEWizard.GetName: string;
-begin
-  Result := 'Boss4D IDE Integration Wizard';
-end;
-
-{$IFDEF IDE_PLUGIN}
-function TBoss4DIDEWizard.GetState: TWizardState;
-begin
-  Result := [wsEnabled];
-end;
-
-procedure TBoss4DIDEWizard.Execute;
-begin
-end;
-{$ENDIF}
-
 initialization
 
 finalization
+  {$IFDEF IDE_PLUGIN}
+  if Assigned(GBootManager) then
+  begin
+    FreeAndNil(GBootManager);
+  end;
+  {$ENDIF}
 
 end.
