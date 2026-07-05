@@ -54,20 +54,34 @@ begin
   Delphi12Idx := -1;
   Delphi13Idx := -1;
 
-  // Cria pagina customizada para selecao das IDEs
+  // Cria pagina customizada para selecao das IDEs com nota explicativa sobre suporte
   IDEOptionPage := CreateInputOptionPage(wpSelectDir,
-    'Integracao com a IDE do Delphi', 'Selecione em quais IDEs deseja instalar o plugin contextual do Boss4D',
-    'As versoes compativeis encontradas estao listadas abaixo:',
+    'Integracao com a IDE do Delphi', 
+    'Selecione em quais IDEs deseja registrar o plugin de integracao do Boss4D.',
+    'Nota: Apenas as versoes do Delphi 11 (Alexandria), Delphi 12 (Athens) e Delphi 13 (Florence) sao compativeis. ' +
+    'Versoes anteriores nao sao suportadas.' + #13#10 + #13#10 +
+    'Abaixo sao mostradas apenas as instalacoes suportadas que foram identificadas na sua maquina:',
     False, False);
 
   if IsDelphi11Installed then
-    Delphi11Idx := IDEOptionPage.Add('Delphi 11 (Alexandria)');
+    Delphi11Idx := IDEOptionPage.Add('Delphi 11 (Alexandria)')
+  else
+    Log('Delphi 11 nao detectado.');
   
   if IsDelphi12Installed then
-    Delphi12Idx := IDEOptionPage.Add('Delphi 12 (Athens)');
+    Delphi12Idx := IDEOptionPage.Add('Delphi 12 (Athens)')
+  else
+    Log('Delphi 12 nao detectado.');
 
   if IsDelphi13Installed then
-    Delphi13Idx := IDEOptionPage.Add('Delphi 13 (Florence)');
+    Delphi13Idx := IDEOptionPage.Add('Delphi 13 (Florence)')
+  else
+    Log('Delphi 13 nao detectado.');
+
+  if (not IsDelphi11Installed) and (not IsDelphi12Installed) and (not IsDelphi13Installed) then
+  begin
+    IDEOptionPage.Add('(Nenhuma versao do Delphi 11, 12 ou 13 foi identificada no seu sistema)');
+  end;
 end;
 
 procedure RegisterPlugin(BDSVersion: string; BPLName: string);
