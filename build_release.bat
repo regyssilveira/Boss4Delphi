@@ -48,6 +48,9 @@ rmdir /s /q dist\bin\Win32
 rmdir /s /q dist\bin\Win64
 
 :: Compilando os Plugins de IDE para cada versao suportada
+mkdir dist\plugins\11 2>nul
+mkdir dist\plugins\12 2>nul
+mkdir dist\plugins\13 2>nul
 
 :: Delphi 11 (BDS 22.0)
 set "D11_PATH="
@@ -58,7 +61,7 @@ pushd src\IDE
 call "%D11_PATH%\bin\rsvars.bat"
 call dcc32 -B -Q -DIDE_PLUGIN -U"%D11_PATH%\lib\Win32\release" Boss4D.IDE.Plugin.dpk
 popd
-copy src\IDE\Boss4D.IDE.Plugin.bpl dist\plugins\Boss4D.IDE.Plugin_11.bpl
+copy src\IDE\Boss4D.IDE.Plugin.bpl dist\plugins\11\Boss4D.IDE.Plugin.bpl
 del src\IDE\Boss4D.IDE.Plugin.bpl 2>nul
 :SkipD11
 
@@ -71,7 +74,7 @@ pushd src\IDE
 call "%D12_PATH%\bin\rsvars.bat"
 call dcc32 -B -Q -DIDE_PLUGIN -U"%D12_PATH%\lib\Win32\release" Boss4D.IDE.Plugin.dpk
 popd
-copy src\IDE\Boss4D.IDE.Plugin.bpl dist\plugins\Boss4D.IDE.Plugin_12.bpl
+copy src\IDE\Boss4D.IDE.Plugin.bpl dist\plugins\12\Boss4D.IDE.Plugin.bpl
 del src\IDE\Boss4D.IDE.Plugin.bpl 2>nul
 :SkipD12
 
@@ -82,7 +85,7 @@ pushd src\IDE
 call "%D13_PATH%\bin\rsvars.bat"
 call dcc32 -B -Q -DIDE_PLUGIN -U"%D13_PATH%\lib\Win32\release" Boss4D.IDE.Plugin.dpk
 popd
-copy src\IDE\Boss4D.IDE.Plugin.bpl dist\plugins\Boss4D.IDE.Plugin_13.bpl
+copy src\IDE\Boss4D.IDE.Plugin.bpl dist\plugins\13\Boss4D.IDE.Plugin.bpl
 del src\IDE\Boss4D.IDE.Plugin.bpl 2>nul
 :SkipD13
 
