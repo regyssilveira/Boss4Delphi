@@ -3,68 +3,8 @@ unit Boss4D.IDE.Wizard;
 interface
 
 uses
-  System.SysUtils, System.Classes, Vcl.Menus, Vcl.Forms, Vcl.StdCtrls, Vcl.Controls, Vcl.Graphics, Vcl.ExtCtrls
-  {$IFDEF IDE_PLUGIN}
-  , ToolsAPI, DesignIntf
-  {$ENDIF};
-
-{$IFNDEF IDE_PLUGIN}
-type
-  // Mock stubs para compilar fora da IDE / testes unitarios
-  IOTAProject = interface(IUnknown)
-    ['{842BB564-9642-4D3C-80E2-C68C090886AA}']
-    function GetFileName: string;
-    property FileName: string read GetFileName;
-  end;
-
-  TNotifierObject = class(TInterfacedObject)
-  end;
-
-  IOTAProjectManagerMenu = interface(IUnknown)
-    ['{5E3B2F18-306E-4922-9067-3F71843C51FA}']
-    function GetCaption: string;
-    function GetChecked: Boolean;
-    function GetEnabled: Boolean;
-    function GetHelpContext: Integer;
-    function GetName: string;
-    function GetParent: string;
-    function GetPosition: Integer;
-    function GetVerb: string;
-    procedure SetCaption(const Value: string);
-    procedure SetChecked(Value: Boolean);
-    procedure SetEnabled(Value: Boolean);
-    procedure SetHelpContext(Value: Integer);
-    procedure SetName(const Value: string);
-    procedure SetParent(const Value: string);
-    procedure SetPosition(Value: Integer);
-    procedure SetVerb(const Value: string);
-    function GetIsMultiSelectable: Boolean;
-    procedure SetIsMultiSelectable(Value: Boolean);
-    procedure Execute(const MenuContextList: IInterfaceList);
-    function PreExecute(const MenuContextList: IInterfaceList): Boolean;
-    function PostExecute(const MenuContextList: IInterfaceList): Boolean;
-  end;
-
-  IOTAProjectMenuItemCreatorNotifier = interface(IUnknown)
-    ['{8209348C-2114-439C-AD4E-BFB7049A636A}']
-    procedure AddMenu(const Project: IOTAProject; const IdentList: TStrings;
-      const ProjectManagerMenuList: IInterfaceList; IsMultiSelect: Boolean);
-  end;
-
-  IOTAWizard = interface(IUnknown)
-    ['{0B902A2E-BF56-4BEB-848D-5D88406F8EA9}']
-    function GetIDString: string;
-    function GetName: string;
-  end;
-
-  TOTAProjectMock = class(TInterfacedObject, IOTAProject)
-  private
-    FFileName: string;
-  public
-    constructor Create(const AFileName: string);
-    function GetFileName: string;
-  end;
-{$ENDIF}
+  System.SysUtils, System.Classes, Vcl.Menus, Vcl.Forms, Vcl.StdCtrls, Vcl.Controls, Vcl.Graphics, Vcl.ExtCtrls,
+  ToolsAPI, DesignIntf;
 
 type
   TBoss4DInstallDialog = class(TForm)
@@ -264,19 +204,7 @@ begin
   GBootManager := TBoss4DIDEBootManager.Create;
 end;
 
-{$IFNDEF IDE_PLUGIN}
-{ TOTAProjectMock }
-constructor TOTAProjectMock.Create(const AFileName: string);
-begin
-  inherited Create;
-  FFileName := AFileName;
-end;
 
-function TOTAProjectMock.GetFileName: string;
-begin
-  Result := FFileName;
-end;
-{$ENDIF}
 
 { TBoss4DInstallDialog }
 
