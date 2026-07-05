@@ -5,6 +5,7 @@ program Boss4D;
 uses
   System.SysUtils,
   System.Generics.Collections,
+  System.Threading,
   Winapi.Windows,
   Boss4D.Core.Ports in 'Core/Ports/Boss4D.Core.Ports.pas',
   Boss4D.Core.Domain.Consts in 'Core/Domain/Boss4D.Core.Domain.Consts.pas',
@@ -87,6 +88,12 @@ begin
     end;
 
   except
+    on E: EAggregateException do
+    begin
+      Writeln('Erro fatal do Boss4D: ' + E.Message);
+      for var LIdx := 0 to E.Count - 1 do
+        Writeln('  -> ' + E.InnerExceptions[LIdx].Message);
+    end;
     on E: Exception do
       Writeln('Erro fatal do Boss4D: ' + E.Message);
   end;
