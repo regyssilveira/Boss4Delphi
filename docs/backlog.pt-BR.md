@@ -7,13 +7,13 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 🗺️ Épico 1: Interface Visual (Boss4D GUI)
 *Objetivo: Oferecer uma alternativa visual e amigável para desenvolvedores que preferem não utilizar a linha de comando.*
 
-- [ ] **[Story] Interface Desktop Nativa (VCL / FMX)**
+- [x] **[Story] Interface Desktop Nativa (VCL / FMX)**
   - Criar um executável visual standalone (`boss4d-gui.exe`) em Delphi nativo para gerenciar projetos.
-- [ ] **[Story] Gerenciamento de Projetos e Dependências**
+- [x] **[Story] Gerenciamento de Projetos e Dependências**
   - Tela para abrir pastas de projetos Delphi, visualizar o manifesto `boss.json` atual e gerenciar pacotes.
-- [ ] **[Story] Catálogo e Busca de Pacotes Públicos**
+- [x] **[Story] Catálogo e Busca de Pacotes Públicos**
   - Criar um painel de descoberta de pacotes populares (ex: Horse, Dext, RESTRequest4Delphi, mORMot) permitindo instalação com um clique.
-- [ ] **[Story] Painel de Logs de Compilação Visual**
+- [x] **[Story] Painel de Logs de Compilação Visual**
   - Exibir o andamento das tarefas de download concorrentes e logs de compilação em componentes visuais ricos com progresso e alertas.
 
 ---
