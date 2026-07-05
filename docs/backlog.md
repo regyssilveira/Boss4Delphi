@@ -12,7 +12,7 @@ This document details the future planning, new features (backlog), and architect
 - [ ] **[Story] Project and Dependency Management**
   - Screens to open Delphi project folders, view the current `boss.json` manifest, and manage packages.
 - [ ] **[Story] Public Package Catalog and Search**
-  - Create a discovery panel for popular packages (e.g., Horse, Dext, RESTRequest4Delphi, mORMot) allowing one-click installation.
+  - Create a discovery panel for popular packages (e.g., Horse, RESTRequest4Delphi, mORMot) allowing one-click installation.
 - [ ] **[Story] Visual Compilation Logs Panel**
   - Display the progress of parallel download tasks and compilation logs in rich visual components with progress indicators and warnings.
 
@@ -97,12 +97,12 @@ This document details the future planning, new features (backlog), and architect
 ---
 
 ## 🔌 Epic 9: RAD Studio Global Plugin and Extension Installation
-*Objective: Allow automated installation and registration of Delphi IDE plugins and assistants (like the RadIA-Plugin) globally on the system.*
+*Objective: Allow automated installation and registration of Delphi IDE plugins and assistants (like third-party plugins) globally on the system.*
 
 - [x] **[Story] "Plugin" Type Support in `boss.json`**
   - Recognize and configure manifests with a `"type": "plugin"` or `"type": "ide-extension"` attribute.
 - [x] **[Story] Plugin Installation via CLI (`boss4d plugin install <repo>`)**
-  - Clone the assistant's repository, compile its design-time BPL, move it to the central plugins directory `%APPDATA%\Boss4D\plugins\`, and register it automatically in the Windows Registry under the `Known Packages` and `Known IDE Packages` key of all detected RAD Studio versions.
+  - Clone the assistant's repository, compile its design-time BPL, move it to the central plugins directory `%APPDATA%\Boss4D\plugins\`, and register it automatically in the Windows Registry under the `Known Packages` key of all detected RAD Studio versions.
 
 ---
 

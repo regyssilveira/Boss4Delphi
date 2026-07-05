@@ -12,7 +12,7 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 - [x] **[Story] Gerenciamento de Projetos e Dependências**
   - Tela para abrir pastas de projetos Delphi, visualizar o manifesto `boss.json` atual e gerenciar pacotes.
 - [x] **[Story] Catálogo e Busca de Pacotes Públicos**
-  - Criar um painel de descoberta de pacotes populares (ex: Horse, Dext, RESTRequest4Delphi, mORMot) permitindo instalação com um clique.
+  - Criar um painel de descoberta de pacotes populares (ex: Horse, RESTRequest4Delphi, mORMot) permitindo instalação com um clique.
 - [x] **[Story] Painel de Logs de Compilação Visual**
   - Exibir o andamento das tarefas de download concorrentes e logs de compilação em componentes visuais ricos com progresso e alertas.
 
@@ -97,12 +97,12 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ---
 
 ## 🔌 Épico 9: Instalação de Plugins e Extensões Globais do RAD Studio
-*Objetivo: Permitir a instalação automatizada e registro de plugins e assistentes da própria IDE do Delphi (como o RadIA-Plugin) de forma global na máquina.*
+*Objetivo: Permitir a instalação automatizada e registro de plugins e assistentes da própria IDE do Delphi (como plugins de terceiros) de forma global na máquina.*
 
 - [x] **[Story] Suporte a Tipo "Plugin" no `boss.json`**
   - Reconhecer e configurar manifestos com o atributo `"type": "plugin"` ou `"type": "ide-extension"`.
 - [x] **[Story] Instalação de Plugins via CLI (`boss4d plugin install <repo>`)**
-  - Clonar o repositório do assistente, compilar sua BPL de design-time, movê-la para o diretório central de plugins `%APPDATA%\Boss4D\plugins\` e registrá-la automaticamente no Registro do Windows do RAD Studio sob a chave `Known Packages` e `Known IDE Packages` das IDEs detectadas.
+  - Clonar o repositório do assistente, compilar sua BPL de design-time, movê-la para o diretório central de plugins `%APPDATA%\Boss4D\plugins\` e registrá-la automaticamente no Registro do Windows do RAD Studio sob a chave `Known Packages` das IDEs detectadas.
 
 ---
 
