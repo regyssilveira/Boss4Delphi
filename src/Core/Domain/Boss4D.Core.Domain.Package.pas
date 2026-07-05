@@ -48,6 +48,7 @@ type
     FDependencies: TDictionary<string, string>;
     FEngines: TBoss4DPackageEngines;
     FToolchain: TBoss4DPackageToolchain;
+    FWorkspaces: TList<string>;
   public
     constructor Create;
     destructor Destroy; override;
@@ -70,6 +71,7 @@ type
     property Dependencies: TDictionary<string, string> read FDependencies;
     property Engines: TBoss4DPackageEngines read FEngines;
     property Toolchain: TBoss4DPackageToolchain read FToolchain;
+    property Workspaces: TList<string> read FWorkspaces;
   end;
 
 implementation
@@ -101,10 +103,12 @@ begin
   FDependencies := TDictionary<string, string>.Create;
   FEngines := TBoss4DPackageEngines.Create;
   FToolchain := TBoss4DPackageToolchain.Create;
+  FWorkspaces := TList<string>.Create;
 end;
 
 destructor TBoss4DPackage.Destroy;
 begin
+  FWorkspaces.Free;
   FToolchain.Free;
   FEngines.Free;
   FDependencies.Free;

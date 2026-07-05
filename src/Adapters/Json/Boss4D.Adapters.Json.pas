@@ -248,6 +248,31 @@ begin
     for var I := 0 to LBplArr.Count - 1 do ALockedDep.Artifacts.Bpl.Add(LBplArr[I].Value);
 end;
 
+procedure ParsePackageWorkspaces(const AJSONObj: TJSONObject; const APackage: TBoss4DPackage);
+var
+  LArr: TJSONArray;
+begin
+  LArr := ReadArray(AJSONObj, 'workspaces');
+  if Assigned(LArr) then
+  begin
+    for var I := 0 to LArr.Count - 1 do
+      APackage.Workspaces.Add(LArr[I].Value);
+  end;
+end;
+
+procedure SavePackageWorkspaces(const AJSONObj: TJSONObject; const APackage: TBoss4DPackage);
+var
+  LWorkspacesArr: TJSONArray;
+begin
+  if APackage.Workspaces.Count > 0 then
+  begin
+    LWorkspacesArr := TJSONArray.Create;
+    for var LWork in APackage.Workspaces do
+      LWorkspacesArr.Add(LWork);
+    AJSONObj.AddPair('workspaces', LWorkspacesArr);
+  end;
+end;
+
 { TBoss4DPackageJsonRepository }
 
 function TBoss4DPackageJsonRepository.Exists(const APackagePath: string): Boolean;
@@ -288,6 +313,7 @@ begin
       ParsePackageDependencies(LJSONObj, Result);
       ParsePackageEngines(LJSONObj, Result);
       ParsePackageToolchain(LJSONObj, Result);
+      ParsePackageWorkspaces(LJSONObj, Result);
     finally
       LJSONObj.Free;
     end;
@@ -324,6 +350,7 @@ begin
     SavePackageDependencies(LJSONObj, APackage);
     SavePackageEngines(LJSONObj, APackage);
     SavePackageToolchain(LJSONObj, APackage);
+    SavePackageWorkspaces(LJSONObj, APackage);
 
     LJSONStr := LJSONObj.Format(2);
     LEncoding := TUTF8Encoding.Create(False); // UTF-8 sem BOM para compatibilidade com o parser Go original

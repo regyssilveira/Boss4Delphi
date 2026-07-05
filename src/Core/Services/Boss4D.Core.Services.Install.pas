@@ -48,7 +48,7 @@ uses
   Boss4D.Core.Domain.Package, Boss4D.Core.Domain.SemVer, Boss4D.Core.Domain.Consts,
   Boss4D.Core.Domain.Env,
   Boss4D.Adapters.Registry,
-  Boss4D.Core.Services.IDEIntegration;
+  Boss4D.Core.Services.IDEIntegration, Boss4D.Core.Services.Workspace;
 
 { TBoss4DInstallService }
 
@@ -249,10 +249,56 @@ begin
     else
     begin
       // Instala todas as dependencias declaradas no boss.json
-      LActiveDeps := LPkg.GetParsedDependencies;
+      var LWorkspaceService := TBoss4DWorkspaceService.Create(FPackageRepo, FLogger);
+      var LSubprojects: TList<string> := nil;
+      var LActiveDepsList := TList<TBoss4DDependency>.Create;
+      try
+        LSubprojects := LWorkspaceService.FindSubprojects(LPkg, GetCurrentDir);
+        
+        // Adiciona dependências do projeto raiz
+        var LRootDeps := LPkg.GetParsedDependencies;
+        for var LDep in LRootDeps do
+          LActiveDepsList.Add(LDep);
+          
+        // Adiciona dependências de cada subprojeto do workspace de forma unificada
+        for var LSubPath in LSubprojects do
+        begin
+          var LSubPkgPath := TPath.Combine(LSubPath, FILE_PACKAGE);
+          var LSubPkg := FPackageRepo.Load(LSubPkgPath);
+          try
+            var LSubDeps := LSubPkg.GetParsedDependencies;
+            for var LDep in LSubDeps do
+            begin
+              // Evita duplicados na fila de instalação
+              var LAlreadyExists := False;
+              for var LExistingDep in LActiveDepsList do
+              begin
+                if SameText(LExistingDep.Repository, LDep.Repository) then
+                begin
+                  LAlreadyExists := True;
+                  Break;
+                end;
+              end;
+              if not LAlreadyExists then
+                LActiveDepsList.Add(LDep)
+              else
+                LDep.Free;
+            end;
+          finally
+            LSubPkg.Free;
+          end;
+        end;
+
+        LActiveDeps := LActiveDepsList.ToArray;
+      finally
+        LActiveDepsList.Free;
+      end;
+
       if Length(LActiveDeps) = 0 then
       begin
         FLogger.Log(TBoss4DLogLevel.Info, 'Nenhuma dependencia declarada no boss.json.');
+        LSubprojects.Free;
+        LWorkspaceService.Free;
         Exit;
       end;
 
@@ -286,6 +332,15 @@ begin
       begin
         BuildDependency(LDep, LLock, APlatform);
       end;
+
+      // Se for um workspace, linka os subprojetos
+      if LSubprojects.Count > 0 then
+      begin
+        LWorkspaceService.LinkWorkspaceSubprojects(GetCurrentDir, LSubprojects);
+      end;
+
+      LSubprojects.Free;
+      LWorkspaceService.Free;
 
       // Limpa os objetos de dependencias do array
       for var LDep in LActiveDeps do

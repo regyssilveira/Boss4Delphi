@@ -88,6 +88,9 @@ type
 
     [Test]
     procedure TestPluginInstallation;
+
+    [Test]
+    procedure TestWorkspacesMonorepos;
   end;
 
 implementation
@@ -102,7 +105,7 @@ uses
   Boss4D.Core.Services.Cache, Boss4D.Core.Services.Run,
   Boss4D.Core.Services.Doctor, Boss4D.Core.Services.License,
   Boss4D.Core.Services.Tree, Boss4D.Core.Services.Outdated,
-  Boss4D.Core.Services.IDEIntegration, Boss4D.Core.Services.Tool;
+  Boss4D.Core.Services.IDEIntegration, Boss4D.Core.Services.Tool, Boss4D.Core.Services.Workspace;
 
 { TTestLogger }
 
@@ -1039,6 +1042,64 @@ begin
     LLock.Free;
     LDep.Free;
     LIDEIntegration.Free;
+  end;
+end;
+
+procedure TTestsServices.TestWorkspacesMonorepos;
+var
+  LPackageRepo: IBoss4DPackageRepository;
+  LWorkspaceService: TBoss4DWorkspaceService;
+  LMonorepoRoot: string;
+  LApp1Dir: string;
+  LApp2Dir: string;
+  LSubprojectsList: TList<string>;
+  LRootPkg: TBoss4DPackage;
+begin
+  LMonorepoRoot := TPath.Combine(TPath.GetTempPath, 'boss4d_monorepo_test_' + TGUID.NewGuid.ToString);
+  LApp1Dir := TPath.Combine(LMonorepoRoot, TPath.Combine('subprojects', 'app1'));
+  LApp2Dir := TPath.Combine(LMonorepoRoot, TPath.Combine('subprojects', 'app2'));
+  
+  TDirectory.CreateDirectory(LApp1Dir);
+  TDirectory.CreateDirectory(LApp2Dir);
+
+  // Escreve boss.json do subprojeto 1 e 2
+  TFile.WriteAllText(TPath.Combine(LApp1Dir, 'boss.json'), '{"name": "app1", "version": "1.0.0"}');
+  TFile.WriteAllText(TPath.Combine(LApp2Dir, 'boss.json'), '{"name": "app2", "version": "1.0.0"}');
+
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LWorkspaceService := TBoss4DWorkspaceService.Create(LPackageRepo, TTestLogger.Create);
+  try
+    LRootPkg := TBoss4DPackage.Create;
+    try
+      LRootPkg.Name := 'root-monorepo';
+      LRootPkg.Version := '1.0.0';
+      LRootPkg.Workspaces.Add('subprojects/*');
+
+      // 1. Busca subprojetos
+      LSubprojectsList := LWorkspaceService.FindSubprojects(LRootPkg, LMonorepoRoot);
+      try
+        Assert.AreEqual<Integer>(2, LSubprojectsList.Count);
+        Assert.IsTrue(LSubprojectsList[0].Contains('app1') or LSubprojectsList[1].Contains('app1'));
+        Assert.IsTrue(LSubprojectsList[0].Contains('app2') or LSubprojectsList[1].Contains('app2'));
+
+        // 2. Linka subprojetos (cria juncoes/pastas virtuais)
+        LWorkspaceService.LinkWorkspaceSubprojects(LMonorepoRoot, LSubprojectsList);
+
+        Assert.IsTrue(TDirectory.Exists(TPath.Combine(LApp1Dir, 'modules')));
+        Assert.IsTrue(TDirectory.Exists(TPath.Combine(LApp2Dir, 'modules')));
+      finally
+        LSubprojectsList.Free;
+      end;
+    finally
+      LRootPkg.Free;
+    end;
+  finally
+    LWorkspaceService.Free;
+    var LOutput: string;
+    ExecuteCommandLine('cmd.exe /c rmdir "' + TPath.Combine(LApp1Dir, 'modules') + '"', LMonorepoRoot, LOutput);
+    ExecuteCommandLine('cmd.exe /c rmdir "' + TPath.Combine(LApp2Dir, 'modules') + '"', LMonorepoRoot, LOutput);
+    if TDirectory.Exists(LMonorepoRoot) then
+      TDirectory.Delete(LMonorepoRoot, True);
   end;
 end;
 
