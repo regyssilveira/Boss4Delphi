@@ -93,3 +93,23 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
   - Suportar a declaração de `"workspaces": [ "projects/*" ]` no manifesto da raiz do repositório.
 - [ ] **[Story] Compartilhamento Inteligente da pasta `modules/`**
   - Evitar downloads e compilações redundantes mantendo todas as dependências centralizadas na pasta `modules/` raiz, com o resolvedor interligando as referências relativas dos subprojetos internos automaticamente.
+
+---
+
+## 🔌 Épico 9: Instalação de Plugins e Extensões Globais do RAD Studio
+*Objetivo: Permitir a instalação automatizada e registro de plugins e assistentes da própria IDE do Delphi (como o RadIA-Plugin) de forma global na máquina.*
+
+- [ ] **[Story] Suporte a Tipo "Plugin" no `boss.json`**
+  - Reconhecer e configurar manifestos com o atributo `"type": "plugin"` ou `"type": "ide-extension"`.
+- [ ] **[Story] Instalação de Plugins via CLI (`boss4d plugin install <repo>`)**
+  - Clonar o repositório do assistente, compilar sua BPL de design-time, movê-la para o diretório central de plugins `%APPDATA%\Boss4D\plugins\` e registrá-la automaticamente no Registro do Windows do RAD Studio sob a chave `Known Packages` das IDEs detectadas.
+
+---
+
+## 📦 Épico 10: Integração e Ponte com o GetIt Package Manager
+*Objetivo: Integrar e unificar o gerenciamento de dependências Git open-source com o catálogo de pacotes comerciais e oficiais do GetIt do Delphi.*
+
+- [ ] **[Story] Interação de Ponte com o `GetItCmd.exe`**
+  - Executar comandos de busca, listagem e instalação de dependências oficiais chamando silenciosamente o utilitário CLI do GetIt nativo do Delphi ativo.
+- [ ] **[Story] Configuração do Modo Online/Offline do GetIt**
+  - Disponibilizar atalhos CLI no Boss4D para reconfigurar a conectividade do GetIt (ex: `boss4d getit mode-online`) de forma simplificada em ambientes corporativos ou pós-instalação da IDE.

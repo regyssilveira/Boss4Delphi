@@ -93,3 +93,23 @@ This document details the future planning, new features (backlog), and architect
   - Support declaring `"workspaces": [ "projects/*" ]` in the root repository manifest.
 - [ ] **[Story] Intelligent Folder Sharing for `modules/`**
   - Prevent redundant downloads and builds by centralizing all dependencies in the root `modules/` folder, with the resolver automatically mapping relative references for internal subprojects.
+
+---
+
+## 🔌 Epic 9: RAD Studio Global Plugin and Extension Installation
+*Objective: Allow automated installation and registration of Delphi IDE plugins and assistants (like the RadIA-Plugin) globally on the system.*
+
+- [ ] **[Story] "Plugin" Type Support in `boss.json`**
+  - Recognize and configure manifests with a `"type": "plugin"` or `"type": "ide-extension"` attribute.
+- [ ] **[Story] Plugin Installation via CLI (`boss4d plugin install <repo>`)**
+  - Clone the assistant's repository, compile its design-time BPL, move it to the central plugins directory `%APPDATA%\Boss4D\plugins\`, and register it automatically in the Windows Registry under the `Known Packages` key of all detected RAD Studio versions.
+
+---
+
+## 📦 Epic 10: Integration and Bridge with GetIt Package Manager
+*Objective: Integrate and unify open-source Git dependency management with Delphi's official commercial and native GetIt package catalog.*
+
+- [ ] **[Story] Bridge Interaction with `GetItCmd.exe`**
+  - Execute search, list, and install commands for official Embarcadero dependencies by silently calling the native GetIt CLI utility of the active Delphi installation.
+- [ ] **[Story] GetIt Online/Offline Mode Configuration**
+  - Expose CLI shortcuts in Boss4D to easily reconfigure GetIt connectivity (e.g., `boss4d getit mode-online`) in corporate environments or post-IDE installation.
