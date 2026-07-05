@@ -17,6 +17,7 @@ type
     FCompiler: IBoss4DCompiler;
     FLogger: IBoss4DLogger;
     FGitCriticalSection: TCriticalSection;
+    FGlobalProcessedDeps: TList<string>;
 
     procedure ProcessDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock;
       const AProcessedDeps: TList<string>);
@@ -65,10 +66,12 @@ begin
   FCompiler := ACompiler;
   FLogger := ALogger;
   FGitCriticalSection := TCriticalSection.Create;
+  FGlobalProcessedDeps := TList<string>.Create;
 end;
 
 destructor TBoss4DInstallService.Destroy;
 begin
+  FGlobalProcessedDeps.Free;
   FGitCriticalSection.Free;
   inherited Destroy;
 end;
@@ -83,9 +86,20 @@ var
 begin
   var LDepKey := ADep.GetKey;
 
-  // Evita processamento em loop infinito (dependencias circulares)
+  // 1. Evita loop de dependencias circulares na ramificacao
   if AProcessedDeps.Contains(LDepKey) then
     Exit;
+
+  // 2. Evita reprocessar dependencias que ja foram baixadas/processadas globalmente
+  FGitCriticalSection.Enter;
+  try
+    if FGlobalProcessedDeps.Contains(LDepKey) then
+      Exit;
+    FGlobalProcessedDeps.Add(LDepKey);
+  finally
+    FGitCriticalSection.Leave;
+  end;
+
   AProcessedDeps.Add(LDepKey);
 
   LCacheDir := TPath.Combine(GetCacheDir, ADep.HashName);
@@ -222,6 +236,8 @@ begin
       end;
 
       FLogger.Log(TBoss4DLogLevel.Info, 'Baixando dependencias do projeto...');
+
+      FGlobalProcessedDeps.Clear;
 
       // FASE 1: Downloads concorrentes das dependencias de primeiro nivel usando PPL
       for var LDep in LActiveDeps do
