@@ -1,6 +1,8 @@
 # Delphi compiler temporary and output files
 __history/
 __recovery/
+*.bpl
+*.dcp
 *.dcu
 *.~*
 *.local
