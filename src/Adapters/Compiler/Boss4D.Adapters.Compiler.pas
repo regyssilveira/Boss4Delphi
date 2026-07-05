@@ -166,20 +166,18 @@ begin
   ARsvarsPath := '';
   APlatform := 'Win32';
 
-  // 1. Tenta obter o caminho preferencial configurado globalmente no boss.cfg.json
-  LRootDir := GetConfiguredDelphiPath;
-
-  // 2. Se nao houver configuracao explicita, tenta autodetectar a versao pelo dproj do projeto atual
-  if LRootDir.IsEmpty then
+  // 1. Tenta autodetectar a versao pelo dproj do projeto atual (Prioridade Maxima)
+  LDetectedVer := DetectDelphiVersionFromDproj;
+  if not LDetectedVer.IsEmpty then
   begin
-    LDetectedVer := DetectDelphiVersionFromDproj;
-    if not LDetectedVer.IsEmpty then
-    begin
-      LRootDir := FRegistry.GetDelphiPath(LDetectedVer);
-      if not LRootDir.IsEmpty then
-        FLogger.Log(TBoss4DLogLevel.Debug, '  Detectado Delphi %s pelo arquivo .dproj local.', [LDetectedVer]);
-    end;
+    LRootDir := FRegistry.GetDelphiPath(LDetectedVer);
+    if not LRootDir.IsEmpty then
+      FLogger.Log(TBoss4DLogLevel.Info, '  Detectado Delphi %s pelo arquivo .dproj local.', [LDetectedVer]);
   end;
+
+  // 2. Se nao detectado via dproj, tenta obter o caminho preferencial configurado globalmente no boss.cfg.json
+  if LRootDir.IsEmpty then
+    LRootDir := GetConfiguredDelphiPath;
 
   // 3. Se nao detectado ou nao instalado, faz o fallback para a versao mais recente instalada no Registro
   if LRootDir.IsEmpty then
