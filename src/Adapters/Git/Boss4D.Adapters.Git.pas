@@ -3,7 +3,6 @@ unit Boss4D.Adapters.Git;
 interface
 
 uses
-  System.SysUtils, System.Classes, System.IOUtils, System.Generics.Collections,
   Boss4D.Core.Ports, Boss4D.Core.Domain.Dependency;
 
 type
@@ -24,10 +23,11 @@ type
 
 implementation
 
-{$IFDEF MSWINDOWS}
 uses
-  Winapi.Windows;
-{$ENDIF}
+  System.SysUtils,
+  System.IOUtils,
+  System.Generics.Collections
+  {$IFDEF MSWINDOWS}, Winapi.Windows{$ENDIF};
 
 { TBoss4DGitCliAdapter }
 

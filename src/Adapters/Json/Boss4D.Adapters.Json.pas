@@ -89,7 +89,7 @@ begin
   if Assigned(LArr) then
   begin
     for var I := 0 to LArr.Count - 1 do
-      APackage.Projects.Add(LArr.Items[I].Value);
+      APackage.Projects.Add(LArr[I].Value);
   end;
 end;
 
@@ -130,7 +130,7 @@ begin
     if Assigned(LArr) then
     begin
       for var I := 0 to LArr.Count - 1 do
-        APackage.Engines.Platforms.Add(LArr.Items[I].Value);
+        APackage.Engines.Platforms.Add(LArr[I].Value);
     end;
   end;
 end;
@@ -233,19 +233,19 @@ var
 begin
   LBinArr := ReadArray(AArtifactsObj, 'bin');
   if Assigned(LBinArr) then
-    for var I := 0 to LBinArr.Count - 1 do ALockedDep.Artifacts.Bin.Add(LBinArr.Items[I].Value);
+    for var I := 0 to LBinArr.Count - 1 do ALockedDep.Artifacts.Bin.Add(LBinArr[I].Value);
 
   LDcpArr := ReadArray(AArtifactsObj, 'dcp');
   if Assigned(LDcpArr) then
-    for var I := 0 to LDcpArr.Count - 1 do ALockedDep.Artifacts.Dcp.Add(LDcpArr.Items[I].Value);
+    for var I := 0 to LDcpArr.Count - 1 do ALockedDep.Artifacts.Dcp.Add(LDcpArr[I].Value);
 
   LDcuArr := ReadArray(AArtifactsObj, 'dcu');
   if Assigned(LDcuArr) then
-    for var I := 0 to LDcuArr.Count - 1 do ALockedDep.Artifacts.Dcu.Add(LDcuArr.Items[I].Value);
+    for var I := 0 to LDcuArr.Count - 1 do ALockedDep.Artifacts.Dcu.Add(LDcuArr[I].Value);
 
   LBplArr := ReadArray(AArtifactsObj, 'bpl');
   if Assigned(LBplArr) then
-    for var I := 0 to LBplArr.Count - 1 do ALockedDep.Artifacts.Bpl.Add(LBplArr.Items[I].Value);
+    for var I := 0 to LBplArr.Count - 1 do ALockedDep.Artifacts.Bpl.Add(LBplArr[I].Value);
 end;
 
 { TBoss4DPackageJsonRepository }

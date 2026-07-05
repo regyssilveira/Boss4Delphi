@@ -8,11 +8,14 @@ uses
 type
   { MockLogger simples para nao poluir o console de testes e capturar saidas }
   TTestLogger = class(TInterfacedObject, IBoss4DLogger)
+  private
+    FLastLogMessage: string;
   public
-    LastLogMessage: string;
     procedure Log(const ALevel: TBoss4DLogLevel; const AMessage: string); overload;
     procedure Log(const ALevel: TBoss4DLogLevel; const AMessage: string; const AArgs: array of const); overload;
     procedure SetDebugMode(const AEnabled: Boolean);
+
+    property LastLogMessage: string read FLastLogMessage write FLastLogMessage;
   end;
 
   [TestFixture]
@@ -102,14 +105,14 @@ var
 begin
   LLogger := TTestLogger.Create;
   LPackageRepo := TBoss4DPackageJsonRepository.Create;
-  
+
   LInit := TBoss4DInitService.Create(LPackageRepo, LLogger);
   try
     LInit.Execute(True); // Quiet mode
     LPkgPath := GetBossFile;
-    
+
     Assert.IsTrue(TFile.Exists(LPkgPath));
-    
+
     var LPkg := LPackageRepo.Load(LPkgPath);
     try
       // Nome do pacote deve coincidir com o nome da pasta temporaria criada
@@ -136,7 +139,7 @@ begin
     LConfig.DelphiPath := 'C:\Delphi13';
     LConfig.GitShallow := True;
     LConfigService.Save(LConfig);
-    
+
     LLoaded := LConfigService.Load;
     try
       Assert.AreEqual('C:\Delphi13', LLoaded.DelphiPath);
@@ -166,7 +169,7 @@ begin
   LLogger := TTestLogger.Create;
   LPackageRepo := TBoss4DPackageJsonRepository.Create;
   LLockRepo := TBoss4DLockJsonRepository.Create;
-  
+
   LGitMock := TGitClientMock.Create;
   LHttpMock := THttpClientMock.Create;
   LCompilerMock := TCompilerMock.Create;
@@ -226,7 +229,7 @@ begin
   LLogger := TTestLogger.Create;
   LPackageRepo := TBoss4DPackageJsonRepository.Create;
   LLockRepo := TBoss4DLockJsonRepository.Create;
-  
+
   LGitMock := TGitClientMock.Create;
   LHttpMock := THttpClientMock.Create;
   LCompilerMock := TCompilerMock.Create;
@@ -289,7 +292,7 @@ begin
   LInit := TBoss4DInitService.Create(LPackageRepo, LLogger);
   LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo, LGitMock, LHttpMock, LCompilerMock, LLogger);
   LConfigService := TBoss4DConfigService.Create(LLogger);
-  
+
   LParser := TBoss4DCommandLineParser.Create(LLogger, LInit, LInstall, LConfigService);
   try
     // Testa o comando "version"

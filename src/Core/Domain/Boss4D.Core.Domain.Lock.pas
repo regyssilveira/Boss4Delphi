@@ -62,9 +62,6 @@ type
 
 implementation
 
-uses
-  System.SysUtils;
-
 { TBoss4DDependencyArtifacts }
 
 constructor TBoss4DDependencyArtifacts.Create;

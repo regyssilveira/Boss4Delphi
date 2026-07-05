@@ -29,7 +29,7 @@ type
 implementation
 
 uses
-  System.SysUtils, System.IOUtils, System.Classes
+  System.SysUtils, System.IOUtils
   {$IFDEF MSWINDOWS}, Winapi.Windows{$ENDIF};
 
 { TBoss4DConsoleLoggerAdapter }

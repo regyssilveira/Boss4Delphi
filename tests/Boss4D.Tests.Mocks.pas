@@ -60,7 +60,7 @@ type
 implementation
 
 uses
-  System.SysUtils, System.IOUtils, Boss4D.Core.Domain.Package;
+  System.SysUtils, System.IOUtils;
 
 { TGitClientMock }
 

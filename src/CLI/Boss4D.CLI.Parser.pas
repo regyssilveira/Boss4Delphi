@@ -142,8 +142,9 @@ begin
     try
       LConfig.GitShallow := SameText(AArgs[3], 'true') or (AArgs[3] = '1');
       FConfigService.Save(LConfig);
-      FLogger.Log(TBoss4DLogLevel.Info, 
-        '✅ Configuracao git shallow definida para: %s', [BoolToStr(LConfig.GitShallow, True)]);
+      FLogger.Log(TBoss4DLogLevel.Info,
+        '✅ Configuracao git shallow definida para: %s',
+        [BoolToStr(LConfig.GitShallow, True)]);
     finally
       LConfig.Free;
     end;

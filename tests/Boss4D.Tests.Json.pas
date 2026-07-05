@@ -75,11 +75,11 @@ begin
       Assert.AreEqual(LPkg.Description, LLoadedPkg.Description);
       Assert.AreEqual(LPkg.Version, LLoadedPkg.Version);
       Assert.AreEqual(LPkg.Homepage, LLoadedPkg.Homepage);
-      Assert.AreEqual(1, LLoadedPkg.Projects.Count);
+      Assert.AreEqual<Integer>(1, LLoadedPkg.Projects.Count);
       Assert.AreEqual('Source/Project1.dproj', LLoadedPkg.Projects[0]);
       Assert.IsTrue(LLoadedPkg.Dependencies.ContainsKey('github.com/hashload/horse'));
-      Assert.AreEqual('^3.0.0', LLoadedPkg.Dependencies['github.com/hashload/horse']);
-      Assert.AreEqual('msbuild', LLoadedPkg.Scripts['build']);
+      Assert.AreEqual<string>('^3.0.0', LLoadedPkg.Dependencies['github.com/hashload/horse']);
+      Assert.AreEqual<string>('msbuild', LLoadedPkg.Scripts['build']);
       Assert.AreEqual('36.0', LLoadedPkg.Engines.Compiler);
       Assert.AreEqual('Win32', LLoadedPkg.Engines.Platforms[0]);
     finally
@@ -125,11 +125,11 @@ begin
 
       var LInstalled: TBoss4DLockedDependency;
       Assert.IsTrue(LLoadedLock.GetInstalled(LDep, LInstalled));
-      Assert.AreEqual('horse', LInstalled.Name);
-      Assert.AreEqual('3.1.0', LInstalled.Version);
-      Assert.AreEqual('commithash', LInstalled.Hash);
-      Assert.AreEqual(1, LInstalled.Artifacts.Bin.Count);
-      Assert.AreEqual('bin/horse.dll', LInstalled.Artifacts.Bin[0]);
+      Assert.AreEqual<string>('horse', LInstalled.Name);
+      Assert.AreEqual<string>('3.1.0', LInstalled.Version);
+      Assert.AreEqual<string>('commithash', LInstalled.Hash);
+      Assert.AreEqual<Integer>(1, LInstalled.Artifacts.Bin.Count);
+      Assert.AreEqual<string>('bin/horse.dll', LInstalled.Artifacts.Bin[0]);
     finally
       LLoadedLock.Free;
     end;

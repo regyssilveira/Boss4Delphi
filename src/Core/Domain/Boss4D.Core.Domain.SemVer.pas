@@ -19,14 +19,6 @@ type
     class function SplitParts(const AInput: string; ASeparator: Char): TArray<string>; static;
     class function IsNumeric(const AStr: string): Boolean; static;
   public
-    property Major: Integer read FMajor;
-    property Minor: Integer read FMinor;
-    property Patch: Integer read FPatch;
-    property PreRelease: string read FPreRelease;
-    property Build: string read FBuild;
-    property IsValid: Boolean read FIsValid;
-    property RawVersion: string read FRawVersion;
-
     constructor Create(const AVersionStr: string);
 
     function ToString: string;
@@ -38,6 +30,14 @@ type
     class operator LessThan(const ALeft, ARight: TBoss4DSemVer): Boolean;
     class operator LessThanOrEqual(const ALeft, ARight: TBoss4DSemVer): Boolean;
     class operator NotEqual(const ALeft, ARight: TBoss4DSemVer): Boolean;
+
+    property Major: Integer read FMajor;
+    property Minor: Integer read FMinor;
+    property Patch: Integer read FPatch;
+    property PreRelease: string read FPreRelease;
+    property Build: string read FBuild;
+    property IsValid: Boolean read FIsValid;
+    property RawVersion: string read FRawVersion;
   end;
 
   { Representa uma faixa ou regra de versao (ex: ^1.2.3, ~1.2.3, >=1.0.0, etc.) }

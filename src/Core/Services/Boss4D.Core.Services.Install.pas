@@ -20,7 +20,7 @@ type
     procedure ProcessDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock;
       const AProcessedDeps: TList<string>);
     procedure BuildDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock);
-    procedure RunInstallTask(const ADep: TBoss4DDependency; const ALock: TBoss4DLock; const ATasks: TList<ITask>);
+    function ResolveSemVerRange(const ARangeStr, ACacheDir: string): string;
     function ResolveDependencyVersion(const ADep: TBoss4DDependency; const ACacheDir: string): string;
   public
     constructor Create(
@@ -33,6 +33,7 @@ type
     );
 
     procedure Execute(const AInstallSingle: string = '');
+    procedure RunInstallTask(const ADep: TBoss4DDependency; const ALock: TBoss4DLock; const ATasks: TList<ITask>);
   end;
 
 implementation
@@ -257,46 +258,46 @@ begin
     end));
 end;
 
-function TBoss4DInstallService.ResolveDependencyVersion(const ADep: TBoss4DDependency; const ACacheDir: string): string;
+function TBoss4DInstallService.ResolveSemVerRange(const ARangeStr, ACacheDir: string): string;
 var
   LVersions: TArray<string>;
+  LRange: TBoss4DSemVerRange;
+  LBestSemVer: TBoss4DSemVer;
 begin
   Result := '';
-  if TBoss4DSemVerRange.IsSemVerRange(ADep.Version) then
+  LVersions := FGitClient.GetVersions(ACacheDir);
+  if Length(LVersions) = 0 then
+    Exit;
+
+  LRange := TBoss4DSemVerRange.Create(ARangeStr);
+  LBestSemVer := Default(TBoss4DSemVer);
+
+  for var LTag in LVersions do
   begin
-    LVersions := FGitClient.GetVersions(ACacheDir);
-    if Length(LVersions) > 0 then
+    var LVer := TBoss4DSemVer.Create(LTag);
+    if LVer.IsValid and LRange.IsSatisfiedBy(LVer) then
     begin
-      var LRange := TBoss4DSemVerRange.Create(ADep.Version);
-      var LBestSemVer := Default(TBoss4DSemVer);
-
-      for var LTag in LVersions do
-      begin
-        var LVer := TBoss4DSemVer.Create(LTag);
-        if LVer.IsValid and LRange.IsSatisfiedBy(LVer) then
-        begin
-          if LBestSemVer.RawVersion.IsEmpty or (LVer > LBestSemVer) then
-            LBestSemVer := LVer;
-        end;
-      end;
-
-      if LBestSemVer.IsValid then
-        Result := LBestSemVer.ToString;
+      if LBestSemVer.RawVersion.IsEmpty or (LVer > LBestSemVer) then
+        LBestSemVer := LVer;
     end;
+  end;
 
-    // Se nao encontrou nenhuma tag satisfatoria para o range SemVer, tenta usar a versao literal
-    if Result.IsEmpty then
-    begin
-      if (ADep.Version = '*') or (ADep.Version = '>=0.0.0') then
-        Result := '' // Checkout na branch padrao
-      else
-        Result := ADep.Version;
-    end;
-  end
-  else
+  if LBestSemVer.IsValid then
+    Result := LBestSemVer.ToString;
+end;
+
+function TBoss4DInstallService.ResolveDependencyVersion(const ADep: TBoss4DDependency; const ACacheDir: string): string;
+begin
+  if not TBoss4DSemVerRange.IsSemVerRange(ADep.Version) then
+    Exit(ADep.Version);
+
+  Result := ResolveSemVerRange(ADep.Version, ACacheDir);
+  if Result.IsEmpty then
   begin
-    // Se nao for SemVer (ex: 'master', 'main', commit hash), faz checkout direto da referencia literal
-    Result := ADep.Version;
+    if (ADep.Version = '*') or (ADep.Version = '>=0.0.0') then
+      Result := '' // Checkout na branch padrao
+    else
+      Result := ADep.Version;
   end;
 end;
 

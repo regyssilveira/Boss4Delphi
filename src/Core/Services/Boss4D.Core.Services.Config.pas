@@ -30,8 +30,7 @@ type
 implementation
 
 uses
-  System.SysUtils, System.IOUtils, System.JSON, Boss4D.Core.Domain.Consts,
-  Boss4D.Core.Domain.Env;
+  System.SysUtils, System.IOUtils, System.JSON, Boss4D.Core.Domain.Env;
 
 { TBoss4DConfigService }
 

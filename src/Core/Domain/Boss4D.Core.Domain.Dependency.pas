@@ -13,10 +13,6 @@ type
 
     function GetSSHUrl: string;
   public
-    property Repository: string read FRepository write FRepository;
-    property Version: string read FVersion write FVersion;
-    property UseSSH: Boolean read FUseSSH write FUseSSH;
-
     constructor Create(const ARepository: string; const AVersion: string; const AUseSSH: Boolean = False);
     function HashName: string;
     function Name: string;
@@ -25,6 +21,10 @@ type
 
     class function Parse(const ARepo: string; const AVersionInfo: string): TBoss4DDependency; static;
     class function ParseCommandLine(const ADepStr: string): TBoss4DDependency; static;
+
+    property Repository: string read FRepository write FRepository;
+    property Version: string read FVersion write FVersion;
+    property UseSSH: Boolean read FUseSSH write FUseSSH;
   end;
 
 implementation
@@ -125,7 +125,7 @@ begin
   if LLastAtIdx >= 0 then
   begin
     LFirstAtIdx := ADepStr.IndexOf('@');
-    // Se houver mais de um '@' (ex: git@github.com...@v1) 
+    // Se houver mais de um '@' (ex: git@github.com...@v1)
     // ou se o '@' ocorrer apos a primeira barra '/' (ex: github.com/user/repo@v1)
     if (LLastAtIdx <> LFirstAtIdx) or (LLastAtIdx > ADepStr.IndexOf('/')) then
     begin

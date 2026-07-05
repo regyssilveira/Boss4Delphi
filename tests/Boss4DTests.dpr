@@ -12,8 +12,8 @@ uses
   TestInsight.DUnitX,
   {$ELSE}
   DUnitX.Loggers.Console,
-  DUnitX.Loggers.Xml.NUnit,
-  {$ENDIF }
+  DUnitX.Loggers.XML.NUnit,
+  {$ENDIF}
   DUnitX.TestFramework,
   Boss4D.Core.Domain.Consts in '..\src\Core\Domain\Boss4D.Core.Domain.Consts.pas',
   Boss4D.Core.Domain.Env in '..\src\Core\Domain\Boss4D.Core.Domain.Env.pas',
@@ -32,7 +32,6 @@ uses
   Boss4D.Core.Services.Config in '..\src\Core\Services\Boss4D.Core.Services.Config.pas',
   Boss4D.Core.Services.Install in '..\src\Core\Services\Boss4D.Core.Services.Install.pas',
   Boss4D.CLI.Parser in '..\src\CLI\Boss4D.CLI.Parser.pas',
-  
   Boss4D.Tests.Mocks in 'Boss4D.Tests.Mocks.pas',
   Boss4D.Tests.SemVer in 'Boss4D.Tests.SemVer.pas',
   Boss4D.Tests.Dependency in 'Boss4D.Tests.Dependency.pas',
@@ -53,13 +52,12 @@ begin
     TDUnitX.CheckCommandLine;
     Runner := TDUnitX.CreateRunner;
     Runner.UseRTTI := True;
-    
+
     Logger := TDUnitXConsoleLogger.Create(True);
     Runner.AddLogger(Logger);
 
     NUnitLogger := TDUnitXXMLNUnitFileLogger.Create(TDUnitX.Options.XMLOutputFile);
     Runner.AddLogger(NUnitLogger);
-    // Runner.FailsOnNoTests := False;
 
     Results := Runner.Execute;
     if not Results.AllPassed then

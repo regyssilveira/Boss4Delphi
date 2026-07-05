@@ -3,9 +3,7 @@ unit Boss4D.Adapters.Compiler;
 interface
 
 uses
-  System.SysUtils, System.Classes, System.IOUtils, Boss4D.Core.Ports,
-  Boss4D.Core.Domain.Dependency, Boss4D.Core.Domain.Lock, Boss4D.Core.Domain.Consts,
-  Boss4D.Core.Domain.Env;
+  Boss4D.Core.Ports, Boss4D.Core.Domain.Dependency, Boss4D.Core.Domain.Lock;
 
 type
   { Adaptador de Compilador Delphi que executa MSBuild usando configuracao boss.cfg }
@@ -14,8 +12,13 @@ type
     FRegistry: IBoss4DRegistryService;
     FLogger: IBoss4DLogger;
 
+    function GetConfiguredDelphiPath: string;
     function ExecuteBatch(const ABatchPath: string; const AWorkingDir: string; out AOutput: string): Boolean;
-    function GetCompilerParameters(const ARootPath: string; const ADep: TBoss4DDependency; const APlatform: string): string;
+    function GetCompilerParameters(
+      const ARootPath: string;
+      const ADep: TBoss4DDependency;
+      const APlatform: string
+    ): string;
   public
     constructor Create(const ARegistry: IBoss4DRegistryService; const ALogger: IBoss4DLogger);
 
@@ -27,8 +30,13 @@ type
 implementation
 
 uses
+  System.SysUtils,
+  System.Classes,
+  System.IOUtils,
   System.Generics.Collections,
   System.JSON,
+  Boss4D.Core.Domain.Consts,
+  Boss4D.Core.Domain.Env,
   Boss4D.Core.Domain.Package,
   Boss4D.Adapters.Json
   {$IFDEF MSWINDOWS}, Winapi.Windows{$ENDIF};
@@ -42,51 +50,64 @@ begin
   FLogger := ALogger;
 end;
 
+function TBoss4DDelphiCompilerAdapter.GetConfiguredDelphiPath: string;
+var
+  LCfgPath: string;
+  LJSONStr: string;
+  LJSONObj: TJSONObject;
+  LVal: TJSONValue;
+  LConfiguredVal, LRegPath: string;
+begin
+  Result := '';
+  LCfgPath := GetGlobalConfigPath;
+  if not TFile.Exists(LCfgPath) then
+    Exit;
+
+  try
+    LJSONStr := TFile.ReadAllText(LCfgPath, TEncoding.UTF8);
+    if LJSONStr.Trim.IsEmpty then
+      Exit;
+
+    LJSONObj := TJSONObject.ParseJSONValue(LJSONStr) as TJSONObject;
+    if not Assigned(LJSONObj) then
+      Exit;
+
+    try
+      LVal := LJSONObj.FindValue('delphiPath');
+      if Assigned(LVal) and not LVal.Value.Trim.IsEmpty then
+      begin
+        LConfiguredVal := LVal.Value.Trim;
+        if TDirectory.Exists(LConfiguredVal) then
+          Exit(LConfiguredVal);
+
+        LRegPath := FRegistry.GetDelphiPath(LConfiguredVal);
+        if not LRegPath.IsEmpty and TDirectory.Exists(LRegPath) then
+          Exit(LRegPath);
+
+        Exit(LConfiguredVal);
+      end;
+    finally
+      LJSONObj.Free;
+    end;
+  except
+    on E: Exception do
+    begin
+      FLogger.Log(TBoss4DLogLevel.Warning, 'Erro ao analisar configuracao global: ' + E.Message);
+    end;
+  end;
+end;
+
 function TBoss4DDelphiCompilerAdapter.FindRsvarsPath(out ARsvarsPath: string; out APlatform: string): Boolean;
 var
   LVersions: TArray<string>;
   LRootDir: string;
-  LCfgPath: string;
 begin
   Result := False;
   ARsvarsPath := '';
   APlatform := 'Win32';
-  LRootDir := '';
 
   // 1. Tenta obter o caminho preferencial configurado globalmente no boss.cfg.json
-  LCfgPath := GetGlobalConfigPath;
-  if TFile.Exists(LCfgPath) then
-  begin
-    try
-      var LJSONStr := TFile.ReadAllText(LCfgPath, TEncoding.UTF8);
-      if not LJSONStr.Trim.IsEmpty then
-      begin
-        var LJSONObj := TJSONObject.ParseJSONValue(LJSONStr) as TJSONObject;
-        if Assigned(LJSONObj) then
-        try
-          var LVal := LJSONObj.FindValue('delphiPath');
-          if Assigned(LVal) and not LVal.Value.Trim.IsEmpty then
-          begin
-            var LConfiguredVal := LVal.Value.Trim;
-            if TDirectory.Exists(LConfiguredVal) then
-              LRootDir := LConfiguredVal
-            else
-            begin
-              var LRegPath := FRegistry.GetDelphiPath(LConfiguredVal);
-              if not LRegPath.IsEmpty and TDirectory.Exists(LRegPath) then
-                LRootDir := LRegPath
-              else
-                LRootDir := LConfiguredVal;
-            end;
-          end;
-        finally
-          LJSONObj.Free;
-        end;
-      end;
-    except
-      // Ignora erro de parse de JSON corrompido e segue para o Registro
-    end;
-  end;
+  LRootDir := GetConfiguredDelphiPath;
 
   // 2. Se nao configurado de forma explicita, autodetecta a versao mais recente no Registro
   if LRootDir.IsEmpty then
@@ -108,8 +129,11 @@ begin
   end;
 end;
 
-function TBoss4DDelphiCompilerAdapter.GetCompilerParameters(const ARootPath: string; const ADep: TBoss4DDependency;
-  const APlatform: string): string;
+function TBoss4DDelphiCompilerAdapter.GetCompilerParameters(
+  const ARootPath: string;
+  const ADep: TBoss4DDependency;
+  const APlatform: string
+): string;
 var
   LModuleName: string;
   LBinPath: string;
@@ -142,41 +166,41 @@ var
   LPackagePath: string;
   LPackageData: TBoss4DPackage;
 begin
-  LSearchPath := '';
-  if Assigned(ADep) then
+  Result := '';
+  if not Assigned(ADep) then
+    Exit;
+
+  LSearchPath := TPath.Combine(GetModulesDir, ADep.Name);
+  LPackagePath := TPath.Combine(LSearchPath, FILE_PACKAGE);
+  if not TFile.Exists(LPackagePath) then
   begin
-    LSearchPath := TPath.Combine(GetModulesDir, ADep.Name);
-    LPackagePath := TPath.Combine(LSearchPath, FILE_PACKAGE);
-    
-    // Carrega boss.json da dependencia de forma tardia para ler MainSrc
-    if TFile.Exists(LPackagePath) then
+    Result := LSearchPath;
+    Exit;
+  end;
+
+  var LRepo := TBoss4DPackageJsonRepository.Create;
+  LPackageData := LRepo.Load(LPackagePath);
+  try
+    if not LPackageData.MainSrc.IsEmpty then
     begin
-      var LRepo := TBoss4DPackageJsonRepository.Create;
-      LPackageData := LRepo.Load(LPackagePath);
-      try
-        if not LPackageData.MainSrc.IsEmpty then
-        begin
-          var LMainSrcs := LPackageData.MainSrc.Split([';']);
-          for var LSubPath in LMainSrcs do
-          begin
-            var LTrimmedPath := LSubPath.Trim;
-            if not LTrimmedPath.IsEmpty then
-              LSearchPath := LSearchPath + ';' + TPath.Combine(TPath.Combine(GetModulesDir, ADep.Name), LTrimmedPath);
-          end;
-        end;
-        
-        // Resolve recursivamente caminhos de subdependencias
-        var LSubDeps := LPackageData.GetParsedDependencies;
-        for var LSubDep in LSubDeps do
-        begin
-          LSearchPath := LSearchPath + ';' + BuildSearchPath(LSubDep);
-          LSubDep.Free;
-        end;
-      finally
-        LPackageData.Free;
-        LRepo.Free;
+      var LMainSrcs := LPackageData.MainSrc.Split([';']);
+      for var LSubPath in LMainSrcs do
+      begin
+        var LTrimmedPath := LSubPath.Trim;
+        if not LTrimmedPath.IsEmpty then
+          LSearchPath := LSearchPath + ';' + TPath.Combine(TPath.Combine(GetModulesDir, ADep.Name), LTrimmedPath);
       end;
     end;
+
+    var LSubDeps := LPackageData.GetParsedDependencies;
+    for var LSubDep in LSubDeps do
+    begin
+      LSearchPath := LSearchPath + ';' + BuildSearchPath(LSubDep);
+      LSubDep.Free;
+    end;
+  finally
+    LPackageData.Free;
+    LRepo.Free;
   end;
   Result := LSearchPath;
 end;
@@ -187,7 +211,7 @@ function TBoss4DDelphiCompilerAdapter.ExecuteBatch(const ABatchPath: string; con
 var
   LSA: TSecurityAttributes;
   LReadPipe, LWritePipe: THandle;
-  LStartInfo: TStartUpInfo;
+  LStartInfo: TStartupInfo;
   LProcInfo: TProcessInformation;
   LBuffer: array[0..255] of AnsiChar;
   LBytesRead: DWORD;
@@ -207,8 +231,8 @@ begin
     Exit;
 
   try
-    FillChar(LStartInfo, SizeOf(TStartUpInfo), 0);
-    LStartInfo.cb := SizeOf(TStartUpInfo);
+    FillChar(LStartInfo, SizeOf(TStartupInfo), 0);
+    LStartInfo.cb := SizeOf(TStartupInfo);
     LStartInfo.dwFlags := STARTF_USESTDHANDLES or STARTF_USESHOWWINDOW;
     LStartInfo.hStdOutput := LWritePipe;
     LStartInfo.hStdError := LWritePipe;
@@ -237,7 +261,7 @@ begin
         until LBytesRead = 0;
 
         WaitForSingleObject(LProcInfo.hProcess, INFINITE);
-        
+
         var LExitCode: DWORD := 0;
         GetExitCodeProcess(LProcInfo.hProcess, LExitCode);
         Result := LExitCode = 0;
@@ -321,11 +345,11 @@ begin
   try
     LBatchContent.Add('call "' + LRsvarsPath + '"');
     LBatchContent.Add('set PATH=%PATH%;' + TPath.Combine(GetModulesDir, FOLDER_BPL) + ';');
-    
+
     var LMsbuildCmd := 'msbuild "' + TPath.GetFullPath(ADprojPath) + '" /p:Configuration=Debug ' +
                        GetCompilerParameters(GetModulesDir, ADep, LPlatform) +
                        ' /p:DCC_AdditionalParameters="@' + LCfgPath + '"';
-    
+
     LBatchContent.Add(LMsbuildCmd + ' > "' + LBuildLog + '" 2>&1');
     LBatchContent.SaveToFile(LBuildBat, TEncoding.UTF8);
   finally
@@ -335,15 +359,17 @@ begin
   // 3. Executa o batch
   try
     Result := ExecuteBatch(LBuildBat, LAbsDir, LOutput);
-    
+
     if not Result then
     begin
-      FLogger.Log(TBoss4DLogLevel.Error, '  ❌ Erro ao compilar. Veja o arquivo de log para mais informacoes: %s', [LBuildLog]);
+      FLogger.Log(TBoss4DLogLevel.Error,
+        '  ❌ Erro ao compilar. Veja o arquivo de log para mais informacoes: %s',
+        [LBuildLog]);
     end
     else
     begin
       FLogger.Log(TBoss4DLogLevel.Info, '  ✅ Compilado com sucesso!');
-      
+
       // Apaga arquivos de log e batch gerados apenas em caso de sucesso
       if TFile.Exists(LBuildLog) then TFile.Delete(LBuildLog);
       if TFile.Exists(LBuildBat) then TFile.Delete(LBuildBat);
