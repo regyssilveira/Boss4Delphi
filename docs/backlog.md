@@ -113,3 +113,23 @@ This document details the future planning, new features (backlog), and architect
   - Execute search, list, and install commands for official Embarcadero dependencies by silently calling the native GetIt CLI utility of the active Delphi installation.
 - [ ] **[Story] GetIt Online/Offline Mode Configuration**
   - Expose CLI shortcuts in Boss4D to easily reconfigure GetIt connectivity (e.g., `boss4d getit mode-online`) in corporate environments or post-IDE installation.
+
+---
+
+## 🔒 Epic 11: Security and Dependency Integrity Verification (Checksums)
+*Objective: Prevent supply chain attacks and ensure the integrity of downloaded source files in high-security corporate environments.*
+
+- [ ] **[Story] Security Hash Generation in Lock**
+  - Calculate and record the SHA-256 hash of the downloaded repository/commit state inside the `boss-lock.json` file.
+- [ ] **[Story] Integrity Validation during Installation**
+  - Recalculate and validate the SHA-256 hash of local sources cloned during `boss4d install`, issuing alerts and aborting the build if there is any mismatch with the expected lock hash.
+
+---
+
+## 🧹 Epic 12: Global Cache Management and Optimization (`boss4d cache`)
+*Objective: Prevent the global directory of local Git caches on the developer's disk from growing uncontrollably.*
+
+- [ ] **[Story] Storage Diagnostics (`boss4d cache size`)**
+  - Display disk space usage and list cached packages/versions in the `%USERPROFILE%\.boss\cache\` directory.
+- [ ] **[Story] Selective Cleanup (`boss4d cache prune` / `clean`)**
+  - Implement the `clean` command (to wipe 100% of caches) and the `prune` command (to intelligently delete only old or unused package caches older than 30 days).

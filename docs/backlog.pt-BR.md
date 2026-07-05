@@ -113,3 +113,23 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
   - Executar comandos de busca, listagem e instalação de dependências oficiais chamando silenciosamente o utilitário CLI do GetIt nativo do Delphi ativo.
 - [ ] **[Story] Configuração do Modo Online/Offline do GetIt**
   - Disponibilizar atalhos CLI no Boss4D para reconfigurar a conectividade do GetIt (ex: `boss4d getit mode-online`) de forma simplificada em ambientes corporativos ou pós-instalação da IDE.
+
+---
+
+## 🔒 Épico 11: Segurança e Verificação de Integridade de Dependências (Checksums)
+*Objetivo: Prevenir ataques de supply chain e garantir a integridade dos fontes baixados em ambientes corporativos de alta segurança.*
+
+- [ ] **[Story] Geração de Hash de Segurança no Lock**
+  - Calcular e registrar o hash SHA-256 do estado do repositório/commit baixado dentro do arquivo `boss-lock.json`.
+- [ ] **[Story] Validação de Integridade na Instãlação**
+  - Recalcular e validar o hash SHA-256 dos fontes locais clonados durante o `boss4d install`, emitindo alertas e interrompendo o build caso haja qualquer discrepância com o esperado do lock.
+
+---
+
+## 🧹 Épico 12: Gerenciamento e Otimização do Cache Global (`boss4d cache`)
+*Objetivo: Evitar que o diretório global de caches locais de Git no disco do desenvolvedor cresça de forma descontrolada.*
+
+- [ ] **[Story] Diagnóstico de Armazenamento (`boss4d cache size`)**
+  - Exibir o tamanho em disco e a lista de pacotes/versões cacheados na pasta `%USERPROFILE%\.boss\cache\`.
+- [ ] **[Story] Limpeza Seletiva (`boss4d cache prune` / `clean`)**
+  - Implementar o comando `clean` (para apagar 100% dos caches) e `prune` (para apagar de forma inteligente apenas caches de pacotes antigos ou não utilizados há mais de 30 dias).
