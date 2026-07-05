@@ -7,7 +7,8 @@ uses
   Boss4D.Core.Services.Install, Boss4D.Core.Services.Config,
   Boss4D.Core.Services.Cache, Boss4D.Core.Services.Run,
   Boss4D.Core.Services.Doctor, Boss4D.Core.Services.License,
-  Boss4D.Core.Services.Tree, Boss4D.Core.Services.Outdated;
+  Boss4D.Core.Services.Tree, Boss4D.Core.Services.Outdated,
+  Boss4D.Core.Services.Tool;
 
 type
   { Interpretador e orquestrador de comandos da linha de comando (CLI) }
@@ -31,6 +32,7 @@ type
     procedure HandleLicense(const AArgs: TArray<string>);
     procedure HandleTree(const AArgs: TArray<string>);
     procedure HandleOutdated(const AArgs: TArray<string>);
+    procedure HandleTool(const AArgs: TArray<string>);
   public
     constructor Create(
       const ALogger: IBoss4DLogger;
@@ -49,7 +51,9 @@ implementation
 uses
   System.SysUtils,
   Boss4D.Adapters.Json,
-  Boss4D.Adapters.Git;
+  Boss4D.Adapters.Git,
+  Boss4D.Adapters.Compiler,
+  Boss4D.Adapters.Registry;
 
 { TBoss4DCommandLineParser }
 
@@ -96,6 +100,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  license report       Gera relatorios de conformidade de licencas em docs/.');
   FLogger.Log(TBoss4DLogLevel.Info, '  tree                 Exibe a arvore de dependencias do projeto.');
   FLogger.Log(TBoss4DLogLevel.Info, '  outdated             Verifica se ha atualizacoes disponiveis dos pacotes.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  tool install -g <repo> Compila e instala um utilitario Delphi globalmente.');
   FLogger.Log(TBoss4DLogLevel.Info, '  version, -v, --version Exibe a versao atual do Boss4D.');
   FLogger.Log(TBoss4DLogLevel.Info, '  help, -h, --help     Exibe este menu de ajuda.');
   FLogger.Log(TBoss4DLogLevel.Info, '');
@@ -137,7 +142,9 @@ begin
   else if LCommand = 'tree' then
     HandleTree(AArgs)
   else if LCommand = 'outdated' then
-    HandleOutdated(AArgs);
+    HandleOutdated(AArgs)
+  else if LCommand = 'tool' then
+    HandleTool(AArgs);
 end;
 
 procedure TBoss4DCommandLineParser.HandleInit(const AArgs: TArray<string>);
@@ -341,6 +348,31 @@ begin
     LTreeService.GenerateTree;
   finally
     LTreeService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleTool(const AArgs: TArray<string>);
+var
+  LToolService: TBoss4DToolService;
+  LGitClient: IBoss4DGitClient;
+  LCompiler: IBoss4DCompiler;
+  LRegistry: IBoss4DRegistryService;
+begin
+  if (Length(AArgs) < 4) or not SameText(AArgs[1], 'install') or not SameText(AArgs[2], '-g') then
+  begin
+    FLogger.Log(TBoss4DLogLevel.Warning, 'Uso invalido do comando tool.');
+    FLogger.Log(TBoss4DLogLevel.Info, 'Uso: boss4d tool install -g <repositorio>');
+    Exit;
+  end;
+
+  LGitClient := TBoss4DGitCliAdapter.Create(False);
+  LRegistry := TBoss4DWindowsRegistryAdapter.Create;
+  LCompiler := TBoss4DDelphiCompilerAdapter.Create(LRegistry, FLogger);
+  LToolService := TBoss4DToolService.Create(LGitClient, LCompiler, FLogger);
+  try
+    LToolService.InstallGlobalTool(AArgs[3]);
+  finally
+    LToolService.Free;
   end;
 end;
 

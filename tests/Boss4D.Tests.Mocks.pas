@@ -92,6 +92,12 @@ begin
   // Apenas simula a criacao do diretorio de cache local
   if not TDirectory.Exists(ATargetDir) then
     TDirectory.CreateDirectory(ATargetDir);
+
+  if ADep.Repository.Contains('fake_tool') then
+  begin
+    TFile.WriteAllText(TPath.Combine(ATargetDir, 'fake_tool.dproj'), 'fake dproj content');
+    TFile.WriteAllText(TPath.Combine(ATargetDir, 'fake_tool.exe'), 'fake exe content');
+  end;
 end;
 
 procedure TGitClientMock.UpdateCache(const ADep: TBoss4DDependency; const ACacheDir: string);

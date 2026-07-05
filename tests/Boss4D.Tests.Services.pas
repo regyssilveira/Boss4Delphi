@@ -76,6 +76,9 @@ type
 
     [Test]
     procedure TestIDEIntegration;
+
+    [Test]
+    procedure TestToolGlobalInstallation;
   end;
 
 implementation
@@ -90,7 +93,7 @@ uses
   Boss4D.Core.Services.Cache, Boss4D.Core.Services.Run,
   Boss4D.Core.Services.Doctor, Boss4D.Core.Services.License,
   Boss4D.Core.Services.Tree, Boss4D.Core.Services.Outdated,
-  Boss4D.Core.Services.IDEIntegration;
+  Boss4D.Core.Services.IDEIntegration, Boss4D.Core.Services.Tool;
 
 { TTestLogger }
 
@@ -839,6 +842,38 @@ begin
     end;
   finally
     LIntegration.Free;
+  end;
+end;
+
+procedure TTestsServices.TestToolGlobalInstallation;
+var
+  LGitClientMock: IBoss4DGitClient;
+  LCompilerMock: IBoss4DCompiler;
+  LToolService: TBoss4DToolService;
+  LHomeDir: string;
+  LBinGlobalDir: string;
+  LFakeEXETarget: string;
+begin
+  LGitClientMock := TGitClientMock.Create;
+  LCompilerMock := TCompilerMock.Create;
+  
+  LToolService := TBoss4DToolService.Create(LGitClientMock, LCompilerMock, TTestLogger.Create);
+  try
+    LHomeDir := GetBossHome;
+    LBinGlobalDir := TPath.Combine(LHomeDir, 'bin');
+
+    // Executa a instalacao global mockada
+    LToolService.InstallGlobalTool('github.com/test/fake_tool');
+
+    // Valida se o executavel falso foi movido com sucesso para a pasta global de binarios do boss
+    LFakeEXETarget := TPath.Combine(LBinGlobalDir, 'fake_tool.exe');
+    Assert.IsTrue(TFile.Exists(LFakeEXETarget));
+
+    // Limpa arquivos do teste unitario
+    if TFile.Exists(LFakeEXETarget) then
+      TFile.Delete(LFakeEXETarget);
+  finally
+    LToolService.Free;
   end;
 end;
 
