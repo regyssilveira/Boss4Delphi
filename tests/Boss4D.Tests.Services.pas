@@ -1363,12 +1363,12 @@ begin
       begin
         if Supports(LMenuList[I], IOTAProjectManagerMenu, LMenuItem) then
         begin
-          if LMenuItem.GetName = 'mnuBoss4DRun_build' then
+          if LMenuItem.GetName = 'mnuBoss4DRun_build_NonExistentProject' then
           begin
             LFoundBuildScript := True;
             Assert.AreEqual<string>('Boss4D Run: build', LMenuItem.GetCaption);
             Assert.AreEqual<string>('', LMenuItem.GetParent);
-            Assert.AreEqual<string>('Boss4DRun_buildVerb', LMenuItem.GetVerb);
+            Assert.AreEqual<string>('Boss4DRun_build_NonExistentProjectVerb', LMenuItem.GetVerb);
             Break;
           end;
         end;

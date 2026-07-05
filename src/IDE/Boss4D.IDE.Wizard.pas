@@ -442,35 +442,7 @@ var
   LURL: string;
   LVers: string;
   LCmd: string;
-  LContextProject: IOTAProject;
-  LProj: IInterface;
-  LMatch: Boolean;
-  I: Integer;
 begin
-  LMatch := False;
-  if (MenuContextList <> nil) and (MenuContextList.Count > 0) then
-  begin
-    for I := 0 to MenuContextList.Count - 1 do
-    begin
-      LProj := MenuContextList[I];
-      if Supports(LProj, IOTAProject, LContextProject) then
-      begin
-        if SameText(TPath.GetDirectoryName(TPath.GetFullPath(LContextProject.FileName)), TPath.GetFullPath(FProjectDir)) then
-        begin
-          LMatch := True;
-          Break;
-        end;
-      end;
-    end;
-  end
-  else
-  begin
-    LMatch := True;
-  end;
-
-  if not LMatch then
-    Exit;
-
   if FCommand = 'install-dialog' then
   begin
     LDlg := TBoss4DInstallDialog.Create(nil);
@@ -649,7 +621,7 @@ end;
 
 { TBoss4DProjectMenuItemCreatorNotifier }
 
-procedure AddScriptsSubmenus(const AProjectDir: string; const AMenuList: IInterfaceList);
+procedure AddScriptsSubmenus(const AProjectDir, AProjectName: string; const AMenuList: IInterfaceList);
 var
   LBossJsonFile: string;
   LContent: string;
@@ -675,9 +647,9 @@ begin
             var LScriptName := LScript.JsonString.Value;
             AMenuList.Add(TBoss4DProjectManagerMenu.Create(
               'Boss4D Run: ' + LScriptName,
-              'mnuBoss4DRun_' + LScriptName,
+              'mnuBoss4DRun_' + LScriptName + '_' + AProjectName,
               '',
-              'Boss4DRun_' + LScriptName + 'Verb',
+              'Boss4DRun_' + LScriptName + '_' + AProjectName + 'Verb',
               AProjectDir,
               'run ' + LScriptName,
               200 + I
@@ -698,6 +670,7 @@ procedure TBoss4DProjectMenuItemCreatorNotifier.AddMenu(const Project: IOTAProje
 var
   LProjectDir: string;
   LProjFile: string;
+  LProjectName: string;
 begin
   if Project = nil then
     Exit;
@@ -711,13 +684,16 @@ begin
   if (LProjectDir = '') or (not TDirectory.Exists(LProjectDir)) then
     Exit;
 
+  LProjectName := TPath.GetFileNameWithoutExtension(LProjFile);
+  LProjectName := LProjectName.Replace(' ', '_').Replace('-', '_').Replace('.', '_');
+
   // Project Manager menus must reference existing IDE parents. Keep Boss4D
   // commands at the top level to avoid parent resolution errors.
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
     'Boss4D Init',
-    'mnuBoss4DInit',
+    'mnuBoss4DInit_' + LProjectName,
     '',
-    'Boss4DInitVerb',
+    'Boss4DInitVerb_' + LProjectName,
     LProjectDir,
     'init --quiet',
     110
@@ -725,9 +701,9 @@ begin
 
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
     'Boss4D Install',
-    'mnuBoss4DInstall',
+    'mnuBoss4DInstall_' + LProjectName,
     '',
-    'Boss4DInstallVerb',
+    'Boss4DInstallVerb_' + LProjectName,
     LProjectDir,
     'install',
     120
@@ -735,9 +711,9 @@ begin
 
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
     'Boss4D Install Package...',
-    'mnuBoss4DInstallPkg',
+    'mnuBoss4DInstallPkg_' + LProjectName,
     '',
-    'Boss4DInstallPkgVerb',
+    'Boss4DInstallPkgVerb_' + LProjectName,
     LProjectDir,
     'install-dialog',
     130
@@ -745,9 +721,9 @@ begin
 
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
     'Boss4D Clean',
-    'mnuBoss4DClean',
+    'mnuBoss4DClean_' + LProjectName,
     '',
-    'Boss4DCleanVerb',
+    'Boss4DCleanVerb_' + LProjectName,
     LProjectDir,
     'clean',
     135
@@ -755,9 +731,9 @@ begin
 
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
     'Boss4D Outdated',
-    'mnuBoss4DOutdated',
+    'mnuBoss4DOutdated_' + LProjectName,
     '',
-    'Boss4DOutdatedVerb',
+    'Boss4DOutdatedVerb_' + LProjectName,
     LProjectDir,
     'outdated',
     140
@@ -765,22 +741,22 @@ begin
 
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
     'Boss4D Dependency Tree',
-    'mnuBoss4DTree',
+    'mnuBoss4DTree_' + LProjectName,
     '',
-    'Boss4DTreeVerb',
+    'Boss4DTreeVerb_' + LProjectName,
     LProjectDir,
     'tree',
     150
   ));
 
   // Popula os comandos dinamicos de scripts
-  AddScriptsSubmenus(LProjectDir, ProjectManagerMenuList);
+  AddScriptsSubmenus(LProjectDir, LProjectName, ProjectManagerMenuList);
 
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
     'Boss4D GetIt: Set Online Mode',
-    'mnuBoss4DGetItOnline',
+    'mnuBoss4DGetItOnline_' + LProjectName,
     '',
-    'Boss4DGetItOnlineVerb',
+    'Boss4DGetItOnlineVerb_' + LProjectName,
     LProjectDir,
     'getit mode-online',
     180
@@ -788,9 +764,9 @@ begin
 
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
     'Boss4D GetIt: Set Offline Mode',
-    'mnuBoss4DGetItOffline',
+    'mnuBoss4DGetItOffline_' + LProjectName,
     '',
-    'Boss4DGetItOfflineVerb',
+    'Boss4DGetItOfflineVerb_' + LProjectName,
     LProjectDir,
     'getit mode-offline',
     190
@@ -799,9 +775,9 @@ begin
   // Demais utilitarios
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
     'Boss4D Doctor',
-    'mnuBoss4DDoctor',
+    'mnuBoss4DDoctor_' + LProjectName,
     '',
-    'Boss4DDoctorVerb',
+    'Boss4DDoctorVerb_' + LProjectName,
     LProjectDir,
     'doctor',
     300
@@ -809,9 +785,9 @@ begin
 
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
     'Boss4D License Report',
-    'mnuBoss4DLicense',
+    'mnuBoss4DLicense_' + LProjectName,
     '',
-    'Boss4DLicenseVerb',
+    'Boss4DLicenseVerb_' + LProjectName,
     LProjectDir,
     'license report',
     310
@@ -819,9 +795,9 @@ begin
 
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
     'Boss4D Cache: Clean',
-    'mnuBoss4DCacheClean',
+    'mnuBoss4DCacheClean_' + LProjectName,
     '',
-    'Boss4DCacheCleanVerb',
+    'Boss4DCacheCleanVerb_' + LProjectName,
     LProjectDir,
     'cache clean',
     330
@@ -829,9 +805,9 @@ begin
 
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
     'Boss4D Cache: Prune',
-    'mnuBoss4DCachePrune',
+    'mnuBoss4DCachePrune_' + LProjectName,
     '',
-    'Boss4DCachePruneVerb',
+    'Boss4DCachePruneVerb_' + LProjectName,
     LProjectDir,
     'cache prune',
     340
