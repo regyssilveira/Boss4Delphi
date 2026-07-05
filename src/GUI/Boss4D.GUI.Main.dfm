@@ -33,7 +33,7 @@ object FormMain: TFormMain
       Top = 20
       Width = 180
       Height = 40
-      Caption = '📂  Projeto Local'
+      Caption = 'Projeto Local'
       TabOrder = 0
       OnClick = BtnPageProjectClick
     end
@@ -42,7 +42,7 @@ object FormMain: TFormMain
       Top = 70
       Width = 180
       Height = 40
-      Caption = '🔍  Buscar Pacotes'
+      Caption = 'Buscar Pacotes'
       TabOrder = 1
       OnClick = BtnPageCatalogClick
     end
@@ -51,7 +51,7 @@ object FormMain: TFormMain
       Top = 120
       Width = 180
       Height = 40
-      Caption = '🩺  Boss4D Doctor'
+      Caption = 'Boss4D Doctor'
       TabOrder = 2
       OnClick = BtnPageDoctorClick
     end
@@ -60,7 +60,7 @@ object FormMain: TFormMain
       Top = 170
       Width = 180
       Height = 40
-      Caption = '🧹  Gerenciar Cache'
+      Caption = 'Gerenciar Cache'
       TabOrder = 3
       OnClick = BtnPageCacheClick
     end
