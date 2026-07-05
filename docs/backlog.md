@@ -33,13 +33,13 @@ This document details the future planning, new features (backlog), and architect
 ## 🩺 Epic 3: Self-Diagnosis Tool (`boss4d doctor`)
 *Objective: Automatically identify and resolve compiler paths, environment variables, and local Git tool issues (Inspired by `tms doctor`).*
 
-- [ ] **[Story] CLI Command `boss4d doctor`**
+- [x] **[Story] CLI Command `boss4d doctor`**
   - Analyze the developer's local environment, verifying:
     * Active Delphi installations and Registry paths.
     * Presence and version of the `dcc32`, `dcc64`, and `MSBuild` compilers.
     * Accessibility of the `git` executable in the system PATH.
     * Read and write folder permissions.
-- [ ] **[Story] Auto-Correction of Paths (`boss4d doctor -fix`)**
+- [x] **[Story] Auto-Correction of Paths (`boss4d doctor -fix`)**
   - Implement the ability to inject and correct Registry paths or the user's local PATH to automatically restore compilation functionality.
 
 ---
@@ -59,9 +59,9 @@ This document details the future planning, new features (backlog), and architect
 ## 📜 Epic 5: Custom Script Execution (`boss4d run <script>`)
 *Objective: Allow automation and standardization of tasks and workflows in Delphi projects (Inspired by `npm run` from Node.js).*
 
-- [ ] **[Story] Script Declaration in `boss.json`**
+- [x] **[Story] Script Declaration in `boss.json`**
   - Add support for a `"scripts": { "build": "msbuild ...", "test": "Win32\\Debug\\Tests.exe" }` block in the project manifest.
-- [ ] **[Story] CLI Command `boss4d run <script>`**
+- [x] **[Story] CLI Command `boss4d run <script>`**
   - Execute the specified script by invoking the correct subprocess in the Windows shell, seamlessly forwarding output logs and exit error codes.
 
 ---
@@ -119,9 +119,9 @@ This document details the future planning, new features (backlog), and architect
 ## 🔒 Epic 11: Security and Dependency Integrity Verification (Checksums)
 *Objective: Prevent supply chain attacks and ensure the integrity of downloaded source files in high-security corporate environments.*
 
-- [ ] **[Story] Security Hash Generation in Lock**
+- [x] **[Story] Security Hash Generation in Lock**
   - Calculate and record the SHA-256 hash of the downloaded repository/commit state inside the `boss-lock.json` file.
-- [ ] **[Story] Integrity Validation during Installation**
+- [x] **[Story] Integrity Validation during Installation**
   - Recalculate and validate the SHA-256 hash of local sources cloned during `boss4d install`, issuing alerts and aborting the build if there is any mismatch with the expected lock hash.
 
 ---
@@ -129,9 +129,9 @@ This document details the future planning, new features (backlog), and architect
 ## 🧹 Epic 12: Global Cache Management and Optimization (`boss4d cache`)
 *Objective: Prevent the global directory of local Git caches on the developer's disk from growing uncontrollably.*
 
-- [ ] **[Story] Storage Diagnostics (`boss4d cache size`)**
+- [x] **[Story] Storage Diagnostics (`boss4d cache size`)**
   - Display disk space usage and list cached packages/versions in the `%USERPROFILE%\.boss\cache\` directory.
-- [ ] **[Story] Selective Cleanup (`boss4d cache prune` / `clean`)**
+- [x] **[Story] Selective Cleanup (`boss4d cache prune` / `clean`)**
   - Implement the `clean` command (to wipe 100% of caches) and the `prune` command (to intelligently delete only old or unused package caches older than 30 days).
 
 ---
@@ -149,9 +149,9 @@ This document details the future planning, new features (backlog), and architect
 ## 📄 Epic 14: Open Source License Audit and Compliance Reporting
 *Objective: Assist corporate legal audits by generating consolidated reports of third-party licenses in use within the software.*
 
-- [ ] **[Story] License Parsing and Identification**
+- [x] **[Story] License Parsing and Identification**
   - Scan the dependency tree to identify license types (MIT, Apache, GPL, etc.) declared in `boss.json` manifests or `LICENSE`/`README` files.
-- [ ] **[Story] Compliance Reporting (`boss4d license report`)**
+- [x] **[Story] Compliance Reporting (`boss4d license report`)**
   - Generate a consolidated document in Markdown, CSV, or HTML format listing all licenses of active packages.
 
 ---
