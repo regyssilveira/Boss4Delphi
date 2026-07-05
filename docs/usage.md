@@ -1,8 +1,21 @@
-# Boss4D - CLI Usage Manual
+# Boss4D - Complete User Manual (Installer, GUI, CLI, and IDE)
 
 [Read in English](usage.md) | [Leia em Português](usage.pt-BR.md)
 
-**Boss4D** is a command-line interface (CLI) dependency manager designed specifically for Delphi projects. This guide covers how to initialize, configure, install, and update package dependencies in your applications.
+**Boss4D** is a complete package management suite designed specifically for the Delphi ecosystem. It provides a fast command-line interface (CLI), a modern standalone graphic application (GUI), integrated wizards inside the RAD Studio IDE (Plugin), and a unified offline installer.
+
+---
+
+## 📦 0. Quick Start with the Offline Installer
+
+For end users, Boss4D provides a unified offline executable installer (**`Boss4D_Setup.exe`**) generated using Inno Setup, simplifying the entire initial setup:
+
+1. **Download the Setup**: Get the installer `Boss4D_Setup.exe` from the releases section on GitHub.
+2. **Lowest Privileges Execution**: The installer runs safely within the current user scope (does not require administrator/UAC elevation).
+3. **Autodetection and Delphi Integration**:
+   * The installer automatically queries the Windows Registry to locate installations of **Delphi 11 (Alexandria)**, **Delphi 12 (Athens)**, and **Delphi 13 (Florence)**.
+   * It displays interactive checkboxes so you can select which IDEs you want to integrate with Boss4D (other unselected or uninstalled versions are cleaned up automatically).
+4. **Environment Variables**: The installer registers the Boss4D binary directory in your user `PATH` and notifies the Windows OS instantly, making the CLI available in new terminals immediately without needing a logoff/reboot.
 
 ---
 
@@ -434,3 +447,38 @@ Prints all available commands and flags:
 ```bash
 boss4d help
 ```
+
+---
+
+## 🖥️ 15. Standalone Graphical User Interface (GUI)
+
+The **Boss4D** graphical user interface (**`Boss4D.GUI.exe`**) provides a modern, user-friendly desktop application integrated in-process with the Boss4D business logic engine.
+
+### How to Access
+* The installer creates optional shortcuts on the **Desktop** and in the **Start Menu** (folder `Boss4D`).
+* You can also run it by typing `Boss4D.GUI` in any command terminal (as the PATH will be configured).
+
+### Key Features
+1. **Lateral Navigation (SPA Sidebar)**:
+   * **Project Local**: Open any local project directory. Boss4D reads the `boss.json` and lists the package dependencies, declared version, and installed lock version in real-time. Features quick buttons for `Init`, `Install`, `Check Updates` (outdated), and `Dependency Tree`.
+   * **Search Packages**: A visual catalogue showing the most popular libraries in the Delphi community (Horse, RESTRequest4Delphi, mORMot, Skia, etc.) allowing for filtered search and single-click silent in-process installation.
+   * **Boss4D Doctor**: Run environmental diagnostics and auto-fixes for Delphi compiler installations without writing command lines.
+   * **Manage Cache**: Displays global cache disk usage and provides options to clean (`Clean`) or prune (`Otimizar Cache`) stale downloaded versions.
+2. **Integrated Log Console**: The bottom area prints real-time logs, compilation outputs, and concurrent download tasks running in background threads (via PPL) in a thread-safe UI component.
+
+---
+
+## 🔌 16. RAD Studio IDE Integration (Plugin)
+
+The integrated RAD Studio wizard adds tools and menu options to speed up package management workflow:
+
+### Key Features
+1. **Project Manager Context Menus**:
+   * Right-click any active project `.dproj` or project group `.groupproj` in the Project Manager, and navigate to **Boss4D**.
+   * Run quick commands (`Init`, `Install`, `Doctor`, `Cache`, `Licensing`) directly inside the IDE.
+2. **Dynamic Script Submenus**:
+   * The plugin reads the customized scripts defined under the `"scripts"` section in your project's `boss.json` (e.g. `"build"`, `"test"`, `"deploy"`).
+   * It dynamically registers submenus for each script under **Boss4D -> Scripts**, allowing you to execute tasks with a single click and review the terminal outputs in real-time.
+3. **Install Package Dialog**:
+   * The **Install Package...** option opens an integrated prompt window to capture the Git repository URL and version range, triggering a silent, background package installation.
+4. **Integrated Message View**: The progress and colored log messages of the Boss4D tasks are piped into a dedicated **Boss4D** tab inside the RAD Studio Message View.
