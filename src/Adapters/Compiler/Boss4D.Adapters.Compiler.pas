@@ -13,6 +13,7 @@ type
     FLogger: IBoss4DLogger;
 
     function GetConfiguredDelphiPath: string;
+    function DetectDelphiVersionFromDproj: string;
     function ExecuteBatch(const ABatchPath: string; const AWorkingDir: string; out AOutput: string): Boolean;
     function GetCompilerParameters(
       const ARootPath: string;
@@ -23,13 +24,14 @@ type
     constructor Create(const ARegistry: IBoss4DRegistryService; const ALogger: IBoss4DLogger);
 
     function FindRsvarsPath(out ARsvarsPath: string; out APlatform: string): Boolean;
-    function Compile(const ADprojPath: string; const ADep: TBoss4DDependency; const ARootLock: TBoss4DLock): Boolean;
-    function BuildSearchPath(const ADep: TBoss4DDependency): string;
+    function Compile(const ADprojPath: string; const ADep: TBoss4DDependency; const ARootLock: TBoss4DLock; const APlatform: string = ''): Boolean;
+    function BuildSearchPath(const ADep: TBoss4DDependency; const APlatform: string = ''): string;
   end;
 
 implementation
 
 uses
+  Winapi.Windows,
   System.SysUtils,
   System.Classes,
   System.IOUtils,
@@ -96,28 +98,104 @@ begin
   end;
 end;
 
+function TBoss4DDelphiCompilerAdapter.DetectDelphiVersionFromDproj: string;
+var
+  LFiles: TArray<string>;
+  LContent: string;
+  LStartIdx, LEndIdx: Integer;
+  LVerStr: string;
+  LVerFloat: Double;
+begin
+  Result := '';
+  try
+    if not TDirectory.Exists(TDirectory.GetCurrentDirectory) then
+      Exit;
+
+    LFiles := TDirectory.GetFiles(TDirectory.GetCurrentDirectory, '*.dproj');
+    if Length(LFiles) = 0 then
+      Exit;
+
+    LContent := TFile.ReadAllText(LFiles[0]);
+    LStartIdx := LContent.IndexOf('<ProjectVersion>');
+    if LStartIdx = -1 then
+      Exit;
+
+    Inc(LStartIdx, Length('<ProjectVersion>'));
+    LEndIdx := LContent.IndexOf('</ProjectVersion>', LStartIdx);
+    if LEndIdx = -1 then
+      Exit;
+
+    LVerStr := LContent.Substring(LStartIdx, LEndIdx - LStartIdx).Trim;
+    if LVerStr.IsEmpty then
+      Exit;
+
+    LVerStr := LVerStr.Replace(',', '.');
+    
+    var LFormatSettings := TFormatSettings.Invariant;
+    if TryStrToFloat(LVerStr, LVerFloat, LFormatSettings) then
+    begin
+      if LVerFloat >= 20.3 then
+        Result := '37.0' // Delphi 13 Florence (ProjectVersion >= 20.3)
+      else if LVerFloat >= 20.0 then
+        Result := '23.0' // Delphi 12 Athens (ProjectVersion >= 20.0)
+      else if LVerFloat >= 19.2 then
+        Result := '22.0' // Delphi 11 Alexandria (ProjectVersion 19.3, 19.4, 19.5)
+      else if LVerFloat >= 19.0 then
+        Result := '21.0' // Delphi 10.4 Sydney (ProjectVersion 19.0)
+      else if LVerFloat >= 18.4 then
+        Result := '20.0' // Delphi 10.3 Rio (ProjectVersion 18.4, 18.5, 18.8)
+      else if LVerFloat >= 18.1 then
+        Result := '19.0' // Delphi 10.2 Tokyo (ProjectVersion 18.1, 18.2, 18.3)
+      else if LVerFloat >= 18.0 then
+        Result := '18.0' // Delphi 10.1 Berlin (ProjectVersion 18.0)
+      else if LVerFloat >= 17.0 then
+        Result := '17.0'; // Delphi 10 Seattle / XE8 (ProjectVersion 17.0)
+    end;
+  except
+    // Falha silenciosa por seguranca
+  end;
+end;
+
 function TBoss4DDelphiCompilerAdapter.FindRsvarsPath(out ARsvarsPath: string; out APlatform: string): Boolean;
 var
   LVersions: TArray<string>;
   LRootDir: string;
+  LDetectedVer: string;
 begin
   Result := False;
   ARsvarsPath := '';
   APlatform := 'Win32';
 
-  // 1. Tenta obter o caminho preferencial configurado globalmente no boss.cfg.json
-  LRootDir := GetConfiguredDelphiPath;
+  // 1. Tenta autodetectar a versao pelo dproj do projeto atual (Prioridade Maxima)
+  LDetectedVer := DetectDelphiVersionFromDproj;
+  if not LDetectedVer.IsEmpty then
+  begin
+    LRootDir := FRegistry.GetDelphiPath(LDetectedVer);
+    if not LRootDir.IsEmpty then
+      FLogger.Log(TBoss4DLogLevel.Info, '  Detectado Delphi %s pelo arquivo .dproj local.', [LDetectedVer]);
+  end;
 
-  // 2. Se nao configurado de forma explicita, autodetecta a versao mais recente no Registro
+  // 2. Se nao detectado via dproj, tenta obter o caminho preferencial configurado globalmente no boss.cfg.json
+  if LRootDir.IsEmpty then
+    LRootDir := GetConfiguredDelphiPath;
+
+  // 3. Se nao detectado ou nao instalado, faz o fallback para a versao mais recente instalada no Registro
   if LRootDir.IsEmpty then
   begin
     LVersions := FRegistry.GetInstalledDelphiVersions;
     if Length(LVersions) > 0 then
     begin
-      // Ordena as versoes e pega a mais recente (Delphi 13 tem indice maior)
       TArray.Sort<string>(LVersions);
-      var LLatestVersion := LVersions[Length(LVersions) - 1];
-      LRootDir := FRegistry.GetDelphiPath(LLatestVersion);
+      for var I := Length(LVersions) - 1 downto 0 do
+      begin
+        var LVer := LVersions[I];
+        var LTempPath := FRegistry.GetDelphiPath(LVer);
+        if not LTempPath.IsEmpty and TFile.Exists(TPath.Combine(TPath.Combine(LTempPath, 'bin'), 'rsvars.bat')) then
+        begin
+          LRootDir := LTempPath;
+          Break;
+        end;
+      end;
     end;
   end;
 
@@ -145,9 +223,16 @@ begin
     LModuleName := ADep.Name;
 
   LBinPath := TPath.Combine(ARootPath, TPath.Combine(LModuleName, FOLDER_BIN));
-  LBplPath := TPath.Combine(ARootPath, TPath.Combine(LModuleName, FOLDER_BPL));
-  LDcpPath := TPath.Combine(ARootPath, TPath.Combine(LModuleName, FOLDER_DCP));
-  LDcuPath := TPath.Combine(ARootPath, TPath.Combine(LModuleName, FOLDER_DCU));
+  LBplPath := TPath.Combine(ARootPath, TPath.Combine(FOLDER_BPL, TPath.Combine(APlatform, 'Debug')));
+  LDcpPath := TPath.Combine(ARootPath, TPath.Combine(FOLDER_DCP, TPath.Combine(APlatform, 'Debug')));
+  LDcuPath := TPath.Combine(ARootPath, TPath.Combine(FOLDER_DCU, TPath.Combine(APlatform, 'Debug')));
+
+  if not TDirectory.Exists(LBplPath) then
+    TDirectory.CreateDirectory(LBplPath);
+  if not TDirectory.Exists(LDcpPath) then
+    TDirectory.CreateDirectory(LDcpPath);
+  if not TDirectory.Exists(LDcuPath) then
+    TDirectory.CreateDirectory(LDcuPath);
 
   Result := ' /p:DCC_BplOutput="' + LBplPath + '"' +
             ' /p:DCC_DcpOutput="' + LDcpPath + '"' +
@@ -159,7 +244,7 @@ begin
             ' /p:platform=' + APlatform + ' ';
 end;
 
-function TBoss4DDelphiCompilerAdapter.BuildSearchPath(const ADep: TBoss4DDependency): string;
+function TBoss4DDelphiCompilerAdapter.BuildSearchPath(const ADep: TBoss4DDependency; const APlatform: string = ''): string;
 var
   LSearchPath: string;
   LPackagePath: string;
@@ -194,7 +279,7 @@ begin
     var LSubDeps := LPackageData.GetParsedDependencies;
     for var LSubDep in LSubDeps do
     begin
-      LSearchPath := LSearchPath + ';' + BuildSearchPath(LSubDep);
+      LSearchPath := LSearchPath + ';' + BuildSearchPath(LSubDep, APlatform);
       LSubDep.Free;
     end;
   finally
@@ -211,7 +296,7 @@ begin
 end;
 
 function TBoss4DDelphiCompilerAdapter.Compile(const ADprojPath: string; const ADep: TBoss4DDependency;
-  const ARootLock: TBoss4DLock): Boolean;
+  const ARootLock: TBoss4DLock; const APlatform: string = ''): Boolean;
 var
   LRsvarsPath, LPlatform: string;
   LAbsDir, LBuildLog, LBuildBat, LCfgPath: string;
@@ -227,6 +312,9 @@ begin
     Exit;
   end;
 
+  if not APlatform.IsEmpty then
+    LPlatform := APlatform;
+
   FLogger.Log(TBoss4DLogLevel.Info, '  Compilando ' + TPath.GetFileName(ADprojPath));
 
   LAbsDir := TPath.GetDirectoryName(TPath.GetFullPath(ADprojPath));
@@ -238,14 +326,20 @@ begin
   // 1. Cria o boss.cfg para guardar os Search Paths gigantes (Prevenindo a Issue #205)
   LCfgContent := TStringBuilder.Create;
   try
-    var LDcuPath := TPath.Combine(GetModulesDir, FOLDER_DCU);
-    var LDcpPath := TPath.Combine(GetModulesDir, FOLDER_DCP);
+    var LDcuPath := TPath.Combine(GetModulesDir, TPath.Combine(FOLDER_DCU, TPath.Combine(LPlatform, 'Debug')));
+    var LDcpPath := TPath.Combine(GetModulesDir, TPath.Combine(FOLDER_DCP, TPath.Combine(LPlatform, 'Debug')));
+
+    if not TDirectory.Exists(LDcuPath) then
+      TDirectory.CreateDirectory(LDcuPath);
+    if not TDirectory.Exists(LDcpPath) then
+      TDirectory.CreateDirectory(LDcpPath);
+
     LCfgContent.AppendLine('-I"' + LDcuPath + '"');
     LCfgContent.AppendLine('-U"' + LDcuPath + '"');
     LCfgContent.AppendLine('-I"' + LDcpPath + '"');
     LCfgContent.AppendLine('-U"' + LDcpPath + '"');
 
-    var LSearchPathStr := BuildSearchPath(ADep);
+    var LSearchPathStr := BuildSearchPath(ADep, LPlatform);
     if not LSearchPathStr.IsEmpty then
     begin
       var LPaths := LSearchPathStr.Split([';']);
@@ -268,8 +362,12 @@ begin
   // 2. Cria o script batch que carrega o rsvars.bat e executa o msbuild com a diretiva @boss.cfg
   LBatchContent := TStringList.Create;
   try
+    var LBplPath := TPath.Combine(GetModulesDir, TPath.Combine(FOLDER_BPL, TPath.Combine(LPlatform, 'Debug')));
+    if not TDirectory.Exists(LBplPath) then
+      TDirectory.CreateDirectory(LBplPath);
+
     LBatchContent.Add('call "' + LRsvarsPath + '"');
-    LBatchContent.Add('set PATH=%PATH%;' + TPath.Combine(GetModulesDir, FOLDER_BPL) + ';');
+    LBatchContent.Add('set PATH=%PATH%;' + LBplPath + ';');
 
     var LMsbuildCmd := 'msbuild "' + TPath.GetFullPath(ADprojPath) + '" /p:Configuration=Debug ' +
                        GetCompilerParameters(GetModulesDir, ADep, LPlatform) +

@@ -33,13 +33,13 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 🩺 Épico 3: Ferramenta de Auto-Diagnóstico (`boss4d doctor`)
 *Objetivo: Identificar e corrigir problemas de caminhos de compilador, variáveis de ambiente e ferramentas Git locais de forma automatizada (Inspirado no `tms doctor`).*
 
-- [ ] **[Story] Comando CLI `boss4d doctor`**
+- [x] **[Story] Comando CLI `boss4d doctor`**
   - Analisar o ambiente da máquina física do desenvolvedor, verificando:
     * Instalações do Delphi ativas e caminhos no Registro.
     * Presença e versão do compilador `dcc32`, `dcc64` e `MSBuild`.
     * Acessibilidade ao executável `git` no PATH do sistema.
     * Permissões de escrita e leitura de pastas.
-- [ ] **[Story] Auto-Correção de Caminhos (`boss4d doctor -fix`)**
+- [x] **[Story] Auto-Correção de Caminhos (`boss4d doctor -fix`)**
   - Implementar a capacidade de injetar e corrigir caminhos no Registro ou no PATH local do usuário para reestabelecer o funcionamento da compilação de forma automática.
 
 ---
@@ -47,11 +47,11 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## ⚙️ Épico 4: Integração de Componentes e Library Paths na IDE
 *Objetivo: Automatizar as tarefas de configuração manual pós-instalação de componentes de Design-Time na paleta de componentes do Delphi.*
 
-- [ ] **[Story] Injeção e Registro de BPLs de Design-Time**
-  - Analisar as dependências recém-baixadas, localizar as BPLs de Design-time geradas e registrá-las no registro do Windows do Delphi (`HKEY_CURRENT_USER\Software\Embarcadero\BDS\<versao>\Known Packages`) para que os componentes apareçam na paleta da IDE automaticamente.
-- [ ] **[Story] Gerenciamento Automático de Library Paths da IDE**
+- [x] **[Story] Injeção e Registro de BPLs de Design-Time**
+  - Analisar as dependências recém-baixadas, localizar as BPLs de Design-time geradas e registrá-las no registro do Windows do Delphi (`HKEY_CURRENT_USER\Software\Embarcadero\BDS\<versao>\Known Packages` e `Known IDE Packages`) para que os componentes apareçam na paleta da IDE automaticamente.
+- [x] **[Story] Gerenciamento Automático de Library Paths da IDE**
   - Injetar de forma inteligente as pastas de DCU unificadas (`modules/dcu`) ou caminhos de busca no Library Path global do RAD Studio do desenvolvedor, eliminando a necessidade de configurar os caminhos manualmente após a instalação.
-- [ ] **[Story] DCU Megafolders e Otimização de Cache**
+- [x] **[Story] DCU Megafolders e Otimização de Cache**
   - Unificar de forma otimizada os arquivos compilados do projeto em pastas centralizadas por plataforma/configuração, melhorando o tempo de build subsequente.
 
 ---
@@ -59,9 +59,9 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 📜 Épico 5: Execução de Scripts Customizados (`boss4d run <script>`)
 *Objetivo: Permitir a automatização e padronização de tarefas e fluxos de trabalho nos projetos Delphi (Inspirado no `npm run` do Node.js).*
 
-- [ ] **[Story] Declaração de Scripts no `boss.json`**
+- [x] **[Story] Declaração de Scripts no `boss.json`**
   - Adicionar suporte a um bloco `"scripts": { "build": "msbuild ...", "test": "Win32\\Debug\\Tests.exe" }` no manifesto do projeto.
-- [ ] **[Story] Comando CLI `boss4d run <script>`**
+- [x] **[Story] Comando CLI `boss4d run <script>`**
   - Executar o script especificado invocando o subprocesso correto no shell do Windows e repassando logs e códigos de erro de saída de forma transparente.
 
 ---
@@ -69,9 +69,9 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 🛠️ Épico 6: Distribuição de Ferramentas CLI Globais (`boss4d tool`)
 *Objetivo: Permitir que desenvolvedores Delphi instalem e utilizem utilitários de desenvolvimento de forma global na máquina (Inspirado no `dotnet tool` do .NET).*
 
-- [ ] **[Story] Instalação Global de Ferramentas (`boss4d tool install -g <repo>`)**
+- [x] **[Story] Instalação Global de Ferramentas (`boss4d tool install -g <repo>`)**
   - Baixar, compilar e registrar no PATH do Windows executáveis utilitários criados em Delphi (ex: formatadores de código, geradores de código, linters).
-- [ ] **[Story] Gerenciamento de Versões de Ferramentas**
+- [x] **[Story] Gerenciamento de Versões de Ferramentas**
   - Permitir a atualização (`boss4d tool update`) e desinstalação (`boss4d tool uninstall`) de utilitários globais.
 
 ---
@@ -79,9 +79,9 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 🌳 Épico 7: Diagnóstico Avançado de Dependências (`boss4d tree` / `outdated`)
 *Objetivo: Fornecer visibilidade profunda sobre a árvore de dependências transitivas e o status de atualização de pacotes (Inspirado em `cargo tree` do Rust e `pub outdated` do Dart/Flutter).*
 
-- [ ] **[Story] Exibição de Árvore de Dependências (`boss4d tree`)**
+- [x] **[Story] Exibição de Árvore de Dependências (`boss4d tree`)**
   - Imprimir graficamente no console a estrutura de dependências do projeto, indicando quais subdependências pertencem a quais pacotes e resolvendo conflitos visuais.
-- [ ] **[Story] Relatório de Pacotes Desatualizados (`boss4d outdated`)**
+- [x] **[Story] Relatório de Pacotes Desatualizados (`boss4d outdated`)**
   - Consultar de forma assíncrona as últimas tags compatíveis com SemVer no GitHub para cada dependência e gerar uma tabela exibindo a versão atual, versão compatível declarada e versão mais recente do autor.
 
 ---
@@ -89,9 +89,9 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 🗂️ Épico 8: Suporte a Workspaces e Multi-Projetos (Monorepos)
 *Objetivo: Facilitar a manutenção de múltiplos projetos locais Delphi sob o mesmo repositório que compartilham dependências comuns (Inspirado em Rust/npm Workspaces).*
 
-- [ ] **[Story] Manifesto de Workspaces no `boss.json` raiz**
+- [x] **[Story] Manifesto de Workspaces no `boss.json` raiz**
   - Suportar a declaração de `"workspaces": [ "projects/*" ]` no manifesto da raiz do repositório.
-- [ ] **[Story] Compartilhamento Inteligente da pasta `modules/`**
+- [x] **[Story] Compartilhamento Inteligente da pasta `modules/`**
   - Evitar downloads e compilações redundantes mantendo todas as dependências centralizadas na pasta `modules/` raiz, com o resolvedor interligando as referências relativas dos subprojetos internos automaticamente.
 
 ---
@@ -99,19 +99,19 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 🔌 Épico 9: Instalação de Plugins e Extensões Globais do RAD Studio
 *Objetivo: Permitir a instalação automatizada e registro de plugins e assistentes da própria IDE do Delphi (como o RadIA-Plugin) de forma global na máquina.*
 
-- [ ] **[Story] Suporte a Tipo "Plugin" no `boss.json`**
+- [x] **[Story] Suporte a Tipo "Plugin" no `boss.json`**
   - Reconhecer e configurar manifestos com o atributo `"type": "plugin"` ou `"type": "ide-extension"`.
-- [ ] **[Story] Instalação de Plugins via CLI (`boss4d plugin install <repo>`)**
-  - Clonar o repositório do assistente, compilar sua BPL de design-time, movê-la para o diretório central de plugins `%APPDATA%\Boss4D\plugins\` e registrá-la automaticamente no Registro do Windows do RAD Studio sob a chave `Known Packages` das IDEs detectadas.
+- [x] **[Story] Instalação de Plugins via CLI (`boss4d plugin install <repo>`)**
+  - Clonar o repositório do assistente, compilar sua BPL de design-time, movê-la para o diretório central de plugins `%APPDATA%\Boss4D\plugins\` e registrá-la automaticamente no Registro do Windows do RAD Studio sob a chave `Known Packages` e `Known IDE Packages` das IDEs detectadas.
 
 ---
 
 ## 📦 Épico 10: Integração e Ponte com o GetIt Package Manager
 *Objetivo: Integrar e unificar o gerenciamento de dependências Git open-source com o catálogo de pacotes comerciais e oficiais do GetIt do Delphi.*
 
-- [ ] **[Story] Interação de Ponte com o `GetItCmd.exe`**
+- [x] **[Story] Interação de Ponte com o `GetItCmd.exe`**
   - Executar comandos de busca, listagem e instalação de dependências oficiais chamando silenciosamente o utilitário CLI do GetIt nativo do Delphi ativo.
-- [ ] **[Story] Configuração do Modo Online/Offline do GetIt**
+- [x] **[Story] Configuração do Modo Online/Offline do GetIt**
   - Disponibilizar atalhos CLI no Boss4D para reconfigurar a conectividade do GetIt (ex: `boss4d getit mode-online`) de forma simplificada em ambientes corporativos ou pós-instalação da IDE.
 
 ---
@@ -119,9 +119,9 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 🔒 Épico 11: Segurança e Verificação de Integridade de Dependências (Checksums)
 *Objetivo: Prevenir ataques de supply chain e garantir a integridade dos fontes baixados em ambientes corporativos de alta segurança.*
 
-- [ ] **[Story] Geração de Hash de Segurança no Lock**
+- [x] **[Story] Geração de Hash de Segurança no Lock**
   - Calcular e registrar o hash SHA-256 do estado do repositório/commit baixado dentro do arquivo `boss-lock.json`.
-- [ ] **[Story] Validação de Integridade na Instãlação**
+- [x] **[Story] Validação de Integridade na Instãlação**
   - Recalcular e validar o hash SHA-256 dos fontes locais clonados durante o `boss4d install`, emitindo alertas e interrompendo o build caso haja qualquer discrepância com o esperado do lock.
 
 ---
@@ -129,9 +129,9 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 🧹 Épico 12: Gerenciamento e Otimização do Cache Global (`boss4d cache`)
 *Objetivo: Evitar que o diretório global de caches locais de Git no disco do desenvolvedor cresça de forma descontrolada.*
 
-- [ ] **[Story] Diagnóstico de Armazenamento (`boss4d cache size`)**
+- [x] **[Story] Diagnóstico de Armazenamento (`boss4d cache size`)**
   - Exibir o tamanho em disco e a lista de pacotes/versões cacheados na pasta `%USERPROFILE%\.boss\cache\`.
-- [ ] **[Story] Limpeza Seletiva (`boss4d cache prune` / `clean`)**
+- [x] **[Story] Limpeza Seletiva (`boss4d cache prune` / `clean`)**
   - Implementar o comando `clean` (para apagar 100% dos caches) e `prune` (para apagar de forma inteligente apenas caches de pacotes antigos ou não utilizados há mais de 30 dias).
 
 ---
@@ -139,9 +139,9 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 🔒 Épico 13: Repositórios Privados e Credenciais de Autenticação
 *Objetivo: Permitir a instalação de dependências a partir de repositórios Git privados e servidores de rede internos corporativos.*
 
-- [ ] **[Story] Suporte a Caminhos de Rede Local (`file:///`)**
+- [x] **[Story] Suporte a Caminhos de Rede Local (`file:///`)**
   - Permitir a instalação de dependências e pacotes salvos em pastas compartilhadas da intranet corporativa.
-- [ ] **[Story] Armazenamento Seguro de Tokens e Chaves**
+- [x] **[Story] Armazenamento Seguro de Tokens e Chaves**
   - Desenvolver uma área de configuração segura de credenciais de acesso (SSH Keys e Personal Access Tokens do GitHub/GitLab/Bitbucket) para o resolvedor do Boss4D consumir repositórios privados.
 
 ---
@@ -149,9 +149,9 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 📄 Épico 14: Relatórios e Auditoria de Licenças de Código Aberto (Compliance)
 *Objetivo: Facilitar a auditoria legal corporativa gerando relatórios consolidados de licenças de terceiros em uso no software.*
 
-- [ ] **[Story] Leitura e Identificação de Licenças**
+- [x] **[Story] Leitura e Identificação de Licenças**
   - Varrer a árvore de dependências identificando o tipo de licença (MIT, Apache, GPL, etc.) declarada em arquivos `boss.json` ou arquivos do tipo `LICENSE`/`README`.
-- [ ] **[Story] Relatório de Conformidade (`boss4d license report`)**
+- [x] **[Story] Relatório de Conformidade (`boss4d license report`)**
   - Gerar um documento consolidado em Markdown, CSV ou HTML com a listagem de todas as licenças dos pacotes em uso.
 
 ---
@@ -159,7 +159,7 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 📱 Épico 15: Compilação Multiplataforma Completa (Linux, macOS, Mobile)
 *Objetivo: Permitir o build automático de dependências para todas as plataformas suportadas pelo compilador Delphi (dcclinux64, dccios, dccandroid, etc.).*
 
-- [ ] **[Story] Flag de Seleção de Plataforma (`boss4d install --platform`)**
+- [x] **[Story] Flag de Seleção de Plataforma (`boss4d install --platform`)**
   - Suportar a passagem de parâmetros de plataforma-alvo de compilação na linha de comando.
-- [ ] **[Story] Orquestração de Compiladores Cruzados**
+- [x] **[Story] Orquestração de Compiladores Cruzados**
   - Ajustar o adaptador de compilação para invocar os respectivos executáveis de cross-compiling do Delphi e passar as variáveis e caminhos corretos de busca para cada plataforma.

@@ -21,9 +21,10 @@ type
 
     procedure ProcessDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock;
       const AProcessedDeps: TList<string>);
-    procedure BuildDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock);
+    procedure BuildDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock; const APlatform: string = '');
     function ResolveSemVerRange(const ARangeStr, ACacheDir: string): string;
     function ResolveDependencyVersion(const ADep: TBoss4DDependency; const ACacheDir: string): string;
+    function CalculateDirectoryChecksum(const ADirPath: string): string;
   public
     constructor Create(
       const APackageRepo: IBoss4DPackageRepository;
@@ -36,7 +37,7 @@ type
 
     destructor Destroy; override;
 
-    procedure Execute(const AInstallSingle: string = '');
+    procedure Execute(const AInstallSingle: string = ''; const APlatform: string = '');
     procedure RunInstallTask(const ADep: TBoss4DDependency; const ALock: TBoss4DLock; const ATasks: TList<ITask>);
   end;
 
@@ -45,7 +46,9 @@ implementation
 uses
   System.SysUtils, System.Classes, System.IOUtils, System.Hash,
   Boss4D.Core.Domain.Package, Boss4D.Core.Domain.SemVer, Boss4D.Core.Domain.Consts,
-  Boss4D.Core.Domain.Env;
+  Boss4D.Core.Domain.Env,
+  Boss4D.Adapters.Registry,
+  Boss4D.Core.Services.IDEIntegration, Boss4D.Core.Services.Workspace;
 
 { TBoss4DInstallService }
 
@@ -129,8 +132,26 @@ begin
     // 3. Executa o checkout local da versao selecionada na pasta modules/
     FGitClient.Checkout(LCacheDir, LResolvedVersion, LTargetDir);
 
-    // 4. Adiciona no arquivo lock
-    ALock.AddDependency(ADep, LResolvedVersion, ADep.HashName);
+    // Calcular Checksum da pasta de destino instalada
+    var LChecksum := CalculateDirectoryChecksum(LTargetDir);
+
+    // Se a dependência já constava no arquivo lock existente, validar se o checksum atual bate!
+    var LExistingLocked: TBoss4DLockedDependency;
+    if ALock.GetInstalled(ADep, LExistingLocked) then
+    begin
+      if not LExistingLocked.Checksum.IsEmpty and (LExistingLocked.Checksum <> LChecksum) then
+      begin
+        raise Exception.CreateFmt(
+          'ERRO DE SEGURANCA: O checksum da dependencia "%s" (%s) nao confere com o esperado!' + sLineBreak +
+          '  -> Calculado: %s' + sLineBreak +
+          '  -> Esperado do Lock: %s',
+          [ADep.Name, LResolvedVersion, LChecksum, LExistingLocked.Checksum]
+        );
+      end;
+    end;
+
+    // 4. Adiciona no arquivo lock com a sobrecarga de checksum
+    ALock.AddDependency(ADep, LResolvedVersion, ADep.HashName, LChecksum);
   finally
     FGitCriticalSection.Leave;
   end;
@@ -156,7 +177,7 @@ begin
   end;
 end;
 
-procedure TBoss4DInstallService.BuildDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock);
+procedure TBoss4DInstallService.BuildDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock; const APlatform: string = '');
 var
   LTargetDir: string;
   LFiles: TArray<string>;
@@ -173,7 +194,7 @@ begin
     for var LFile in LFiles do
     begin
       // Executa compilação nativa
-      FCompiler.Compile(LFile, ADep, ALock);
+      FCompiler.Compile(LFile, ADep, ALock, APlatform);
     end;
   end
   else
@@ -182,7 +203,7 @@ begin
   end;
 end;
 
-procedure TBoss4DInstallService.Execute(const AInstallSingle: string = '');
+procedure TBoss4DInstallService.Execute(const AInstallSingle: string = ''; const APlatform: string = '');
 var
   LPkgPath: string;
   LLockPath: string;
@@ -220,7 +241,7 @@ begin
         FPackageRepo.Save(LPkg, LPkgPath);
 
         // Build da dependencia especifica
-        BuildDependency(LDep, LLock);
+        BuildDependency(LDep, LLock, APlatform);
       finally
         LDep.Free;
       end;
@@ -228,10 +249,56 @@ begin
     else
     begin
       // Instala todas as dependencias declaradas no boss.json
-      LActiveDeps := LPkg.GetParsedDependencies;
+      var LWorkspaceService := TBoss4DWorkspaceService.Create(FPackageRepo, FLogger);
+      var LSubprojects: TList<string> := nil;
+      var LActiveDepsList := TList<TBoss4DDependency>.Create;
+      try
+        LSubprojects := LWorkspaceService.FindSubprojects(LPkg, GetCurrentDir);
+        
+        // Adiciona dependências do projeto raiz
+        var LRootDeps := LPkg.GetParsedDependencies;
+        for var LDep in LRootDeps do
+          LActiveDepsList.Add(LDep);
+          
+        // Adiciona dependências de cada subprojeto do workspace de forma unificada
+        for var LSubPath in LSubprojects do
+        begin
+          var LSubPkgPath := TPath.Combine(LSubPath, FILE_PACKAGE);
+          var LSubPkg := FPackageRepo.Load(LSubPkgPath);
+          try
+            var LSubDeps := LSubPkg.GetParsedDependencies;
+            for var LDep in LSubDeps do
+            begin
+              // Evita duplicados na fila de instalação
+              var LAlreadyExists := False;
+              for var LExistingDep in LActiveDepsList do
+              begin
+                if SameText(LExistingDep.Repository, LDep.Repository) then
+                begin
+                  LAlreadyExists := True;
+                  Break;
+                end;
+              end;
+              if not LAlreadyExists then
+                LActiveDepsList.Add(LDep)
+              else
+                LDep.Free;
+            end;
+          finally
+            LSubPkg.Free;
+          end;
+        end;
+
+        LActiveDeps := LActiveDepsList.ToArray;
+      finally
+        LActiveDepsList.Free;
+      end;
+
       if Length(LActiveDeps) = 0 then
       begin
         FLogger.Log(TBoss4DLogLevel.Info, 'Nenhuma dependencia declarada no boss.json.');
+        LSubprojects.Free;
+        LWorkspaceService.Free;
         Exit;
       end;
 
@@ -246,15 +313,34 @@ begin
       end;
 
       // Aguarda todos os downloads completarem
-      TTask.WaitForAll(LTasks.ToArray);
+      try
+        TTask.WaitForAll(LTasks.ToArray);
+      except
+        on E: EAggregateException do
+        begin
+          if E.Count > 0 then
+            raise Exception.Create(E.InnerExceptions[0].Message)
+          else
+            raise;
+        end;
+      end;
 
       FLogger.Log(TBoss4DLogLevel.Info, 'Compilando modulos instalados...');
 
       // FASE 2: Compilacao (deve ser sequencial para evitar lock no msbuild)
       for var LDep in LActiveDeps do
       begin
-        BuildDependency(LDep, LLock);
+        BuildDependency(LDep, LLock, APlatform);
       end;
+
+      // Se for um workspace, linka os subprojetos
+      if LSubprojects.Count > 0 then
+      begin
+        LWorkspaceService.LinkWorkspaceSubprojects(GetCurrentDir, LSubprojects);
+      end;
+
+      LSubprojects.Free;
+      LWorkspaceService.Free;
 
       // Limpa os objetos de dependencias do array
       for var LDep in LActiveDeps do
@@ -266,6 +352,15 @@ begin
     FLockRepo.Save(LLock, LLockPath);
 
     FLogger.Log(TBoss4DLogLevel.Info, 'Instalacao concluida com sucesso!');
+
+    // Dispara a integracao automatica de Library Paths na IDE
+    var LRegistry: IBoss4DRegistryService := TBoss4DWindowsRegistryAdapter.Create;
+    var LIDEIntegration := TBoss4DIDEIntegrationService.Create(LRegistry, FLogger);
+    try
+      LIDEIntegration.IntegrateLibraryPaths(APlatform);
+    finally
+      LIDEIntegration.Free;
+    end;
   finally
     LTasks.Free;
     LProcessedDeps.Free;
@@ -276,8 +371,10 @@ end;
 
 procedure TBoss4DInstallService.RunInstallTask(const ADep: TBoss4DDependency; const ALock: TBoss4DLock;
   const ATasks: TList<ITask>);
+var
+  LProc: TProc;
 begin
-  ATasks.Add(TTask.Run(procedure
+  LProc := procedure
     var LLocalProcessed: TList<string>;
     begin
       LLocalProcessed := TList<string>.Create;
@@ -286,7 +383,9 @@ begin
       finally
         LLocalProcessed.Free;
       end;
-    end));
+    end;
+
+  ATasks.Add(TTask.Run(LProc));
 end;
 
 function TBoss4DInstallService.ResolveSemVerRange(const ARangeStr, ACacheDir: string): string;
@@ -329,6 +428,41 @@ begin
       Result := '' // Checkout na branch padrao
     else
       Result := ADep.Version;
+  end;
+end;
+
+function TBoss4DInstallService.CalculateDirectoryChecksum(const ADirPath: string): string;
+var
+  LFiles: TArray<string>;
+  LSHA2: THashSHA2;
+  LBytes: TBytes;
+begin
+  Result := '';
+  if not TDirectory.Exists(ADirPath) then
+    Exit;
+
+  try
+    LSHA2 := THashSHA2.Create(THashSHA2.TSHA2Version.SHA256);
+    LFiles := TDirectory.GetFiles(ADirPath, '*', TSearchOption.soAllDirectories);
+    TArray.Sort<string>(LFiles);
+
+    for var LFile in LFiles do
+    begin
+      // Ignora subpastas do Git ou arquivos temporarios de build se existirem
+      if LFile.Contains('.git' + TPath.DirectorySeparatorChar) then
+        Continue;
+
+      try
+        LBytes := TFile.ReadAllBytes(LFile);
+        if Length(LBytes) > 0 then
+          LSHA2.Update(LBytes, Length(LBytes));
+      except
+        // Silencia falhas em arquivos bloqueados
+      end;
+    end;
+    Result := LSHA2.HashAsString;
+  except
+    // Retorna vazio em caso de erro grave
   end;
 end;
 

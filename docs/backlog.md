@@ -33,13 +33,13 @@ This document details the future planning, new features (backlog), and architect
 ## 🩺 Epic 3: Self-Diagnosis Tool (`boss4d doctor`)
 *Objective: Automatically identify and resolve compiler paths, environment variables, and local Git tool issues (Inspired by `tms doctor`).*
 
-- [ ] **[Story] CLI Command `boss4d doctor`**
+- [x] **[Story] CLI Command `boss4d doctor`**
   - Analyze the developer's local environment, verifying:
     * Active Delphi installations and Registry paths.
     * Presence and version of the `dcc32`, `dcc64`, and `MSBuild` compilers.
     * Accessibility of the `git` executable in the system PATH.
     * Read and write folder permissions.
-- [ ] **[Story] Auto-Correction of Paths (`boss4d doctor -fix`)**
+- [x] **[Story] Auto-Correction of Paths (`boss4d doctor -fix`)**
   - Implement the ability to inject and correct Registry paths or the user's local PATH to automatically restore compilation functionality.
 
 ---
@@ -47,11 +47,11 @@ This document details the future planning, new features (backlog), and architect
 ## ⚙️ Epic 4: IDE Component and Library Path Integration
 *Objective: Automate post-install configuration tasks of Design-time components inside the Delphi component palette.*
 
-- [ ] **[Story] Design-Time BPL Injection and Registration**
-  - Parse newly downloaded dependencies, locate generated Design-time BPLs, and register them in the Delphi Windows Registry (`HKEY_CURRENT_USER\Software\Embarcadero\BDS\<version>\Known Packages`) so components show up in the IDE palette automatically.
-- [ ] **[Story] Automatic IDE Library Path Management**
+- [x] **[Story] Design-Time BPL Injection and Registration**
+  - Parse newly downloaded dependencies, locate generated Design-time BPLs, and register them in the Delphi Windows Registry (`HKEY_CURRENT_USER\Software\Embarcadero\BDS\<version>\Known Packages` and `Known IDE Packages`) so components show up in the IDE palette automatically.
+- [x] **[Story] Automatic IDE Library Path Management**
   - Intelligently inject unified DCU folders (`modules/dcu`) or search paths into the developer's global RAD Studio Library Path, eliminating the need to configure search paths manually.
-- [ ] **[Story] DCU Megafolders and Cache Optimization**
+- [x] **[Story] DCU Megafolders and Cache Optimization**
   - Optimally unify compiled project files into centralized folders grouped by platform/configuration, improving subsequent build times.
 
 ---
@@ -59,9 +59,9 @@ This document details the future planning, new features (backlog), and architect
 ## 📜 Epic 5: Custom Script Execution (`boss4d run <script>`)
 *Objective: Allow automation and standardization of tasks and workflows in Delphi projects (Inspired by `npm run` from Node.js).*
 
-- [ ] **[Story] Script Declaration in `boss.json`**
+- [x] **[Story] Script Declaration in `boss.json`**
   - Add support for a `"scripts": { "build": "msbuild ...", "test": "Win32\\Debug\\Tests.exe" }` block in the project manifest.
-- [ ] **[Story] CLI Command `boss4d run <script>`**
+- [x] **[Story] CLI Command `boss4d run <script>`**
   - Execute the specified script by invoking the correct subprocess in the Windows shell, seamlessly forwarding output logs and exit error codes.
 
 ---
@@ -69,9 +69,9 @@ This document details the future planning, new features (backlog), and architect
 ## 🛠️ Epic 6: Global CLI Tool Distribution (`boss4d tool`)
 *Objective: Allow Delphi developers to install and use development utilities globally on their machine (Inspired by `dotnet tool` from .NET).*
 
-- [ ] **[Story] Global Tool Installation (`boss4d tool install -g <repo>`)**
+- [x] **[Story] Global Tool Installation (`boss4d tool install -g <repo>`)**
   - Download, compile, and register Delphi-based utility executables (e.g., code formatters, code generators, linters) in the Windows PATH.
-- [ ] **[Story] Tool Version Management**
+- [x] **[Story] Tool Version Management**
   - Allow upgrading (`boss4d tool update`) and uninstalling (`boss4d tool uninstall`) global utilities.
 
 ---
@@ -79,9 +79,9 @@ This document details the future planning, new features (backlog), and architect
 ## 🌳 Epic 7: Advanced Dependency Diagnostics (`boss4d tree` / `outdated`)
 *Objective: Provide deep visibility into the transitive dependency tree and package update status (Inspired by `cargo tree` from Rust and `pub outdated` from Dart/Flutter).*
 
-- [ ] **[Story] Dependency Tree Visualization (`boss4d tree`)**
+- [x] **[Story] Dependency Tree Visualization (`boss4d tree`)**
   - Graphically print the project's dependency structure in the console, highlighting which sub-dependencies belong to which packages and resolving visual conflicts.
-- [ ] **[Story] Outdated Packages Report (`boss4d outdated`)**
+- [x] **[Story] Outdated Packages Report (`boss4d outdated`)**
   - Asynchronously query GitHub for the latest SemVer-compatible tags for each dependency, generating a table displaying the current version, compatible declared version, and latest available version.
 
 ---
@@ -89,9 +89,9 @@ This document details the future planning, new features (backlog), and architect
 ## 🗂️ Epic 8: Workspaces and Multi-Project Support (Monorepos)
 *Objective: Simplify maintenance of multiple local Delphi projects sharing common dependencies under the same repository (Inspired by Rust/npm Workspaces).*
 
-- [ ] **[Story] Workspaces Manifesto in root `boss.json`**
+- [x] **[Story] Workspaces Manifesto in root `boss.json`**
   - Support declaring `"workspaces": [ "projects/*" ]` in the root repository manifest.
-- [ ] **[Story] Intelligent Folder Sharing for `modules/`**
+- [x] **[Story] Intelligent Folder Sharing for `modules/`**
   - Prevent redundant downloads and builds by centralizing all dependencies in the root `modules/` folder, with the resolver automatically mapping relative references for internal subprojects.
 
 ---
@@ -99,19 +99,19 @@ This document details the future planning, new features (backlog), and architect
 ## 🔌 Epic 9: RAD Studio Global Plugin and Extension Installation
 *Objective: Allow automated installation and registration of Delphi IDE plugins and assistants (like the RadIA-Plugin) globally on the system.*
 
-- [ ] **[Story] "Plugin" Type Support in `boss.json`**
+- [x] **[Story] "Plugin" Type Support in `boss.json`**
   - Recognize and configure manifests with a `"type": "plugin"` or `"type": "ide-extension"` attribute.
-- [ ] **[Story] Plugin Installation via CLI (`boss4d plugin install <repo>`)**
-  - Clone the assistant's repository, compile its design-time BPL, move it to the central plugins directory `%APPDATA%\Boss4D\plugins\`, and register it automatically in the Windows Registry under the `Known Packages` key of all detected RAD Studio versions.
+- [x] **[Story] Plugin Installation via CLI (`boss4d plugin install <repo>`)**
+  - Clone the assistant's repository, compile its design-time BPL, move it to the central plugins directory `%APPDATA%\Boss4D\plugins\`, and register it automatically in the Windows Registry under the `Known Packages` and `Known IDE Packages` key of all detected RAD Studio versions.
 
 ---
 
 ## 📦 Epic 10: Integration and Bridge with GetIt Package Manager
 *Objective: Integrate and unify open-source Git dependency management with Delphi's official commercial and native GetIt package catalog.*
 
-- [ ] **[Story] Bridge Interaction with `GetItCmd.exe`**
+- [x] **[Story] Bridge Interaction with `GetItCmd.exe`**
   - Execute search, list, and install commands for official Embarcadero dependencies by silently calling the native GetIt CLI utility of the active Delphi installation.
-- [ ] **[Story] GetIt Online/Offline Mode Configuration**
+- [x] **[Story] GetIt Online/Offline Mode Configuration**
   - Expose CLI shortcuts in Boss4D to easily reconfigure GetIt connectivity (e.g., `boss4d getit mode-online`) in corporate environments or post-IDE installation.
 
 ---
@@ -119,9 +119,9 @@ This document details the future planning, new features (backlog), and architect
 ## 🔒 Epic 11: Security and Dependency Integrity Verification (Checksums)
 *Objective: Prevent supply chain attacks and ensure the integrity of downloaded source files in high-security corporate environments.*
 
-- [ ] **[Story] Security Hash Generation in Lock**
+- [x] **[Story] Security Hash Generation in Lock**
   - Calculate and record the SHA-256 hash of the downloaded repository/commit state inside the `boss-lock.json` file.
-- [ ] **[Story] Integrity Validation during Installation**
+- [x] **[Story] Integrity Validation during Installation**
   - Recalculate and validate the SHA-256 hash of local sources cloned during `boss4d install`, issuing alerts and aborting the build if there is any mismatch with the expected lock hash.
 
 ---
@@ -129,9 +129,9 @@ This document details the future planning, new features (backlog), and architect
 ## 🧹 Epic 12: Global Cache Management and Optimization (`boss4d cache`)
 *Objective: Prevent the global directory of local Git caches on the developer's disk from growing uncontrollably.*
 
-- [ ] **[Story] Storage Diagnostics (`boss4d cache size`)**
+- [x] **[Story] Storage Diagnostics (`boss4d cache size`)**
   - Display disk space usage and list cached packages/versions in the `%USERPROFILE%\.boss\cache\` directory.
-- [ ] **[Story] Selective Cleanup (`boss4d cache prune` / `clean`)**
+- [x] **[Story] Selective Cleanup (`boss4d cache prune` / `clean`)**
   - Implement the `clean` command (to wipe 100% of caches) and the `prune` command (to intelligently delete only old or unused package caches older than 30 days).
 
 ---
@@ -139,9 +139,9 @@ This document details the future planning, new features (backlog), and architect
 ## 🔒 Epic 13: Private Repositories and Authentication Credentials
 *Objective: Allow installation of dependencies from private Git repositories and internal corporate network servers.*
 
-- [ ] **[Story] Local Network Path Support (`file:///`)**
+- [x] **[Story] Local Network Path Support (`file:///`)**
   - Allow installing dependencies and packages stored in shared folders within the corporate intranet.
-- [ ] **[Story] Secure Token and Key Storage**
+- [x] **[Story] Secure Token and Key Storage**
   - Develop a secure credentials configuration area (SSH Keys and GitHub/GitLab/Bitbucket Personal Access Tokens) for the Boss4D resolver to pull from private repositories.
 
 ---
@@ -149,9 +149,9 @@ This document details the future planning, new features (backlog), and architect
 ## 📄 Epic 14: Open Source License Audit and Compliance Reporting
 *Objective: Assist corporate legal audits by generating consolidated reports of third-party licenses in use within the software.*
 
-- [ ] **[Story] License Parsing and Identification**
+- [x] **[Story] License Parsing and Identification**
   - Scan the dependency tree to identify license types (MIT, Apache, GPL, etc.) declared in `boss.json` manifests or `LICENSE`/`README` files.
-- [ ] **[Story] Compliance Reporting (`boss4d license report`)**
+- [x] **[Story] Compliance Reporting (`boss4d license report`)**
   - Generate a consolidated document in Markdown, CSV, or HTML format listing all licenses of active packages.
 
 ---
@@ -159,7 +159,7 @@ This document details the future planning, new features (backlog), and architect
 ## 📱 Epic 15: Full Multiplatform Compilation (Linux, macOS, Mobile)
 *Objective: Enable automatic building of dependencies for all target platforms supported by the Delphi compiler (dcclinux64, dccios, dccandroid, etc.).*
 
-- [ ] **[Story] Platform Selection Flag (`boss4d install --platform`)**
+- [x] **[Story] Platform Selection Flag (`boss4d install --platform`)**
   - Support target-platform compilation parameters in the command line interface.
-- [ ] **[Story] Cross-Compiler Orchestration**
+- [x] **[Story] Cross-Compiler Orchestration**
   - Update the compiler adapter to invoke the respective Delphi cross-compiling executables and supply correct search path variables for each target platform.

@@ -39,8 +39,8 @@ type
   { Mock para simulacao do Compilador Delphi }
   TCompilerMock = class(TInterfacedObject, IBoss4DCompiler)
   public
-    function Compile(const ADprojPath: string; const ADep: TBoss4DDependency; const ARootLock: TBoss4DLock): Boolean;
-    function BuildSearchPath(const ADep: TBoss4DDependency): string;
+    function Compile(const ADprojPath: string; const ADep: TBoss4DDependency; const ARootLock: TBoss4DLock; const APlatform: string = ''): Boolean;
+    function BuildSearchPath(const ADep: TBoss4DDependency; const APlatform: string = ''): string;
   end;
 
   { Mock para simulacao do Registro do Windows }
@@ -48,6 +48,7 @@ type
   private
     FPath22: string;
     FPath23: string;
+    FPath37: string;
   public
     constructor Create;
     function GetInstalledDelphiVersions: TArray<string>;
@@ -55,6 +56,7 @@ type
 
     property Path22: string read FPath22 write FPath22;
     property Path23: string read FPath23 write FPath23;
+    property Path37: string read FPath37 write FPath37;
   end;
 
 implementation
@@ -92,6 +94,12 @@ begin
   // Apenas simula a criacao do diretorio de cache local
   if not TDirectory.Exists(ATargetDir) then
     TDirectory.CreateDirectory(ATargetDir);
+
+  if ADep.Repository.Contains('fake_tool') then
+  begin
+    TFile.WriteAllText(TPath.Combine(ATargetDir, 'fake_tool.dproj'), 'fake dproj content');
+    TFile.WriteAllText(TPath.Combine(ATargetDir, 'fake_tool.exe'), 'fake exe content');
+  end;
 end;
 
 procedure TGitClientMock.UpdateCache(const ADep: TBoss4DDependency; const ACacheDir: string);
@@ -158,13 +166,13 @@ end;
 { TCompilerMock }
 
 function TCompilerMock.Compile(const ADprojPath: string; const ADep: TBoss4DDependency;
-  const ARootLock: TBoss4DLock): Boolean;
+  const ARootLock: TBoss4DLock; const APlatform: string = ''): Boolean;
 begin
   // Apenas simula sucesso de compilacao
   Result := True;
 end;
 
-function TCompilerMock.BuildSearchPath(const ADep: TBoss4DDependency): string;
+function TCompilerMock.BuildSearchPath(const ADep: TBoss4DDependency; const APlatform: string = ''): string;
 begin
   Result := '';
 end;
@@ -176,11 +184,12 @@ begin
   inherited Create;
   FPath22 := 'C:\Delphi11_Mock';
   FPath23 := 'C:\Delphi12_Mock';
+  FPath37 := 'C:\Delphi13_Mock';
 end;
 
 function TRegistryMock.GetInstalledDelphiVersions: TArray<string>;
 begin
-  Result := TArray<string>.Create('22.0', '23.0');
+  Result := TArray<string>.Create('22.0', '23.0', '37.0');
 end;
 
 function TRegistryMock.GetDelphiPath(const AVersion: string): string;
@@ -189,6 +198,8 @@ begin
     Result := FPath22
   else if AVersion = '23.0' then
     Result := FPath23
+  else if AVersion = '37.0' then
+    Result := FPath37
   else
     Result := '';
 end;

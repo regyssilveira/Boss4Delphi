@@ -93,8 +93,8 @@ begin
   if FUseSSH then
     Exit(GetSSHUrl);
 
-  // Se ja possuir prefixo HTTP/HTTPS, retorna diretamente
-  if TRegEx.IsMatch(FRepository, '^https?:\/\/') then
+  // Se ja possuir prefixo HTTP/HTTPS ou for um caminho de arquivo/intranet, retorna diretamente
+  if TRegEx.IsMatch(FRepository, '^(https?|file):\/\/') or FRepository.StartsWith('\\') or TRegEx.IsMatch(FRepository, '^[a-zA-Z]:\\') then
     Exit(FRepository);
 
   Result := 'https://' + FRepository;
