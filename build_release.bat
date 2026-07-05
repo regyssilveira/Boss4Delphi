@@ -61,7 +61,7 @@ setlocal
 pushd src\IDE
 call "%D11_PATH%\bin\rsvars.bat"
 brcc32 Boss4D.IDE.Plugin.rc
-call dcc32 -B -Q -LUdesignide -DIDE_PLUGIN -U"%D11_PATH%\lib\Win32\release" Boss4D.IDE.Plugin.dpk
+call dcc32 -B -Q -LUrtl -LUvcl -LUdesignide -DIDE_PLUGIN -U"%D11_PATH%\lib\Win32\release" Boss4D.IDE.Plugin.dpk
 popd
 copy src\IDE\Boss4D.IDE.Plugin.bpl dist\plugins\11\Boss4D.IDE.Plugin.bpl
 del src\IDE\Boss4D.IDE.Plugin.bpl 2>nul
@@ -78,7 +78,7 @@ setlocal
 pushd src\IDE
 call "%D12_PATH%\bin\rsvars.bat"
 brcc32 Boss4D.IDE.Plugin.rc
-call dcc32 -B -Q -LUdesignide -DIDE_PLUGIN -U"%D12_PATH%\lib\Win32\release" Boss4D.IDE.Plugin.dpk
+call dcc32 -B -Q -LUrtl -LUvcl -LUdesignide -DIDE_PLUGIN -U"%D12_PATH%\lib\Win32\release" Boss4D.IDE.Plugin.dpk
 popd
 copy src\IDE\Boss4D.IDE.Plugin.bpl dist\plugins\12\Boss4D.IDE.Plugin.bpl
 del src\IDE\Boss4D.IDE.Plugin.bpl 2>nul
@@ -93,7 +93,7 @@ setlocal
 pushd src\IDE
 call "%D13_PATH%\bin\rsvars.bat"
 brcc32 Boss4D.IDE.Plugin.rc
-call dcc32 -B -Q -LUdesignide -DIDE_PLUGIN -U"%D13_PATH%\lib\Win32\release" Boss4D.IDE.Plugin.dpk
+call dcc32 -B -Q -LUrtl -LUvcl -LUdesignide -DIDE_PLUGIN -U"%D13_PATH%\lib\Win32\release" Boss4D.IDE.Plugin.dpk
 popd
 copy src\IDE\Boss4D.IDE.Plugin.bpl dist\plugins\13\Boss4D.IDE.Plugin.bpl
 del src\IDE\Boss4D.IDE.Plugin.bpl 2>nul
