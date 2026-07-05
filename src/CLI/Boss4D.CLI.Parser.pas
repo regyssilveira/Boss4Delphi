@@ -9,7 +9,7 @@ uses
   Boss4D.Core.Services.Doctor, Boss4D.Core.Services.License,
   Boss4D.Core.Services.Tree, Boss4D.Core.Services.Outdated,
   Boss4D.Core.Services.Tool, Boss4D.Core.Services.IDEIntegration,
-  Boss4D.Core.Services.GetIt;
+  Boss4D.Core.Services.GetIt, Boss4D.Core.Services.Clean;
 
 type
   { Interpretador e orquestrador de comandos da linha de comando (CLI) }
@@ -36,6 +36,7 @@ type
     procedure HandleTool(const AArgs: TArray<string>);
     procedure HandlePlugin(const AArgs: TArray<string>);
     procedure HandleGetIt(const AArgs: TArray<string>);
+    procedure HandleClean(const AArgs: TArray<string>);
   public
     constructor Create(
       const ALogger: IBoss4DLogger;
@@ -107,6 +108,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  tree                 Exibe a arvore de dependencias do projeto.');
   FLogger.Log(TBoss4DLogLevel.Info, '  outdated             Verifica se ha atualizacoes disponiveis dos pacotes.');
   FLogger.Log(TBoss4DLogLevel.Info, '  tool install -g <repo> Compila e instala um utilitario Delphi globalmente.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  clean                Apaga a pasta modules e o arquivo boss-lock.json.');
   FLogger.Log(TBoss4DLogLevel.Info, '  version, -v, --version Exibe a versao atual do Boss4D.');
   FLogger.Log(TBoss4DLogLevel.Info, '  help, -h, --help     Exibe este menu de ajuda.');
   FLogger.Log(TBoss4DLogLevel.Info, '');
@@ -154,7 +156,9 @@ begin
   else if LCommand = 'plugin' then
     HandlePlugin(AArgs)
   else if LCommand = 'getit' then
-    HandleGetIt(AArgs);
+    HandleGetIt(AArgs)
+  else if LCommand = 'clean' then
+    HandleClean(AArgs);
 end;
 
 procedure TBoss4DCommandLineParser.HandleInit(const AArgs: TArray<string>);
@@ -541,6 +545,18 @@ begin
     end;
   finally
     LGetItService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleClean(const AArgs: TArray<string>);
+var
+  LCleanService: TBoss4DCleanService;
+begin
+  LCleanService := TBoss4DCleanService.Create(FLogger);
+  try
+    LCleanService.Execute;
+  finally
+    LCleanService.Free;
   end;
 end;
 

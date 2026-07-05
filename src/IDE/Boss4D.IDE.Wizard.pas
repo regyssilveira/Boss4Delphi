@@ -744,6 +744,16 @@ begin
   ));
 
   ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
+    'Boss4D Clean',
+    'mnuBoss4DClean',
+    '',
+    'Boss4DCleanVerb',
+    LProjectDir,
+    'clean',
+    135
+  ));
+
+  ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
     'Boss4D Outdated',
     'mnuBoss4DOutdated',
     '',

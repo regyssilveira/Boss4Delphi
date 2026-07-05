@@ -33,6 +33,7 @@ uses
   Boss4D.Core.Services.Tool in 'Core/Services/Boss4D.Core.Services.Tool.pas',
   Boss4D.Core.Services.Workspace in 'Core/Services/Boss4D.Core.Services.Workspace.pas',
   Boss4D.Core.Services.GetIt in 'Core/Services/Boss4D.Core.Services.GetIt.pas',
+  Boss4D.Core.Services.Clean in 'Core/Services/Boss4D.Core.Services.Clean.pas',
   Boss4D.CLI.Parser in 'CLI/Boss4D.CLI.Parser.pas';
 
 var

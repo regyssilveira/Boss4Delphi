@@ -103,6 +103,9 @@ type
 
     [Test]
     procedure TestIDEWizardInitialization;
+
+    [Test]
+    procedure TestCleanService;
   end;
 
 implementation
@@ -118,7 +121,7 @@ uses
   Boss4D.Core.Services.Doctor, Boss4D.Core.Services.License,
   Boss4D.Core.Services.Tree, Boss4D.Core.Services.Outdated,
   Boss4D.Core.Services.IDEIntegration, Boss4D.Core.Services.Tool, Boss4D.Core.Services.Workspace, Boss4D.Core.Services.GetIt,
-  Boss4D.IDE.Wizard;
+  Boss4D.Core.Services.Clean, Boss4D.IDE.Wizard;
 
 { TTestLogger }
 
@@ -1380,6 +1383,35 @@ begin
     if TDirectory.Exists(LTempDir) then
       TDirectory.Delete(LTempDir, True);
   end;
+end;
+
+procedure TTestsServices.TestCleanService;
+var
+  LModulesDir: string;
+  LLockFile: string;
+  LService: TBoss4DCleanService;
+begin
+  LModulesDir := TPath.Combine(FTempDir, FOLDER_DEPENDENCIES);
+  LLockFile := TPath.Combine(FTempDir, FILE_PACKAGE_LOCK);
+
+  TDirectory.CreateDirectory(LModulesDir);
+  TFile.WriteAllText(TPath.Combine(LModulesDir, 'dummy.txt'), 'test');
+  TFile.WriteAllText(LLockFile, '{}');
+
+  Assert.IsTrue(TDirectory.Exists(LModulesDir));
+  Assert.IsTrue(TFile.Exists(LLockFile));
+
+  LService := TBoss4DCleanService.Create(TTestLogger.Create);
+  try
+    TDirectory.SetCurrentDirectory(FTempDir);
+    LService.Execute;
+  finally
+    LService.Free;
+    TDirectory.SetCurrentDirectory(FPrevCurrentDir);
+  end;
+
+  Assert.IsFalse(TDirectory.Exists(LModulesDir), 'Pasta modules deveria ter sido removida!');
+  Assert.IsFalse(TFile.Exists(LLockFile), 'Arquivo boss-lock.json deveria ter sido removido!');
 end;
 
 end.
