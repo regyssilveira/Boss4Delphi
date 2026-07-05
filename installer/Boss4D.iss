@@ -88,7 +88,7 @@ procedure RegisterPlugin(BDSVersion: string; SubFolder: string);
 var
   RegKey: string;
 begin
-  RegKey := 'Software\Embarcadero\BDS\' + BDSVersion + '\Known Packages';
+  RegKey := 'Software\Embarcadero\BDS\' + BDSVersion + '\KnownIDEPackages';
   if RegWriteStringValue(HKCU, RegKey, ExpandConstant('{app}\plugins\' + SubFolder + '\Boss4D.IDE.Plugin.bpl'), 'Boss4D - RAD Studio IDE Integration Plugin') then
     Log('Plugin registrado com sucesso na IDE ' + BDSVersion)
   else
@@ -100,7 +100,7 @@ var
   RegKey: string;
   BPLPath: string;
 begin
-  RegKey := 'Software\Embarcadero\BDS\' + BDSVersion + '\Known Packages';
+  RegKey := 'Software\Embarcadero\BDS\' + BDSVersion + '\KnownIDEPackages';
   BPLPath := ExpandConstant('{app}\plugins\' + SubFolder + '\Boss4D.IDE.Plugin.bpl');
   if RegValueExists(HKCU, RegKey, BPLPath) then
   begin
