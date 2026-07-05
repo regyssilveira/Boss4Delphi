@@ -79,6 +79,15 @@ type
 
     [Test]
     procedure TestToolGlobalInstallation;
+
+    [Test]
+    procedure TestIDEIntegrationPackages;
+
+    [Test]
+    procedure TestToolLifecycle;
+
+    [Test]
+    procedure TestPluginInstallation;
   end;
 
 implementation
@@ -874,6 +883,162 @@ begin
       TFile.Delete(LFakeEXETarget);
   finally
     LToolService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDEIntegrationPackages;
+var
+  LRegistryMock: IBoss4DRegistryService;
+  LIntegration: TBoss4DIDEIntegrationService;
+  LReg: TRegistry;
+  LTestKeyPackages: string;
+  LTestKeyIDEPackages: string;
+begin
+  LRegistryMock := TRegistryMock.Create;
+  LIntegration := TBoss4DIDEIntegrationService.Create(LRegistryMock, TTestLogger.Create);
+  try
+    LIntegration.RegistryKeyPrefix := 'Software\Boss4DTests\BDS\';
+    
+    // Cria as chaves de Known Packages e Known IDE Packages para Delphi 22.0
+    LReg := TRegistry.Create(KEY_WRITE);
+    try
+      LReg.RootKey := HKEY_CURRENT_USER;
+      LTestKeyPackages := 'Software\Boss4DTests\BDS\22.0\Known Packages';
+      LTestKeyIDEPackages := 'Software\Boss4DTests\BDS\22.0\Known IDE Packages';
+      Assert.IsTrue(LReg.CreateKey(LTestKeyPackages));
+      Assert.IsTrue(LReg.CreateKey(LTestKeyIDEPackages));
+    finally
+      LReg.Free;
+    end;
+
+    // Registra pacotes
+    LIntegration.RegisterDesignTimePackage('C:\fake_component.bpl', 'Componente Fake');
+    LIntegration.RegisterIDEPackage('C:\fake_plugin.bpl', 'Plugin Fake');
+
+    // Valida
+    LReg := TRegistry.Create(KEY_READ);
+    try
+      LReg.RootKey := HKEY_CURRENT_USER;
+      Assert.IsTrue(LReg.OpenKey(LTestKeyPackages, False));
+      Assert.AreEqual<string>('Componente Fake', LReg.ReadString('C:\fake_component.bpl'));
+      LReg.CloseKey;
+
+      Assert.IsTrue(LReg.OpenKey(LTestKeyIDEPackages, False));
+      Assert.AreEqual<string>('Plugin Fake', LReg.ReadString('C:\fake_plugin.bpl'));
+    finally
+      LReg.Free;
+    end;
+
+    // Limpeza
+    LReg := TRegistry.Create(KEY_WRITE);
+    try
+      LReg.RootKey := HKEY_CURRENT_USER;
+      LReg.DeleteKey('Software\Boss4DTests');
+    finally
+      LReg.Free;
+    end;
+  finally
+    LIntegration.Free;
+  end;
+end;
+
+procedure TTestsServices.TestToolLifecycle;
+var
+  LGitClientMock: IBoss4DGitClient;
+  LCompilerMock: IBoss4DCompiler;
+  LToolService: TBoss4DToolService;
+  LHomeDir: string;
+  LBinGlobalDir: string;
+  LFakeEXETarget: string;
+begin
+  LGitClientMock := TGitClientMock.Create;
+  LCompilerMock := TCompilerMock.Create;
+  LToolService := TBoss4DToolService.Create(LGitClientMock, LCompilerMock, TTestLogger.Create);
+  try
+    LHomeDir := GetBossHome;
+    LBinGlobalDir := TPath.Combine(LHomeDir, 'bin');
+    LFakeEXETarget := TPath.Combine(LBinGlobalDir, 'fake_tool.exe');
+
+    // Instala
+    LToolService.InstallGlobalTool('github.com/test/fake_tool');
+    Assert.IsTrue(TFile.Exists(LFakeEXETarget));
+
+    // Update
+    LToolService.UpdateGlobalTool('fake_tool', 'github.com/test/fake_tool');
+    Assert.IsTrue(TFile.Exists(LFakeEXETarget));
+
+    // Uninstall
+    LToolService.UninstallGlobalTool('fake_tool');
+    Assert.IsFalse(TFile.Exists(LFakeEXETarget));
+  finally
+    LToolService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestPluginInstallation;
+var
+  LGitClientMock: IBoss4DGitClient;
+  LCompilerMock: IBoss4DCompiler;
+  LRegistryMock: IBoss4DRegistryService;
+  LIDEIntegration: TBoss4DIDEIntegrationService;
+  LTempCloneDir: string;
+  LPluginsDir: string;
+  LDep: TBoss4DDependency;
+  LLock: TBoss4DLock;
+  LDestBPL: string;
+begin
+  LGitClientMock := TGitClientMock.Create;
+  LCompilerMock := TCompilerMock.Create;
+  LRegistryMock := TRegistryMock.Create;
+  LIDEIntegration := TBoss4DIDEIntegrationService.Create(LRegistryMock, TTestLogger.Create);
+  try
+    LIDEIntegration.RegistryKeyPrefix := 'Software\Boss4DTests\BDS\';
+    LDep := TBoss4DDependency.Create('github.com/test/fake_tool', '*');
+    LLock := TBoss4DLock.Create;
+    LTempCloneDir := TPath.Combine(TPath.Combine(GetBossHome, 'temp_plugins'), LDep.Name);
+    LPluginsDir := TPath.Combine(TPath.Combine(GetEnvironmentVariable('APPDATA'), 'Boss4D'), 'plugins');
+    LDestBPL := TPath.Combine(LPluginsDir, 'fake_tool.bpl');
+
+    // 1. Simula Clone e Compilacao do plugin usando os mocks
+    if not TDirectory.Exists(LTempCloneDir) then
+      TDirectory.CreateDirectory(LTempCloneDir);
+
+    TFile.WriteAllText(TPath.Combine(LTempCloneDir, 'fake_tool.dproj'), 'fake dproj');
+    TFile.WriteAllText(TPath.Combine(LTempCloneDir, 'fake_tool.bpl'), 'fake bpl');
+
+    if not TDirectory.Exists(LPluginsDir) then
+      TDirectory.CreateDirectory(LPluginsDir);
+
+    TFile.Copy(TPath.Combine(LTempCloneDir, 'fake_tool.bpl'), LDestBPL, True);
+
+    // 2. Registra na IDE
+    LIDEIntegration.RegisterIDEPackage(LDestBPL, 'Fake Plugin Extension');
+
+    // 3. Valida no Registro
+    var LReg := TRegistry.Create(KEY_READ);
+    try
+      LReg.RootKey := HKEY_CURRENT_USER;
+      Assert.IsTrue(LReg.OpenKey('Software\Boss4DTests\BDS\22.0\Known IDE Packages', False));
+      Assert.AreEqual<string>('Fake Plugin Extension', LReg.ReadString(LDestBPL));
+    finally
+      LReg.Free;
+    end;
+
+    // 4. Limpeza
+    if TFile.Exists(LDestBPL) then TFile.Delete(LDestBPL);
+    if TDirectory.Exists(LTempCloneDir) then TDirectory.Delete(LTempCloneDir, True);
+    
+    var LRegWrite := TRegistry.Create(KEY_WRITE);
+    try
+      LRegWrite.RootKey := HKEY_CURRENT_USER;
+      LRegWrite.DeleteKey('Software\Boss4DTests');
+    finally
+      LRegWrite.Free;
+    end;
+  finally
+    LLock.Free;
+    LDep.Free;
+    LIDEIntegration.Free;
   end;
 end;
 

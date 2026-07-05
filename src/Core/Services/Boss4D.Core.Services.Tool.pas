@@ -15,6 +15,8 @@ type
   public
     constructor Create(const AGitClient: IBoss4DGitClient; const ACompiler: IBoss4DCompiler; const ALogger: IBoss4DLogger);
     procedure InstallGlobalTool(const ARepository: string);
+    procedure UninstallGlobalTool(const AToolName: string);
+    procedure UpdateGlobalTool(const AToolName: string; const ARepository: string);
   end;
 
 implementation
@@ -96,6 +98,31 @@ begin
     LLock.Free;
     LDep.Free;
   end;
+end;
+
+procedure TBoss4DToolService.UninstallGlobalTool(const AToolName: string);
+var
+  LBinGlobalDir: string;
+  LTargetEXE: string;
+begin
+  LBinGlobalDir := TPath.Combine(GetBossHome, 'bin');
+  LTargetEXE := TPath.Combine(LBinGlobalDir, AToolName + '.exe');
+
+  if TFile.Exists(LTargetEXE) then
+  begin
+    TFile.Delete(LTargetEXE);
+    FLogger.Log(TBoss4DLogLevel.Info, '✅ Ferramenta "%s" desinstalada com sucesso.', [AToolName]);
+  end
+  else
+  begin
+    FLogger.Log(TBoss4DLogLevel.Warning, 'Ferramenta "%s" nao encontrada instalada globalmente.', [AToolName]);
+  end;
+end;
+
+procedure TBoss4DToolService.UpdateGlobalTool(const AToolName: string; const ARepository: string);
+begin
+  FLogger.Log(TBoss4DLogLevel.Info, 'Atualizando ferramenta "%s"...', [AToolName]);
+  InstallGlobalTool(ARepository);
 end;
 
 end.

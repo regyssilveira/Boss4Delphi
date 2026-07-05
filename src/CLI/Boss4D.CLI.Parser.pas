@@ -8,7 +8,7 @@ uses
   Boss4D.Core.Services.Cache, Boss4D.Core.Services.Run,
   Boss4D.Core.Services.Doctor, Boss4D.Core.Services.License,
   Boss4D.Core.Services.Tree, Boss4D.Core.Services.Outdated,
-  Boss4D.Core.Services.Tool;
+  Boss4D.Core.Services.Tool, Boss4D.Core.Services.IDEIntegration;
 
 type
   { Interpretador e orquestrador de comandos da linha de comando (CLI) }
@@ -33,6 +33,7 @@ type
     procedure HandleTree(const AArgs: TArray<string>);
     procedure HandleOutdated(const AArgs: TArray<string>);
     procedure HandleTool(const AArgs: TArray<string>);
+    procedure HandlePlugin(const AArgs: TArray<string>);
   public
     constructor Create(
       const ALogger: IBoss4DLogger;
@@ -49,11 +50,14 @@ type
 implementation
 
 uses
-  System.SysUtils,
+  System.SysUtils, System.IOUtils,
   Boss4D.Adapters.Json,
   Boss4D.Adapters.Git,
   Boss4D.Adapters.Compiler,
-  Boss4D.Adapters.Registry;
+  Boss4D.Adapters.Registry,
+  Boss4D.Core.Domain.Dependency,
+  Boss4D.Core.Domain.Lock,
+  Boss4D.Core.Domain.Env;
 
 { TBoss4DCommandLineParser }
 
@@ -144,7 +148,9 @@ begin
   else if LCommand = 'outdated' then
     HandleOutdated(AArgs)
   else if LCommand = 'tool' then
-    HandleTool(AArgs);
+    HandleTool(AArgs)
+  else if LCommand = 'plugin' then
+    HandlePlugin(AArgs);
 end;
 
 procedure TBoss4DCommandLineParser.HandleInit(const AArgs: TArray<string>);
@@ -358,21 +364,49 @@ var
   LCompiler: IBoss4DCompiler;
   LRegistry: IBoss4DRegistryService;
 begin
-  if (Length(AArgs) < 4) or not SameText(AArgs[1], 'install') or not SameText(AArgs[2], '-g') then
+  if (Length(AArgs) >= 4) and SameText(AArgs[1], 'install') and SameText(AArgs[2], '-g') then
+  begin
+    LGitClient := TBoss4DGitCliAdapter.Create(False);
+    LRegistry := TBoss4DWindowsRegistryAdapter.Create;
+    LCompiler := TBoss4DDelphiCompilerAdapter.Create(LRegistry, FLogger);
+    LToolService := TBoss4DToolService.Create(LGitClient, LCompiler, FLogger);
+    try
+      LToolService.InstallGlobalTool(AArgs[3]);
+    finally
+      LToolService.Free;
+    end;
+  end
+  else if (Length(AArgs) >= 4) and SameText(AArgs[1], 'update') then
+  begin
+    LGitClient := TBoss4DGitCliAdapter.Create(False);
+    LRegistry := TBoss4DWindowsRegistryAdapter.Create;
+    LCompiler := TBoss4DDelphiCompilerAdapter.Create(LRegistry, FLogger);
+    LToolService := TBoss4DToolService.Create(LGitClient, LCompiler, FLogger);
+    try
+      LToolService.UpdateGlobalTool(AArgs[2], AArgs[3]);
+    finally
+      LToolService.Free;
+    end;
+  end
+  else if (Length(AArgs) >= 3) and SameText(AArgs[1], 'uninstall') then
+  begin
+    LGitClient := TBoss4DGitCliAdapter.Create(False);
+    LRegistry := TBoss4DWindowsRegistryAdapter.Create;
+    LCompiler := TBoss4DDelphiCompilerAdapter.Create(LRegistry, FLogger);
+    LToolService := TBoss4DToolService.Create(LGitClient, LCompiler, FLogger);
+    try
+      LToolService.UninstallGlobalTool(AArgs[2]);
+    finally
+      LToolService.Free;
+    end;
+  end
+  else
   begin
     FLogger.Log(TBoss4DLogLevel.Warning, 'Uso invalido do comando tool.');
-    FLogger.Log(TBoss4DLogLevel.Info, 'Uso: boss4d tool install -g <repositorio>');
-    Exit;
-  end;
-
-  LGitClient := TBoss4DGitCliAdapter.Create(False);
-  LRegistry := TBoss4DWindowsRegistryAdapter.Create;
-  LCompiler := TBoss4DDelphiCompilerAdapter.Create(LRegistry, FLogger);
-  LToolService := TBoss4DToolService.Create(LGitClient, LCompiler, FLogger);
-  try
-    LToolService.InstallGlobalTool(AArgs[3]);
-  finally
-    LToolService.Free;
+    FLogger.Log(TBoss4DLogLevel.Info, 'Comandos aceitos:');
+    FLogger.Log(TBoss4DLogLevel.Info, '  boss4d tool install -g <repositorio>');
+    FLogger.Log(TBoss4DLogLevel.Info, '  boss4d tool update <ferramenta> <repositorio>');
+    FLogger.Log(TBoss4DLogLevel.Info, '  boss4d tool uninstall <ferramenta>');
   end;
 end;
 
@@ -389,6 +423,81 @@ begin
     LOutdatedService.CheckOutdated;
   finally
     LOutdatedService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandlePlugin(const AArgs: TArray<string>);
+var
+  LGitClient: IBoss4DGitClient;
+  LCompiler: IBoss4DCompiler;
+  LRegistry: IBoss4DRegistryService;
+  LIDEIntegration: TBoss4DIDEIntegrationService;
+  LDep: TBoss4DDependency;
+  LTempCloneDir: string;
+  LPluginsDir: string;
+  LFiles: TArray<string>;
+  LBPLFiles: TArray<string>;
+  LLock: TBoss4DLock;
+  LPluginName: string;
+  LDestBPL: string;
+begin
+  if (Length(AArgs) < 3) or not SameText(AArgs[1], 'install') then
+  begin
+    FLogger.Log(TBoss4DLogLevel.Warning, 'Uso invalido do comando plugin.');
+    FLogger.Log(TBoss4DLogLevel.Info, 'Uso: boss4d plugin install <repositorio>');
+    Exit;
+  end;
+
+  FLogger.Log(TBoss4DLogLevel.Info, 'Iniciando instalacao de plugin de IDE: %s', [AArgs[2]]);
+
+  LGitClient := TBoss4DGitCliAdapter.Create(False);
+  LRegistry := TBoss4DWindowsRegistryAdapter.Create;
+  LCompiler := TBoss4DDelphiCompilerAdapter.Create(LRegistry, FLogger);
+  LIDEIntegration := TBoss4DIDEIntegrationService.Create(LRegistry, FLogger);
+  
+  LDep := TBoss4DDependency.Create(AArgs[2], '*');
+  LLock := TBoss4DLock.Create;
+  LTempCloneDir := TPath.Combine(TPath.Combine(GetBossHome, 'temp_plugins'), LDep.Name);
+  LPluginsDir := TPath.Combine(TPath.Combine(GetEnvironmentVariable('APPDATA'), 'Boss4D'), 'plugins');
+  try
+    if TDirectory.Exists(LTempCloneDir) then
+      TDirectory.Delete(LTempCloneDir, True);
+
+    TDirectory.CreateDirectory(LTempCloneDir);
+
+    FLogger.Log(TBoss4DLogLevel.Info, '  Clonando fontes do plugin...');
+    LGitClient.CloneCache(LDep, LTempCloneDir);
+
+    LFiles := TDirectory.GetFiles(LTempCloneDir, '*.dproj', TSearchOption.soAllDirectories);
+    if Length(LFiles) = 0 then
+      raise Exception.Create('Nenhum projeto Delphi (.dproj) encontrado no repositorio do plugin.');
+
+    FLogger.Log(TBoss4DLogLevel.Info, '  Compilando plugin...');
+    if not LCompiler.Compile(LFiles[0], LDep, LLock) then
+      raise Exception.Create('Falha na compilacao do plugin.');
+
+    LBPLFiles := TDirectory.GetFiles(LTempCloneDir, '*.bpl', TSearchOption.soAllDirectories);
+    if Length(LBPLFiles) = 0 then
+      raise Exception.Create('Arquivo BPL compilado nao foi localizado na pasta de build.');
+
+    if not TDirectory.Exists(LPluginsDir) then
+      TDirectory.CreateDirectory(LPluginsDir);
+
+    LPluginName := TPath.GetFileNameWithoutExtension(LFiles[0]);
+    LDestBPL := TPath.Combine(LPluginsDir, LPluginName + '.bpl');
+
+    TFile.Copy(LBPLFiles[0], LDestBPL, True);
+
+    FLogger.Log(TBoss4DLogLevel.Info, '  Registrando plugin no RAD Studio...');
+    LIDEIntegration.RegisterIDEPackage(LDestBPL, LPluginName + ' - IDE Extension');
+
+    FLogger.Log(TBoss4DLogLevel.Info, '🚀 Plugin "%s" instalado e registrado com sucesso!', [LPluginName]);
+  finally
+    if TDirectory.Exists(LTempCloneDir) then
+      TDirectory.Delete(LTempCloneDir, True);
+    LLock.Free;
+    LDep.Free;
+    LIDEIntegration.Free;
   end;
 end;
 
