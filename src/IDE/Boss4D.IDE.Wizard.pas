@@ -162,6 +162,18 @@ begin
   begin
     GWizardIdx := LWizardServices.AddWizard(TBoss4DIDEWizard.Create);
   end;
+
+  var LSplashServices: IOTASplashScreenServices;
+  if Supports(BorlandIDEServices, IOTASplashScreenServices, LSplashServices) then
+  begin
+    LSplashServices.AddPluginBitmap(
+      'Boss4D IDE Integration Plugin',
+      0,
+      False,
+      'Registered',
+      ''
+    );
+  end;
   {$ENDIF}
 end;
 

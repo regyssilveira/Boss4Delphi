@@ -15,9 +15,9 @@ Source: "..\dist\bin\boss4d.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "..\dist\bin\boss4d_x64.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "..\dist\bin\Boss4D.GUI.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "..\dist\bin\Boss4D.GUI_x64.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
-Source: "..\dist\plugins\Boss4D.IDE.Plugin_11.bpl"; DestDir: "{app}\plugins"; Flags: ignoreversion; Check: IsDelphi11Installed
-Source: "..\dist\plugins\Boss4D.IDE.Plugin_12.bpl"; DestDir: "{app}\plugins"; Flags: ignoreversion; Check: IsDelphi12Installed
-Source: "..\dist\plugins\Boss4D.IDE.Plugin_13.bpl"; DestDir: "{app}\plugins"; Flags: ignoreversion; Check: IsDelphi13Installed
+Source: "..\dist\plugins\11\Boss4D.IDE.Plugin.bpl"; DestDir: "{app}\plugins\11"; Flags: ignoreversion; Check: IsDelphi11Installed
+Source: "..\dist\plugins\12\Boss4D.IDE.Plugin.bpl"; DestDir: "{app}\plugins\12"; Flags: ignoreversion; Check: IsDelphi12Installed
+Source: "..\dist\plugins\13\Boss4D.IDE.Plugin.bpl"; DestDir: "{app}\plugins\13"; Flags: ignoreversion; Check: IsDelphi13Installed
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
@@ -84,24 +84,24 @@ begin
   end;
 end;
 
-procedure RegisterPlugin(BDSVersion: string; BPLName: string);
+procedure RegisterPlugin(BDSVersion: string; SubFolder: string);
 var
   RegKey: string;
 begin
   RegKey := 'Software\Embarcadero\BDS\' + BDSVersion + '\Known Packages';
-  if RegWriteStringValue(HKCU, RegKey, ExpandConstant('{app}\plugins\' + BPLName), 'Boss4D IDE Integration Plugin') then
+  if RegWriteStringValue(HKCU, RegKey, ExpandConstant('{app}\plugins\' + SubFolder + '\Boss4D.IDE.Plugin.bpl'), 'Boss4D - RAD Studio IDE Integration Plugin') then
     Log('Plugin registrado com sucesso na IDE ' + BDSVersion)
   else
     Log('Falha ao registrar o plugin na IDE ' + BDSVersion);
 end;
 
-procedure UnregisterPlugin(BDSVersion: string; BPLName: string);
+procedure UnregisterPlugin(BDSVersion: string; SubFolder: string);
 var
   RegKey: string;
   BPLPath: string;
 begin
   RegKey := 'Software\Embarcadero\BDS\' + BDSVersion + '\Known Packages';
-  BPLPath := ExpandConstant('{app}\plugins\' + BPLName);
+  BPLPath := ExpandConstant('{app}\plugins\' + SubFolder + '\Boss4D.IDE.Plugin.bpl');
   if RegValueExists(HKCU, RegKey, BPLPath) then
   begin
     if RegDeleteValue(HKCU, RegKey, BPLPath) then
@@ -171,27 +171,27 @@ begin
     if Delphi11Idx <> -1 then
     begin
       if IDEOptionPage.Values[Delphi11Idx] then
-        RegisterPlugin('22.0', 'Boss4D.IDE.Plugin_11.bpl')
+        RegisterPlugin('22.0', '11')
       else
-        UnregisterPlugin('22.0', 'Boss4D.IDE.Plugin_11.bpl');
+        UnregisterPlugin('22.0', '11');
     end;
 
     // Delphi 12 (Athens)
     if Delphi12Idx <> -1 then
     begin
       if IDEOptionPage.Values[Delphi12Idx] then
-        RegisterPlugin('23.0', 'Boss4D.IDE.Plugin_12.bpl')
+        RegisterPlugin('23.0', '12')
       else
-        UnregisterPlugin('23.0', 'Boss4D.IDE.Plugin_12.bpl');
+        UnregisterPlugin('23.0', '12');
     end;
 
     // Delphi 13 (Florence)
     if Delphi13Idx <> -1 then
     begin
       if IDEOptionPage.Values[Delphi13Idx] then
-        RegisterPlugin('37.0', 'Boss4D.IDE.Plugin_13.bpl')
+        RegisterPlugin('37.0', '13')
       else
-        UnregisterPlugin('37.0', 'Boss4D.IDE.Plugin_13.bpl');
+        UnregisterPlugin('37.0', '13');
     end;
 
     // Adiciona pasta bin no PATH do Usuario
@@ -204,9 +204,9 @@ begin
   if CurUninstallStep = usPostUninstall then
   begin
     // Limpa registros de todas as IDEs
-    UnregisterPlugin('22.0', 'Boss4D.IDE.Plugin_11.bpl');
-    UnregisterPlugin('23.0', 'Boss4D.IDE.Plugin_12.bpl');
-    UnregisterPlugin('37.0', 'Boss4D.IDE.Plugin_13.bpl');
+    UnregisterPlugin('22.0', '11');
+    UnregisterPlugin('23.0', '12');
+    UnregisterPlugin('37.0', '13');
 
     // Limpa variavel de ambiente PATH
     RemoveFromPath;
