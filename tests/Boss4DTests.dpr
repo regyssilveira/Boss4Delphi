@@ -35,6 +35,8 @@ uses
   Boss4D.Core.Services.Run in '..\src\Core\Services\Boss4D.Core.Services.Run.pas',
   Boss4D.Core.Services.Doctor in '..\src\Core\Services\Boss4D.Core.Services.Doctor.pas',
   Boss4D.Core.Services.License in '..\src\Core\Services\Boss4D.Core.Services.License.pas',
+  Boss4D.Core.Services.Tree in '..\src\Core\Services\Boss4D.Core.Services.Tree.pas',
+  Boss4D.Core.Services.Outdated in '..\src\Core\Services\Boss4D.Core.Services.Outdated.pas',
   Boss4D.CLI.Parser in '..\src\CLI\Boss4D.CLI.Parser.pas',
   Boss4D.Tests.Mocks in 'Boss4D.Tests.Mocks.pas',
   Boss4D.Tests.SemVer in 'Boss4D.Tests.SemVer.pas',

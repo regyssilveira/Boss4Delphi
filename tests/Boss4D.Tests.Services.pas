@@ -61,6 +61,12 @@ type
 
     [Test]
     procedure TestChecksumVerification;
+
+    [Test]
+    procedure TestTreeService;
+
+    [Test]
+    procedure TestOutdatedService;
   end;
 
 implementation
@@ -72,7 +78,8 @@ uses
   Boss4D.Core.Services.Config, Boss4D.Core.Services.Install, Boss4D.CLI.Parser,
   Boss4D.Adapters.Json, Boss4D.Adapters.Compiler, Boss4D.Tests.Mocks,
   Boss4D.Core.Services.Cache, Boss4D.Core.Services.Run,
-  Boss4D.Core.Services.Doctor, Boss4D.Core.Services.License;
+  Boss4D.Core.Services.Doctor, Boss4D.Core.Services.License,
+  Boss4D.Core.Services.Tree, Boss4D.Core.Services.Outdated;
 
 { TTestLogger }
 
@@ -579,6 +586,109 @@ begin
     end;
   finally
     LInstall.Free;
+  end;
+end;
+
+procedure TTestsServices.TestTreeService;
+var
+  LPkgRepo: IBoss4DPackageRepository;
+  LLogger: TTestLogger;
+  LTree: TBoss4DTreeService;
+  LPkg: TBoss4DPackage;
+  LSubDir, LSubDir2: string;
+begin
+  LPkgRepo := TBoss4DPackageJsonRepository.Create;
+  LLogger := TTestLogger.Create;
+  
+  // 1. Cria manifesto principal
+  LPkg := TBoss4DPackage.Create;
+  LPkg.Name := 'root_pkg';
+  LPkg.Version := '1.0.0';
+  LPkg.AddDependency('github.com/dep1', '^1.0.0');
+  LPkgRepo.Save(LPkg, GetBossFile);
+  LPkg.Free;
+
+  // 2. Cria subdependência mockada em modules/
+  LSubDir := TPath.Combine(GetModulesDir, 'dep1');
+  TDirectory.CreateDirectory(LSubDir);
+  LPkg := TBoss4DPackage.Create;
+  LPkg.Name := 'dep1';
+  LPkg.Version := '1.1.0';
+  LPkg.AddDependency('github.com/dep2', '^2.0.0');
+  LPkgRepo.Save(LPkg, TPath.Combine(LSubDir, FILE_PACKAGE));
+  LPkg.Free;
+
+  LSubDir2 := TPath.Combine(GetModulesDir, 'dep2');
+  TDirectory.CreateDirectory(LSubDir2);
+  LPkg := TBoss4DPackage.Create;
+  LPkg.Name := 'dep2';
+  LPkg.Version := '2.0.5';
+  LPkgRepo.Save(LPkg, TPath.Combine(LSubDir2, FILE_PACKAGE));
+  LPkg.Free;
+
+  LTree := TBoss4DTreeService.Create(LPkgRepo, LLogger);
+  try
+    LTree.GenerateTree;
+    
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('root_pkg (1.0.0)'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('dep1 (1.1.0)'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('dep2 (2.0.5)'));
+  finally
+    LTree.Free;
+  end;
+end;
+
+procedure TTestsServices.TestOutdatedService;
+var
+  LPkgRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LGitClientMock: IBoss4DGitClient;
+  LLogger: TTestLogger;
+  LOutdated: TBoss4DOutdatedService;
+  LPkg: TBoss4DPackage;
+  LLock: TBoss4DLock;
+  LDep: TBoss4DDependency;
+  LCacheDir: string;
+begin
+  LPkgRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LGitClientMock := TGitClientMock.Create;
+  LLogger := TTestLogger.Create;
+
+  // 1. Cria manifesto principal
+  LPkg := TBoss4DPackage.Create;
+  LPkg.Name := 'test_outdated';
+  LPkg.Version := '1.0.0';
+  LPkg.AddDependency('github.com/outdated_lib', '^1.0.0');
+  LPkgRepo.Save(LPkg, GetBossFile);
+  LPkg.Free;
+
+  // 2. Cria lock com versão anterior (v1.0.0)
+  LLock := TBoss4DLock.Create;
+  LDep := TBoss4DDependency.Create('github.com/outdated_lib', '^1.0.0');
+  LLock.AddDependency(LDep, '1.0.0', 'hash_xyz');
+  LLockRepo.Save(LLock, TPath.Combine(TDirectory.GetCurrentDirectory, FILE_PACKAGE_LOCK));
+
+  // 3. Cria cache local mockado contendo as tags Git v1.0.0 e a nova v1.2.5
+  LCacheDir := TPath.Combine(GetCacheDir, LDep.HashName);
+  TDirectory.CreateDirectory(LCacheDir);
+  
+  (LGitClientMock as TGitClientMock).CloneCache(LDep, LCacheDir);
+  (LGitClientMock as TGitClientMock).AddMockTags('github.com/outdated_lib', TArray<string>.Create('v1.0.0', 'v1.1.0', 'v1.2.5'));
+
+  LDep.Free;
+  LLock.Free;
+
+  LOutdated := TBoss4DOutdatedService.Create(LPkgRepo, LLockRepo, LGitClientMock, LLogger);
+  try
+    LOutdated.CheckOutdated;
+
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('outdated_lib'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('1.0.0'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('1.2.5'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('Desatualizado'));
+  finally
+    LOutdated.Free;
   end;
 end;
 

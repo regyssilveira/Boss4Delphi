@@ -6,7 +6,8 @@ uses
   Boss4D.Core.Ports, Boss4D.Core.Services.Init,
   Boss4D.Core.Services.Install, Boss4D.Core.Services.Config,
   Boss4D.Core.Services.Cache, Boss4D.Core.Services.Run,
-  Boss4D.Core.Services.Doctor, Boss4D.Core.Services.License;
+  Boss4D.Core.Services.Doctor, Boss4D.Core.Services.License,
+  Boss4D.Core.Services.Tree, Boss4D.Core.Services.Outdated;
 
 type
   { Interpretador e orquestrador de comandos da linha de comando (CLI) }
@@ -28,6 +29,8 @@ type
     procedure HandleRun(const AArgs: TArray<string>);
     procedure HandleDoctor(const AArgs: TArray<string>);
     procedure HandleLicense(const AArgs: TArray<string>);
+    procedure HandleTree(const AArgs: TArray<string>);
+    procedure HandleOutdated(const AArgs: TArray<string>);
   public
     constructor Create(
       const ALogger: IBoss4DLogger;
@@ -44,7 +47,9 @@ type
 implementation
 
 uses
-  System.SysUtils;
+  System.SysUtils,
+  Boss4D.Adapters.Json,
+  Boss4D.Adapters.Git;
 
 { TBoss4DCommandLineParser }
 
@@ -87,6 +92,8 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  doctor               Executa diagnosticos do ambiente de compilacao.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -fix, --fix (tenta auto-configurar a versao delphi).');
   FLogger.Log(TBoss4DLogLevel.Info, '  license report       Gera relatorios de conformidade de licencas em docs/.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  tree                 Exibe a arvore de dependencias do projeto.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  outdated             Verifica se ha atualizacoes disponiveis dos pacotes.');
   FLogger.Log(TBoss4DLogLevel.Info, '  version, -v, --version Exibe a versao atual do Boss4D.');
   FLogger.Log(TBoss4DLogLevel.Info, '  help, -h, --help     Exibe este menu de ajuda.');
   FLogger.Log(TBoss4DLogLevel.Info, '');
@@ -124,7 +131,11 @@ begin
   else if LCommand = 'doctor' then
     HandleDoctor(AArgs)
   else if LCommand = 'license' then
-    HandleLicense(AArgs);
+    HandleLicense(AArgs)
+  else if LCommand = 'tree' then
+    HandleTree(AArgs)
+  else if LCommand = 'outdated' then
+    HandleOutdated(AArgs);
 end;
 
 procedure TBoss4DCommandLineParser.HandleInit(const AArgs: TArray<string>);
@@ -269,6 +280,34 @@ begin
     LLicenseService.GenerateReport;
   finally
     LLicenseService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleTree(const AArgs: TArray<string>);
+var
+  LTreeService: TBoss4DTreeService;
+begin
+  LTreeService := TBoss4DTreeService.Create(FPackageRepo, FLogger);
+  try
+    LTreeService.GenerateTree;
+  finally
+    LTreeService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleOutdated(const AArgs: TArray<string>);
+var
+  LOutdatedService: TBoss4DOutdatedService;
+  LLockRepo: IBoss4DLockRepository;
+  LGitClient: IBoss4DGitClient;
+begin
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LGitClient := TBoss4DGitCliAdapter.Create(False);
+  LOutdatedService := TBoss4DOutdatedService.Create(FPackageRepo, LLockRepo, LGitClient, FLogger);
+  try
+    LOutdatedService.CheckOutdated;
+  finally
+    LOutdatedService.Free;
   end;
 end;
 
