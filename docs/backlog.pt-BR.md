@@ -51,7 +51,7 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
   - Analisar as dependências recém-baixadas, localizar as BPLs de Design-time geradas e registrá-las no registro do Windows do Delphi (`HKEY_CURRENT_USER\Software\Embarcadero\BDS\<versao>\Known Packages` e `Known IDE Packages`) para que os componentes apareçam na paleta da IDE automaticamente.
 - [x] **[Story] Gerenciamento Automático de Library Paths da IDE**
   - Injetar de forma inteligente as pastas de DCU unificadas (`modules/dcu`) ou caminhos de busca no Library Path global do RAD Studio do desenvolvedor, eliminando a necessidade de configurar os caminhos manualmente após a instalação.
-- [ ] **[Story] DCU Megafolders e Otimização de Cache**
+- [x] **[Story] DCU Megafolders e Otimização de Cache**
   - Unificar de forma otimizada os arquivos compilados do projeto em pastas centralizadas por plataforma/configuração, melhorando o tempo de build subsequente.
 
 ---

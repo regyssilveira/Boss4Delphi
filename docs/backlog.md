@@ -51,7 +51,7 @@ This document details the future planning, new features (backlog), and architect
   - Parse newly downloaded dependencies, locate generated Design-time BPLs, and register them in the Delphi Windows Registry (`HKEY_CURRENT_USER\Software\Embarcadero\BDS\<version>\Known Packages` and `Known IDE Packages`) so components show up in the IDE palette automatically.
 - [x] **[Story] Automatic IDE Library Path Management**
   - Intelligently inject unified DCU folders (`modules/dcu`) or search paths into the developer's global RAD Studio Library Path, eliminating the need to configure search paths manually.
-- [ ] **[Story] DCU Megafolders and Cache Optimization**
+- [x] **[Story] DCU Megafolders and Cache Optimization**
   - Optimally unify compiled project files into centralized folders grouped by platform/configuration, improving subsequent build times.
 
 ---
