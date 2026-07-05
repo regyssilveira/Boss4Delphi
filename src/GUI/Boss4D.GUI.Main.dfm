@@ -80,7 +80,6 @@ object FormMain: TFormMain
       Height = 450
       ActivePage = TabProject
       Align = alClient
-      Style = tsFlatButtons
       TabOrder = 0
       object TabProject: TTabSheet
         Caption = 'Projeto'
@@ -262,7 +261,7 @@ object FormMain: TFormMain
             Top = 15
             Width = 150
             Height = 30
-            Caption = '🩺  Rodar Diagnostico'
+            Caption = 'Rodar Diagnostico'
             TabOrder = 0
             OnClick = BtnDocCheckClick
           end
@@ -271,7 +270,7 @@ object FormMain: TFormMain
             Top = 15
             Width = 150
             Height = 30
-            Caption = '🔧  Corrigir Ambiente'
+            Caption = 'Corrigir Ambiente'
             TabOrder = 1
             OnClick = BtnDocFixClick
           end
@@ -303,7 +302,7 @@ object FormMain: TFormMain
             Top = 15
             Width = 150
             Height = 30
-            Caption = '🧹  Limpar Tudo'
+            Caption = 'Limpar Tudo'
             TabOrder = 0
             OnClick = BtnCacheCleanClick
           end
@@ -312,7 +311,7 @@ object FormMain: TFormMain
             Top = 15
             Width = 150
             Height = 30
-            Caption = 'xx'
+            Caption = 'Otimizar Cache'
             TabOrder = 1
             OnClick = BtnCachePruneClick
           end
