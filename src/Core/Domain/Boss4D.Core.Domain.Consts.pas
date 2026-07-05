@@ -15,10 +15,10 @@ const
   FOLDER_DEPENDENCIES  = 'modules';
   FOLDER_BOSS_HOME     = '.boss';
 
-  FOLDER_BIN           = '.bin';
-  FOLDER_BPL           = '.bpl';
-  FOLDER_DCP           = '.dcp';
-  FOLDER_DCU           = '.dcu';
+  FOLDER_BIN           = 'bin';
+  FOLDER_BPL           = 'bpl';
+  FOLDER_DCP           = 'dcp';
+  FOLDER_DCU           = 'dcu';
 
   { Caminho do registro do Windows para encontrar BDS }
   REGISTRY_BASE_PATH   = 'Software\Embarcadero\BDS\';
