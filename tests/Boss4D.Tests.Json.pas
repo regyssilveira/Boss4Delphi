@@ -22,6 +22,8 @@ type
     procedure TestPackageSerialization;
     [Test]
     procedure TestLockSerialization;
+    [Test]
+    procedure TestUTF8WithoutBOMSerialization;
   end;
 
 implementation
@@ -136,6 +138,30 @@ begin
   finally
     LDep.Free;
     LLock.Free;
+  end;
+end;
+
+procedure TTestsJson.TestUTF8WithoutBOMSerialization;
+var
+  LPkg: TBoss4DPackage;
+  LFilePath: string;
+  LBytes: TBytes;
+begin
+  LFilePath := TPath.Combine(FTempDir, 'boss_nobom.json');
+  LPkg := TBoss4DPackage.Create;
+  try
+    LPkg.Name := 'test-nobom';
+    LPkg.Version := '1.0.0';
+    FPackageRepo.Save(LPkg, LFilePath);
+
+    Assert.IsTrue(TFile.Exists(LFilePath));
+    LBytes := TFile.ReadAllBytes(LFilePath);
+    
+    // Assegura que o arquivo tem pelo menos 3 bytes e os 3 primeiros nao sao o BOM UTF-8 (EF BB BF)
+    Assert.IsTrue(Length(LBytes) >= 3);
+    Assert.IsFalse((LBytes[0] = $EF) and (LBytes[1] = $BB) and (LBytes[2] = $BF), 'O arquivo nao deve conter o BOM UTF-8!');
+  finally
+    LPkg.Free;
   end;
 end;
 
