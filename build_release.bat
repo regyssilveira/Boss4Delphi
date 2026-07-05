@@ -59,10 +59,12 @@ if not defined D11_PATH goto SkipD11
 echo Compilando plugin para Delphi 11...
 pushd src\IDE
 call "%D11_PATH%\bin\rsvars.bat"
+brcc32 Boss4D.IDE.Plugin.rc
 call dcc32 -B -Q -DIDE_PLUGIN -U"%D11_PATH%\lib\Win32\release" Boss4D.IDE.Plugin.dpk
 popd
 copy src\IDE\Boss4D.IDE.Plugin.bpl dist\plugins\11\Boss4D.IDE.Plugin.bpl
 del src\IDE\Boss4D.IDE.Plugin.bpl 2>nul
+del src\IDE\Boss4D.IDE.Plugin.res 2>nul
 :SkipD11
 
 :: Delphi 12 (BDS 23.0)
@@ -72,10 +74,12 @@ if not defined D12_PATH goto SkipD12
 echo Compilando plugin para Delphi 12...
 pushd src\IDE
 call "%D12_PATH%\bin\rsvars.bat"
+brcc32 Boss4D.IDE.Plugin.rc
 call dcc32 -B -Q -DIDE_PLUGIN -U"%D12_PATH%\lib\Win32\release" Boss4D.IDE.Plugin.dpk
 popd
 copy src\IDE\Boss4D.IDE.Plugin.bpl dist\plugins\12\Boss4D.IDE.Plugin.bpl
 del src\IDE\Boss4D.IDE.Plugin.bpl 2>nul
+del src\IDE\Boss4D.IDE.Plugin.res 2>nul
 :SkipD12
 
 :: Delphi 13 (BDS 37.0)
@@ -83,10 +87,12 @@ if not defined D13_PATH goto SkipD13
 echo Compilando plugin para Delphi 13...
 pushd src\IDE
 call "%D13_PATH%\bin\rsvars.bat"
+brcc32 Boss4D.IDE.Plugin.rc
 call dcc32 -B -Q -DIDE_PLUGIN -U"%D13_PATH%\lib\Win32\release" Boss4D.IDE.Plugin.dpk
 popd
 copy src\IDE\Boss4D.IDE.Plugin.bpl dist\plugins\13\Boss4D.IDE.Plugin.bpl
 del src\IDE\Boss4D.IDE.Plugin.bpl 2>nul
+del src\IDE\Boss4D.IDE.Plugin.res 2>nul
 :SkipD13
 
 echo [OK] Pasta dist populada e pronta para o Inno Setup!

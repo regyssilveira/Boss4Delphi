@@ -155,7 +155,6 @@ begin
   inherited Create;
   FMenuCreatorIdx := -1;
   FTimer := nil;
-  {$IFDEF IDE_PLUGIN}
   FNotifier := TBoss4DProjectMenuItemCreatorNotifier.Create;
   var LProjectManager: IOTAProjectManager;
   if Supports(BorlandIDEServices, IOTAProjectManager, LProjectManager) then
@@ -169,7 +168,6 @@ begin
     FTimer.OnTimer := OnTimerEvent;
     FTimer.Enabled := True;
   end;
-  {$ENDIF}
 end;
 
 destructor TBoss4DIDEBootManager.Destroy;
@@ -179,7 +177,6 @@ begin
     FTimer.Enabled := False;
     FreeAndNil(FTimer);
   end;
-  {$IFDEF IDE_PLUGIN}
   if (FMenuCreatorIdx <> -1) and Assigned(BorlandIDEServices) then
   begin
     var LProjectManager: IOTAProjectManager;
@@ -188,13 +185,11 @@ begin
       LProjectManager.RemoveMenuItemCreatorNotifier(FMenuCreatorIdx);
     end;
   end;
-  {$ENDIF}
   inherited Destroy;
 end;
 
 procedure TBoss4DIDEBootManager.OnTimerEvent(Sender: TObject);
 begin
-  {$IFDEF IDE_PLUGIN}
   var LProjectManager: IOTAProjectManager;
   if Supports(BorlandIDEServices, IOTAProjectManager, LProjectManager) then
   begin
@@ -204,7 +199,6 @@ begin
       FTimer.Enabled := False;
     end;
   end;
-  {$ENDIF}
 end;
 
 procedure Register;
@@ -213,7 +207,6 @@ var
   LSplashServices: IOTASplashScreenServices;
   LAboutServices: IOTAAboutBoxServices;
 begin
-  {$IFDEF IDE_PLUGIN}
   // Impede o descarregamento sob demanda do pacote pela IDE
   ForceDemandLoadState(dlDisable);
 
@@ -269,7 +262,6 @@ begin
 
   // Instancia o Boot Manager para gerenciar menus de forma tardia e segura
   GBootManager := TBoss4DIDEBootManager.Create;
-  {$ENDIF}
 end;
 
 {$IFNDEF IDE_PLUGIN}
@@ -789,11 +781,9 @@ end;
 initialization
 
 finalization
-  {$IFDEF IDE_PLUGIN}
   if Assigned(GBootManager) then
   begin
     FreeAndNil(GBootManager);
   end;
-  {$ENDIF}
 
 end.

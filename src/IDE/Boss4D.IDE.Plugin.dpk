@@ -1,4 +1,7 @@
 package Boss4D.IDE.Plugin;
+
+{$R *.res}
+
 {$IFDEF IMPLICITBUILDING}
 {$ALIGN 8}
 {$ASSERTIONS ON}
@@ -25,7 +28,6 @@ package Boss4D.IDE.Plugin;
 {$DEFINE DEBUG}
 {$ENDIF}
 {$DESCRIPTION 'Boss4D - RAD Studio IDE Integration Plugin'}
-{$DESIGNONLY}
 {$IMPLICITBUILD ON}
 
 requires
