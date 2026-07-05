@@ -55,3 +55,7 @@ scratch/
 # Code Coverage reports
 *CodeCoverage*
 coverage.xml
+
+# Inno Setup and build distribution folders
+dist/
+installer/Output/
