@@ -133,3 +133,33 @@ This document details the future planning, new features (backlog), and architect
   - Display disk space usage and list cached packages/versions in the `%USERPROFILE%\.boss\cache\` directory.
 - [ ] **[Story] Selective Cleanup (`boss4d cache prune` / `clean`)**
   - Implement the `clean` command (to wipe 100% of caches) and the `prune` command (to intelligently delete only old or unused package caches older than 30 days).
+
+---
+
+## 🔒 Epic 13: Private Repositories and Authentication Credentials
+*Objective: Allow installation of dependencies from private Git repositories and internal corporate network servers.*
+
+- [ ] **[Story] Local Network Path Support (`file:///`)**
+  - Allow installing dependencies and packages stored in shared folders within the corporate intranet.
+- [ ] **[Story] Secure Token and Key Storage**
+  - Develop a secure credentials configuration area (SSH Keys and GitHub/GitLab/Bitbucket Personal Access Tokens) for the Boss4D resolver to pull from private repositories.
+
+---
+
+## 📄 Epic 14: Open Source License Audit and Compliance Reporting
+*Objective: Assist corporate legal audits by generating consolidated reports of third-party licenses in use within the software.*
+
+- [ ] **[Story] License Parsing and Identification**
+  - Scan the dependency tree to identify license types (MIT, Apache, GPL, etc.) declared in `boss.json` manifests or `LICENSE`/`README` files.
+- [ ] **[Story] Compliance Reporting (`boss4d license report`)**
+  - Generate a consolidated document in Markdown, CSV, or HTML format listing all licenses of active packages.
+
+---
+
+## 📱 Epic 15: Full Multiplatform Compilation (Linux, macOS, Mobile)
+*Objective: Enable automatic building of dependencies for all target platforms supported by the Delphi compiler (dcclinux64, dccios, dccandroid, etc.).*
+
+- [ ] **[Story] Platform Selection Flag (`boss4d install --platform`)**
+  - Support target-platform compilation parameters in the command line interface.
+- [ ] **[Story] Cross-Compiler Orchestration**
+  - Update the compiler adapter to invoke the respective Delphi cross-compiling executables and supply correct search path variables for each target platform.

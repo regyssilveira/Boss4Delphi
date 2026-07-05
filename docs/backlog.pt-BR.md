@@ -133,3 +133,33 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
   - Exibir o tamanho em disco e a lista de pacotes/versões cacheados na pasta `%USERPROFILE%\.boss\cache\`.
 - [ ] **[Story] Limpeza Seletiva (`boss4d cache prune` / `clean`)**
   - Implementar o comando `clean` (para apagar 100% dos caches) e `prune` (para apagar de forma inteligente apenas caches de pacotes antigos ou não utilizados há mais de 30 dias).
+
+---
+
+## 🔒 Épico 13: Repositórios Privados e Credenciais de Autenticação
+*Objetivo: Permitir a instalação de dependências a partir de repositórios Git privados e servidores de rede internos corporativos.*
+
+- [ ] **[Story] Suporte a Caminhos de Rede Local (`file:///`)**
+  - Permitir a instalação de dependências e pacotes salvos em pastas compartilhadas da intranet corporativa.
+- [ ] **[Story] Armazenamento Seguro de Tokens e Chaves**
+  - Desenvolver uma área de configuração segura de credenciais de acesso (SSH Keys e Personal Access Tokens do GitHub/GitLab/Bitbucket) para o resolvedor do Boss4D consumir repositórios privados.
+
+---
+
+## 📄 Épico 14: Relatórios e Auditoria de Licenças de Código Aberto (Compliance)
+*Objetivo: Facilitar a auditoria legal corporativa gerando relatórios consolidados de licenças de terceiros em uso no software.*
+
+- [ ] **[Story] Leitura e Identificação de Licenças**
+  - Varrer a árvore de dependências identificando o tipo de licença (MIT, Apache, GPL, etc.) declarada em arquivos `boss.json` ou arquivos do tipo `LICENSE`/`README`.
+- [ ] **[Story] Relatório de Conformidade (`boss4d license report`)**
+  - Gerar um documento consolidado em Markdown, CSV ou HTML com a listagem de todas as licenças dos pacotes em uso.
+
+---
+
+## 📱 Épico 15: Compilação Multiplataforma Completa (Linux, macOS, Mobile)
+*Objetivo: Permitir o build automático de dependências para todas as plataformas suportadas pelo compilador Delphi (dcclinux64, dccios, dccandroid, etc.).*
+
+- [ ] **[Story] Flag de Seleção de Plataforma (`boss4d install --platform`)**
+  - Suportar a passagem de parâmetros de plataforma-alvo de compilação na linha de comando.
+- [ ] **[Story] Orquestração de Compiladores Cruzados**
+  - Ajustar o adaptador de compilação para invocar os respectivos executáveis de cross-compiling do Delphi e passar as variáveis e caminhos corretos de busca para cada plataforma.
