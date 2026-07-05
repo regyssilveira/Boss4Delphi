@@ -1010,6 +1010,8 @@ begin
   LGitClientMock := TGitClientMock.Create;
   LCompilerMock := TCompilerMock.Create;
   LRegistryMock := TRegistryMock.Create;
+  LDep := nil;
+  LLock := nil;
   LIDEIntegration := TBoss4DIDEIntegrationService.Create(LRegistryMock, TTestLogger.Create);
   try
     LIDEIntegration.RegistryKeyPrefix := 'Software\Boss4DTests\BDS\';

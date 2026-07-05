@@ -442,7 +442,35 @@ var
   LURL: string;
   LVers: string;
   LCmd: string;
+  LContextProject: IOTAProject;
+  LProj: IInterface;
+  LMatch: Boolean;
+  I: Integer;
 begin
+  LMatch := False;
+  if (MenuContextList <> nil) and (MenuContextList.Count > 0) then
+  begin
+    for I := 0 to MenuContextList.Count - 1 do
+    begin
+      LProj := MenuContextList[I];
+      if Supports(LProj, IOTAProject, LContextProject) then
+      begin
+        if SameText(TPath.GetDirectoryName(TPath.GetFullPath(LContextProject.FileName)), TPath.GetFullPath(FProjectDir)) then
+        begin
+          LMatch := True;
+          Break;
+        end;
+      end;
+    end;
+  end
+  else
+  begin
+    LMatch := True;
+  end;
+
+  if not LMatch then
+    Exit;
+
   if FCommand = 'install-dialog' then
   begin
     LDlg := TBoss4DInstallDialog.Create(nil);

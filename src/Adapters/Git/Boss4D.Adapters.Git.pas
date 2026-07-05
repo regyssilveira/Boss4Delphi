@@ -24,6 +24,7 @@ type
 implementation
 
 uses
+  Winapi.Windows,
   System.SysUtils,
   System.IOUtils,
   System.Generics.Collections,
@@ -180,7 +181,7 @@ begin
   if TDirectory.Exists(LGitFolder) then
   begin
     // Remove atributos de somente leitura nos arquivos da pasta .git para evitar erros de permissao
-    TDirectory.SetAttributes(LGitFolder, [TFileAttribute.faDirectory]);
+    SetFileAttributes(PChar(LGitFolder), FILE_ATTRIBUTE_DIRECTORY);
     TDirectory.Delete(LGitFolder, True);
   end;
 end;

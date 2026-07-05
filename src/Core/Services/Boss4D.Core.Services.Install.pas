@@ -193,6 +193,23 @@ begin
   begin
     for var LFile in LFiles do
     begin
+      var LLowerPath := LFile.ToLower;
+      if LLowerPath.Contains('\samples\') or 
+         LLowerPath.Contains('\tests\') or 
+         LLowerPath.Contains('\examples\') or 
+         LLowerPath.Contains('\demo\') or 
+         LLowerPath.Contains('\demos\') or 
+         LLowerPath.Contains('\test\') or 
+         LLowerPath.Contains('\sample\') or
+         LLowerPath.Contains('/samples/') or 
+         LLowerPath.Contains('/tests/') or 
+         LLowerPath.Contains('/examples/') or 
+         LLowerPath.Contains('/demo/') or 
+         LLowerPath.Contains('/demos/') or 
+         LLowerPath.Contains('/test/') or 
+         LLowerPath.Contains('/sample/') then
+        Continue;
+
       // Executa compilação nativa
       FCompiler.Compile(LFile, ADep, ALock, APlatform);
     end;
