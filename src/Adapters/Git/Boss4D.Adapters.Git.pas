@@ -114,7 +114,15 @@ begin
   if not AVersion.IsEmpty then
   begin
     if not ExecuteGit('checkout "' + AVersion + '"', ATargetDir, LOutput) then
+    begin
+      // Se falhou e nao comeca com 'v', tenta adicionar 'v' na frente para compatibilidade com tags do GitHub
+      if not AVersion.StartsWith('v', True) then
+      begin
+        if ExecuteGit('checkout "v' + AVersion + '"', ATargetDir, LOutput) then
+          Exit;
+      end;
       raise Exception.CreateFmt('Erro ao efetuar checkout da versao %s: %s', [AVersion, LOutput]);
+    end;
   end;
 
   // Remove a pasta .git no destino para nao poluir o projeto com sub-repositorios git
