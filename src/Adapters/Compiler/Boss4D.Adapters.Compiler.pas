@@ -227,7 +227,7 @@ begin
     Exit;
   end;
 
-  FLogger.Log(TBoss4DLogLevel.Info, '  🔨 Compilando ' + TPath.GetFileName(ADprojPath));
+  FLogger.Log(TBoss4DLogLevel.Info, '  Compilando ' + TPath.GetFileName(ADprojPath));
 
   LAbsDir := TPath.GetDirectoryName(TPath.GetFullPath(ADprojPath));
   var LFileRes := 'build_boss4d_' + TPath.GetFileNameWithoutExtension(ADprojPath);
@@ -288,12 +288,12 @@ begin
     if not Result then
     begin
       FLogger.Log(TBoss4DLogLevel.Error,
-        '  ❌ Erro ao compilar. Veja o arquivo de log para mais informacoes: %s',
+        '  Erro ao compilar. Veja o arquivo de log para mais informacoes: %s',
         [LBuildLog]);
     end
     else
     begin
-      FLogger.Log(TBoss4DLogLevel.Info, '  ✅ Compilado com sucesso!');
+      FLogger.Log(TBoss4DLogLevel.Info, '  Compilado com sucesso!');
 
       // Apaga arquivos de log e batch gerados apenas em caso de sucesso
       if TFile.Exists(LBuildLog) then TFile.Delete(LBuildLog);
