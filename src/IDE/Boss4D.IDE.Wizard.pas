@@ -593,115 +593,106 @@ begin
                   LProject: IOTAProject;
                   I: Integer;
                   LOptions: IOTAProjectOptions;
-                  function BuildProjectSearchPaths(const AProjectDir: string): TArray<string>;
-                  var
-                    LPaths: TStringList;
-                    LLockPath: string;
-                    LJSONStr: string;
-                    LJSONObj, LModulesObj: TJSONObject;
-                    Idx: Integer;
-                    LModName: string;
-                    LModDir: string;
-                    LPkgPath: string;
-                    LPkgJSON: TJSONObject;
-                    LMainSrc: string;
-                    LSubPaths: TArray<string>;
-                    LSubPath: string;
-                  begin
-                    LPaths := TStringList.Create;
-                    try
-                      LPaths.Add('.\modules\dcu\$(Platform)\$(Config)');
-                      LLockPath := TPath.Combine(AProjectDir, 'boss-lock.json');
-                      if TFile.Exists(LLockPath) then
-                      begin
-                        try
-                          LJSONStr := TFile.ReadAllText(LLockPath, TEncoding.UTF8);
-                          LJSONObj := TJSONObject.ParseJSONValue(LJSONStr) as TJSONObject;
-                          if LJSONObj <> nil then
-                          begin
-                            try
-                              LModulesObj := LJSONObj.GetValue('installedModules') as TJSONObject;
-                              if LModulesObj <> nil then
-                              begin
-                                for Idx := 0 to LModulesObj.Count - 1 do
-                                begin
-                                  var LPair := LModulesObj.Pairs[Idx];
-                                  var LModInfo := LPair.JsonValue as TJSONObject;
-                                  if LModInfo <> nil then
-                                  begin
-                                    LModName := LModInfo.GetValue('name').Value;
-                                    if LModName <> '' then
-                                    begin
-                                      LModDir := TPath.Combine(TPath.Combine(AProjectDir, 'modules'), LModName);
-                                      if TDirectory.Exists(LModDir) then
-                                      begin
-                                        LPaths.Add('.\modules\' + LModName);
-                                        LPkgPath := TPath.Combine(LModDir, 'boss.json');
-                                        if TFile.Exists(LPkgPath) then
-                                        begin
-                                          try
-                                            var LPkgStr := TFile.ReadAllText(LPkgPath, TEncoding.UTF8);
-                                            LPkgJSON := TJSONObject.ParseJSONValue(LPkgStr) as TJSONObject;
-                                            if LPkgJSON <> nil then
-                                            begin
-                                              try
-                                                var LMainSrcValue := LPkgJSON.GetValue('mainsrc');
-                                                if LMainSrcValue <> nil then
-                                                begin
-                                                  LMainSrc := LMainSrcValue.Value;
-                                                  if LMainSrc <> '' then
-                                                  begin
-                                                    LSubPaths := LMainSrc.Split([';']);
-                                                    for LSubPath in LSubPaths do
-                                                    begin
-                                                      var LTrimmed := LSubPath.Trim.Replace('/', '\');
-                                                      if LTrimmed.EndsWith('\') and (Length(LTrimmed) > 1) then
-                                                        LTrimmed := LTrimmed.Substring(0, LTrimmed.Length - 1);
-                                                      if LTrimmed <> '' then
-                                                        LPaths.Add('.\modules\' + LModName + '\' + LTrimmed);
-                                                    end;
-                                                  end;
-                                                end;
-                                              finally
-                                                LPkgJSON.Free;
-                                              end;
-                                            end;
-                                          except
-                                            on E: Exception do
-                                            begin
-                                              LMessageServices.AddTitleMessage(
-                                                '[AVISO] Erro ao ler boss.json de ' + LModName + ': ' + E.Message,
-                                                LGroup
-                                              );
-                                            end;
-                                          end;
-                                        end;
-                                      end;
-                                    end;
-                                  end;
-                                end;
-                              end;
-                            finally
-                              LJSONObj.Free;
-                            end;
-                          end;
-                        except
-                          on E: Exception do
-                          begin
-                            LMessageServices.AddTitleMessage(
-                              '[AVISO] Erro ao ler boss-lock.json: ' + E.Message,
-                              LGroup
-                            );
-                          end;
-                        end;
-                      end;
-                      SetLength(Result, LPaths.Count);
-                      for Idx := 0 to LPaths.Count - 1 do
-                        Result[Idx] := LPaths[Idx];
-                    finally
-                      LPaths.Free;
-                    end;
-                  end;
+                   function BuildProjectSearchPaths(const AProjectDir: string): TArray<string>;
+                     procedure ParseModulePkg(const AModName, AModDir: string; LPaths: TStringList);
+                     var
+                       LPkgPath: string;
+                       LPkgJSON: TJSONObject;
+                       LMainSrc: string;
+                       LSubPaths: TArray<string>;
+                       LSubPath: string;
+                     begin
+                       LPkgPath := TPath.Combine(AModDir, 'boss.json');
+                       if not TFile.Exists(LPkgPath) then Exit;
+                       try
+                         var LPkgStr := TFile.ReadAllText(LPkgPath, TEncoding.UTF8);
+                         LPkgJSON := TJSONObject.ParseJSONValue(LPkgStr) as TJSONObject;
+                         if LPkgJSON = nil then Exit;
+                         try
+                           var LMainSrcValue := LPkgJSON.GetValue('mainsrc');
+                           if LMainSrcValue = nil then Exit;
+                           LMainSrc := LMainSrcValue.Value;
+                           if LMainSrc = '' then Exit;
+                           LSubPaths := LMainSrc.Split([';']);
+                           for LSubPath in LSubPaths do
+                           begin
+                             var LTrimmed := LSubPath.Trim.Replace('/', '\');
+                             if LTrimmed.EndsWith('\') and (Length(LTrimmed) > 1) then
+                               LTrimmed := LTrimmed.Substring(0, LTrimmed.Length - 1);
+                             if LTrimmed <> '' then
+                               LPaths.Add('.\modules\' + AModName + '\' + LTrimmed);
+                           end;
+                         finally
+                           LPkgJSON.Free;
+                         end;
+                       except
+                         on E: Exception do
+                         begin
+                           LMessageServices.AddTitleMessage(
+                             '[AVISO] Erro ao ler boss.json de ' + AModName + ': ' + E.Message,
+                             LGroup
+                           );
+                         end;
+                       end;
+                     end;
+                     procedure ParseLockModules(const ALockPath: string; LPaths: TStringList);
+                     var
+                       LJSONStr: string;
+                       LJSONObj, LModulesObj: TJSONObject;
+                       Idx: Integer;
+                       LModName: string;
+                       LModDir: string;
+                     begin
+                       if not TFile.Exists(ALockPath) then Exit;
+                       try
+                         LJSONStr := TFile.ReadAllText(ALockPath, TEncoding.UTF8);
+                         LJSONObj := TJSONObject.ParseJSONValue(LJSONStr) as TJSONObject;
+                         if LJSONObj = nil then Exit;
+                         try
+                           LModulesObj := LJSONObj.GetValue('installedModules') as TJSONObject;
+                           if LModulesObj = nil then Exit;
+                           for Idx := 0 to LModulesObj.Count - 1 do
+                           begin
+                             var LPair := LModulesObj.Pairs[Idx];
+                             var LModInfo := LPair.JsonValue as TJSONObject;
+                             if LModInfo = nil then Continue;
+                             LModName := LModInfo.GetValue('name').Value;
+                             if LModName = '' then Continue;
+                             LModDir := TPath.Combine(TPath.Combine(AProjectDir, 'modules'), LModName);
+                             if not TDirectory.Exists(LModDir) then Continue;
+                             LPaths.Add('.\modules\' + LModName);
+                             ParseModulePkg(LModName, LModDir, LPaths);
+                           end;
+                         finally
+                           LJSONObj.Free;
+                         end;
+                       except
+                         on E: Exception do
+                         begin
+                           LMessageServices.AddTitleMessage(
+                             '[AVISO] Erro ao ler boss-lock.json: ' + E.Message,
+                             LGroup
+                           );
+                         end;
+                       end;
+                     end;
+                   var
+                     LPaths: TStringList;
+                     LLockPath: string;
+                     Idx: Integer;
+                   begin
+                     LPaths := TStringList.Create;
+                     try
+                       LPaths.Add('.\modules\dcu\$(Platform)\$(Config)');
+                       LLockPath := TPath.Combine(AProjectDir, 'boss-lock.json');
+                       ParseLockModules(LLockPath, LPaths);
+                       SetLength(Result, LPaths.Count);
+                       for Idx := 0 to LPaths.Count - 1 do
+                         Result[Idx] := LPaths[Idx];
+                     finally
+                       LPaths.Free;
+                     end;
+                   end;
                   procedure CheckAndAdd(const AProj: IOTAProject; const AOptionName: string; const APathToAdd: string);
                   var
                     LVal: string;

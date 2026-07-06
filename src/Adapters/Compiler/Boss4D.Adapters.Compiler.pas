@@ -154,7 +154,7 @@ begin
   except
     on E: Exception do
     begin
-      FLogger.Log(TBoss4DLogLevel.Warn, 'Falha silenciosa ao detectar versao do Delphi a partir do dproj: ' + E.Message);
+      FLogger.Log(TBoss4DLogLevel.Warning, 'Falha silenciosa ao detectar versao do Delphi a partir do dproj: ' + E.Message);
     end;
   end;
 end;

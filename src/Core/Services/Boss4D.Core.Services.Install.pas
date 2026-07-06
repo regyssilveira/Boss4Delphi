@@ -475,13 +475,13 @@ begin
           LSHA2.Update(LBytes, Length(LBytes));
       except
         on E: Exception do
-          FLogger.Log(TBoss4DLogLevel.Warn, 'Falha silenciosa ao ler arquivo para hash: ' + E.Message);
+          FLogger.Log(TBoss4DLogLevel.Warning, 'Falha silenciosa ao ler arquivo para hash: ' + E.Message);
       end;
     end;
     Result := LSHA2.HashAsString;
   except
     on E: Exception do
-      FLogger.Log(TBoss4DLogLevel.Warn, 'Erro ao calcular hash de integridade: ' + E.Message);
+      FLogger.Log(TBoss4DLogLevel.Warning, 'Erro ao calcular hash de integridade: ' + E.Message);
   end;
 end;
 
