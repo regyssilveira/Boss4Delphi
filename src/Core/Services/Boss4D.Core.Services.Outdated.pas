@@ -77,7 +77,8 @@ begin
     if LBestSemVer.IsValid then
       Result := LBestSemVer.ToString;
   except
-    // Ignora falhas silenciosamente e mantem padrao
+    on E: Exception do
+      FLogger.Log(TBoss4DLogLevel.Warning, 'Erro ao obter ultima versao: ' + E.Message);
   end;
 end;
 

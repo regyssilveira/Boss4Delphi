@@ -332,7 +332,10 @@ begin
     try
       GWizardIndex := LWizardServices.AddWizard(TBoss4DIDEWizard.Create);
     except
-      // Silencia falhas no startup
+      on E: Exception do
+      begin
+        OutputDebugString(PChar('Erro ao registrar Boss4D Wizard: ' + E.Message));
+      end;
     end;
   end;
 end;
@@ -826,7 +829,10 @@ begin
       end;
     end;
   except
-    // Falha silenciosa na leitura do JSON
+    on E: Exception do
+    begin
+      OutputDebugString(PChar('Erro ao processar JSON para scripts dinamicos: ' + E.Message));
+    end;
   end;
 end;
 

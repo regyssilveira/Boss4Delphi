@@ -48,11 +48,13 @@ begin
       try
         LSize := LSize + TFile.GetSize(LFile);
       except
-        // Ignora arquivos bloqueados ou inacessiveis
+        on E: Exception do
+          FLogger.Log(TBoss4DLogLevel.Warning, 'Erro ao ler tamanho de arquivo no cache: ' + E.Message);
       end;
     end;
   except
-    // Ignora falhas de leitura do diretorio
+    on E: Exception do
+      FLogger.Log(TBoss4DLogLevel.Warning, 'Erro ao listar arquivos do cache: ' + E.Message);
   end;
   Result := LSize;
 end;
@@ -136,7 +138,8 @@ begin
           Inc(LDeletedCount);
         end;
       except
-        // Ignora falhas em diretorios especificos
+        on E: Exception do
+          FLogger.Log(TBoss4DLogLevel.Warning, 'Erro ao remover diretorio de cache obsoleto: ' + E.Message);
       end;
     end;
   except

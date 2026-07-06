@@ -76,7 +76,8 @@ begin
         LReader.Free;
       end;
     except
-      // Silencia falhas na leitura
+      on E: Exception do
+        FLogger.Log(TBoss4DLogLevel.Warning, 'Falha silenciosa ao ler arquivo de licenca: ' + E.Message);
     end;
   end;
 
@@ -158,7 +159,8 @@ begin
             LSubPkg.Free;
           end;
         except
-          // Falha na leitura do boss.json do modulo
+          on E: Exception do
+            FLogger.Log(TBoss4DLogLevel.Warning, 'Falha ao ler boss.json da dependencia ' + LDepName + ': ' + E.Message);
         end;
       end
       else
