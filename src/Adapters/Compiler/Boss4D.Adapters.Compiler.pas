@@ -152,7 +152,10 @@ begin
         Result := '17.0'; // Delphi 10 Seattle / XE8 (ProjectVersion 17.0)
     end;
   except
-    // Falha silenciosa por seguranca
+    on E: Exception do
+    begin
+      FLogger.Log(TBoss4DLogLevel.Warn, 'Falha silenciosa ao detectar versao do Delphi a partir do dproj: ' + E.Message);
+    end;
   end;
 end;
 
