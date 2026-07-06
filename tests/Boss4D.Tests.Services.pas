@@ -1359,6 +1359,7 @@ begin
 
       // Procura pelo script dinâmico de build no menu
       LFoundBuildScript := False;
+      LMenuItem := nil;
       for I := 0 to LMenuList.Count - 1 do
       begin
         if Supports(LMenuList[I], IOTAProjectManagerMenu, LMenuItem) then
