@@ -667,6 +667,13 @@ begin
                                               end;
                                             end;
                                           except
+                                            on E: Exception do
+                                            begin
+                                              LMessageServices.AddTitleMessage(
+                                                '[AVISO] Erro ao ler boss.json de ' + LModName + ': ' + E.Message,
+                                                LGroup
+                                              );
+                                            end;
                                           end;
                                         end;
                                       end;
@@ -679,6 +686,13 @@ begin
                             end;
                           end;
                         except
+                          on E: Exception do
+                          begin
+                            LMessageServices.AddTitleMessage(
+                              '[AVISO] Erro ao ler boss-lock.json: ' + E.Message,
+                              LGroup
+                            );
+                          end;
                         end;
                       end;
                       SetLength(Result, LPaths.Count);
@@ -704,7 +718,13 @@ begin
                         AProj.MarkModified;
                       end;
                     except
-                      // ignora
+                      on E: Exception do
+                      begin
+                        LMessageServices.AddTitleMessage(
+                          '[AVISO] Erro ao atualizar a opcao ' + AOptionName + ': ' + E.Message,
+                          LGroup
+                        );
+                      end;
                     end;
                   end;
                   procedure UpdateProj(const AProj: IOTAProject);
