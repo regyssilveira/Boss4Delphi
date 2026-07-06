@@ -3,11 +3,19 @@
 Você deve sempre seguir as diretivas abaixo ao trabalhar neste repositório:
 
 ## Qualidade de Código e Desenvolvimento Orientado a Testes (TDD)
-**Nenhuma linha de código ou funcionalidade nova deve ser escrita sem que nasça a partir de um teste (TDD - Test Driven Development).** Isso se aplica tanto ao desenvolvimento de novas features quanto à correção de bugs:
+**Nenhuma linha de código, nova funcionalidade ou correção deve ser escrita sem que nasça a partir de um teste (TDD - Test Driven Development).** Isso se aplica tanto ao desenvolvimento de novas features quanto à correção de bugs:
 
-1. **Escrever o Caso de Teste (Fase Red)**: Antes de codificar qualquer lógica nova ou correção, escreva o teste unitário (ex: DUnitX) que represente o requisito ou o cenário do bug. Execute a suíte e garanta que o novo teste falhe.
+### A. Fluxo Geral de TDD (Novas Funcionalidades)
+1. **Escrever o Caso de Teste (Fase Red)**: Antes de codificar qualquer lógica, escreva o teste unitário (ex: DUnitX) que represente o requisito. Execute a suíte e garanta que o novo teste falhe.
 2. **Codificar a Solução (Fase Green)**: Implemente a lógica de produção estritamente necessária para fazer com que o novo teste passe com sucesso.
 3. **Refatorar o Código (Fase Refactor)**: Refatore o código implementado seguindo os princípios de Clean Code, DRY e KISS, garantindo que toda a suíte de testes continue passando (100% de sucesso).
+
+### B. Correção Orientada a Testes (TDD para Bugs)
+Todo bug encontrado ou reportado deve seguir obrigatoriamente a técnica de correção orientada a testes de regressão:
+1. **Identificar e Mapear o Bug**: Entender e documentar o cenário e os dados onde o bug ocorre.
+2. **Escrever o Teste de Regressão**: Criar um caso de teste na suíte de testes correspondente (DUnitX) que reproduza fielmente o cenário do bug. O teste deve falhar.
+3. **Corrigir o Bug**: Somente após o teste ter sido registrado e validado como falho, implementar a correção lógica no código de produção.
+4. **Validar a Correção**: Garantir que o teste criado (e toda a suíte de testes existente) agora passa com sucesso absoluto, blindando o sistema contra regressões.
 
 
 ## Princípios de Engenharia de Software:
