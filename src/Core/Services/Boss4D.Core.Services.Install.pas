@@ -474,12 +474,14 @@ begin
         if Length(LBytes) > 0 then
           LSHA2.Update(LBytes, Length(LBytes));
       except
-        // Silencia falhas em arquivos bloqueados
+        on E: Exception do
+          FLogger.Log(TBoss4DLogLevel.Warn, 'Falha silenciosa ao ler arquivo para hash: ' + E.Message);
       end;
     end;
     Result := LSHA2.HashAsString;
   except
-    // Retorna vazio em caso de erro grave
+    on E: Exception do
+      FLogger.Log(TBoss4DLogLevel.Warn, 'Erro ao calcular hash de integridade: ' + E.Message);
   end;
 end;
 
