@@ -319,7 +319,7 @@ begin
         'Plugin do Boss4D para gerenciamento nativo de dependencias',
         LBitmap.Handle,
         False,
-        '1.0.0'
+        '1.0.1'
       );
     finally
       LBitmap.Free;
