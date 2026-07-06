@@ -338,7 +338,7 @@ begin
         on E: EAggregateException do
         begin
           if E.Count > 0 then
-            raise Exception.Create(E.InnerExceptions[0].Message)
+            raise Exception.Create(E[0].Message)
           else
             raise;
         end;

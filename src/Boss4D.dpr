@@ -103,7 +103,7 @@ begin
     begin
       Writeln('Erro fatal do Boss4D: ' + E.Message);
       for var LIdx := 0 to E.Count - 1 do
-        Writeln('  -> ' + E.InnerExceptions[LIdx].Message);
+        Writeln('  -> ' + E[LIdx].Message);
     end;
     on E: Exception do
       Writeln('Erro fatal do Boss4D: ' + E.Message);

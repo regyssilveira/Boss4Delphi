@@ -1,4 +1,4 @@
-﻿unit Boss4D.Core.Services.IDEIntegration;
+unit Boss4D.Core.Services.IDEIntegration;
 
 interface
 
@@ -20,7 +20,6 @@ type
     procedure RegisterDesignTimePackage(const ABPLPath: string; const ADescription: string = '');
     procedure RegisterIDEPackage(const ABPLPath: string; const ADescription: string = '');
 
-    property RegistryRoot: HKEY read FRegistryRoot write FRegistryRoot;
     property RegistryKeyPrefix: string read FRegistryKeyPrefix write FRegistryKeyPrefix;
   end;
 

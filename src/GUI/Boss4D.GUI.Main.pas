@@ -68,7 +68,6 @@ type
     procedure LogMessage(const AMessage: string);
     procedure PopulateCatalog;
     procedure RunAsyncCommand(const ATitle, ACommand: string; const AArgs: string = '');
-  public
   end;
 
 var
@@ -254,8 +253,7 @@ begin
               LItem.SubItems.Add(LInstalledVersion);
             end;
           finally
-            if Assigned(LLockObj) then
-              LLockObj.Free;
+            LLockObj.Free;
           end;
         end;
       finally

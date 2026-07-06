@@ -35,7 +35,7 @@ uses
 
 begin
   Application.Initialize;
-  Application.MainFormOnTaskbar := True;
+  Application.MainFormOnTaskBar := True;
 
   Application.CreateForm(TFormMain, FormMain);
   Application.Run;
