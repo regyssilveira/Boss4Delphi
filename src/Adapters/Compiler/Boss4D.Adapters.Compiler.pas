@@ -249,12 +249,18 @@ var
   LSearchPath: string;
   LPackagePath: string;
   LPackageData: TBoss4DPackage;
+  function CleanPath(const APath: string): string;
+  begin
+    Result := APath.Replace('/', '\').Trim;
+    if Result.EndsWith('\') and (Length(Result) > 3) then
+      Result := Result.Substring(0, Result.Length - 1);
+  end;
 begin
   Result := '';
   if not Assigned(ADep) then
     Exit;
 
-  LSearchPath := TPath.Combine(GetModulesDir, ADep.Name);
+  LSearchPath := CleanPath(TPath.Combine(GetModulesDir, ADep.Name));
   LPackagePath := TPath.Combine(LSearchPath, FILE_PACKAGE);
   if not TFile.Exists(LPackagePath) then
   begin
@@ -272,7 +278,7 @@ begin
       begin
         var LTrimmedPath := LSubPath.Trim;
         if not LTrimmedPath.IsEmpty then
-          LSearchPath := LSearchPath + ';' + TPath.Combine(TPath.Combine(GetModulesDir, ADep.Name), LTrimmedPath);
+          LSearchPath := LSearchPath + ';' + CleanPath(TPath.Combine(TPath.Combine(GetModulesDir, ADep.Name), LTrimmedPath));
       end;
     end;
 
@@ -371,7 +377,7 @@ begin
 
     var LMsbuildCmd := 'msbuild "' + TPath.GetFullPath(ADprojPath) + '" /p:Configuration=Debug ' +
                        GetCompilerParameters(GetModulesDir, ADep, LPlatform) +
-                       ' /p:DCC_AdditionalParameters="@' + LCfgPath + '"';
+                       ' /p:DCC_AdditionalSwitches="@' + LCfgPath + '"';
 
     LBatchContent.Add(LMsbuildCmd + ' > "' + LBuildLog + '" 2>&1');
     LBatchContent.SaveToFile(LBuildBat, TEncoding.UTF8);
@@ -393,7 +399,6 @@ begin
     begin
       FLogger.Log(TBoss4DLogLevel.Info, '  Compilado com sucesso!');
 
-      // Apaga arquivos de log e batch gerados apenas em caso de sucesso
       if TFile.Exists(LBuildLog) then TFile.Delete(LBuildLog);
       if TFile.Exists(LBuildBat) then TFile.Delete(LBuildBat);
     end;

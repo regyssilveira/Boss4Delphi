@@ -154,7 +154,7 @@ procedure Register;
 implementation
 
 uses
-  Winapi.Windows, System.IOUtils, System.Diagnostics, System.Threading, System.JSON;
+  Winapi.Windows, System.IOUtils, System.Diagnostics, System.Threading, System.JSON, System.Variants;
 
 const
   GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS = $00000004;
@@ -587,8 +587,164 @@ begin
             TThread.Queue(nil,
               TThreadProcedure(
                 procedure
+                var
+                  LModuleServices: IOTAModuleServices;
+                  LProjectGroup: IOTAProjectGroup;
+                  LProject: IOTAProject;
+                  I: Integer;
+                  LOptions: IOTAProjectOptions;
+                  function BuildProjectSearchPaths(const AProjectDir: string): TArray<string>;
+                  var
+                    LPaths: TStringList;
+                    LLockPath: string;
+                    LJSONStr: string;
+                    LJSONObj, LModulesObj: TJSONObject;
+                    Idx: Integer;
+                    LModName: string;
+                    LModDir: string;
+                    LPkgPath: string;
+                    LPkgJSON: TJSONObject;
+                    LMainSrc: string;
+                    LSubPaths: TArray<string>;
+                    LSubPath: string;
+                  begin
+                    LPaths := TStringList.Create;
+                    try
+                      LPaths.Add('.\modules\dcu\$(Platform)\$(Config)');
+                      LLockPath := TPath.Combine(AProjectDir, 'boss-lock.json');
+                      if TFile.Exists(LLockPath) then
+                      begin
+                        try
+                          LJSONStr := TFile.ReadAllText(LLockPath, TEncoding.UTF8);
+                          LJSONObj := TJSONObject.ParseJSONValue(LJSONStr) as TJSONObject;
+                          if LJSONObj <> nil then
+                          begin
+                            try
+                              LModulesObj := LJSONObj.GetValue('installedModules') as TJSONObject;
+                              if LModulesObj <> nil then
+                              begin
+                                for Idx := 0 to LModulesObj.Count - 1 do
+                                begin
+                                  var LPair := LModulesObj.Pairs[Idx];
+                                  var LModInfo := LPair.JsonValue as TJSONObject;
+                                  if LModInfo <> nil then
+                                  begin
+                                    LModName := LModInfo.GetValue('name').Value;
+                                    if LModName <> '' then
+                                    begin
+                                      LModDir := TPath.Combine(TPath.Combine(AProjectDir, 'modules'), LModName);
+                                      if TDirectory.Exists(LModDir) then
+                                      begin
+                                        LPaths.Add('.\modules\' + LModName);
+                                        LPkgPath := TPath.Combine(LModDir, 'boss.json');
+                                        if TFile.Exists(LPkgPath) then
+                                        begin
+                                          try
+                                            var LPkgStr := TFile.ReadAllText(LPkgPath, TEncoding.UTF8);
+                                            LPkgJSON := TJSONObject.ParseJSONValue(LPkgStr) as TJSONObject;
+                                            if LPkgJSON <> nil then
+                                            begin
+                                              try
+                                                var LMainSrcValue := LPkgJSON.GetValue('mainsrc');
+                                                if LMainSrcValue <> nil then
+                                                begin
+                                                  LMainSrc := LMainSrcValue.Value;
+                                                  if LMainSrc <> '' then
+                                                  begin
+                                                    LSubPaths := LMainSrc.Split([';']);
+                                                    for LSubPath in LSubPaths do
+                                                    begin
+                                                      var LTrimmed := LSubPath.Trim.Replace('/', '\');
+                                                      if LTrimmed.EndsWith('\') and (Length(LTrimmed) > 1) then
+                                                        LTrimmed := LTrimmed.Substring(0, LTrimmed.Length - 1);
+                                                      if LTrimmed <> '' then
+                                                        LPaths.Add('.\modules\' + LModName + '\' + LTrimmed);
+                                                    end;
+                                                  end;
+                                                end;
+                                              finally
+                                                LPkgJSON.Free;
+                                              end;
+                                            end;
+                                          except
+                                          end;
+                                        end;
+                                      end;
+                                    end;
+                                  end;
+                                end;
+                              end;
+                            finally
+                              LJSONObj.Free;
+                            end;
+                          end;
+                        except
+                        end;
+                      end;
+                      SetLength(Result, LPaths.Count);
+                      for Idx := 0 to LPaths.Count - 1 do
+                        Result[Idx] := LPaths[Idx];
+                    finally
+                      LPaths.Free;
+                    end;
+                  end;
+                  procedure CheckAndAdd(const AProj: IOTAProject; const AOptionName: string; const APathToAdd: string);
+                  var
+                    LVal: string;
+                  begin
+                    try
+                      LVal := VarToStr(LOptions.Values[AOptionName]);
+                      if not LVal.Contains(APathToAdd) then
+                      begin
+                        if LVal <> '' then
+                          LVal := LVal + ';' + APathToAdd
+                        else
+                          LVal := APathToAdd;
+                        LOptions.Values[AOptionName] := LVal;
+                        AProj.MarkModified;
+                      end;
+                    except
+                      // ignora
+                    end;
+                  end;
+                  procedure UpdateProj(const AProj: IOTAProject);
+                  var
+                    LProjDir: string;
+                    LSearchPaths: TArray<string>;
+                    LPath: string;
+                  begin
+                    if AProj = nil then Exit;
+                    LOptions := AProj.ProjectOptions;
+                    if LOptions <> nil then
+                    begin
+                      LProjDir := TPath.GetDirectoryName(AProj.FileName);
+                      LSearchPaths := BuildProjectSearchPaths(LProjDir);
+                      for LPath in LSearchPaths do
+                      begin
+                        CheckAndAdd(AProj, 'UnitSearchPath', LPath);
+                        CheckAndAdd(AProj, 'DCC_UnitSearchPath', LPath);
+                        CheckAndAdd(AProj, 'SearchPath', LPath);
+                      end;
+                    end;
+                  end;
                 begin
                   LMessageServices.AddTitleMessage('Finalizado com sucesso!', LGroup);
+
+                  if SameText(ACommand, 'install') or ACommand.StartsWith('install ') then
+                  begin
+                    if Supports(BorlandIDEServices, IOTAModuleServices, LModuleServices) then
+                    begin
+                      LProjectGroup := LModuleServices.MainProjectGroup;
+                      if LProjectGroup <> nil then
+                      begin
+                        for I := 0 to LProjectGroup.ProjectCount - 1 do
+                        begin
+                          LProject := LProjectGroup.Projects[I];
+                          UpdateProj(LProject);
+                        end;
+                      end;
+                    end;
+                  end;
                 end
               )
             );
