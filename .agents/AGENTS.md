@@ -2,12 +2,13 @@
 
 Você deve sempre seguir as diretivas abaixo ao trabalhar neste repositório:
 
-## Qualidade de Código e TDD para Bugs
-Todo bug encontrado ou reportado no **Boss4D** deve, obrigatoriamente, seguir a técnica de correção orientada a testes de regressão:
-1. **Identificar o Bug**: Entender o cenário onde o bug ocorre.
-2. **Escrever um Teste Unitário (TDD)**: Criar um caso de teste na suíte de testes correspondente (DUnitX) que simule o cenário do bug e comprove a falha (o teste deve falhar).
-3. **Corrigir o Bug**: Somente após o teste ter sido registrado e validado como falho, implementar a correção lógica no código de produção.
-4. **Validar a Correção**: Garantir que o teste criado (e toda a suíte de testes) agora passa com sucesso absoluto.
+## Qualidade de Código e Desenvolvimento Orientado a Testes (TDD)
+**Nenhuma linha de código ou funcionalidade nova deve ser escrita sem que nasça a partir de um teste (TDD - Test Driven Development).** Isso se aplica tanto ao desenvolvimento de novas features quanto à correção de bugs:
+
+1. **Escrever o Caso de Teste (Fase Red)**: Antes de codificar qualquer lógica nova ou correção, escreva o teste unitário (ex: DUnitX) que represente o requisito ou o cenário do bug. Execute a suíte e garanta que o novo teste falhe.
+2. **Codificar a Solução (Fase Green)**: Implemente a lógica de produção estritamente necessária para fazer com que o novo teste passe com sucesso.
+3. **Refatorar o Código (Fase Refactor)**: Refatore o código implementado seguindo os princípios de Clean Code, DRY e KISS, garantindo que toda a suíte de testes continue passando (100% de sucesso).
+
 
 ## Princípios de Engenharia de Software:
 1. **SOLID**: Interfaces bem definidas, responsabilidade única por unidade/classe, facilidade de extensão sem alteração direta (Open/Closed),  segregação de interfaces e injeção de dependências.
