@@ -1,4 +1,4 @@
-unit Boss4D.Adapters.Compiler;
+﻿unit Boss4D.Adapters.Compiler;
 
 interface
 
@@ -130,7 +130,7 @@ begin
       Exit;
 
     LVerStr := LVerStr.Replace(',', '.');
-    
+
     var LFormatSettings := TFormatSettings.Invariant;
     if TryStrToFloat(LVerStr, LVerFloat, LFormatSettings) then
     begin

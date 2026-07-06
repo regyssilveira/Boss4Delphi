@@ -1,4 +1,4 @@
-unit Boss4D.CLI.Parser;
+﻿unit Boss4D.CLI.Parser;
 
 interface
 
@@ -215,7 +215,7 @@ begin
     try
       LConfig.DelphiPath := AArgs[3];
       FConfigService.Save(LConfig);
-      FLogger.Log(TBoss4DLogLevel.Info, '✅ Caminho do Delphi atualizado para: %s', [LConfig.DelphiPath]);
+      FLogger.Log(TBoss4DLogLevel.Info, 'âœ… Caminho do Delphi atualizado para: %s', [LConfig.DelphiPath]);
     finally
       LConfig.Free;
     end;
@@ -227,7 +227,7 @@ begin
       LConfig.GitShallow := SameText(AArgs[3], 'true') or (AArgs[3] = '1');
       FConfigService.Save(LConfig);
       FLogger.Log(TBoss4DLogLevel.Info,
-        '✅ Configuracao git shallow definida para: %s',
+        'âœ… Configuracao git shallow definida para: %s',
         [BoolToStr(LConfig.GitShallow, True)]);
     finally
       LConfig.Free;
@@ -241,13 +241,13 @@ begin
       begin
         LConfig.GitHubToken := AArgs[3];
         FConfigService.Save(LConfig);
-        FLogger.Log(TBoss4DLogLevel.Info, '✅ Token de autenticacao do GitHub configurado com sucesso.');
+        FLogger.Log(TBoss4DLogLevel.Info, 'âœ… Token de autenticacao do GitHub configurado com sucesso.');
       end
       else if SameText(AArgs[2], 'gitlab') then
       begin
         LConfig.GitLabToken := AArgs[3];
         FConfigService.Save(LConfig);
-        FLogger.Log(TBoss4DLogLevel.Info, '✅ Token de autenticacao do GitLab configurado com sucesso.');
+        FLogger.Log(TBoss4DLogLevel.Info, 'âœ… Token de autenticacao do GitLab configurado com sucesso.');
       end
       else
       begin
@@ -462,7 +462,7 @@ begin
   LRegistry := TBoss4DWindowsRegistryAdapter.Create;
   LCompiler := TBoss4DDelphiCompilerAdapter.Create(LRegistry, FLogger);
   LIDEIntegration := TBoss4DIDEIntegrationService.Create(LRegistry, FLogger);
-  
+
   LDep := TBoss4DDependency.Create(AArgs[2], '*');
   LLock := TBoss4DLock.Create;
   LTempCloneDir := TPath.Combine(TPath.Combine(GetBossHome, 'temp_plugins'), LDep.Name);
@@ -499,7 +499,7 @@ begin
     FLogger.Log(TBoss4DLogLevel.Info, '  Registrando plugin no RAD Studio...');
     LIDEIntegration.RegisterDesignTimePackage(LDestBPL, LPluginName + ' - IDE Extension');
 
-    FLogger.Log(TBoss4DLogLevel.Info, '🚀 Plugin "%s" instalado e registrado com sucesso!', [LPluginName]);
+    FLogger.Log(TBoss4DLogLevel.Info, 'ðŸš€ Plugin "%s" instalado e registrado com sucesso!', [LPluginName]);
   finally
     if TDirectory.Exists(LTempCloneDir) then
       TDirectory.Delete(LTempCloneDir, True);

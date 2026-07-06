@@ -1,4 +1,4 @@
-unit Boss4D.Core.Services.GetIt;
+﻿unit Boss4D.Core.Services.GetIt;
 
 interface
 
@@ -6,7 +6,7 @@ uses
   Boss4D.Core.Ports;
 
 type
-  { Serviço para interagir com o GetIt Package Manager nativo do Delphi }
+  { ServiÃ§o para interagir com o GetIt Package Manager nativo do Delphi }
   TBoss4DGetItBridgeService = class
   private
     FRegistry: IBoss4DRegistryService;
@@ -15,10 +15,10 @@ type
     function ExecuteGetItCommand(const AArgs: string): Boolean;
   public
     constructor Create(const ARegistry: IBoss4DRegistryService; const ALogger: IBoss4DLogger);
-    
-    // Instala um pacote do catálogo do GetIt
+
+    // Instala um pacote do catÃ¡logo do GetIt
     procedure InstallPackage(const APackageName: string);
-    
+
     // Configura a conectividade do GetIt (online / offline)
     procedure SetGetItMode(const AOnline: Boolean);
   end;
@@ -45,12 +45,12 @@ var
 begin
   Result := False;
   APath := '';
-  
+
   LVersions := FRegistry.GetInstalledDelphiVersions;
   if Length(LVersions) = 0 then
     Exit;
 
-  // Busca na versão mais recente encontrada
+  // Busca na versÃ£o mais recente encontrada
   for LVer in LVersions do
   begin
     LRootDir := FRegistry.GetDelphiPath(LVer);
@@ -79,7 +79,7 @@ begin
 
   FLogger.Log(TBoss4DLogLevel.Debug, '  Executando: %s %s', [LGetItCmd, AArgs]);
   Result := ExecuteCommandLine('"' + LGetItCmd + '" ' + AArgs, TDirectory.GetCurrentDirectory, LOutput);
-  
+
   if not Result then
     FLogger.Log(TBoss4DLogLevel.Error, 'Falha na execucao do GetIt: ' + LOutput);
 end;
@@ -87,9 +87,9 @@ end;
 procedure TBoss4DGetItBridgeService.InstallPackage(const APackageName: string);
 begin
   FLogger.Log(TBoss4DLogLevel.Info, 'Iniciando instalacao via GetIt: %s', [APackageName]);
-  
+
   if ExecuteGetItCommand('-c=install -package=' + APackageName) then
-    FLogger.Log(TBoss4DLogLevel.Info, '🚀 Pacote "%s" instalado com sucesso via GetIt!', [APackageName])
+    FLogger.Log(TBoss4DLogLevel.Info, 'ðŸš€ Pacote "%s" instalado com sucesso via GetIt!', [APackageName])
   else
     raise Exception.Create('Falha ao instalar o pacote "' + APackageName + '" via GetIt.');
 end;
@@ -104,9 +104,9 @@ begin
     LModeStr := 'offline';
 
   FLogger.Log(TBoss4DLogLevel.Info, 'Configurando modo do GetIt para: %s', [LModeStr]);
-  
+
   if ExecuteGetItCommand('-c=mode -mode=' + LModeStr) then
-    FLogger.Log(TBoss4DLogLevel.Info, '✅ Modo do GetIt definido para %s com sucesso.', [LModeStr])
+    FLogger.Log(TBoss4DLogLevel.Info, 'âœ… Modo do GetIt definido para %s com sucesso.', [LModeStr])
   else
     raise Exception.Create('Falha ao configurar conectividade do GetIt.');
 end;

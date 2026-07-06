@@ -254,14 +254,14 @@ begin
   // 2. Instancia e roda o Instalador
   LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo, LGitMock, LHttpMock, LCompilerMock, LLogger);
   try
-    // Instala dependência específica (boss4d install github.com/hashload/horse@^3.1.0)
+    // Instala dependÃªncia especÃ­fica (boss4d install github.com/hashload/horse@^3.1.0)
     LInstall.Execute('github.com/hashload/horse@^3.1.0');
 
-    // Valida se o diretório do módulo foi criado em modules/horse
+    // Valida se o diretÃ³rio do mÃ³dulo foi criado em modules/horse
     var LModuleDir := TPath.Combine(GetModulesDir, 'horse');
     Assert.IsTrue(TDirectory.Exists(LModuleDir));
 
-    // Valida se o boss-lock.json foi gerado e travado na versão resolvida
+    // Valida se o boss-lock.json foi gerado e travado na versÃ£o resolvida
     LLockPath := TPath.Combine(FTempDir, FILE_PACKAGE_LOCK);
     Assert.IsTrue(TFile.Exists(LLockPath));
 
@@ -269,7 +269,7 @@ begin
     try
       var LLockedDep: TBoss4DLockedDependency;
       Assert.IsTrue(LLock.GetInstalled(TBoss4DDependency.Create('github.com/hashload/horse', ''), LLockedDep));
-      Assert.AreEqual('3.2.0', LLockedDep.Version); // v3.2.0 atende ^3.1.0 e é a mais recente!
+      Assert.AreEqual('3.2.0', LLockedDep.Version); // v3.2.0 atende ^3.1.0 e Ã© a mais recente!
     finally
       LLock.Free;
     end;
@@ -401,7 +401,7 @@ begin
     TDirectory.CreateDirectory(LFakeRsvarsDir11);
     TFile.WriteAllText(TPath.Combine(LFakeRsvarsDir11, 'rsvars.bat'), '@echo off', TEncoding.UTF8);
 
-    // Configura o mock do registro com os caminhos dinâmicos de teste
+    // Configura o mock do registro com os caminhos dinÃ¢micos de teste
     LRegistryMock.Path23 := LDelphi12FakeDir;
     LRegistryMock.Path22 := LDelphi11FakeDir;
 
@@ -412,12 +412,12 @@ begin
     // Garante que o diretorio de configuracao exista
     TDirectory.CreateDirectory(TPath.GetDirectoryName(LCfgPath));
 
-    // 2. Salva a configuracao forçando a versao de release "22.0"
+    // 2. Salva a configuracao forÃ§ando a versao de release "22.0"
     TFile.WriteAllText(LCfgPath, '{"delphiPath": "22.0"}', TEncoding.UTF8);
     Assert.IsTrue(LCompiler.FindRsvarsPath(LResolvedPath, LPlatform));
     Assert.AreEqual(TPath.Combine(LFakeRsvarsDir11, 'rsvars.bat').ToLower, LResolvedPath.ToLower);
 
-    // 3. Salva a configuracao forçando o diretorio fisico do Delphi 11
+    // 3. Salva a configuracao forÃ§ando o diretorio fisico do Delphi 11
     TFile.WriteAllText(LCfgPath, '{"delphiPath": "' + LDelphi11FakeDir.Replace('\', '\\') + '"}', TEncoding.UTF8);
     Assert.IsTrue(LCompiler.FindRsvarsPath(LResolvedPath, LPlatform));
     Assert.AreEqual(TPath.Combine(LFakeRsvarsDir11, 'rsvars.bat').ToLower, LResolvedPath.ToLower);
@@ -438,10 +438,10 @@ begin
   LCacheService := TBoss4DCacheService.Create(TTestLogger.Create);
   try
     LCacheDir := GetCacheDir;
-    // O setup limpou a pasta, então deve começar vazia
+    // O setup limpou a pasta, entÃ£o deve comeÃ§ar vazia
     Assert.AreEqual<Int64>(0, LCacheService.GetCacheSize);
 
-    // Cria um arquivo fictício de teste no cache
+    // Cria um arquivo fictÃ­cio de teste no cache
     TDirectory.CreateDirectory(TPath.Combine(LCacheDir, 'test_repo'));
     LTestFile := TPath.Combine(LCacheDir, 'test_repo\readme.md');
     TFile.WriteAllText(LTestFile, 'hello cache test content', TEncoding.UTF8);
@@ -472,7 +472,7 @@ begin
   try
     LPkg.Name := 'test_run';
     LPkg.Version := '1.0.0';
-    // Adiciona um script simulado simples e portável
+    // Adiciona um script simulado simples e portÃ¡vel
     LPkg.Scripts.Add('test_cmd', 'cmd /c echo hello');
     LPkgRepo.Save(LPkg, LBossJsonPath);
 
@@ -480,7 +480,7 @@ begin
     try
       // Executa o script que deve completar com sucesso (exit code 0)
       Assert.IsTrue(LRunService.Execute('test_cmd'));
-      
+
       // Tenta executar script inexistente
       Assert.IsFalse(LRunService.Execute('inexistent_cmd'));
     finally
@@ -499,10 +499,10 @@ begin
   LRegistryMock := TRegistryMock.Create;
   LDoctorService := TBoss4DDoctorService.Create(LRegistryMock, TTestLogger.Create);
   try
-    // Roda a verificação de auto-diagnóstico sem fix (deve completar com ou sem avisos)
+    // Roda a verificaÃ§Ã£o de auto-diagnÃ³stico sem fix (deve completar com ou sem avisos)
     LDoctorService.Check(False);
-    
-    // Roda a verificação aplicando fix
+
+    // Roda a verificaÃ§Ã£o aplicando fix
     LDoctorService.Check(True);
   finally
     LDoctorService.Free;
@@ -526,10 +526,10 @@ begin
     LPkg.Version := '1.0.0';
     LPkgRepo.Save(LPkg, GetBossFile);
 
-    // Simula uma dependência instalada em modules/horse/boss.json com licença MIT
+    // Simula uma dependÃªncia instalada em modules/horse/boss.json com licenÃ§a MIT
     LDepDir := TPath.Combine(GetModulesDir, 'horse');
     TDirectory.CreateDirectory(LDepDir);
-    
+
     LDepPkg := TBoss4DPackage.Create;
     try
       LDepPkg.Name := 'horse';
@@ -540,7 +540,7 @@ begin
       LDepPkg.Free;
     end;
 
-    // Gera o relatório de licenças
+    // Gera o relatÃ³rio de licenÃ§as
     LLicenseService := TBoss4DLicenseService.Create(LPkgRepo, TTestLogger.Create);
     try
       LLicenseService.GenerateReport;
@@ -594,7 +594,7 @@ begin
   try
     // 1. Instala pela primeira vez (gera o lock e o checksum inicial)
     LInstall.Execute('');
-    
+
     Assert.IsTrue(TFile.Exists(TPath.Combine(TDirectory.GetCurrentDirectory, FILE_PACKAGE_LOCK)));
 
     LLock := LLockRepo.Load(TPath.Combine(TDirectory.GetCurrentDirectory, FILE_PACKAGE_LOCK));
@@ -603,12 +603,12 @@ begin
       try
         Assert.IsTrue(LLock.GetInstalled(LDep, LLockedDep));
         Assert.IsFalse(LLockedDep.Checksum.IsEmpty); // Deve ter computado hash SHA-256
-        
-        // Simula uma alteração indevida de arquivos na dependência instalada
+
+        // Simula uma alteraÃ§Ã£o indevida de arquivos na dependÃªncia instalada
         LTargetDir := TPath.Combine(GetModulesDir, LLockedDep.Name);
         TFile.WriteAllText(TPath.Combine(LTargetDir, 'unauthorized.txt'), 'tampered content', TEncoding.UTF8);
 
-        // 2. Tenta re-instalar (deve disparar erro de segurança, pois o checksum calculado diverge do trancado!)
+        // 2. Tenta re-instalar (deve disparar erro de seguranÃ§a, pois o checksum calculado diverge do trancado!)
         var LFailed := False;
         try
           LInstall.Execute('');
@@ -641,7 +641,7 @@ var
 begin
   LPkgRepo := TBoss4DPackageJsonRepository.Create;
   LLogger := TTestLogger.Create;
-  
+
   // 1. Cria manifesto principal
   LPkg := TBoss4DPackage.Create;
   LPkg.Name := 'root_pkg';
@@ -650,7 +650,7 @@ begin
   LPkgRepo.Save(LPkg, GetBossFile);
   LPkg.Free;
 
-  // 2. Cria subdependência mockada em modules/
+  // 2. Cria subdependÃªncia mockada em modules/
   LSubDir := TPath.Combine(GetModulesDir, 'dep1');
   TDirectory.CreateDirectory(LSubDir);
   LPkg := TBoss4DPackage.Create;
@@ -671,7 +671,7 @@ begin
   LTree := TBoss4DTreeService.Create(LPkgRepo, LLogger);
   try
     LTree.GenerateTree;
-    
+
     Assert.IsTrue(LLogger.LastLogMessage.Contains('root_pkg (1.0.0)'));
     Assert.IsTrue(LLogger.LastLogMessage.Contains('dep1 (1.1.0)'));
     Assert.IsTrue(LLogger.LastLogMessage.Contains('dep2 (2.0.5)'));
@@ -705,7 +705,7 @@ begin
   LPkgRepo.Save(LPkg, GetBossFile);
   LPkg.Free;
 
-  // 2. Cria lock com versão anterior (v1.0.0)
+  // 2. Cria lock com versÃ£o anterior (v1.0.0)
   LLock := TBoss4DLock.Create;
   LDep := TBoss4DDependency.Create('github.com/outdated_lib', '^1.0.0');
   LLock.AddDependency(LDep, '1.0.0', 'hash_xyz');
@@ -714,7 +714,7 @@ begin
   // 3. Cria cache local mockado contendo as tags Git v1.0.0 e a nova v1.2.5
   LCacheDir := TPath.Combine(GetCacheDir, LDep.HashName);
   TDirectory.CreateDirectory(LCacheDir);
-  
+
   (LGitClientMock as TGitClientMock).CloneCache(LDep, LCacheDir);
   (LGitClientMock as TGitClientMock).AddMockTags('github.com/outdated_lib', TArray<string>.Create('v1.0.0', 'v1.1.0', 'v1.2.5'));
 
@@ -810,7 +810,7 @@ begin
     LPkgRepo, LLockRepo, LGitClientMock, LHttpClientMock, LCompilerMock, TTestLogger.Create);
   try
     LInstall.Execute('', 'Linux64');
-    
+
     // O mock de compilador rodou sem erros e o resolvedor terminou perfeitamente
     Assert.IsTrue(TFile.Exists(TPath.Combine(TDirectory.GetCurrentDirectory, FILE_PACKAGE_LOCK)));
   finally
@@ -831,7 +831,7 @@ begin
   try
     // 1. Redireciona o Registro para nossa pasta de teste isolada
     LIntegration.RegistryKeyPrefix := 'Software\Boss4DTests\BDS\';
-    
+
     // 2. Prepara o Registro criando a chave de teste da versao 22.0
     LReg := TRegistry.Create(KEY_WRITE);
     try
@@ -853,7 +853,7 @@ begin
       LReg.RootKey := HKEY_CURRENT_USER;
       Assert.IsTrue(LReg.OpenKey(LTestKey, False));
       LSearchPath := LReg.ReadString('Search Path');
-      
+
       Assert.IsTrue(LSearchPath.Contains('C:\PastaExistente'));
       Assert.IsTrue(LSearchPath.Contains('modules\dcu'));
     finally
@@ -884,7 +884,7 @@ var
 begin
   LGitClientMock := TGitClientMock.Create;
   LCompilerMock := TCompilerMock.Create;
-  
+
   LToolService := TBoss4DToolService.Create(LGitClientMock, LCompilerMock, TTestLogger.Create);
   try
     LHomeDir := GetBossHome;
@@ -917,7 +917,7 @@ begin
   LIntegration := TBoss4DIDEIntegrationService.Create(LRegistryMock, TTestLogger.Create);
   try
     LIntegration.RegistryKeyPrefix := 'Software\Boss4DTests\BDS\';
-    
+
     // Cria as chaves de Known Packages e Known IDE Packages para Delphi 22.0
     LReg := TRegistry.Create(KEY_WRITE);
     try
@@ -1000,8 +1000,6 @@ end;
 
 procedure TTestsServices.TestPluginInstallation;
 var
-  LGitClientMock: IBoss4DGitClient;
-  LCompilerMock: IBoss4DCompiler;
   LRegistryMock: IBoss4DRegistryService;
   LIDEIntegration: TBoss4DIDEIntegrationService;
   LTempCloneDir: string;
@@ -1010,8 +1008,6 @@ var
   LLock: TBoss4DLock;
   LDestBPL: string;
 begin
-  LGitClientMock := TGitClientMock.Create;
-  LCompilerMock := TCompilerMock.Create;
   LRegistryMock := TRegistryMock.Create;
   LDep := nil;
   LLock := nil;
@@ -1059,7 +1055,7 @@ begin
     // 4. Limpeza
     if TFile.Exists(LDestBPL) then TFile.Delete(LDestBPL);
     if TDirectory.Exists(LTempCloneDir) then TDirectory.Delete(LTempCloneDir, True);
-    
+
     var LRegWrite := TRegistry.Create(KEY_WRITE);
     try
       LRegWrite.RootKey := HKEY_CURRENT_USER;
@@ -1087,7 +1083,7 @@ begin
   LMonorepoRoot := TPath.Combine(TPath.GetTempPath, 'boss4d_monorepo_test_' + TGUID.NewGuid.ToString);
   LApp1Dir := TPath.Combine(LMonorepoRoot, TPath.Combine('subprojects', 'app1'));
   LApp2Dir := TPath.Combine(LMonorepoRoot, TPath.Combine('subprojects', 'app2'));
-  
+
   TDirectory.CreateDirectory(LApp1Dir);
   TDirectory.CreateDirectory(LApp2Dir);
 
@@ -1174,7 +1170,7 @@ begin
   LIDEIntegration := TBoss4DIDEIntegrationService.Create(LRegistryMock, TTestLogger.Create);
   try
     LIDEIntegration.RegistryKeyPrefix := 'Software\Boss4DTests\BDS\';
-    
+
     LReg := TRegistry.Create(KEY_READ or KEY_WRITE);
     try
       LReg.RootKey := HKEY_CURRENT_USER;
@@ -1190,7 +1186,7 @@ begin
     LReg := TRegistry.Create(KEY_READ);
     try
       LReg.RootKey := HKEY_CURRENT_USER;
-      
+
       LSubKey := 'Software\Boss4DTests\BDS\22.0\Library\Win32';
       if LReg.OpenKey(LSubKey, False) then
       begin
@@ -1215,7 +1211,7 @@ begin
     end;
   finally
     LIDEIntegration.Free;
-    
+
     LReg := TRegistry.Create(KEY_READ or KEY_WRITE);
     try
       LReg.RootKey := HKEY_CURRENT_USER;
@@ -1258,7 +1254,7 @@ begin
     TRegistryMock(LRegistryMock).Path37 := LTempDir13;
 
     // 1. Testa deteccao do Delphi 11 (Alexandria) -> ProjectVersion 19.5
-    LDprojContent := 
+    LDprojContent :=
       '<?xml version="1.0" encoding="utf-8"?>'#13#10 +
       '<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">'#13#10 +
       '  <PropertyGroup>'#13#10 +
@@ -1276,7 +1272,7 @@ begin
     end;
 
     // 2. Testa deteccao do Delphi 13 (Florence) -> ProjectVersion 20.3
-    LDprojContent := 
+    LDprojContent :=
       '<?xml version="1.0" encoding="utf-8"?>'#13#10 +
       '<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">'#13#10 +
       '  <PropertyGroup>'#13#10 +
@@ -1315,7 +1311,7 @@ var
   LFoundBuildScript: Boolean;
   LMenuItem: IOTAProjectManagerMenu;
 begin
-  // 1. Valida stubs básicos de menu
+  // 1. Valida stubs bÃ¡sicos de menu
   LMenu := TBoss4DProjectManagerMenu.Create('Boss4D Install', 'mnuBoss4DInstall', 'mnuBoss4D', 'Boss4DInstallVerb', 'C:\Proj', 'install', 120);
   try
     Assert.AreEqual<string>('Boss4D Install', LMenu.GetCaption);
@@ -1331,7 +1327,7 @@ begin
     LMenu.Free;
   end;
 
-  // 2. Valida segurança de projeto não salvo em disco
+  // 2. Valida seguranÃ§a de projeto nÃ£o salvo em disco
   LTempDir := TPath.Combine(TPath.GetTempPath, 'boss4d_wizard_test_' + TGUID.NewGuid.ToString.Replace('{', '').Replace('}', ''));
   TDirectory.CreateDirectory(LTempDir);
   try
@@ -1340,11 +1336,11 @@ begin
     LMenuList := TInterfaceList.Create;
     LIdentList := TStringList.Create;
     try
-      // Como o arquivo .dproj não existe fisicamente no disco, o AddMenu deve sair silenciosamente sem popular a lista!
+      // Como o arquivo .dproj nÃ£o existe fisicamente no disco, o AddMenu deve sair silenciosamente sem popular a lista!
       LNotifier.AddMenu(LProj, LIdentList, LMenuList, False);
       Assert.AreEqual<Integer>(0, LMenuList.Count);
 
-      // Agora cria o arquivo físico de dproj para validar que ele popula
+      // Agora cria o arquivo fÃ­sico de dproj para validar que ele popula
       TFile.WriteAllText(LProj.FileName, '<?xml version="1.0" encoding="utf-8"?><Project/>', TEncoding.UTF8);
 
       // Cria um boss.json com scripts de teste
@@ -1354,10 +1350,10 @@ begin
 
       LNotifier.AddMenu(LProj, LIdentList, LMenuList, False);
 
-      // O menu deve conter itens principais, os novos itens do doctor, tree, getit, cache, etc., mais os scripts dinâmicos!
-      Assert.IsTrue(LMenuList.Count > 5, 'Deveria ter populado os itens de menu estáticos e dinâmicos. Total: ' + LMenuList.Count.ToString);
+      // O menu deve conter itens principais, os novos itens do doctor, tree, getit, cache, etc., mais os scripts dinÃ¢micos!
+      Assert.IsTrue(LMenuList.Count > 5, 'Deveria ter populado os itens de menu estÃ¡ticos e dinÃ¢micos. Total: ' + LMenuList.Count.ToString);
 
-      // Procura pelo script dinâmico de build no menu
+      // Procura pelo script dinÃ¢mico de build no menu
       LFoundBuildScript := False;
       LMenuItem := nil;
       for I := 0 to LMenuList.Count - 1 do

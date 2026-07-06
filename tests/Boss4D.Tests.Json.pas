@@ -1,4 +1,4 @@
-unit Boss4D.Tests.Json;
+﻿unit Boss4D.Tests.Json;
 
 interface
 
@@ -156,7 +156,7 @@ begin
 
     Assert.IsTrue(TFile.Exists(LFilePath));
     LBytes := TFile.ReadAllBytes(LFilePath);
-    
+
     // Assegura que o arquivo tem pelo menos 3 bytes e os 3 primeiros nao sao o BOM UTF-8 (EF BB BF)
     Assert.IsTrue(Length(LBytes) >= 3);
     Assert.IsFalse((LBytes[0] = $EF) and (LBytes[1] = $BB) and (LBytes[2] = $BF), 'O arquivo nao deve conter o BOM UTF-8!');

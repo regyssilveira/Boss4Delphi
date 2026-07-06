@@ -142,7 +142,7 @@ begin
   // Oculta abas do PageControl para simular interface SPA
   for var I := 0 to PageControlMain.PageCount - 1 do
     PageControlMain.Pages[I].TabVisible := False;
-  
+
   PageControlMain.ActivePage := TabProject;
   PopulateCatalog;
   LogMessage('Boss4D GUI Inicializada com sucesso.');
@@ -213,11 +213,11 @@ begin
   try
     LContent := TFile.ReadAllText(LBossJsonFile, TEncoding.UTF8);
     LJSON := TJSONObject.ParseJSONValue(LContent) as TJSONObject;
-    if LJSON <> nil then
+    if Assigned(LJSON) then
     begin
       try
         LDeps := LJSON.GetValue('dependencies') as TJSONObject;
-        if LDeps <> nil then
+        if Assigned(LDeps) then
         begin
           LBossLockFile := TPath.Combine(AProjectDir, 'boss-lock.json');
           LLockObj := nil;
@@ -238,23 +238,23 @@ begin
               LItem := ListDependencies.Items.Add;
               LItem.Caption := LPair.JsonString.Value;
               LItem.SubItems.Add(LPair.JsonValue.Value);
-              
+
               // Busca versao instalada no lock
               LInstalledVersion := 'Nao instalada';
-              if LLockObj <> nil then
+              if Assigned(LLockObj) then
               begin
                 LLockDep := LLockObj.GetValue('dependencies') as TJSONObject;
-                if LLockDep <> nil then
+                if Assigned(LLockDep) then
                 begin
                   LDepInfo := LLockDep.GetValue(LPair.JsonString.Value) as TJSONObject;
-                  if LDepInfo <> nil then
+                  if Assigned(LDepInfo) then
                     LInstalledVersion := LDepInfo.GetValue('version').Value;
                 end;
               end;
               LItem.SubItems.Add(LInstalledVersion);
             end;
           finally
-            if LLockObj <> nil then
+            if Assigned(LLockObj) then
               LLockObj.Free;
           end;
         end;
@@ -276,7 +276,7 @@ var
   I: Integer;
 begin
   ListCatalog.Items.Clear;
-  
+
   LPackages := [
     ['Horse', 'github.com/hashload/horse'],
     ['RESTRequest4Delphi', 'github.com/viniciussanchez/RESTRequest4Delphi'],
@@ -341,7 +341,7 @@ begin
   end;
 
   LogMessage('Iniciando: ' + ATitle);
-  
+
   TTask.Run(
     procedure
     var
@@ -364,7 +364,7 @@ begin
         LHttpClient := TBoss4DHttpNativeAdapter.Create;
         LRegistry := TBoss4DWindowsRegistryAdapter.Create;
         LCompiler := TBoss4DDelphiCompilerAdapter.Create(LRegistry, LLogger);
-        
+
         LConfigService := TBoss4DConfigService.Create(LLogger);
         LGlobalConfig := LConfigService.Load;
         try
@@ -373,7 +373,7 @@ begin
           LGlobalConfig.Free;
           LConfigService.Free;
         end;
-        
+
         if ACommand = 'install' then
         begin
           LInstallService := TBoss4DInstallService.Create(
@@ -441,8 +441,6 @@ begin
       LLogger: IBoss4DLogger;
       LPackageRepo: IBoss4DPackageRepository;
       LLockRepo: IBoss4DLockRepository;
-      LHttpClient: IBoss4DHttpClient;
-      LRegistry: IBoss4DRegistryService;
       LConfigService: TBoss4DConfigService;
       LGlobalConfig: TBoss4DGlobalConfig;
       LGitClient: IBoss4DGitClient;
@@ -452,8 +450,6 @@ begin
         LLogger := TGUILogger.Create(Self);
         LPackageRepo := TBoss4DPackageJsonRepository.Create;
         LLockRepo := TBoss4DLockJsonRepository.Create;
-        LHttpClient := TBoss4DHttpNativeAdapter.Create;
-        LRegistry := TBoss4DWindowsRegistryAdapter.Create;
         LConfigService := TBoss4DConfigService.Create(LLogger);
         LGlobalConfig := LConfigService.Load;
         try
@@ -516,7 +512,7 @@ begin
     ShowMessage('Por favor, selecione um pacote do catalogo para instalar!');
     Exit;
   end;
-  
+
   LRepo := ListCatalog.Selected.SubItems[0];
   RunAsyncCommand('Instalacao de ' + ListCatalog.Selected.Caption, 'install', LRepo);
 end;

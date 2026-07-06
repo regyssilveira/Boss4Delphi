@@ -1,4 +1,4 @@
-unit Boss4D.Core.Services.Clean;
+﻿unit Boss4D.Core.Services.Clean;
 
 interface
 
@@ -34,7 +34,7 @@ var
   LLockFile: string;
   LFiles: TArray<string>;
 begin
-  FLogger.Log(TBoss4DLogLevel.Info, '🧹 Iniciando limpeza do projeto...');
+  FLogger.Log(TBoss4DLogLevel.Info, 'ðŸ§¹ Iniciando limpeza do projeto...');
 
   LModulesDir := TPath.Combine(TDirectory.GetCurrentDirectory, FOLDER_DEPENDENCIES);
   LLockFile := TPath.Combine(TDirectory.GetCurrentDirectory, FILE_PACKAGE_LOCK);
@@ -44,13 +44,13 @@ begin
   begin
     FLogger.Log(TBoss4DLogLevel.Info, '  Removendo pasta ' + FOLDER_DEPENDENCIES + '...');
     try
-      // Limpa atributos de somente leitura recursively para evitar erros de permissão de arquivos do .git
+      // Limpa atributos de somente leitura recursively para evitar erros de permissÃ£o de arquivos do .git
       LFiles := TDirectory.GetFiles(LModulesDir, '*', TSearchOption.soAllDirectories);
       for var LFile in LFiles do
       begin
         SetFileAttributes(PChar(LFile), FILE_ATTRIBUTE_NORMAL);
       end;
-      
+
       TDirectory.Delete(LModulesDir, True);
       FLogger.Log(TBoss4DLogLevel.Info, '  [OK] Pasta ' + FOLDER_DEPENDENCIES + ' removida.');
     except
@@ -81,7 +81,7 @@ begin
     FLogger.Log(TBoss4DLogLevel.Info, '  Arquivo ' + FILE_PACKAGE_LOCK + ' nao existe.');
   end;
 
-  FLogger.Log(TBoss4DLogLevel.Info, '✨ Limpeza concluida com sucesso!');
+  FLogger.Log(TBoss4DLogLevel.Info, 'âœ¨ Limpeza concluida com sucesso!');
 end;
 
 end.

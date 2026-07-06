@@ -1,4 +1,4 @@
-unit Boss4D.Core.Services.Workspace;
+﻿unit Boss4D.Core.Services.Workspace;
 
 interface
 
@@ -6,7 +6,7 @@ uses
   System.Generics.Collections, Boss4D.Core.Ports, Boss4D.Core.Domain.Package;
 
 type
-  { Serviço para gerenciar workspaces e linkagem de monorepos no Boss4D }
+  { ServiÃ§o para gerenciar workspaces e linkagem de monorepos no Boss4D }
   TBoss4DWorkspaceService = class
   private
     FPackageRepo: IBoss4DPackageRepository;
@@ -15,11 +15,11 @@ type
     procedure CreateDirectoryJunction(const ASourceDir, ADestJunction: string);
   public
     constructor Create(const APackageRepo: IBoss4DPackageRepository; const ALogger: IBoss4DLogger);
-    
-    // Varre os diretórios e retorna a lista de caminhos absolutos dos subprojetos
+
+    // Varre os diretÃ³rios e retorna a lista de caminhos absolutos dos subprojetos
     function FindSubprojects(const ARootPkg: TBoss4DPackage; const ARootPath: string): TList<string>;
-    
-    // Cria links de junção virtuais da pasta modules nos subprojetos
+
+    // Cria links de junÃ§Ã£o virtuais da pasta modules nos subprojetos
     procedure LinkWorkspaceSubprojects(const ARootPath: string; const ASubprojectPaths: TList<string>);
   end;
 
@@ -50,7 +50,7 @@ begin
     LGlobClean := AGlob.Replace('/', '\').Trim;
     if LGlobClean.EndsWith('*') then
     begin
-      // Ex: projects\* -> Varre todos os subdiretórios de projects/
+      // Ex: projects\* -> Varre todos os subdiretÃ³rios de projects/
       LFolderToSearch := TPath.Combine(ARootPath, LGlobClean.Substring(0, LGlobClean.Length - 1));
       if TDirectory.Exists(LFolderToSearch) then
       begin
@@ -80,7 +80,7 @@ var
   LSubPkgPath: string;
 begin
   LPaths := TList<string>.Create;
-  
+
   if not Assigned(ARootPkg) or (ARootPkg.Workspaces.Count = 0) then
     Exit(LPaths);
 
@@ -112,18 +112,18 @@ begin
       // Se for uma Junction, removemos usando rmdir no Windows
       ExecuteCommandLine('cmd.exe /c rmdir "' + ADestJunction + '"', TPath.GetDirectoryName(ADestJunction), LOutput);
     except
-      // Se falhar (ex: e uma pasta física comum), deleta de forma recursiva normal
+      // Se falhar (ex: e uma pasta fÃ­sica comum), deleta de forma recursiva normal
       TDirectory.Delete(ADestJunction, True);
     end;
-    
+
     // Fallback de seguranca caso o rmdir nao tenha completado
     if TDirectory.Exists(ADestJunction) then
       TDirectory.Delete(ADestJunction, True);
   end;
 
-  FLogger.Log(TBoss4DLogLevel.Debug, '  Criando junção de diretório: %s -> %s', [ADestJunction, ASourceDir]);
-  
-  // No Windows, criamos junção via mklink /J (não exige privilégios de Admin)
+  FLogger.Log(TBoss4DLogLevel.Debug, '  Criando junÃ§Ã£o de diretÃ³rio: %s -> %s', [ADestJunction, ASourceDir]);
+
+  // No Windows, criamos junÃ§Ã£o via mklink /J (nÃ£o exige privilÃ©gios de Admin)
   if not ExecuteCommandLine('cmd.exe /c mklink /J "' + ADestJunction + '" "' + ASourceDir + '"', TPath.GetDirectoryName(ADestJunction), LOutput) then
   begin
     FLogger.Log(TBoss4DLogLevel.Warning, '  Falha ao criar Directory Junction via cmd. Fazendo copia de seguranca.');
@@ -139,7 +139,7 @@ var
   LSubModulesDir: string;
 begin
   LModulesRoot := TPath.Combine(ARootPath, FOLDER_DEPENDENCIES);
-  
+
   if not TDirectory.Exists(LModulesRoot) then
     TDirectory.CreateDirectory(LModulesRoot);
 

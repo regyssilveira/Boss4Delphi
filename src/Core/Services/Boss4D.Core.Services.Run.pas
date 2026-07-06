@@ -1,4 +1,4 @@
-unit Boss4D.Core.Services.Run;
+﻿unit Boss4D.Core.Services.Run;
 
 interface
 
@@ -52,13 +52,13 @@ begin
     end;
 
     FLogger.Log(TBoss4DLogLevel.Info, '> %s', [LScriptCmd]);
-    
+
     // Executa a linha de comando no shell
     Result := ExecuteCommandLine(LScriptCmd, GetCurrentDir, LOutput);
-    
+
     if not LOutput.IsEmpty then
       Writeln(LOutput);
-      
+
     if not Result then
       FLogger.Log(TBoss4DLogLevel.Error, 'Script falhou com erro de execucao.');
   finally

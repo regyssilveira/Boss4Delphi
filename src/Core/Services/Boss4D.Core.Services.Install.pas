@@ -135,7 +135,7 @@ begin
     // Calcular Checksum da pasta de destino instalada
     var LChecksum := CalculateDirectoryChecksum(LTargetDir);
 
-    // Se a dependência já constava no arquivo lock existente, validar se o checksum atual bate!
+    // Se a dependÃªncia jÃ¡ constava no arquivo lock existente, validar se o checksum atual bate!
     var LExistingLocked: TBoss4DLockedDependency;
     if ALock.GetInstalled(ADep, LExistingLocked) then
     begin
@@ -194,23 +194,23 @@ begin
     for var LFile in LFiles do
     begin
       var LLowerPath := LFile.ToLower;
-      if LLowerPath.Contains('\samples\') or 
-         LLowerPath.Contains('\tests\') or 
-         LLowerPath.Contains('\examples\') or 
-         LLowerPath.Contains('\demo\') or 
-         LLowerPath.Contains('\demos\') or 
-         LLowerPath.Contains('\test\') or 
+      if LLowerPath.Contains('\samples\') or
+         LLowerPath.Contains('\tests\') or
+         LLowerPath.Contains('\examples\') or
+         LLowerPath.Contains('\demo\') or
+         LLowerPath.Contains('\demos\') or
+         LLowerPath.Contains('\test\') or
          LLowerPath.Contains('\sample\') or
-         LLowerPath.Contains('/samples/') or 
-         LLowerPath.Contains('/tests/') or 
-         LLowerPath.Contains('/examples/') or 
-         LLowerPath.Contains('/demo/') or 
-         LLowerPath.Contains('/demos/') or 
-         LLowerPath.Contains('/test/') or 
+         LLowerPath.Contains('/samples/') or
+         LLowerPath.Contains('/tests/') or
+         LLowerPath.Contains('/examples/') or
+         LLowerPath.Contains('/demo/') or
+         LLowerPath.Contains('/demos/') or
+         LLowerPath.Contains('/test/') or
          LLowerPath.Contains('/sample/') then
         Continue;
 
-      // Executa compilação nativa
+      // Executa compilaÃ§Ã£o nativa
       FCompiler.Compile(LFile, ADep, ALock, APlatform);
     end;
   end
@@ -229,6 +229,8 @@ var
   LActiveDeps: TArray<TBoss4DDependency>;
   LProcessedDeps: TList<string>;
   LTasks: TList<ITask>;
+  LSubPkgPath: string;
+  LSubPkg: TBoss4DPackage;
 begin
   LPkgPath := GetBossFile;
   LLockPath := TPath.Combine(GetCurrentDir, FILE_PACKAGE_LOCK);
@@ -271,22 +273,22 @@ begin
       var LActiveDepsList := TList<TBoss4DDependency>.Create;
       try
         LSubprojects := LWorkspaceService.FindSubprojects(LPkg, GetCurrentDir);
-        
-        // Adiciona dependências do projeto raiz
+
+        // Adiciona dependÃªncias do projeto raiz
         var LRootDeps := LPkg.GetParsedDependencies;
         for var LDep in LRootDeps do
           LActiveDepsList.Add(LDep);
-          
-        // Adiciona dependências de cada subprojeto do workspace de forma unificada
+
+        // Adiciona dependÃªncias de cada subprojeto do workspace de forma unificada
         for var LSubPath in LSubprojects do
         begin
-          var LSubPkgPath := TPath.Combine(LSubPath, FILE_PACKAGE);
-          var LSubPkg := FPackageRepo.Load(LSubPkgPath);
+          LSubPkgPath := TPath.Combine(LSubPath, FILE_PACKAGE);
+          LSubPkg := FPackageRepo.Load(LSubPkgPath);
           try
             var LSubDeps := LSubPkg.GetParsedDependencies;
             for var LDep in LSubDeps do
             begin
-              // Evita duplicados na fila de instalação
+              // Evita duplicados na fila de instalaÃ§Ã£o
               var LAlreadyExists := False;
               for var LExistingDep in LActiveDepsList do
               begin

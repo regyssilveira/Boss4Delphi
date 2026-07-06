@@ -1,4 +1,4 @@
-unit Boss4D.Core.Services.IDEIntegration;
+﻿unit Boss4D.Core.Services.IDEIntegration;
 
 interface
 
@@ -55,7 +55,7 @@ begin
     if LReg.OpenKey(LSubKey, True) then
     begin
       LCurrentPath := LReg.ReadString('Search Path');
-      
+
       // Se ja contiver o caminho, nao faz nada
       if LCurrentPath.Contains(APathToInject) then
         Exit;
@@ -63,7 +63,7 @@ begin
       LNewPath := LCurrentPath;
       if not LNewPath.IsEmpty and not LNewPath.EndsWith(';') then
         LNewPath := LNewPath + ';';
-      
+
       LNewPath := LNewPath + APathToInject;
       LReg.WriteString('Search Path', LNewPath);
       FLogger.Log(TBoss4DLogLevel.Info, '  [OK] Library Path atualizado para Delphi %s (%s).', [AVersion, APlatform]);

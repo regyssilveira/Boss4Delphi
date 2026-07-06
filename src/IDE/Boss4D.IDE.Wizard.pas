@@ -421,9 +421,9 @@ function TBoss4DProjectManagerMenu.GetPosition: Integer; begin Result := FPositi
 function TBoss4DProjectManagerMenu.GetVerb: string; begin Result := FVerb; end;
 
 procedure TBoss4DProjectManagerMenu.SetCaption(const Value: string); begin FCaption := Value; end;
-procedure TBoss4DProjectManagerMenu.SetChecked(Value: Boolean); begin end;
-procedure TBoss4DProjectManagerMenu.SetEnabled(Value: Boolean); begin end;
-procedure TBoss4DProjectManagerMenu.SetHelpContext(Value: Integer); begin end;
+procedure TBoss4DProjectManagerMenu.SetChecked(Value: Boolean); begin { no-op } end;
+procedure TBoss4DProjectManagerMenu.SetEnabled(Value: Boolean); begin { no-op } end;
+procedure TBoss4DProjectManagerMenu.SetHelpContext(Value: Integer); begin { no-op } end;
 procedure TBoss4DProjectManagerMenu.SetName(const Value: string); begin FName := Value; end;
 procedure TBoss4DProjectManagerMenu.SetParent(const Value: string); begin FParent := Value; end;
 procedure TBoss4DProjectManagerMenu.SetPosition(Value: Integer); begin FPosition := Value; end;
@@ -497,10 +497,10 @@ function BuildProjectSearchPaths(const AProjectDir: string; const AMessageServic
     try
       var LPkgStr := TFile.ReadAllText(LPkgPath, TEncoding.UTF8);
       LPkgJSON := TJSONObject.ParseJSONValue(LPkgStr) as TJSONObject;
-      if LPkgJSON = nil then Exit;
+      if not Assigned(LPkgJSON) then Exit;
       try
         var LMainSrcValue := LPkgJSON.GetValue('mainsrc');
-        if LMainSrcValue = nil then Exit;
+        if not Assigned(LMainSrcValue) then Exit;
         LMainSrc := LMainSrcValue.Value;
         if LMainSrc = '' then Exit;
         LSubPaths := LMainSrc.Split([';']);
@@ -537,15 +537,15 @@ function BuildProjectSearchPaths(const AProjectDir: string; const AMessageServic
     try
       LJSONStr := TFile.ReadAllText(ALockPath, TEncoding.UTF8);
       LJSONObj := TJSONObject.ParseJSONValue(LJSONStr) as TJSONObject;
-      if LJSONObj = nil then Exit;
+      if not Assigned(LJSONObj) then Exit;
       try
         LModulesObj := LJSONObj.GetValue('installedModules') as TJSONObject;
-        if LModulesObj = nil then Exit;
+        if not Assigned(LModulesObj) then Exit;
         for Idx := 0 to LModulesObj.Count - 1 do
         begin
           var LPair := LModulesObj.Pairs[Idx];
           var LModInfo := LPair.JsonValue as TJSONObject;
-          if LModInfo = nil then Continue;
+          if not Assigned(LModInfo) then Continue;
           LModName := LModInfo.GetValue('name').Value;
           if LModName = '' then Continue;
           LModDir := TPath.Combine(TPath.Combine(AProjectDir, 'modules'), LModName);
@@ -615,9 +615,9 @@ var
   LSearchPaths: TArray<string>;
   LPath: string;
 begin
-  if AProj = nil then Exit;
+  if not Assigned(AProj) then Exit;
   LOptions := AProj.ProjectOptions;
-  if LOptions <> nil then
+  if Assigned(LOptions) then
   begin
     LProjDir := TPath.GetDirectoryName(AProj.FileName);
     LSearchPaths := BuildProjectSearchPaths(LProjDir, AMessageServices, AGroup);
@@ -752,7 +752,7 @@ begin
                     if Supports(BorlandIDEServices, IOTAModuleServices, LModuleServices) then
                     begin
                       LProjectGroup := LModuleServices.MainProjectGroup;
-                      if LProjectGroup <> nil then
+                      if Assigned(LProjectGroup) then
                       begin
                         for I := 0 to LProjectGroup.ProjectCount - 1 do
                         begin
@@ -803,11 +803,11 @@ begin
   try
     LContent := TFile.ReadAllText(LBossJsonFile, TEncoding.UTF8);
     LJSON := TJSONObject.ParseJSONValue(LContent) as TJSONObject;
-    if LJSON <> nil then
+    if Assigned(LJSON) then
     begin
       try
         LScripts := LJSON.GetValue('scripts') as TJSONObject;
-        if LScripts <> nil then
+        if Assigned(LScripts) then
         begin
           for var I := 0 to LScripts.Count - 1 do
           begin
@@ -843,7 +843,7 @@ var
   LProjFile: string;
   LProjectName: string;
 begin
-  if Project = nil then
+  if not Assigned(Project) then
     Exit;
 
   LProjFile := Project.FileName;

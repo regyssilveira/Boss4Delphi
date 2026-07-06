@@ -114,6 +114,8 @@ var
   LCacheDir: string;
   LSubDirs: TArray<string>;
   LDeletedCount: Integer;
+  LSubDir: string;
+  LLastWrite: TDateTime;
 begin
   LDeletedCount := 0;
   LCacheDir := GetCacheDir;
@@ -127,10 +129,10 @@ begin
 
   try
     LSubDirs := TDirectory.GetDirectories(LCacheDir);
-    for var LSubDir in LSubDirs do
+    for LSubDir in LSubDirs do
     begin
       try
-        var LLastWrite := TDirectory.GetLastWriteTime(LSubDir);
+        LLastWrite := TDirectory.GetLastWriteTime(LSubDir);
         if DaysBetween(Now, LLastWrite) > ADaysThreshold then
         begin
           FLogger.Log(TBoss4DLogLevel.Debug, 'Removendo cache obsoleto: ' + TPath.GetFileName(LSubDir));

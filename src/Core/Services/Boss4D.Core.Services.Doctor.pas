@@ -20,7 +20,7 @@ type
 implementation
 
 uses
-  System.SysUtils, System.IOUtils, Boss4D.Core.Domain.Env, Boss4D.Core.Domain.Consts,
+  System.SysUtils, System.IOUtils, Boss4D.Core.Domain.Env,
   Boss4D.Core.Services.Config;
 
 { TBoss4DDoctorService }
@@ -45,7 +45,7 @@ var
   LConfig: TBoss4DGlobalConfig;
 begin
   Result := True;
-  FLogger.Log(TBoss4DLogLevel.Info, '🩺 Executando auto-diagnostico do Boss4D...');
+  FLogger.Log(TBoss4DLogLevel.Info, 'ðŸ©º Executando auto-diagnostico do Boss4D...');
 
   // 1. Verifica Git CLI
   LGitSuccess := ExecuteCommandLine('git --version', '', LGitVersion);
@@ -100,7 +100,7 @@ begin
   if AFix then
   begin
     FLogger.Log(TBoss4DLogLevel.Info, 'Tentando aplicar correcoes de configuracao...');
-    
+
     if (Length(LVersions) > 0) then
     begin
       var LLastVer := LVersions[Length(LVersions) - 1];
@@ -125,7 +125,7 @@ begin
         end;
       end;
     end;
-    
+
     FLogger.Log(TBoss4DLogLevel.Info, 'Dica: Sempre execute o Boss4D a partir do "RAD Studio Command Prompt" para carregar automaticamente o ambiente compilador.');
   end;
 end;
