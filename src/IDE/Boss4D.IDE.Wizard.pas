@@ -479,6 +479,155 @@ begin
   Result := True;
 end;
 
+{$IFDEF IDE_PLUGIN}
+function BuildProjectSearchPaths(const AProjectDir: string; const AMessageServices: IOTAMessageServices; const AGroup: IOTAMessageGroup): TArray<string>;
+  procedure ParseModulePkg(const AModName, AModDir: string; LPaths: TStringList);
+  var
+    LPkgPath: string;
+    LPkgJSON: TJSONObject;
+    LMainSrc: string;
+    LSubPaths: TArray<string>;
+    LSubPath: string;
+  begin
+    LPkgPath := TPath.Combine(AModDir, 'boss.json');
+    if not TFile.Exists(LPkgPath) then Exit;
+    try
+      var LPkgStr := TFile.ReadAllText(LPkgPath, TEncoding.UTF8);
+      LPkgJSON := TJSONObject.ParseJSONValue(LPkgStr) as TJSONObject;
+      if LPkgJSON = nil then Exit;
+      try
+        var LMainSrcValue := LPkgJSON.GetValue('mainsrc');
+        if LMainSrcValue = nil then Exit;
+        LMainSrc := LMainSrcValue.Value;
+        if LMainSrc = '' then Exit;
+        LSubPaths := LMainSrc.Split([';']);
+        for LSubPath in LSubPaths do
+        begin
+          var LTrimmed := LSubPath.Trim.Replace('/', '\');
+          if LTrimmed.EndsWith('\') and (Length(LTrimmed) > 1) then
+            LTrimmed := LTrimmed.Substring(0, LTrimmed.Length - 1);
+          if LTrimmed <> '' then
+            LPaths.Add('.\modules\' + AModName + '\' + LTrimmed);
+        end;
+      finally
+        LPkgJSON.Free;
+      end;
+    except
+      on E: Exception do
+      begin
+        AMessageServices.AddTitleMessage(
+          '[AVISO] Erro ao ler boss.json de ' + AModName + ': ' + E.Message,
+          AGroup
+        );
+      end;
+    end;
+  end;
+  procedure ParseLockModules(const ALockPath: string; LPaths: TStringList);
+  var
+    LJSONStr: string;
+    LJSONObj, LModulesObj: TJSONObject;
+    Idx: Integer;
+    LModName: string;
+    LModDir: string;
+  begin
+    if not TFile.Exists(ALockPath) then Exit;
+    try
+      LJSONStr := TFile.ReadAllText(ALockPath, TEncoding.UTF8);
+      LJSONObj := TJSONObject.ParseJSONValue(LJSONStr) as TJSONObject;
+      if LJSONObj = nil then Exit;
+      try
+        LModulesObj := LJSONObj.GetValue('installedModules') as TJSONObject;
+        if LModulesObj = nil then Exit;
+        for Idx := 0 to LModulesObj.Count - 1 do
+        begin
+          var LPair := LModulesObj.Pairs[Idx];
+          var LModInfo := LPair.JsonValue as TJSONObject;
+          if LModInfo = nil then Continue;
+          LModName := LModInfo.GetValue('name').Value;
+          if LModName = '' then Continue;
+          LModDir := TPath.Combine(TPath.Combine(AProjectDir, 'modules'), LModName);
+          if not TDirectory.Exists(LModDir) then Continue;
+          LPaths.Add('.\modules\' + LModName);
+          ParseModulePkg(LModName, LModDir, LPaths);
+        end;
+      finally
+        LJSONObj.Free;
+      end;
+    except
+      on E: Exception do
+      begin
+        AMessageServices.AddTitleMessage(
+          '[AVISO] Erro ao ler boss-lock.json: ' + E.Message,
+          AGroup
+        );
+      end;
+    end;
+  end;
+var
+  LPaths: TStringList;
+  LLockPath: string;
+  Idx: Integer;
+begin
+  LPaths := TStringList.Create;
+  try
+    LPaths.Add('.\modules\dcu\$(Platform)\$(Config)');
+    LLockPath := TPath.Combine(AProjectDir, 'boss-lock.json');
+    ParseLockModules(LLockPath, LPaths);
+    SetLength(Result, LPaths.Count);
+    for Idx := 0 to LPaths.Count - 1 do
+      Result[Idx] := LPaths[Idx];
+  finally
+    LPaths.Free;
+  end;
+end;
+
+procedure CheckAndAdd(const AProj: IOTAProject; const AOptions: IOTAProjectOptions; const AOptionName: string; const APathToAdd: string; const AMessageServices: IOTAMessageServices; const AGroup: IOTAMessageGroup);
+begin
+  try
+    var LVal := VarToStr(AOptions.Values[AOptionName]);
+    if not LVal.Contains(APathToAdd) then
+    begin
+      if LVal <> '' then
+        LVal := LVal + ';' + APathToAdd
+      else
+        LVal := APathToAdd;
+      AOptions.Values[AOptionName] := LVal;
+      AProj.MarkModified;
+    end;
+  except
+    on E: Exception do
+    begin
+      AMessageServices.AddTitleMessage(
+        '[AVISO] Erro ao atualizar a opcao ' + AOptionName + ': ' + E.Message,
+        AGroup
+      );
+    end;
+  end;
+end;
+
+procedure UpdateProj(const AProj: IOTAProject; const AMessageServices: IOTAMessageServices; const AGroup: IOTAMessageGroup);
+var
+  LProjDir: string;
+  LOptions: IOTAProjectOptions;
+  LSearchPaths: TArray<string>;
+  LPath: string;
+begin
+  if AProj = nil then Exit;
+  LOptions := AProj.ProjectOptions;
+  if LOptions <> nil then
+  begin
+    LProjDir := TPath.GetDirectoryName(AProj.FileName);
+    LSearchPaths := BuildProjectSearchPaths(LProjDir, AMessageServices, AGroup);
+    for LPath in LSearchPaths do
+    begin
+      CheckAndAdd(AProj, LOptions, 'UnitSearchPath', LPath, AMessageServices, AGroup);
+      CheckAndAdd(AProj, LOptions, 'DCC_UnitSearchPath', LPath, AMessageServices, AGroup);
+      CheckAndAdd(AProj, LOptions, 'SearchPath', LPath, AMessageServices, AGroup);
+    end;
+  end;
+end;
+{$ENDIF}
+
 procedure TBoss4DProjectManagerMenu.RunBoss4DCommand(const AProjectDir: string; const ACommand: string);
 {$IFDEF IDE_PLUGIN}
 var
@@ -592,152 +741,6 @@ begin
                   LProjectGroup: IOTAProjectGroup;
                   LProject: IOTAProject;
                   I: Integer;
-                  LOptions: IOTAProjectOptions;
-                   function BuildProjectSearchPaths(const AProjectDir: string): TArray<string>;
-                     procedure ParseModulePkg(const AModName, AModDir: string; LPaths: TStringList);
-                     var
-                       LPkgPath: string;
-                       LPkgJSON: TJSONObject;
-                       LMainSrc: string;
-                       LSubPaths: TArray<string>;
-                       LSubPath: string;
-                     begin
-                       LPkgPath := TPath.Combine(AModDir, 'boss.json');
-                       if not TFile.Exists(LPkgPath) then Exit;
-                       try
-                         var LPkgStr := TFile.ReadAllText(LPkgPath, TEncoding.UTF8);
-                         LPkgJSON := TJSONObject.ParseJSONValue(LPkgStr) as TJSONObject;
-                         if LPkgJSON = nil then Exit;
-                         try
-                           var LMainSrcValue := LPkgJSON.GetValue('mainsrc');
-                           if LMainSrcValue = nil then Exit;
-                           LMainSrc := LMainSrcValue.Value;
-                           if LMainSrc = '' then Exit;
-                           LSubPaths := LMainSrc.Split([';']);
-                           for LSubPath in LSubPaths do
-                           begin
-                             var LTrimmed := LSubPath.Trim.Replace('/', '\');
-                             if LTrimmed.EndsWith('\') and (Length(LTrimmed) > 1) then
-                               LTrimmed := LTrimmed.Substring(0, LTrimmed.Length - 1);
-                             if LTrimmed <> '' then
-                               LPaths.Add('.\modules\' + AModName + '\' + LTrimmed);
-                           end;
-                         finally
-                           LPkgJSON.Free;
-                         end;
-                       except
-                         on E: Exception do
-                         begin
-                           LMessageServices.AddTitleMessage(
-                             '[AVISO] Erro ao ler boss.json de ' + AModName + ': ' + E.Message,
-                             LGroup
-                           );
-                         end;
-                       end;
-                     end;
-                     procedure ParseLockModules(const ALockPath: string; LPaths: TStringList);
-                     var
-                       LJSONStr: string;
-                       LJSONObj, LModulesObj: TJSONObject;
-                       Idx: Integer;
-                       LModName: string;
-                       LModDir: string;
-                     begin
-                       if not TFile.Exists(ALockPath) then Exit;
-                       try
-                         LJSONStr := TFile.ReadAllText(ALockPath, TEncoding.UTF8);
-                         LJSONObj := TJSONObject.ParseJSONValue(LJSONStr) as TJSONObject;
-                         if LJSONObj = nil then Exit;
-                         try
-                           LModulesObj := LJSONObj.GetValue('installedModules') as TJSONObject;
-                           if LModulesObj = nil then Exit;
-                           for Idx := 0 to LModulesObj.Count - 1 do
-                           begin
-                             var LPair := LModulesObj.Pairs[Idx];
-                             var LModInfo := LPair.JsonValue as TJSONObject;
-                             if LModInfo = nil then Continue;
-                             LModName := LModInfo.GetValue('name').Value;
-                             if LModName = '' then Continue;
-                             LModDir := TPath.Combine(TPath.Combine(AProjectDir, 'modules'), LModName);
-                             if not TDirectory.Exists(LModDir) then Continue;
-                             LPaths.Add('.\modules\' + LModName);
-                             ParseModulePkg(LModName, LModDir, LPaths);
-                           end;
-                         finally
-                           LJSONObj.Free;
-                         end;
-                       except
-                         on E: Exception do
-                         begin
-                           LMessageServices.AddTitleMessage(
-                             '[AVISO] Erro ao ler boss-lock.json: ' + E.Message,
-                             LGroup
-                           );
-                         end;
-                       end;
-                     end;
-                   var
-                     LPaths: TStringList;
-                     LLockPath: string;
-                     Idx: Integer;
-                   begin
-                     LPaths := TStringList.Create;
-                     try
-                       LPaths.Add('.\modules\dcu\$(Platform)\$(Config)');
-                       LLockPath := TPath.Combine(AProjectDir, 'boss-lock.json');
-                       ParseLockModules(LLockPath, LPaths);
-                       SetLength(Result, LPaths.Count);
-                       for Idx := 0 to LPaths.Count - 1 do
-                         Result[Idx] := LPaths[Idx];
-                     finally
-                       LPaths.Free;
-                     end;
-                   end;
-                  procedure CheckAndAdd(const AProj: IOTAProject; const AOptionName: string; const APathToAdd: string);
-                  var
-                    LVal: string;
-                  begin
-                    try
-                      LVal := VarToStr(LOptions.Values[AOptionName]);
-                      if not LVal.Contains(APathToAdd) then
-                      begin
-                        if LVal <> '' then
-                          LVal := LVal + ';' + APathToAdd
-                        else
-                          LVal := APathToAdd;
-                        LOptions.Values[AOptionName] := LVal;
-                        AProj.MarkModified;
-                      end;
-                    except
-                      on E: Exception do
-                      begin
-                        LMessageServices.AddTitleMessage(
-                          '[AVISO] Erro ao atualizar a opcao ' + AOptionName + ': ' + E.Message,
-                          LGroup
-                        );
-                      end;
-                    end;
-                  end;
-                  procedure UpdateProj(const AProj: IOTAProject);
-                  var
-                    LProjDir: string;
-                    LSearchPaths: TArray<string>;
-                    LPath: string;
-                  begin
-                    if AProj = nil then Exit;
-                    LOptions := AProj.ProjectOptions;
-                    if LOptions <> nil then
-                    begin
-                      LProjDir := TPath.GetDirectoryName(AProj.FileName);
-                      LSearchPaths := BuildProjectSearchPaths(LProjDir);
-                      for LPath in LSearchPaths do
-                      begin
-                        CheckAndAdd(AProj, 'UnitSearchPath', LPath);
-                        CheckAndAdd(AProj, 'DCC_UnitSearchPath', LPath);
-                        CheckAndAdd(AProj, 'SearchPath', LPath);
-                      end;
-                    end;
-                  end;
                 begin
                   LMessageServices.AddTitleMessage('Finalizado com sucesso!', LGroup);
 
@@ -751,7 +754,7 @@ begin
                         for I := 0 to LProjectGroup.ProjectCount - 1 do
                         begin
                           LProject := LProjectGroup.Projects[I];
-                          UpdateProj(LProject);
+                          UpdateProj(LProject, LMessageServices, LGroup);
                         end;
                       end;
                     end;
