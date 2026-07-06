@@ -7,13 +7,13 @@ This document details the future planning, new features (backlog), and architect
 ## 🗺️ Epic 1: Visual Interface (Boss4D GUI)
 *Objective: Provide a visual and user-friendly alternative for developers who prefer not to use the command line.*
 
-- [ ] **[Story] Native Desktop Interface (VCL / FMX)**
+- [x] **[Story] Native Desktop Interface (VCL / FMX)**
   - Create a standalone visual executable (`boss4d-gui.exe`) in native Delphi to manage projects.
-- [ ] **[Story] Project and Dependency Management**
+- [x] **[Story] Project and Dependency Management**
   - Screens to open Delphi project folders, view the current `boss.json` manifest, and manage packages.
-- [ ] **[Story] Public Package Catalog and Search**
+- [x] **[Story] Public Package Catalog and Search**
   - Create a discovery panel for popular packages (e.g., Horse, RESTRequest4Delphi, mORMot) allowing one-click installation.
-- [ ] **[Story] Visual Compilation Logs Panel**
+- [x] **[Story] Visual Compilation Logs Panel**
   - Display the progress of parallel download tasks and compilation logs in rich visual components with progress indicators and warnings.
 
 ---
@@ -21,11 +21,11 @@ This document details the future planning, new features (backlog), and architect
 ## 🔌 Epic 2: RAD Studio IDE Integration (Plugin / Wizard)
 *Objective: Integrate the dependency manager directly into the developer's workflow inside RAD Studio.*
 
-- [ ] **[Story] Context Menu in the Project Manager**
+- [x] **[Story] Context Menu in the Project Manager**
   - Add "Boss4D Init" and "Boss4D Install" options to the right-click menu of the Delphi IDE Project Manager.
-- [ ] **[Story] IDE Package Manager Wizard**
+- [x] **[Story] IDE Package Manager Wizard**
   - Create an internal Wizard (Plugin via Delphi ToolsAPI) to search for and manage packages directly from within the IDE.
-- [ ] **[Story] Keyboard Shortcuts and Build Bindings**
+- [x] **[Story] Keyboard Shortcuts and Build Bindings**
   - Synchronize dependency builds with native IDE compilation keyboard shortcuts.
 
 ---
@@ -163,3 +163,74 @@ This document details the future planning, new features (backlog), and architect
   - Support target-platform compilation parameters in the command line interface.
 - [x] **[Story] Cross-Compiler Orchestration**
   - Update the compiler adapter to invoke the respective Delphi cross-compiling executables and supply correct search path variables for each target platform.
+
+---
+
+## 🔒 Epic 16: Security and Vulnerability Audit
+*Objective: Protect the Delphi development environment against compromised packages or known security vulnerabilities.*
+
+- [ ] **[Story] Audit Command (`boss4d audit`)**
+  - Compare dependencies and their versions against a vulnerability database to report active security flaws.
+- [ ] **[Story] Digital Signature and Tag Verification**
+  - Validate signatures of commits and tags from trusted repositories during package download.
+
+---
+
+## ⚡ Epic 17: Network Performance and Smart Caching
+*Objective: Radically accelerate dependency installation time and reduce disk space usage.*
+
+- [ ] **[Story] Global Cache Sharing via Hardlinks**
+  - Avoid duplicate physical repository clones by maintaining a central cache and generating logical hard links to each project's `modules/` folder.
+- [ ] **[Story] Parallel Downloads and MSBuild**
+  - Execute multiple package downloads in parallel via Git and dispatch asynchronous compiler builds for independent modules.
+
+---
+
+## 🌐 Epic 18: Hosting and Private Registries (Index)
+*Objective: Support corporate development environments where internal private packages cannot be distributed publicly.*
+
+- [ ] **[Story] Multiple Registry Sources Configuration (`boss4d registry`)**
+  - Support configuring and consuming multiple public and private package index servers in project settings.
+- [ ] **[Story] Direct Publication via CLI (`boss4d publish`)**
+  - Automate testing, tagging, and uploading Delphi packages to configured private registries directly from the CLI.
+
+---
+
+## 🚀 Epic 19: Productivity and Templates (Bootstrap)
+*Objective: Reduce initial setup time for new projects and simplify package discovery.*
+
+- [ ] **[Story] Template-based Bootstrap (`boss4d new <template>`)**
+  - Generate ready-to-use Delphi project structures (Console, VCL, FMX, Horse API, DUnitX) with pre-configured dependencies in `boss.json`.
+- [ ] **[Story] Dependency Search via CLI/IDE (`boss4d search <term>`)**
+  - Provide direct package search capabilities from the CLI or within the IDE visual wizard interface.
+
+---
+
+## 📄 Epic 20: Governance, Documentation, and Lifecycle
+*Objective: Improve production build consistency and automatically generate browsable API references.*
+
+- [ ] **[Story] Automated Documentation Generation (`boss4d doc`)**
+  - Parse PascalDoc/XML Doc comments across all dependencies and compile a local static website of API references.
+- [ ] **[Story] Split Development Dependencies (`devDependencies`)**
+  - Support developer-only dependencies (e.g., test/mock suites), enabling clean production deployments using the `--production` flag.
+- [ ] **[Story] Strict Version Resolution (Minimal Version Selection)**
+  - Implement an option to resolve dependencies by the lowest stable compatible version for maximum reproducibility in corporate builds.
+
+---
+
+## 📊 Prioritization Matrix (Backlog v1.1.0 & Futures)
+
+| Feature / Story | Epic | Complexity | Business Value | Priority (MoSCoW) |
+| :--- | :--- | :--- | :--- | :--- |
+| Split Development Dependencies (`devDependencies` / `--production`) | Epic 20 | Low | High | **Must Have** |
+| Dependency Search via CLI/IDE (`boss4d search`) | Epic 19 | Low | High | **Must Have** |
+| Global Cache Sharing via Hardlinks | Epic 17 | Medium | High | **Must Have** |
+| Multiple Registry Sources Configuration (`boss4d registry`) | Epic 18 | Medium | High | **Should Have** |
+| Template-based Bootstrap (`boss4d new <template>`) | Epic 19 | Low | Medium | **Should Have** |
+| Automated Documentation Generation (`boss4d doc`) | Epic 20 | High | Medium | **Should Have** |
+| Security Vulnerability Audit Command (`boss4d audit`) | Epic 16 | High | Medium | **Should Have** |
+| Strict Version Resolution (Minimal Version Selection) | Epic 20 | Medium | Medium | **Should Have** |
+| Parallel Downloads and MSBuild | Epic 17 | High | High | **Should Have** |
+| Direct Publication via CLI (`boss4d publish`) | Epic 18 | Medium | Medium | **Could Have** |
+| Digital Signature and Tag Verification | Epic 16 | Medium | Medium | **Could Have** |
+

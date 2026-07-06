@@ -163,3 +163,74 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
   - Suportar a passagem de parâmetros de plataforma-alvo de compilação na linha de comando.
 - [x] **[Story] Orquestração de Compiladores Cruzados**
   - Ajustar o adaptador de compilação para invocar os respectivos executáveis de cross-compiling do Delphi e passar as variáveis e caminhos corretos de busca para cada plataforma.
+
+---
+
+## 🔒 Épico 16: Segurança e Auditoria de Vulnerabilidades
+*Objetivo: Proteger o ambiente de desenvolvimento Delphi contra pacotes comprometidos ou falhas de segurança conhecidas.*
+
+- [ ] **[Story] Comando de Auditoria (`boss4d audit`)**
+  - Comparar as dependências e suas versões contra uma base de vulnerabilidades para reportar falhas ativas de segurança.
+- [ ] **[Story] Assinatura Digital e Verificação de Tags**
+  - Validar assinaturas de commits e tags de repositórios confiáveis durante o download dos pacotes.
+
+---
+
+## ⚡ Épico 17: Performance de Redes e Cache Inteligente
+*Objetivo: Acelerar radicalmente o tempo de instalação de dependências e reduzir uso de disco.*
+
+- [ ] **[Story] Compartilhamento Global de Cache via Hardlinks**
+  - Evitar clones físicos repetidos, mantendo os arquivos Git num repositório centralizado e gerando links lógicos (hard links) para a pasta `modules/` de cada projeto.
+- [ ] **[Story] Paralelização de Downloads e MSBuild**
+  - Executar múltiplos downloads em paralelo via Git e disparar compilações em threads assíncronas para módulos sem relação de dependência direta.
+
+---
+
+## 🌐 Épico 18: Hospedagem e Registros Privados (Index)
+*Objetivo: Suportar ambientes de desenvolvimento corporativo onde pacotes internos privados não podem ser distribuídos publicamente.*
+
+- [ ] **[Story] Configuração de Múltiplas Fontes de Registro (`boss4d registry`)**
+  - Permitir a configuração e consumo de múltiplos servidores de índice de pacotes públicos e privados nas configurações do projeto.
+- [ ] **[Story] Publicação Direta via CLI (`boss4d publish`)**
+  - Automatizar o teste, geração de tag e upload de pacotes Delphi para os registros privados configurados diretamente pela CLI.
+
+---
+
+## 🚀 Épico 19: Produtividade e Templates (Bootstrap)
+*Objetivo: Reduzir o tempo de configuração inicial de novos projetos e descoberta de novas ferramentas.*
+
+- [ ] **[Story] Inicialização com Templates (`boss4d new <template>`)**
+  - Criar estruturas prontas de projetos Delphi (Console, VCL, FMX, API Horse, DUnitX) com dependências iniciais pré-configuradas no `boss.json`.
+- [ ] **[Story] Busca de Dependências via CLI/IDE (`boss4d search <termo>`)**
+  - Mecanismo de busca direta no registro de pacotes a partir do terminal ou interface gráfica na IDE.
+
+---
+
+## 📄 Épico 20: Governança, Documentação e Ciclo de Vida
+*Objetivo: Melhorar a consistência de builds em produção e gerar referências de API navegáveis de forma automatizada.*
+
+- [ ] **[Story] Geração Automatizada de Documentação (`boss4d doc`)**
+  - Varrer os comentários em PascalDoc/XML Doc de todas as dependências e compilar um site local com a documentação estática de referência das APIs.
+- [ ] **[Story] Divisão de Dependências de Desenvolvimento (`devDependencies`)**
+  - Suportar dependências exclusivas de desenvolvimento/testes, permitindo instalações limpas de produção com a flag `--production`.
+- [ ] **[Story] Resolução Estrita de Versões (Minimal Version Selection)**
+  - Implementar opção de resolver dependências pela menor versão estável compatível para máxima consistência em builds corporativas.
+
+---
+
+## 📊 Matriz de Priorização (Backlog v1.1.0 e Futuros)
+
+| Funcionalidade / Story | Épico | Complexidade | Valor de Negócio | Prioridade (MoSCoW) |
+| :--- | :--- | :--- | :--- | :--- |
+| Divisão de Dependências de Desenvolvimento (`devDependencies` / `--production`) | Épico 20 | Baixa | Alto | **Must Have** |
+| Busca de Dependências via CLI/IDE (`boss4d search`) | Épico 19 | Baixa | Alto | **Must Have** |
+| Compartilhamento Global de Cache via Hardlinks | Épico 17 | Média | Alto | **Must Have** |
+| Configuração de Múltiplas Fontes de Registro (`boss4d registry`) | Épico 18 | Média | Alto | **Should Have** |
+| Inicialização com Templates (`boss4d new <template>`) | Épico 19 | Baixa | Médio | **Should Have** |
+| Comando de Geração de Documentação (`boss4d doc`) | Épico 20 | Alta | Médio | **Should Have** |
+| Comando de Auditoria de Segurança (`boss4d audit`) | Épico 16 | Alta | Médio | **Should Have** |
+| Resolução Estrita de Versões (Minimal Version Selection) | Épico 20 | Média | Médio | **Should Have** |
+| Paralelização de Downloads e MSBuild | Épico 17 | Alta | Alto | **Should Have** |
+| Publicação Direta via CLI (`boss4d publish`) | Épico 18 | Média | Médio | **Could Have** |
+| Assinatura Digital e Verificação de Tags | Épico 16 | Média | Médio | **Could Have** |
+
