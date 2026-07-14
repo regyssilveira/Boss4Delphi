@@ -1,6 +1,6 @@
 [Setup]
 AppName=Boss4D
-AppVersion=1.0.1
+AppVersion=1.0.2
 DefaultDirName={userappdata}\Boss4D
 DefaultGroupName=Boss4D
 OutputDir=Output
