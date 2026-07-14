@@ -1,5 +1,6 @@
 package Boss4D.IDE.Plugin;
 
+{$DEFINE IDE_PLUGIN}
 {$R *.res}
 
 {$IFDEF IMPLICITBUILDING}

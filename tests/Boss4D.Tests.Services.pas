@@ -1299,86 +1299,15 @@ end;
 
 procedure TTestsServices.TestIDEWizardInitialization;
 var
-  LMenu: TBoss4DProjectManagerMenu;
-  LNotifier: TBoss4DProjectMenuItemCreatorNotifier;
-  LMenuList: IInterfaceList;
-  LProj: IOTAProject;
-  LTempDir: string;
-  LBossJsonFile: string;
-  LBossJsonContent: string;
-  LIdentList: TStrings;
-  I: Integer;
-  LFoundBuildScript: Boolean;
-  LMenuItem: IOTAProjectManagerMenu;
+  LWizard: TBoss4DIDEWizard;
 begin
-  // 1. Valida stubs bÃ¡sicos de menu
-  LMenu := TBoss4DProjectManagerMenu.Create('Boss4D Install', 'mnuBoss4DInstall', 'mnuBoss4D', 'Boss4DInstallVerb', 'C:\Proj', 'install', 120);
+  // Valida a criação e os métodos básicos do novo Wizard principal do menu da IDE
+  LWizard := TBoss4DIDEWizard.Create;
   try
-    Assert.AreEqual<string>('Boss4D Install', LMenu.GetCaption);
-    Assert.AreEqual<string>('mnuBoss4DInstall', LMenu.GetName);
-    Assert.AreEqual<string>('mnuBoss4D', LMenu.GetParent);
-    Assert.AreEqual<string>('Boss4DInstallVerb', LMenu.GetVerb);
-    Assert.AreEqual<Integer>(120, LMenu.GetPosition);
-    Assert.IsFalse(LMenu.GetIsMultiSelectable);
-
-    LMenu.SetIsMultiSelectable(True);
-    Assert.IsTrue(LMenu.GetIsMultiSelectable);
+    Assert.AreEqual<string>('Boss4D IDE Wizard', LWizard.GetName);
+    Assert.AreEqual<string>('Boss4D.IDE.Plugin.Wizard', LWizard.GetIDString);
   finally
-    LMenu.Free;
-  end;
-
-  // 2. Valida seguranÃ§a de projeto nÃ£o salvo em disco
-  LTempDir := TPath.Combine(TPath.GetTempPath, 'boss4d_wizard_test_' + TGUID.NewGuid.ToString.Replace('{', '').Replace('}', ''));
-  TDirectory.CreateDirectory(LTempDir);
-  try
-    LProj := TOTAProjectMock.Create(TPath.Combine(LTempDir, 'NonExistentProject.dproj'));
-    LNotifier := TBoss4DProjectMenuItemCreatorNotifier.Create;
-    LMenuList := TInterfaceList.Create;
-    LIdentList := TStringList.Create;
-    try
-      // Como o arquivo .dproj nÃ£o existe fisicamente no disco, o AddMenu deve sair silenciosamente sem popular a lista!
-      LNotifier.AddMenu(LProj, LIdentList, LMenuList, False);
-      Assert.AreEqual<Integer>(0, LMenuList.Count);
-
-      // Agora cria o arquivo fÃ­sico de dproj para validar que ele popula
-      TFile.WriteAllText(LProj.FileName, '<?xml version="1.0" encoding="utf-8"?><Project/>', TEncoding.UTF8);
-
-      // Cria um boss.json com scripts de teste
-      LBossJsonFile := TPath.Combine(LTempDir, 'boss.json');
-      LBossJsonContent := '{"name":"test-proj","scripts":{"build":"dcc32 test.dpr","test":"Boss4DTests.exe"}}';
-      TFile.WriteAllText(LBossJsonFile, LBossJsonContent, TEncoding.UTF8);
-
-      LNotifier.AddMenu(LProj, LIdentList, LMenuList, False);
-
-      // O menu deve conter itens principais, os novos itens do doctor, tree, getit, cache, etc., mais os scripts dinÃ¢micos!
-      Assert.IsTrue(LMenuList.Count > 5, 'Deveria ter populado os itens de menu estÃ¡ticos e dinÃ¢micos. Total: ' + LMenuList.Count.ToString);
-
-      // Procura pelo script dinÃ¢mico de build no menu
-      LFoundBuildScript := False;
-      LMenuItem := nil;
-      for I := 0 to LMenuList.Count - 1 do
-      begin
-        if Supports(LMenuList[I], IOTAProjectManagerMenu, LMenuItem) then
-        begin
-          if LMenuItem.GetName = 'mnuBoss4DRun_build_NonExistentProject' then
-          begin
-            LFoundBuildScript := True;
-            Assert.AreEqual<string>('Boss4D Run: build', LMenuItem.GetCaption);
-            Assert.AreEqual<string>('', LMenuItem.GetParent);
-            Assert.AreEqual<string>('Boss4DRun_build_NonExistentProjectVerb', LMenuItem.GetVerb);
-            Break;
-          end;
-        end;
-      end;
-      Assert.IsTrue(LFoundBuildScript, 'Nao encontrou o script dinamico "build" do boss.json no menu!');
-
-    finally
-      LNotifier.Free;
-      LIdentList.Free;
-    end;
-  finally
-    if TDirectory.Exists(LTempDir) then
-      TDirectory.Delete(LTempDir, True);
+    LWizard.Free;
   end;
 end;
 

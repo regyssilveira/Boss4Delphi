@@ -83,59 +83,18 @@ type
     property EditVersion: TEdit read FEditVersion;
   end;
 
-  TBoss4DProjectManagerMenu = class(TNotifierObject, IOTALocalMenu, IOTAProjectManagerMenu)
-  private
-    FCaption: string;
-    FName: string;
-    FParent: string;
-    FPosition: Integer;
-    FVerb: string;
-    FProjectDir: string;
-    FCommand: string;
-    FIsMultiSelectable: Boolean;
-    procedure RunBoss4DCommand(const AProjectDir: string; const ACommand: string);
-  public
-    constructor Create(const ACaption, AName, AParent, AVerb, AProjectDir, ACommand: string; APosition: Integer);
-
-    { IOTAProjectManagerMenu }
-    function GetCaption: string;
-    function GetChecked: Boolean;
-    function GetEnabled: Boolean;
-    function GetHelpContext: Integer;
-    function GetName: string;
-    function GetParent: string;
-    function GetPosition: Integer;
-    function GetVerb: string;
-    procedure SetCaption(const Value: string);
-    procedure SetChecked(Value: Boolean);
-    procedure SetEnabled(Value: Boolean);
-    procedure SetHelpContext(Value: Integer);
-    procedure SetName(const Value: string);
-    procedure SetParent(const Value: string);
-    procedure SetPosition(Value: Integer);
-    procedure SetVerb(const Value: string);
-
-    // Métodos adicionados na ToolsAPI moderna
-    function GetIsMultiSelectable: Boolean;
-    procedure SetIsMultiSelectable(Value: Boolean);
-    procedure Execute(const MenuContextList: IInterfaceList);
-    function PreExecute(const MenuContextList: IInterfaceList): Boolean;
-    function PostExecute(const MenuContextList: IInterfaceList): Boolean;
-  end;
-
-  TBoss4DProjectMenuItemCreatorNotifier = class(TNotifierObject, IOTAProjectMenuItemCreatorNotifier)
-  public
-    { IOTAProjectMenuItemCreatorNotifier }
-    procedure AddMenu(const Project: IOTAProject; const IdentList: TStrings;
-      const ProjectManagerMenuList: IInterfaceList; IsMultiSelect: Boolean);
-  end;
-
   TBoss4DIDEWizard = class(TNotifierObject, IOTAWizard)
   private
     FTimer: TTimer;
-    FNotifier: IOTAProjectMenuItemCreatorNotifier;
-    FMenuCreatorIdx: Integer;
+    FBossMenuItem: TMenuItem;
+    procedure CreateToolsMenuItems;
+    procedure RemoveToolsMenuItems;
     procedure OnTimerEvent(Sender: TObject);
+    procedure MenuActionClick(Sender: TObject);
+    function GetActiveProjectDir: string;
+    procedure RunBoss4DCommand(const AProjectDir: string; const ACommand: string);
+    procedure ExecuteInstallDialog(const AProjectDir: string);
+    procedure ExecuteRunScriptDialog(const AProjectDir: string);
   public
     constructor Create;
     destructor Destroy; override;
@@ -165,322 +124,6 @@ function GetModuleHandleEx(ADwFlags: DWORD; ALpModuleName: PChar; var APhModule:
 var
   GWizardIndex: Integer = -1;
   GModuleHandle: HMODULE = 0;
-
-{ TBoss4DIDEWizard }
-
-constructor TBoss4DIDEWizard.Create;
-begin
-  inherited Create;
-  // Incrementa contagem de referencias da BPL para mante-la na memoria
-  {$IFDEF IDE_PLUGIN}
-  GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, PChar(@Register), GModuleHandle);
-  {$ENDIF}
-
-  FMenuCreatorIdx := -1;
-  FTimer := nil;
-  FNotifier := TBoss4DProjectMenuItemCreatorNotifier.Create;
-  {$IFDEF IDE_PLUGIN}
-  var LProjectManager: IOTAProjectManager;
-  if Supports(BorlandIDEServices, IOTAProjectManager, LProjectManager) then
-  begin
-    FMenuCreatorIdx := LProjectManager.AddMenuItemCreatorNotifier(FNotifier);
-  end
-  else
-  {$ENDIF}
-  begin
-    FTimer := TTimer.Create(nil);
-    FTimer.Interval := 1000;
-    FTimer.OnTimer := OnTimerEvent;
-    FTimer.Enabled := True;
-  end;
-end;
-
-destructor TBoss4DIDEWizard.Destroy;
-begin
-  if Assigned(FTimer) then
-  begin
-    FTimer.Enabled := False;
-    FreeAndNil(FTimer);
-  end;
-  {$IFDEF IDE_PLUGIN}
-  if (FMenuCreatorIdx <> -1) and Assigned(BorlandIDEServices) then
-  begin
-    var LProjectManager: IOTAProjectManager;
-    if Supports(BorlandIDEServices, IOTAProjectManager, LProjectManager) then
-    begin
-      LProjectManager.RemoveMenuItemCreatorNotifier(FMenuCreatorIdx);
-    end;
-  end;
-  {$ENDIF}
-
-  // Libera a referencia da BPL na memoria se nao for shutdown geral
-  {$IFDEF IDE_PLUGIN}
-  if (not Application.Terminated) and (GModuleHandle <> 0) then
-  begin
-    FreeLibrary(GModuleHandle);
-    GModuleHandle := 0;
-  end;
-  {$ENDIF}
-
-  inherited Destroy;
-end;
-
-procedure TBoss4DIDEWizard.OnTimerEvent(Sender: TObject);
-begin
-  {$IFDEF IDE_PLUGIN}
-  var LProjectManager: IOTAProjectManager;
-  if Supports(BorlandIDEServices, IOTAProjectManager, LProjectManager) then
-  begin
-    FMenuCreatorIdx := LProjectManager.AddMenuItemCreatorNotifier(FNotifier);
-    if FMenuCreatorIdx <> -1 then
-    begin
-      FTimer.Enabled := False;
-    end;
-  end;
-  {$ENDIF}
-end;
-
-function TBoss4DIDEWizard.GetIDString: string;
-begin
-  Result := 'Boss4D.IDE.Plugin.Wizard';
-end;
-
-function TBoss4DIDEWizard.GetName: string;
-begin
-  Result := 'Boss4D IDE Wizard';
-end;
-
-{$IFDEF IDE_PLUGIN}
-function TBoss4DIDEWizard.GetState: TWizardState;
-begin
-  Result := [wsEnabled];
-end;
-
-procedure TBoss4DIDEWizard.Execute;
-begin
-  // Nada a executar sob demanda
-end;
-{$ENDIF}
-
-procedure Register;
-{$IFDEF IDE_PLUGIN}
-var
-  LBitmap: Vcl.Graphics.TBitmap;
-  LSplashServices: IOTASplashScreenServices;
-  LAboutServices: IOTAAboutBoxServices;
-  LWizardServices: IOTAWizardServices;
-begin
-  // Impede o descarregamento sob demanda do pacote pela IDE
-  ForceDemandLoadState(dlDisable);
-
-  if not Assigned(BorlandIDEServices) then
-    Exit;
-
-  // Registro na Splash Screen usando a variavel global oficial da ToolsAPI com check de seguranca
-  if Assigned(SplashScreenServices) and Supports(SplashScreenServices, IOTASplashScreenServices, LSplashServices) then
-  begin
-    LBitmap := Vcl.Graphics.TBitmap.Create;
-    try
-      LBitmap.SetSize(24, 24);
-      LBitmap.Canvas.Brush.Color := clPurple;
-      LBitmap.Canvas.FillRect(Rect(0, 0, 24, 24));
-      LBitmap.Canvas.Font.Color := clWhite;
-      LBitmap.Canvas.Font.Name := 'Segoe UI';
-      LBitmap.Canvas.Font.Style := [fsBold];
-      LBitmap.Canvas.TextOut(4, 4, 'B4D');
-
-      LSplashServices.AddPluginBitmap(
-        'Boss4D IDE Integration Plugin',
-        LBitmap.Handle,
-        False,
-        'Registered',
-        'Production'
-      );
-    finally
-      LBitmap.Free;
-    end;
-  end;
-
-  // Registro no About Box usando BorlandIDEServices com check de seguranca
-  if Assigned(BorlandIDEServices) and Supports(BorlandIDEServices, IOTAAboutBoxServices, LAboutServices) then
-  begin
-    LBitmap := Vcl.Graphics.TBitmap.Create;
-    try
-      LBitmap.SetSize(24, 24);
-      LBitmap.Canvas.Brush.Color := clPurple;
-      LBitmap.Canvas.FillRect(Rect(0, 0, 24, 24));
-      LBitmap.Canvas.Font.Color := clWhite;
-      LBitmap.Canvas.Font.Name := 'Segoe UI';
-      LBitmap.Canvas.Font.Style := [fsBold];
-      LBitmap.Canvas.TextOut(4, 4, 'B4D');
-
-      LAboutServices.AddPluginInfo(
-        'Boss4D IDE Integration Plugin',
-        'Plugin do Boss4D para gerenciamento nativo de dependencias',
-        LBitmap.Handle,
-        False,
-        '1.0.1'
-      );
-    finally
-      LBitmap.Free;
-    end;
-  end;
-
-  // Adiciona o Wizard na IDE
-  if Supports(BorlandIDEServices, IOTAWizardServices, LWizardServices) then
-  begin
-    try
-      GWizardIndex := LWizardServices.AddWizard(TBoss4DIDEWizard.Create);
-    except
-      on E: Exception do
-      begin
-        OutputDebugString(PChar('Erro ao registrar Boss4D Wizard: ' + E.Message));
-      end;
-    end;
-  end;
-end;
-{$ELSE}
-begin
-end;
-{$ENDIF}
-
-
-
-{ TBoss4DInstallDialog }
-
-constructor TBoss4DInstallDialog.Create(AOwner: TComponent);
-begin
-  inherited CreateNew(AOwner);
-  SetupUI;
-end;
-
-procedure TBoss4DInstallDialog.SetupUI;
-var
-  LLabelURL, LLabelVersion: TLabel;
-begin
-  Self.Caption := 'Boss4D - Instalar Pacote';
-  Self.BorderStyle := bsDialog;
-  Self.Position := poScreenCenter;
-  Self.Width := 400;
-  Self.Height := 200;
-
-  LLabelURL := TLabel.Create(Self);
-  LLabelURL.Parent := Self;
-  LLabelURL.Caption := 'URL do Pacote (ex: github.com/hashload/horse):';
-  LLabelURL.SetBounds(16, 16, 350, 16);
-
-  FEditURL := TEdit.Create(Self);
-  FEditURL.Parent := Self;
-  FEditURL.SetBounds(16, 36, 350, 24);
-
-  LLabelVersion := TLabel.Create(Self);
-  LLabelVersion.Parent := Self;
-  LLabelVersion.Caption := 'Versao / Tag / Faixa de SemVer (Opcional):';
-  LLabelVersion.SetBounds(16, 70, 350, 16);
-
-  FEditVersion := TEdit.Create(Self);
-  FEditVersion.Parent := Self;
-  FEditVersion.SetBounds(16, 90, 350, 24);
-
-  FBtnOK := TButton.Create(Self);
-  FBtnOK.Parent := Self;
-  FBtnOK.Caption := 'Instalar';
-  FBtnOK.ModalResult := mrOk;
-  FBtnOK.SetBounds(210, 130, 75, 25);
-  FBtnOK.Default := True;
-
-  FBtnCancel := TButton.Create(Self);
-  FBtnCancel.Parent := Self;
-  FBtnCancel.Caption := 'Cancelar';
-  FBtnCancel.ModalResult := mrCancel;
-  FBtnCancel.SetBounds(291, 130, 75, 25);
-end;
-
-{ TBoss4DProjectManagerMenu }
-
-constructor TBoss4DProjectManagerMenu.Create(const ACaption, AName, AParent, AVerb, AProjectDir, ACommand: string; APosition: Integer);
-begin
-  inherited Create;
-  FCaption := ACaption;
-  FName := AName;
-  FParent := AParent;
-  FVerb := AVerb;
-  FProjectDir := AProjectDir;
-  FCommand := ACommand;
-  FPosition := APosition;
-  FIsMultiSelectable := False;
-end;
-
-function TBoss4DProjectManagerMenu.GetCaption: string; begin Result := FCaption; end;
-function TBoss4DProjectManagerMenu.GetChecked: Boolean; begin Result := False; end;
-function TBoss4DProjectManagerMenu.GetEnabled: Boolean; begin Result := True; end;
-function TBoss4DProjectManagerMenu.GetHelpContext: Integer; begin Result := 0; end;
-function TBoss4DProjectManagerMenu.GetName: string; begin Result := FName; end;
-function TBoss4DProjectManagerMenu.GetParent: string; begin Result := FParent; end;
-function TBoss4DProjectManagerMenu.GetPosition: Integer; begin Result := FPosition; end;
-function TBoss4DProjectManagerMenu.GetVerb: string; begin Result := FVerb; end;
-
-procedure TBoss4DProjectManagerMenu.SetCaption(const Value: string); begin FCaption := Value; end;
-procedure TBoss4DProjectManagerMenu.SetChecked(Value: Boolean); begin { no-op } end;
-procedure TBoss4DProjectManagerMenu.SetEnabled(Value: Boolean); begin { no-op } end;
-procedure TBoss4DProjectManagerMenu.SetHelpContext(Value: Integer); begin { no-op } end;
-procedure TBoss4DProjectManagerMenu.SetName(const Value: string); begin FName := Value; end;
-procedure TBoss4DProjectManagerMenu.SetParent(const Value: string); begin FParent := Value; end;
-procedure TBoss4DProjectManagerMenu.SetPosition(Value: Integer); begin FPosition := Value; end;
-procedure TBoss4DProjectManagerMenu.SetVerb(const Value: string); begin FVerb := Value; end;
-
-function TBoss4DProjectManagerMenu.GetIsMultiSelectable: Boolean;
-begin
-  Result := FIsMultiSelectable;
-end;
-
-procedure TBoss4DProjectManagerMenu.SetIsMultiSelectable(Value: Boolean);
-begin
-  FIsMultiSelectable := Value;
-end;
-
-procedure TBoss4DProjectManagerMenu.Execute(const MenuContextList: IInterfaceList);
-var
-  LDlg: TBoss4DInstallDialog;
-  LURL: string;
-  LVers: string;
-  LCmd: string;
-begin
-  if FCommand = 'install-dialog' then
-  begin
-    LDlg := TBoss4DInstallDialog.Create(nil);
-    try
-      if LDlg.ShowModal = mrOk then
-      begin
-        LURL := Trim(LDlg.EditURL.Text);
-        if LURL <> '' then
-        begin
-          LVers := Trim(LDlg.EditVersion.Text);
-          LCmd := 'install ' + LURL;
-          if LVers <> '' then
-            LCmd := LCmd + '@' + LVers;
-          RunBoss4DCommand(FProjectDir, LCmd);
-        end;
-      end;
-    finally
-      LDlg.Free;
-    end;
-  end
-  else if FCommand <> '' then
-  begin
-    RunBoss4DCommand(FProjectDir, FCommand);
-  end;
-end;
-
-function TBoss4DProjectManagerMenu.PreExecute(const MenuContextList: IInterfaceList): Boolean;
-begin
-  Result := True;
-end;
-
-function TBoss4DProjectManagerMenu.PostExecute(const MenuContextList: IInterfaceList): Boolean;
-begin
-  Result := True;
-end;
 
 {$IFDEF IDE_PLUGIN}
 function BuildProjectSearchPaths(const AProjectDir: string; const AMessageServices: IOTAMessageServices; const AGroup: IOTAMessageGroup): TArray<string>;
@@ -631,7 +274,328 @@ begin
 end;
 {$ENDIF}
 
-procedure TBoss4DProjectManagerMenu.RunBoss4DCommand(const AProjectDir: string; const ACommand: string);
+{ TBoss4DIDEWizard }
+
+constructor TBoss4DIDEWizard.Create;
+begin
+  inherited Create;
+  // Incrementa contagem de referencias da BPL para mante-la na memoria
+  {$IFDEF IDE_PLUGIN}
+  GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, PChar(@Register), GModuleHandle);
+  {$ENDIF}
+
+  FBossMenuItem := nil;
+  FTimer := nil;
+
+  {$IFDEF IDE_PLUGIN}
+  var LNTAServices: INTAServices;
+  if Supports(BorlandIDEServices, INTAServices, LNTAServices) and Assigned(LNTAServices.MainMenu) then
+  begin
+    FBossMenuItem := TMenuItem.Create(nil);
+    FBossMenuItem.Caption := 'Boss4D';
+    FBossMenuItem.Name := 'mnuBoss4DRoot';
+    CreateToolsMenuItems;
+    LNTAServices.AddActionMenu('ToolsMenu', nil, FBossMenuItem, True, True);
+  end
+  else
+  {$ENDIF}
+  begin
+    FTimer := TTimer.Create(nil);
+    FTimer.Interval := 1000;
+    FTimer.OnTimer := OnTimerEvent;
+    FTimer.Enabled := True;
+  end;
+end;
+
+destructor TBoss4DIDEWizard.Destroy;
+begin
+  if Assigned(FTimer) then
+  begin
+    FTimer.Enabled := False;
+    FreeAndNil(FTimer);
+  end;
+
+  RemoveToolsMenuItems;
+
+  // Libera a referencia da BPL na memoria se nao for shutdown geral
+  {$IFDEF IDE_PLUGIN}
+  if (not Application.Terminated) and (GModuleHandle <> 0) then
+  begin
+    FreeLibrary(GModuleHandle);
+    GModuleHandle := 0;
+  end;
+  {$ENDIF}
+
+  inherited Destroy;
+end;
+
+procedure TBoss4DIDEWizard.OnTimerEvent(Sender: TObject);
+begin
+  {$IFDEF IDE_PLUGIN}
+  var LNTAServices: INTAServices;
+  if Supports(BorlandIDEServices, INTAServices, LNTAServices) and Assigned(LNTAServices.MainMenu) then
+  begin
+    FBossMenuItem := TMenuItem.Create(nil);
+    FBossMenuItem.Caption := 'Boss4D';
+    FBossMenuItem.Name := 'mnuBoss4DRoot';
+    CreateToolsMenuItems;
+    LNTAServices.AddActionMenu('ToolsMenu', nil, FBossMenuItem, True, True);
+    FTimer.Enabled := False;
+  end;
+  {$ENDIF}
+end;
+
+function TBoss4DIDEWizard.GetIDString: string;
+begin
+  Result := 'Boss4D.IDE.Plugin.Wizard';
+end;
+
+function TBoss4DIDEWizard.GetName: string;
+begin
+  Result := 'Boss4D IDE Wizard';
+end;
+
+{$IFDEF IDE_PLUGIN}
+function TBoss4DIDEWizard.GetState: TWizardState;
+begin
+  Result := [wsEnabled];
+end;
+
+procedure TBoss4DIDEWizard.Execute;
+begin
+  // Nada a executar sob demanda
+end;
+{$ENDIF}
+
+procedure TBoss4DIDEWizard.CreateToolsMenuItems;
+  procedure AddSubItem(const ACaption, ACommand: string; APosition: Integer);
+  var
+    LSubItem: TMenuItem;
+  begin
+    LSubItem := TMenuItem.Create(FBossMenuItem);
+    LSubItem.Caption := ACaption;
+    LSubItem.Hint := ACommand;
+    LSubItem.OnClick := MenuActionClick;
+    FBossMenuItem.Add(LSubItem);
+  end;
+  procedure AddSeparator;
+  var
+    LSep: TMenuItem;
+  begin
+    LSep := TMenuItem.Create(FBossMenuItem);
+    LSep.Caption := '-';
+    FBossMenuItem.Add(LSep);
+  end;
+begin
+  AddSubItem('Init', 'init --quiet', 10);
+  AddSubItem('Install', 'install', 20);
+  AddSubItem('Install Package...', 'install-dialog', 30);
+  AddSubItem('Clean', 'clean', 40);
+  AddSubItem('Outdated', 'outdated', 50);
+  AddSubItem('Dependency Tree', 'tree', 60);
+  AddSeparator;
+  AddSubItem('Run Script...', 'run-script', 70);
+  AddSeparator;
+  AddSubItem('GetIt: Set Online Mode', 'getit mode-online', 80);
+  AddSubItem('GetIt: Set Offline Mode', 'getit mode-offline', 90);
+  AddSeparator;
+  AddSubItem('Doctor', 'doctor', 100);
+  AddSubItem('License Report', 'license report', 110);
+  AddSeparator;
+  AddSubItem('Cache: Clean', 'cache clean', 120);
+  AddSubItem('Cache: Prune', 'cache prune', 130);
+end;
+
+procedure TBoss4DIDEWizard.RemoveToolsMenuItems;
+begin
+  if Assigned(FBossMenuItem) then
+  begin
+    FBossMenuItem.Free;
+    FBossMenuItem := nil;
+  end;
+end;
+
+procedure TBoss4DIDEWizard.MenuActionClick(Sender: TObject);
+begin
+  if not (Sender is TMenuItem) then Exit;
+  var LCmd := TMenuItem(Sender).Hint;
+  var LProjDir := GetActiveProjectDir;
+
+  if LProjDir = '' then
+  begin
+    MessageBox(0, 'Por favor, abra um projeto salvo antes de executar comandos do Boss4D.', 'Boss4D', MB_ICONWARNING or MB_OK);
+    Exit;
+  end;
+
+  if LCmd = 'install-dialog' then
+  begin
+    ExecuteInstallDialog(LProjDir);
+  end
+  else if LCmd = 'run-script' then
+  begin
+    ExecuteRunScriptDialog(LProjDir);
+  end
+  else if LCmd <> '' then
+  begin
+    RunBoss4DCommand(LProjDir, LCmd);
+  end;
+end;
+
+function TBoss4DIDEWizard.GetActiveProjectDir: string;
+begin
+  Result := '';
+  {$IFDEF IDE_PLUGIN}
+  var LModuleServices: IOTAModuleServices;
+  if Supports(BorlandIDEServices, IOTAModuleServices, LModuleServices) then
+  begin
+    var LProjectGroup := LModuleServices.MainProjectGroup;
+    if Assigned(LProjectGroup) then
+    begin
+      var LProject := LProjectGroup.ActiveProject;
+      if Assigned(LProject) and (LProject.FileName <> '') then
+        Exit(TPath.GetDirectoryName(LProject.FileName));
+    end;
+
+    // Fallback: tentar obter do arquivo ativo aberto no editor se for um projeto
+    for var I := 0 to LModuleServices.ModuleCount - 1 do
+    begin
+      var LModule := LModuleServices.Modules[I];
+      var LProject: IOTAProject;
+      if Supports(LModule, IOTAProject, LProject) then
+      begin
+        if LProject.FileName <> '' then
+          Exit(TPath.GetDirectoryName(LProject.FileName));
+      end;
+    end;
+  end;
+  {$ENDIF}
+end;
+
+procedure TBoss4DIDEWizard.ExecuteInstallDialog(const AProjectDir: string);
+var
+  LDlg: TBoss4DInstallDialog;
+  LURL: string;
+  LVers: string;
+  LCmd: string;
+begin
+  LDlg := TBoss4DInstallDialog.Create(nil);
+  try
+    if LDlg.ShowModal = mrOk then
+    begin
+      LURL := Trim(LDlg.EditURL.Text);
+      if LURL <> '' then
+      begin
+        LVers := Trim(LDlg.EditVersion.Text);
+        LCmd := 'install ' + LURL;
+        if LVers <> '' then
+          LCmd := LCmd + '@' + LVers;
+        RunBoss4DCommand(AProjectDir, LCmd);
+      end;
+    end;
+  finally
+    LDlg.Free;
+  end;
+end;
+
+procedure TBoss4DIDEWizard.ExecuteRunScriptDialog(const AProjectDir: string);
+var
+  LBossJsonFile: string;
+  LContent: string;
+  LJSON, LScripts: TJSONObject;
+  LScriptNames: TStringList;
+  Idx: Integer;
+begin
+  LBossJsonFile := TPath.Combine(AProjectDir, 'boss.json');
+  if not TFile.Exists(LBossJsonFile) then
+  begin
+    MessageBox(0, 'O arquivo boss.json nao foi encontrado neste projeto.', 'Boss4D', MB_ICONWARNING or MB_OK);
+    Exit;
+  end;
+
+  LScriptNames := TStringList.Create;
+  try
+    try
+      LContent := TFile.ReadAllText(LBossJsonFile, TEncoding.UTF8);
+      LJSON := TJSONObject.ParseJSONValue(LContent) as TJSONObject;
+      if Assigned(LJSON) then
+      begin
+        try
+          LScripts := LJSON.GetValue('scripts') as TJSONObject;
+          if Assigned(LScripts) then
+          begin
+            for Idx := 0 to LScripts.Count - 1 do
+            begin
+              LScriptNames.Add(LScripts.Pairs[Idx].JsonString.Value);
+            end;
+          end;
+        finally
+          LJSON.Free;
+        end;
+      end;
+    except
+      on E: Exception do
+      begin
+        MessageBox(0, PChar('Erro ao ler os scripts do boss.json: ' + E.Message), 'Boss4D', MB_ICONERROR or MB_OK);
+        Exit;
+      end;
+    end;
+
+    if LScriptNames.Count = 0 then
+    begin
+      MessageBox(0, 'Nenhum script foi definido no boss.json deste projeto.', 'Boss4D', MB_ICONINFORMATION or MB_OK);
+      Exit;
+    end;
+
+    var LSelDialog := TForm.Create(nil);
+    try
+      LSelDialog.Caption := 'Boss4D - Executar Script';
+      LSelDialog.BorderStyle := bsDialog;
+      LSelDialog.Position := poScreenCenter;
+      LSelDialog.Width := 300;
+      LSelDialog.Height := 250;
+
+      var LLabel := TLabel.Create(LSelDialog);
+      LLabel.Parent := LSelDialog;
+      LLabel.Caption := 'Selecione o script para executar:';
+      LLabel.SetBounds(16, 16, 250, 16);
+
+      var LListBox := TListBox.Create(LSelDialog);
+      LListBox.Parent := LSelDialog;
+      LListBox.SetBounds(16, 36, 250, 120);
+      for var LName in LScriptNames do
+        LListBox.Items.Add(LName);
+      LListBox.ItemIndex := 0;
+
+      var LBtnOK := TButton.Create(LSelDialog);
+      LBtnOK.Parent := LSelDialog;
+      LBtnOK.Caption := 'Executar';
+      LBtnOK.ModalResult := mrOk;
+      LBtnOK.SetBounds(110, 170, 75, 25);
+      LBtnOK.Default := True;
+
+      var LBtnCancel := TButton.Create(LSelDialog);
+      LBtnCancel.Parent := LSelDialog;
+      LBtnCancel.Caption := 'Cancelar';
+      LBtnCancel.ModalResult := mrCancel;
+      LBtnCancel.SetBounds(191, 170, 75, 25);
+
+      if LSelDialog.ShowModal = mrOk then
+      begin
+        if LListBox.ItemIndex <> -1 then
+        begin
+          var LSelectedScript := LListBox.Items[LListBox.ItemIndex];
+          RunBoss4DCommand(AProjectDir, 'run ' + LSelectedScript);
+        end;
+      end;
+    finally
+      LSelDialog.Free;
+    end;
+  finally
+    LScriptNames.Free;
+  end;
+end;
+
+procedure TBoss4DIDEWizard.RunBoss4DCommand(const AProjectDir: string; const ACommand: string);
 {$IFDEF IDE_PLUGIN}
 var
   LMessageServices: IOTAMessageServices;
@@ -787,203 +751,140 @@ begin
   {$ENDIF}
 end;
 
-{ TBoss4DProjectMenuItemCreatorNotifier }
-
-procedure AddScriptsSubmenus(const AProjectDir, AProjectName: string; const AMenuList: IInterfaceList);
+procedure Register;
+{$IFDEF IDE_PLUGIN}
 var
-  LBossJsonFile: string;
-  LContent: string;
-  LJSON, LScripts: TJSONObject;
-  LScript: TJSONPair;
+  LBitmap: Vcl.Graphics.TBitmap;
+  LSplashServices: IOTASplashScreenServices;
+  LAboutServices: IOTAAboutBoxServices;
+  LWizardServices: IOTAWizardServices;
 begin
-  LBossJsonFile := TPath.Combine(AProjectDir, 'boss.json');
-  if not TFile.Exists(LBossJsonFile) then
+  // Impede o descarregamento sob demanda do pacote pela IDE
+  ForceDemandLoadState(dlDisable);
+
+  if not Assigned(BorlandIDEServices) then
     Exit;
 
-  try
-    LContent := TFile.ReadAllText(LBossJsonFile, TEncoding.UTF8);
-    LJSON := TJSONObject.ParseJSONValue(LContent) as TJSONObject;
-    if Assigned(LJSON) then
-    begin
-      try
-        LScripts := LJSON.GetValue('scripts') as TJSONObject;
-        if Assigned(LScripts) then
-        begin
-          for var I := 0 to LScripts.Count - 1 do
-          begin
-            LScript := LScripts.Pairs[I];
-            var LScriptName := LScript.JsonString.Value;
-            AMenuList.Add(TBoss4DProjectManagerMenu.Create(
-              'Boss4D Run: ' + LScriptName,
-              'mnuBoss4DRun_' + LScriptName + '_' + AProjectName,
-              '',
-              'Boss4DRun_' + LScriptName + '_' + AProjectName + 'Verb',
-              AProjectDir,
-              'run ' + LScriptName,
-              200 + I
-            ));
-          end;
-        end;
-      finally
-        LJSON.Free;
-      end;
+  // Registro na Splash Screen usando a variavel global oficial da ToolsAPI com check de seguranca
+  if Assigned(SplashScreenServices) and Supports(SplashScreenServices, IOTASplashScreenServices, LSplashServices) then
+  begin
+    LBitmap := Vcl.Graphics.TBitmap.Create;
+    try
+      LBitmap.SetSize(24, 24);
+      LBitmap.Canvas.Brush.Color := clPurple;
+      LBitmap.Canvas.FillRect(Rect(0, 0, 24, 24));
+      LBitmap.Canvas.Font.Color := clWhite;
+      LBitmap.Canvas.Font.Name := 'Segoe UI';
+      LBitmap.Canvas.Font.Style := [fsBold];
+      LBitmap.Canvas.TextOut(4, 4, 'B4D');
+
+      LSplashServices.AddPluginBitmap(
+        'Boss4D IDE Integration Plugin',
+        LBitmap.Handle,
+        False,
+        'Registered',
+        'Production'
+      );
+    finally
+      LBitmap.Free;
     end;
-  except
-    on E: Exception do
-    begin
-      OutputDebugString(PChar('Erro ao processar JSON para scripts dinamicos: ' + E.Message));
+  end;
+
+  // Registro no About Box usando BorlandIDEServices com check de seguranca
+  if Assigned(BorlandIDEServices) and Supports(BorlandIDEServices, IOTAAboutBoxServices, LAboutServices) then
+  begin
+    LBitmap := Vcl.Graphics.TBitmap.Create;
+    try
+      LBitmap.SetSize(24, 24);
+      LBitmap.Canvas.Brush.Color := clPurple;
+      LBitmap.Canvas.FillRect(Rect(0, 0, 24, 24));
+      LBitmap.Canvas.Font.Color := clWhite;
+      LBitmap.Canvas.Font.Name := 'Segoe UI';
+      LBitmap.Canvas.Font.Style := [fsBold];
+      LBitmap.Canvas.TextOut(4, 4, 'B4D');
+
+      LAboutServices.AddPluginInfo(
+        'Boss4D IDE Integration Plugin',
+        'Plugin do Boss4D para gerenciamento nativo de dependencias',
+        LBitmap.Handle,
+        False,
+        '1.0.1'
+      );
+    finally
+      LBitmap.Free;
+    end;
+  end;
+
+  // Adiciona o Wizard na IDE
+  if Supports(BorlandIDEServices, IOTAWizardServices, LWizardServices) then
+  begin
+    try
+      GWizardIndex := LWizardServices.AddWizard(TBoss4DIDEWizard.Create);
+    except
+      on E: Exception do
+      begin
+        OutputDebugString(PChar('Erro ao registrar Boss4D Wizard: ' + E.Message));
+      end;
     end;
   end;
 end;
-
-procedure TBoss4DProjectMenuItemCreatorNotifier.AddMenu(const Project: IOTAProject; const IdentList: TStrings;
-  const ProjectManagerMenuList: IInterfaceList; IsMultiSelect: Boolean);
-var
-  LProjectDir: string;
-  LProjFile: string;
-  LProjectName: string;
+{$ELSE}
 begin
-  if not Assigned(Project) then
-    Exit;
-
-  LProjFile := Project.FileName;
-  // Seguranca: So adiciona se o projeto estiver salvo em disco!
-  if (LProjFile = '') or (not TFile.Exists(LProjFile)) then
-    Exit;
-
-  LProjectDir := TPath.GetDirectoryName(LProjFile);
-  if (LProjectDir = '') or (not TDirectory.Exists(LProjectDir)) then
-    Exit;
-
-  LProjectName := TPath.GetFileNameWithoutExtension(LProjFile);
-  LProjectName := LProjectName.Replace(' ', '_').Replace('-', '_').Replace('.', '_');
-
-  // Project Manager menus must reference existing IDE parents. Keep Boss4D
-  // commands at the top level to avoid parent resolution errors.
-  ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
-    'Boss4D Init',
-    'mnuBoss4DInit_' + LProjectName,
-    '',
-    'Boss4DInitVerb_' + LProjectName,
-    LProjectDir,
-    'init --quiet',
-    110
-  ));
-
-  ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
-    'Boss4D Install',
-    'mnuBoss4DInstall_' + LProjectName,
-    '',
-    'Boss4DInstallVerb_' + LProjectName,
-    LProjectDir,
-    'install',
-    120
-  ));
-
-  ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
-    'Boss4D Install Package...',
-    'mnuBoss4DInstallPkg_' + LProjectName,
-    '',
-    'Boss4DInstallPkgVerb_' + LProjectName,
-    LProjectDir,
-    'install-dialog',
-    130
-  ));
-
-  ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
-    'Boss4D Clean',
-    'mnuBoss4DClean_' + LProjectName,
-    '',
-    'Boss4DCleanVerb_' + LProjectName,
-    LProjectDir,
-    'clean',
-    135
-  ));
-
-  ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
-    'Boss4D Outdated',
-    'mnuBoss4DOutdated_' + LProjectName,
-    '',
-    'Boss4DOutdatedVerb_' + LProjectName,
-    LProjectDir,
-    'outdated',
-    140
-  ));
-
-  ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
-    'Boss4D Dependency Tree',
-    'mnuBoss4DTree_' + LProjectName,
-    '',
-    'Boss4DTreeVerb_' + LProjectName,
-    LProjectDir,
-    'tree',
-    150
-  ));
-
-  // Popula os comandos dinamicos de scripts
-  AddScriptsSubmenus(LProjectDir, LProjectName, ProjectManagerMenuList);
-
-  ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
-    'Boss4D GetIt: Set Online Mode',
-    'mnuBoss4DGetItOnline_' + LProjectName,
-    '',
-    'Boss4DGetItOnlineVerb_' + LProjectName,
-    LProjectDir,
-    'getit mode-online',
-    180
-  ));
-
-  ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
-    'Boss4D GetIt: Set Offline Mode',
-    'mnuBoss4DGetItOffline_' + LProjectName,
-    '',
-    'Boss4DGetItOfflineVerb_' + LProjectName,
-    LProjectDir,
-    'getit mode-offline',
-    190
-  ));
-
-  // Demais utilitarios
-  ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
-    'Boss4D Doctor',
-    'mnuBoss4DDoctor_' + LProjectName,
-    '',
-    'Boss4DDoctorVerb_' + LProjectName,
-    LProjectDir,
-    'doctor',
-    300
-  ));
-
-  ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
-    'Boss4D License Report',
-    'mnuBoss4DLicense_' + LProjectName,
-    '',
-    'Boss4DLicenseVerb_' + LProjectName,
-    LProjectDir,
-    'license report',
-    310
-  ));
-
-  ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
-    'Boss4D Cache: Clean',
-    'mnuBoss4DCacheClean_' + LProjectName,
-    '',
-    'Boss4DCacheCleanVerb_' + LProjectName,
-    LProjectDir,
-    'cache clean',
-    330
-  ));
-
-  ProjectManagerMenuList.Add(TBoss4DProjectManagerMenu.Create(
-    'Boss4D Cache: Prune',
-    'mnuBoss4DCachePrune_' + LProjectName,
-    '',
-    'Boss4DCachePruneVerb_' + LProjectName,
-    LProjectDir,
-    'cache prune',
-    340
-  ));
 end;
+{$ENDIF}
+
+
+
+{ TBoss4DInstallDialog }
+
+constructor TBoss4DInstallDialog.Create(AOwner: TComponent);
+begin
+  inherited CreateNew(AOwner);
+  SetupUI;
+end;
+
+procedure TBoss4DInstallDialog.SetupUI;
+var
+  LLabelURL, LLabelVersion: TLabel;
+begin
+  Self.Caption := 'Boss4D - Instalar Pacote';
+  Self.BorderStyle := bsDialog;
+  Self.Position := poScreenCenter;
+  Self.Width := 400;
+  Self.Height := 200;
+
+  LLabelURL := TLabel.Create(Self);
+  LLabelURL.Parent := Self;
+  LLabelURL.Caption := 'URL do Pacote (ex: github.com/hashload/horse):';
+  LLabelURL.SetBounds(16, 16, 350, 16);
+
+  FEditURL := TEdit.Create(Self);
+  FEditURL.Parent := Self;
+  FEditURL.SetBounds(16, 36, 350, 24);
+
+  LLabelVersion := TLabel.Create(Self);
+  LLabelVersion.Parent := Self;
+  LLabelVersion.Caption := 'Versao / Tag / Faixa de SemVer (Opcional):';
+  LLabelVersion.SetBounds(16, 70, 350, 16);
+
+  FEditVersion := TEdit.Create(Self);
+  FEditVersion.Parent := Self;
+  FEditVersion.SetBounds(16, 90, 350, 24);
+
+  FBtnOK := TButton.Create(Self);
+  FBtnOK.Parent := Self;
+  FBtnOK.Caption := 'Instalar';
+  FBtnOK.ModalResult := mrOk;
+  FBtnOK.SetBounds(210, 130, 75, 25);
+  FBtnOK.Default := True;
+
+  FBtnCancel := TButton.Create(Self);
+  FBtnCancel.Parent := Self;
+  FBtnCancel.Caption := 'Cancelar';
+  FBtnCancel.ModalResult := mrCancel;
+  FBtnCancel.SetBounds(291, 130, 75, 25);
+end;
+
 
 {$IFNDEF IDE_PLUGIN}
 { TOTAProjectMock }
