@@ -10,6 +10,8 @@ uses
   Boss4D.Core.Domain.Dependency in '..\Core\Domain\Boss4D.Core.Domain.Dependency.pas',
   Boss4D.Core.Domain.Package in '..\Core\Domain\Boss4D.Core.Domain.Package.pas',
   Boss4D.Core.Domain.Lock in '..\Core\Domain\Boss4D.Core.Domain.Lock.pas',
+  Boss4D.Core.Domain.Sbom in '..\Core\Domain\Boss4D.Core.Domain.Sbom.pas',
+  Boss4D.Core.Domain.License in '..\Core\Domain\Boss4D.Core.Domain.License.pas',
   Boss4D.Core.Ports in '..\Core\Ports\Boss4D.Core.Ports.pas',
   Boss4D.Adapters.Json in '..\Adapters\Json\Boss4D.Adapters.Json.pas',
   Boss4D.Adapters.Http in '..\Adapters\Http\Boss4D.Adapters.Http.pas',

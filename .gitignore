@@ -17,6 +17,7 @@ __recovery/
 
 # Build outputs
 .codex-build/
+.ci-build/
 bin/
 Win32/
 Win64/

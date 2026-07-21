@@ -2,6 +2,12 @@
 
 Este documento detalha o ambiente correto do Delphi e as etapas necessárias para compilar, testar e publicar releases do **Boss4D** de forma consistente e livre de erros.
 
+O workflow `.github/workflows/sbom-ci.yml` executa a mesma verificação em um runner
+self-hosted com os rótulos `windows` e `delphi-13`. O runner deve fornecer Delphi
+13, Docker, Java e GitHub CLI. O script `scripts/ci-verify-sbom.ps1` pode ser
+executado localmente e valida Win32, Win64, os testes, a reprodutibilidade entre
+arquiteturas e os formatos com CycloneDX CLI e SPDX tools-java.
+
 ---
 
 ## 💻 1. Ambiente Delphi e Versão Oficial
