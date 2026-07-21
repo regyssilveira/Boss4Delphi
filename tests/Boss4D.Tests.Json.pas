@@ -217,6 +217,13 @@ begin
   LLock := TBoss4DLock.Create;
   LDep := TBoss4DDependency.Create('github.com/hashload/horse', '^3.0.0');
   try
+    LLock.HasRootMetadata := True;
+    LLock.RootName := 'sample-app';
+    LLock.RootVersion := '2.0.0';
+    LLock.RootDescription := 'Lock-only root';
+    LLock.RootHomepage := 'https://example.test/sample';
+    LLock.RootLicense := 'Apache-2.0';
+    LLock.RootDependencies.Add(LDep.GetKey);
     LLock.AddDependency(LDep, '3.1.0', 'legacy-identity-hash', 'content-checksum');
     Assert.IsTrue(LLock.GetInstalled(LDep, LLocked));
     LLocked.Revision := '0123456789abcdef0123456789abcdef01234567';
@@ -229,6 +236,12 @@ begin
     LLoadedLock := FLockRepo.Load(LFilePath);
     try
       Assert.AreEqual<Integer>(2, LLoadedLock.LockVersion);
+      Assert.IsTrue(LLoadedLock.HasRootMetadata);
+      Assert.AreEqual('sample-app', LLoadedLock.RootName);
+      Assert.AreEqual('2.0.0', LLoadedLock.RootVersion);
+      Assert.AreEqual('Apache-2.0', LLoadedLock.RootLicense);
+      Assert.AreEqual<Integer>(1, LLoadedLock.RootDependencies.Count);
+      Assert.AreEqual(LDep.GetKey, LLoadedLock.RootDependencies[0]);
       Assert.IsTrue(LLoadedLock.GetInstalled(LDep, LLoaded));
       Assert.AreEqual('https://github.com/hashload/horse', LLoaded.Repository);
       Assert.AreEqual(LLocked.Revision, LLoaded.Revision);

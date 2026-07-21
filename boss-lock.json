@@ -2,5 +2,13 @@
   "lockVersion": 2,
   "hash": "",
   "updated": "",
+  "root": {
+    "name": "boss4d",
+    "version": "1.0.1",
+    "description": "Native Delphi dependency manager",
+    "homepage": "https://github.com/HashLoad/boss4delphi",
+    "license": "MIT",
+    "dependencies": []
+  },
   "installedModules": {}
 }

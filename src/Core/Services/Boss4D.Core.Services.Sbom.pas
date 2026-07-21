@@ -340,14 +340,49 @@ var
   LDocument: TBoss4DSbomDocument;
   LValidationError: string;
   LGetItCollected, LToolchainCollected, LArtifactsCollected: Boolean;
+  LProjectDirectory: string;
 begin
-  if not FPackageRepository.Exists(APackagePath) then
-    raise EBoss4DSbomValidation.Create('Arquivo boss.json nao encontrado: ' + APackagePath);
   if not FLockRepository.Exists(ALockPath) then
     raise EBoss4DSbomValidation.Create('Arquivo boss-lock.json nao encontrado: ' + ALockPath);
 
-  LPackage := FPackageRepository.Load(APackagePath);
   LLock := FLockRepository.Load(ALockPath);
+  if AOptions.LockOnly then
+  begin
+    LPackage := TBoss4DPackage.Create;
+    if LLock.HasRootMetadata then
+    begin
+      LPackage.Name := LLock.RootName;
+      LPackage.Version := LLock.RootVersion;
+      LPackage.Description := LLock.RootDescription;
+      LPackage.Homepage := LLock.RootHomepage;
+      LPackage.License := LLock.RootLicense;
+      for var LRootDependency in LLock.RootDependencies do
+        LPackage.Dependencies.AddOrSetValue(LRootDependency, '*');
+    end
+    else if AOptions.StrictMode then
+    begin
+      LPackage.Free;
+      LLock.Free;
+      raise EBoss4DSbomValidation.Create(
+        'Lock-only estrito requer metadados root no boss-lock.json v2. Execute boss4d install.');
+    end
+    else
+    begin
+      LPackage.Name := TPath.GetFileName(TPath.GetDirectoryName(TPath.GetFullPath(ALockPath)));
+      LPackage.Version := '';
+    end;
+    LProjectDirectory := TPath.GetDirectoryName(TPath.GetFullPath(ALockPath));
+  end
+  else
+  begin
+    if not FPackageRepository.Exists(APackagePath) then
+    begin
+      LLock.Free;
+      raise EBoss4DSbomValidation.Create('Arquivo boss.json nao encontrado: ' + APackagePath);
+    end;
+    LPackage := FPackageRepository.Load(APackagePath);
+    LProjectDirectory := TPath.GetDirectoryName(TPath.GetFullPath(APackagePath));
+  end;
   LBuilder := TBoss4DSbomBuilder.Create;
   LGetItCollected := False;
   LToolchainCollected := False;
@@ -358,7 +393,7 @@ begin
       for var LCollector in FCollectors do
         try
           LCollector.Collect(LDocument, LPackage, LLock,
-            TPath.GetDirectoryName(TPath.GetFullPath(APackagePath)));
+            LProjectDirectory);
           if SameText(LCollector.Name, 'getit') then LGetItCollected := True;
           if SameText(LCollector.Name, 'delphi-toolchain') then LToolchainCollected := True;
           if SameText(LCollector.Name, 'binary-artifacts') then LArtifactsCollected := True;

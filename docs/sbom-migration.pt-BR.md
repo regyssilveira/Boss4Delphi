@@ -5,6 +5,11 @@ para resolver novamente as dependências e salvar identidades canônicas dos
 repositórios, revisões Git, checksums SHA-256 tipados, origem das licenças e arestas
 do grafo no schema v2. Versione o `boss-lock.json` resultante.
 
+O lock v2 atualizado contém uma seção `root` com nome, versão, licença e as
+dependências diretas do projeto. Essa evidência permite que `--lock-only` funcione
+mesmo quando `boss.json` não está disponível. No modo estrito, locks antigos sem
+`root` são recusados com uma orientação para executar novamente `boss4d install`.
+
 Gere SBOMs determinísticos de release com:
 
 ```bash

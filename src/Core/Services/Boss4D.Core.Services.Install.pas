@@ -259,6 +259,25 @@ var
   LTasks: TList<ITask>;
   LSubPkgPath: string;
   LSubPkg: TBoss4DPackage;
+
+  procedure CaptureRootMetadata;
+  begin
+    LLock.HasRootMetadata := True;
+    LLock.RootName := LPkg.Name;
+    LLock.RootVersion := LPkg.Version;
+    LLock.RootDescription := LPkg.Description;
+    LLock.RootHomepage := LPkg.Homepage;
+    LLock.RootLicense := LPkg.License;
+    LLock.RootDependencies.Clear;
+    var LDeclaredDependencies := LPkg.GetParsedDependencies;
+    for var LDeclaredDependency in LDeclaredDependencies do
+      try
+        LLock.RootDependencies.Add(LDeclaredDependency.GetKey);
+      finally
+        LDeclaredDependency.Free;
+      end;
+    LLock.RootDependencies.Sort;
+  end;
 begin
   LPkgPath := GetBossFile;
   LLockPath := TPath.Combine(GetCurrentDir, FILE_PACKAGE_LOCK);
@@ -274,6 +293,7 @@ begin
   LProcessedDeps := TList<string>.Create;
   LTasks := TList<ITask>.Create;
   try
+    CaptureRootMetadata;
     // Se o lock nao tem hash do pacote, usa o hash do pacote atual
     if LLock.Hash.IsEmpty then
       LLock.Hash := THashMD5.GetHashString(LPkg.Name + LPkg.Version);
@@ -286,6 +306,7 @@ begin
         ProcessDependency(LDep, LLock, LProcessedDeps);
         LPkg.AddDependency(LDep.Repository, LDep.Version);
         FPackageRepo.Save(LPkg, LPkgPath);
+        CaptureRootMetadata;
 
         // Build da dependencia especifica
         BuildDependency(LDep, LLock, APlatform);
@@ -346,10 +367,11 @@ begin
         FLogger.Log(TBoss4DLogLevel.Info, 'Nenhuma dependencia declarada no boss.json.');
         LSubprojects.Free;
         LWorkspaceService.Free;
-        Exit;
       end;
 
-      FLogger.Log(TBoss4DLogLevel.Info, 'Baixando dependencias do projeto...');
+      if Length(LActiveDeps) > 0 then
+      begin
+        FLogger.Log(TBoss4DLogLevel.Info, 'Baixando dependencias do projeto...');
 
       FGlobalProcessedDeps.Clear;
 
@@ -392,6 +414,7 @@ begin
       // Limpa os objetos de dependencias do array
       for var LDep in LActiveDeps do
         LDep.Free;
+      end;
     end;
 
     // Atualiza metadados do lock e salva

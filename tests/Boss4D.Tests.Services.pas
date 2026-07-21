@@ -378,6 +378,9 @@ begin
     LInit.Execute(True);
     var LSbomLock := TBoss4DLock.Create;
     try
+      LSbomLock.HasRootMetadata := True;
+      LSbomLock.RootName := 'cli-test';
+      LSbomLock.RootVersion := '1.0.0';
       LLockRepo.Save(LSbomLock, TPath.Combine(FTempDir, FILE_PACKAGE_LOCK));
     finally
       LSbomLock.Free;
@@ -391,6 +394,13 @@ begin
     Assert.IsTrue(LSbomContent.Contains('"specVersion": "1.7"'));
     Assert.IsTrue(LSbomContent.Contains('"type": "library"'));
     Assert.IsFalse(LSbomContent.Contains('"timestamp"'));
+    var LInvalidFlagsRaised := False;
+    try
+      LParser.ParseAndExecute(TArray<string>.Create('sbom', '--lock-only', '--include-getit'));
+    except
+      on E: EArgumentException do LInvalidFlagsRaised := True;
+    end;
+    Assert.IsTrue(LInvalidFlagsRaised, 'Lock-only deve rejeitar coletores de ambiente.');
   finally
     LParser.Free;
     LConfigService.Free;

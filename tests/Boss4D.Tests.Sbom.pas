@@ -29,6 +29,10 @@ type
     procedure TestArtifactCollectorHashesDeclaredFiles;
     [Test]
     procedure TestSpdx23SerializationAndValidation;
+    [Test]
+    procedure TestLockOnlyDoesNotRequireBossJson;
+    [Test]
+    procedure TestStrictLockOnlyRejectsLockWithoutRootEvidence;
   end;
 
 implementation
@@ -44,7 +48,7 @@ uses
   Boss4D.Core.Ports,
   Boss4D.Adapters.Sbom.CycloneDX,
   Boss4D.Adapters.Sbom.Collectors,
-  Boss4D.Adapters.Sbom.Spdx,
+  Boss4D.Adapters.Sbom.Spdx, Boss4D.Adapters.Json,
   Boss4D.Tests.Mocks;
 
 procedure ConfigureLockedDependency(const ALock: TBoss4DLock; const ADependency: TBoss4DDependency;
@@ -437,6 +441,89 @@ begin
     Assert.AreEqual(LContent, LWriter.Serialize(LDocument, True));
   finally
     LDocument.Free;
+  end;
+end;
+
+procedure TTestsSbom.TestLockOnlyDoesNotRequireBossJson;
+var
+  LTempDir, LLockPath, LMissingPackagePath: string;
+  LLock: TBoss4DLock;
+  LLockRepository: IBoss4DLockRepository;
+  LPackageRepository: IBoss4DPackageRepository;
+  LWriter: IBoss4DSbomWriter;
+  LService: TBoss4DSbomService;
+  LOptions: TBoss4DSbomOptions;
+  LContent: string;
+begin
+  LTempDir := TPath.Combine(TPath.GetTempPath, 'boss4d-lock-only-' + TGUID.NewGuid.ToString);
+  TDirectory.CreateDirectory(LTempDir);
+  LLockPath := TPath.Combine(LTempDir, 'boss-lock.json');
+  LMissingPackagePath := TPath.Combine(LTempDir, 'boss.json');
+  LLockRepository := TBoss4DLockJsonRepository.Create;
+  LPackageRepository := TBoss4DPackageJsonRepository.Create;
+  LWriter := TBoss4DCycloneDXWriter.Create;
+  LLock := TBoss4DLock.Create;
+  try
+    LLock.HasRootMetadata := True;
+    LLock.RootName := 'lock-only-app';
+    LLock.RootVersion := '1.2.3';
+    LLock.RootLicense := 'MIT';
+    LLockRepository.Save(LLock, LLockPath);
+  finally
+    LLock.Free;
+  end;
+
+  LService := TBoss4DSbomService.Create(LPackageRepository, LLockRepository, LWriter);
+  try
+    LOptions := Default(TBoss4DSbomOptions);
+    LOptions.LockOnly := True;
+    LOptions.StrictMode := True;
+    LOptions.ValidateOutput := True;
+    LOptions.ReproducibleOutput := True;
+    LContent := LService.Generate(LMissingPackagePath, LLockPath, LOptions);
+    Assert.Contains(LContent, 'lock-only-app');
+    Assert.IsFalse(TFile.Exists(LMissingPackagePath));
+  finally
+    LService.Free;
+    TDirectory.Delete(LTempDir, True);
+  end;
+end;
+
+procedure TTestsSbom.TestStrictLockOnlyRejectsLockWithoutRootEvidence;
+var
+  LTempDir, LLockPath: string;
+  LLock: TBoss4DLock;
+  LLockRepository: IBoss4DLockRepository;
+  LService: TBoss4DSbomService;
+  LOptions: TBoss4DSbomOptions;
+  LRaised: Boolean;
+begin
+  LTempDir := TPath.Combine(TPath.GetTempPath, 'boss4d-lock-root-' + TGUID.NewGuid.ToString);
+  TDirectory.CreateDirectory(LTempDir);
+  LLockPath := TPath.Combine(LTempDir, 'boss-lock.json');
+  LLockRepository := TBoss4DLockJsonRepository.Create;
+  LLock := TBoss4DLock.Create;
+  try
+    LLockRepository.Save(LLock, LLockPath);
+  finally
+    LLock.Free;
+  end;
+  LService := TBoss4DSbomService.Create(TBoss4DPackageJsonRepository.Create,
+    LLockRepository, TBoss4DCycloneDXWriter.Create);
+  try
+    LOptions := Default(TBoss4DSbomOptions);
+    LOptions.LockOnly := True;
+    LOptions.StrictMode := True;
+    LRaised := False;
+    try
+      LService.Generate(TPath.Combine(LTempDir, 'boss.json'), LLockPath, LOptions);
+    except
+      on E: EBoss4DSbomValidation do LRaised := True;
+    end;
+    Assert.IsTrue(LRaised, 'Lock-only estrito deve exigir evidencia da raiz.');
+  finally
+    LService.Free;
+    TDirectory.Delete(LTempDir, True);
   end;
 end;
 

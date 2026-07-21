@@ -69,6 +69,13 @@ type
     FLockVersion: Integer;
     FHash: string;
     FUpdated: string;
+    FHasRootMetadata: Boolean;
+    FRootName: string;
+    FRootVersion: string;
+    FRootDescription: string;
+    FRootHomepage: string;
+    FRootLicense: string;
+    FRootDependencies: TList<string>;
     FInstalled: TObjectDictionary<string, TBoss4DLockedDependency>;
   public
     constructor Create;
@@ -80,6 +87,13 @@ type
 
     property Hash: string read FHash write FHash;
     property Updated: string read FUpdated write FUpdated;
+    property HasRootMetadata: Boolean read FHasRootMetadata write FHasRootMetadata;
+    property RootName: string read FRootName write FRootName;
+    property RootVersion: string read FRootVersion write FRootVersion;
+    property RootDescription: string read FRootDescription write FRootDescription;
+    property RootHomepage: string read FRootHomepage write FRootHomepage;
+    property RootLicense: string read FRootLicense write FRootLicense;
+    property RootDependencies: TList<string> read FRootDependencies;
     property LockVersion: Integer read FLockVersion write FLockVersion;
     property Installed: TObjectDictionary<string, TBoss4DLockedDependency> read FInstalled;
   end;
@@ -130,11 +144,13 @@ constructor TBoss4DLock.Create;
 begin
   inherited Create;
   FLockVersion := TBoss4DLockSchema.CurrentVersion;
+  FRootDependencies := TList<string>.Create;
   FInstalled := TObjectDictionary<string, TBoss4DLockedDependency>.Create([doOwnsValues]);
 end;
 
 destructor TBoss4DLock.Destroy;
 begin
+  FRootDependencies.Free;
   FInstalled.Free;
   inherited Destroy;
 end;

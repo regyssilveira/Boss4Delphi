@@ -513,6 +513,21 @@ begin
       Result.Hash := ReadString(LJSONObj, 'hash');
       Result.Updated := ReadString(LJSONObj, 'updated');
 
+      var LRootObj := ReadObject(LJSONObj, 'root');
+      if Assigned(LRootObj) then
+      begin
+        Result.HasRootMetadata := True;
+        Result.RootName := ReadString(LRootObj, 'name');
+        Result.RootVersion := ReadString(LRootObj, 'version');
+        Result.RootDescription := ReadString(LRootObj, 'description');
+        Result.RootHomepage := ReadString(LRootObj, 'homepage');
+        Result.RootLicense := ReadString(LRootObj, 'license');
+        var LRootDeps := ReadArray(LRootObj, 'dependencies');
+        if Assigned(LRootDeps) then
+          for var I := 0 to LRootDeps.Count - 1 do
+            Result.RootDependencies.Add(LRootDeps[I].Value);
+      end;
+
       var LInstalledObj := ReadObject(LJSONObj, 'installedModules');
       if Assigned(LInstalledObj) then
       begin
@@ -559,12 +574,35 @@ var
   LEncoding: TEncoding;
   LInstalledKeys: TList<string>;
   LDependencyKeys: TList<string>;
+  LRootObj: TJSONObject;
+  LRootDependenciesArr: TJSONArray;
 begin
   LJSONObj := TJSONObject.Create;
   try
     LJSONObj.AddPair('lockVersion', TJSONNumber.Create(TBoss4DLockSchema.CurrentVersion));
     LJSONObj.AddPair('hash', ALock.Hash);
     LJSONObj.AddPair('updated', ALock.Updated);
+
+    if ALock.HasRootMetadata then
+    begin
+      LRootObj := TJSONObject.Create;
+      LRootObj.AddPair('name', ALock.RootName);
+      LRootObj.AddPair('version', ALock.RootVersion);
+      if not ALock.RootDescription.IsEmpty then LRootObj.AddPair('description', ALock.RootDescription);
+      if not ALock.RootHomepage.IsEmpty then LRootObj.AddPair('homepage', ALock.RootHomepage);
+      if not ALock.RootLicense.IsEmpty then LRootObj.AddPair('license', ALock.RootLicense);
+      LRootDependenciesArr := TJSONArray.Create;
+      LDependencyKeys := TList<string>.Create;
+      try
+        LDependencyKeys.AddRange(ALock.RootDependencies);
+        LDependencyKeys.Sort;
+        for var LDependencyKey in LDependencyKeys do LRootDependenciesArr.Add(LDependencyKey);
+      finally
+        LDependencyKeys.Free;
+      end;
+      LRootObj.AddPair('dependencies', LRootDependenciesArr);
+      LJSONObj.AddPair('root', LRootObj);
+    end;
 
     LInstalledObj := TJSONObject.Create;
     LInstalledKeys := TList<string>.Create;
