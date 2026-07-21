@@ -41,7 +41,8 @@ de código ou documentação, isoladamente, não comprova o critério.
 
 - A evidência obrigatória é a execução local de `scripts/ci-verify-sbom.ps1` no
   commit da release, usando Delphi 13, Win32/Win64 e os validadores externos.
-- O GitHub Actions é uma automação opcional. Quando houver runner, ele deve ter os
+- O GitHub Actions é uma automação opcional acionada apenas manualmente por
+  `workflow_dispatch`. Quando houver runner, ele deve ter os
   rótulos `self-hosted`, `windows` e `delphi-13`.
 - Segredos e licenças do RAD Studio não são copiados para artefatos ou logs.
 - O pipeline não altera `boss.json` nem `boss-lock.json`.

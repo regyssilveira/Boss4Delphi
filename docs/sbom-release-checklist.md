@@ -16,7 +16,8 @@ the same commit:
 - [ ] `git diff --check` is clean and local IDE files are absent from the commit.
 - [ ] Portuguese and English migration documentation matches the current CLI.
 
-The GitHub Actions workflow is optional and requires a self-hosted Windows runner
+The GitHub Actions workflow is optional, manually dispatched only, and requires a
+self-hosted Windows runner
 with Delphi 13, Docker, Java, and `gh`. Without a runner, a complete local execution
 of `scripts/ci-verify-sbom.ps1` on the release commit is authoritative evidence and
 does not block promotion. If a runner is used, first run

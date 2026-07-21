@@ -162,5 +162,5 @@ No Windows com Delphi 13, Docker, Java e GitHub CLI:
 
 O segundo comando compila e testa Win32/Win64, compara saídas reproduzíveis,
 verifica atestações e executa os validadores oficiais CycloneDX e SPDX. A execução
-local no commit da release é autoritativa; GitHub Actions é apenas uma automação
-opcional da mesma matriz.
+local no commit da release é autoritativa; o workflow GitHub Actions, acionado
+manualmente, é apenas uma automação opcional da mesma matriz.

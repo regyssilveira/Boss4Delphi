@@ -5,7 +5,8 @@ Este documento detalha o ambiente correto do Delphi e as etapas necessárias par
 O script `scripts/ci-verify-sbom.ps1` é a verificação autoritativa e pode ser
 executado localmente. Ele valida Win32, Win64, os testes, a reprodutibilidade entre
 arquiteturas, VEX, atestações e os formatos com CycloneDX CLI e SPDX tools-java.
-O workflow opcional `.github/workflows/sbom-ci.yml` executa a mesma matriz quando
+O workflow opcional `.github/workflows/sbom-ci.yml` pode ser iniciado manualmente
+pela ação `workflow_dispatch` e executa a mesma matriz quando
 houver um runner self-hosted com os rótulos `windows` e `delphi-13`, Delphi 13,
 Docker, Java e GitHub CLI. A ausência desse runner não bloqueia a release local.
 Antes de promover o PR ou publicar uma tag, preencha
