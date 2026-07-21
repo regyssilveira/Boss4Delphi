@@ -423,13 +423,16 @@ begin
 
     FLogger.Log(TBoss4DLogLevel.Info, 'Instalacao concluida com sucesso!');
 
-    // Dispara a integracao automatica de Library Paths na IDE
-    var LRegistry: IBoss4DRegistryService := TBoss4DWindowsRegistryAdapter.Create;
-    var LIDEIntegration := TBoss4DIDEIntegrationService.Create(LRegistry, FLogger);
-    try
-      LIDEIntegration.IntegrateLibraryPaths(APlatform);
-    finally
-      LIDEIntegration.Free;
+    // Sem dependencias nao ha Library Paths a registrar; evita mutacao desnecessaria da IDE.
+    if LLock.Installed.Count > 0 then
+    begin
+      var LRegistry: IBoss4DRegistryService := TBoss4DWindowsRegistryAdapter.Create;
+      var LIDEIntegration := TBoss4DIDEIntegrationService.Create(LRegistry, FLogger);
+      try
+        LIDEIntegration.IntegrateLibraryPaths(APlatform);
+      finally
+        LIDEIntegration.Free;
+      end;
     end;
   finally
     LTasks.Free;

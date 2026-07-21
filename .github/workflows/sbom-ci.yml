@@ -40,5 +40,8 @@ jobs:
           path: |
             .ci-build/sbom-win32/boss4d.cdx.json
             .ci-build/sbom-win32/boss4d.spdx.json
+            .ci-build/sbom-win32/boss4d.vex.cdx.json
+            .ci-build/sbom-win32/boss4d.cdx.intoto.json
+            .ci-build/sbom-win32/boss4d.spdx.intoto.json
           if-no-files-found: error
           retention-days: 30

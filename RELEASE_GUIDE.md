@@ -7,6 +7,8 @@ self-hosted com os rótulos `windows` e `delphi-13`. O runner deve fornecer Delp
 13, Docker, Java e GitHub CLI. O script `scripts/ci-verify-sbom.ps1` pode ser
 executado localmente e valida Win32, Win64, os testes, a reprodutibilidade entre
 arquiteturas e os formatos com CycloneDX CLI e SPDX tools-java.
+Antes de promover o PR ou publicar uma tag, preencha
+[`docs/sbom-release-checklist.pt-BR.md`](docs/sbom-release-checklist.pt-BR.md).
 
 ---
 

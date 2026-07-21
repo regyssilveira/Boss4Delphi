@@ -72,22 +72,42 @@ foreach ($target in @(
   @{ Exe = Join-Path $win64 'Boss4D.exe'; Dir = $sbom64 }
 )) {
   & $target.Exe sbom --format cyclonedx --strict --validate --lock-only `
-    --reproducible --output (Join-Path $target.Dir 'boss4d.cdx.json')
+    --reproducible --output (Join-Path $target.Dir 'boss4d.cdx.json') `
+    --attestation-output (Join-Path $target.Dir 'boss4d.cdx.intoto.json')
   if ($LASTEXITCODE -ne 0) { throw 'Geração CycloneDX falhou.' }
   & $target.Exe sbom --format spdx --strict --validate --lock-only `
-    --reproducible --output (Join-Path $target.Dir 'boss4d.spdx.json')
+    --reproducible --output (Join-Path $target.Dir 'boss4d.spdx.json') `
+    --attestation-output (Join-Path $target.Dir 'boss4d.spdx.intoto.json')
   if ($LASTEXITCODE -ne 0) { throw 'Geração SPDX falhou.' }
 }
 
-foreach ($name in @('boss4d.cdx.json', 'boss4d.spdx.json')) {
+foreach ($name in @('boss4d.cdx.json', 'boss4d.spdx.json',
+    'boss4d.cdx.intoto.json', 'boss4d.spdx.intoto.json')) {
   $hash32 = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $sbom32 $name)).Hash
   $hash64 = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $sbom64 $name)).Hash
   if ($hash32 -ne $hash64) { throw "SBOM não reproduzível entre Win32/Win64: $name" }
 }
 
+& (Join-Path $win32 'Boss4D.exe') sbom --format cyclonedx --strict --validate `
+  --lock-only --reproducible --output (Join-Path $sbom32 'boss4d.cdx.json') `
+  --verify-attestation (Join-Path $sbom32 'boss4d.cdx.intoto.json')
+if ($LASTEXITCODE -ne 0) { throw 'Verificação da atestação CycloneDX falhou.' }
+& (Join-Path $win32 'Boss4D.exe') sbom --format spdx --strict --validate `
+  --lock-only --reproducible --output (Join-Path $sbom32 'boss4d.spdx.json') `
+  --verify-attestation (Join-Path $sbom32 'boss4d.spdx.intoto.json')
+if ($LASTEXITCODE -ne 0) { throw 'Verificação da atestação SPDX falhou.' }
+
+& (Join-Path $win32 'Boss4D.exe') sbom --format cyclonedx --strict --validate `
+  --lock-only --reproducible --vex (Join-Path $workspace 'tests\fixtures\sbom\security.vex.json') `
+  --output (Join-Path $sbom32 'boss4d.vex.cdx.json')
+if ($LASTEXITCODE -ne 0) { throw 'Geração CycloneDX com VEX falhou.' }
+
 docker run --rm -v "${sbom32}:/work" cyclonedx/cyclonedx-cli:latest validate `
   --input-file /work/boss4d.cdx.json --fail-on-errors
 if ($LASTEXITCODE -ne 0) { throw 'Validação externa CycloneDX falhou.' }
+docker run --rm -v "${sbom32}:/work" cyclonedx/cyclonedx-cli:latest validate `
+  --input-file /work/boss4d.vex.cdx.json --fail-on-errors
+if ($LASTEXITCODE -ne 0) { throw 'Validação externa CycloneDX VEX falhou.' }
 
 $spdxTools = Join-Path $buildRoot 'spdx-tools'
 $null = New-Item -ItemType Directory -Path $spdxTools

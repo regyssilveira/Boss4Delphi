@@ -9,6 +9,10 @@
 - Opt-in GetIt, Delphi toolchain/RTL, and declared binary artifact collectors.
 - Manual SBOM components and shared SPDX-aware license normalization.
 - Neutral SBOM domain with extension points for SCA, VEX, merge, and signing.
+- Autonomous lock-only generation using root evidence stored in lock schema v2.
+- Detached in-toto SHA-256 attestations and offline CycloneDX VEX enrichment.
+- Exact Delphi compiler/RTL file provenance and explicit artifact path bases.
+- Transactional release build and self-hosted Windows/Delphi SBOM CI matrix.
 
 ### Changed
 

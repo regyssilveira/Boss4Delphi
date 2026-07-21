@@ -83,9 +83,9 @@ rmdir /s /q "!OUTPUT_DIR!\bin\Win64"
 
 :: Gera os SBOMs reproduziveis do proprio Boss4D
 mkdir "!OUTPUT_DIR!\sbom" 2>nul
-call "!OUTPUT_DIR!\bin\boss4d.exe" sbom --format cyclonedx --strict --validate --lock-only --reproducible --output "!OUTPUT_DIR!\sbom\boss4d.cdx.json"
+call "!OUTPUT_DIR!\bin\boss4d.exe" sbom --format cyclonedx --strict --validate --lock-only --reproducible --output "!OUTPUT_DIR!\sbom\boss4d.cdx.json" --attestation-output "!OUTPUT_DIR!\sbom\boss4d.cdx.intoto.json"
 if errorlevel 1 goto BuildFailed
-call "!OUTPUT_DIR!\bin\boss4d.exe" sbom --format spdx --strict --validate --lock-only --reproducible --output "!OUTPUT_DIR!\sbom\boss4d.spdx.json"
+call "!OUTPUT_DIR!\bin\boss4d.exe" sbom --format spdx --strict --validate --lock-only --reproducible --output "!OUTPUT_DIR!\sbom\boss4d.spdx.json" --attestation-output "!OUTPUT_DIR!\sbom\boss4d.spdx.intoto.json"
 if errorlevel 1 goto BuildFailed
 
 :: Compilando os Plugins de IDE para cada versao suportada

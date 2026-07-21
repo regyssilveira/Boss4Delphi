@@ -627,6 +627,14 @@ begin
     Assert.IsTrue(LAttestor.VerifyAttestation(LContent, LAttestation, LError), LError);
     Assert.IsFalse(LAttestor.VerifyAttestation(LContent + 'tampered', LAttestation, LError));
     Assert.Contains(LError, 'nao confere');
+
+    TFile.WriteAllText(LVexPath,
+      '{"vulnerabilities":[{"id":"CVE-2026-9999",' +
+      '"component":"missing-component","state":"affected"}]}', TEncoding.UTF8);
+    LTransformer := TBoss4DOfflineVexTransformer.Create(LVexPath);
+    LTransformer.Transform(LDocument);
+    Assert.AreEqual<Integer>(1, LDocument.Issues.Count);
+    Assert.Contains(LDocument.Issues[0], 'componente ausente');
   finally
     LDocument.Free;
     TFile.Delete(LVexPath);
