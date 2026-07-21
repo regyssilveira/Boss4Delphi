@@ -21,13 +21,7 @@ jobs:
 
       - name: Verify tool prerequisites
         shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          foreach ($tool in @('docker', 'gh', 'java')) {
-            if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
-              throw "Ferramenta obrigatória ausente no runner: $tool"
-            }
-          }
+        run: ./scripts/test-sbom-runner.ps1 -RequireDockerDaemon
 
       - name: Compile, test, generate and validate SBOMs
         shell: pwsh

@@ -19,3 +19,5 @@ the same commit:
 The workflow requires a self-hosted Windows runner with Delphi 13, Docker, Java,
 and `gh`. If the runner is unavailable, the check remains pending and automatic
 promotion is blocked; do not bypass it by removing the check or weakening validation.
+Run `scripts/test-sbom-runner.ps1 -RequireDockerDaemon` as the runner service
+account before enabling the job.

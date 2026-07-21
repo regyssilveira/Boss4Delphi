@@ -19,3 +19,5 @@ forem comprovados para o mesmo commit:
 O workflow requer runner self-hosted Windows com Delphi 13, Docker, Java e `gh`.
 Ausência desse runner deixa o check pendente e impede promoção automática, mas não
 deve ser contornada removendo o check ou executando validadores menos rigorosos.
+Execute `scripts/test-sbom-runner.ps1 -RequireDockerDaemon` com a mesma conta do
+serviço do runner antes de liberar o job.

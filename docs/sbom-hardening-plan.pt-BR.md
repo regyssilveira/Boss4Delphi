@@ -44,3 +44,22 @@ de código ou documentação, isoladamente, não comprova o critério.
 - O pipeline não altera `boss.json` nem `boss-lock.json`.
 - Artefatos só são publicados depois de testes e validação externa dos dois formatos.
 - A promoção para release exige um build limpo Win32 e Win64 no mesmo commit.
+
+## Preparação do runner
+
+O job requer um runner GitHub Actions Windows self-hosted com os rótulos exatos
+`self-hosted`, `windows` e `delphi-13`. A conta que executa o serviço do runner deve
+ter acesso à instalação/licença do Delphi 13 (BDS 37.0), ao Docker Desktop ou Engine,
+ao Java e ao GitHub CLI. Quando o Delphi não estiver registrado em `HKCU` para essa
+conta, configure `BOSS4D_BDS_ROOT` no ambiente do serviço.
+
+Antes de registrar ou reiniciar o serviço, execute na mesma conta:
+
+```powershell
+pwsh -File scripts/test-sbom-runner.ps1 -RequireDockerDaemon
+```
+
+Esse diagnóstico comprova Windows, `rsvars.bat`, `dcc32`, `dcc64`, Docker com daemon
+acessível, Java e `gh`. O workflow executa o mesmo diagnóstico antes do build. O
+registro do runner e a instalação/licenciamento do Delphi permanecem operações do
+administrador da infraestrutura; nenhum token ou segredo deve ser versionado.
