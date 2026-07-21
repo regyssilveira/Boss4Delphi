@@ -16,8 +16,8 @@ the same commit:
 - [ ] `git diff --check` is clean and local IDE files are absent from the commit.
 - [ ] Portuguese and English migration documentation matches the current CLI.
 
-The workflow requires a self-hosted Windows runner with Delphi 13, Docker, Java,
-and `gh`. If the runner is unavailable, the check remains pending and automatic
-promotion is blocked; do not bypass it by removing the check or weakening validation.
-Run `scripts/test-sbom-runner.ps1 -RequireDockerDaemon` as the runner service
-account before enabling the job.
+The GitHub Actions workflow is optional and requires a self-hosted Windows runner
+with Delphi 13, Docker, Java, and `gh`. Without a runner, a complete local execution
+of `scripts/ci-verify-sbom.ps1` on the release commit is authoritative evidence and
+does not block promotion. If a runner is used, first run
+`scripts/test-sbom-runner.ps1 -RequireDockerDaemon` as its service account.

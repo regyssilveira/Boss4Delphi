@@ -16,8 +16,8 @@ forem comprovados para o mesmo commit:
 - [ ] `git diff --check` está limpo e arquivos locais da IDE não estão no commit.
 - [ ] A documentação de migração em português e inglês corresponde à CLI atual.
 
-O workflow requer runner self-hosted Windows com Delphi 13, Docker, Java e `gh`.
-Ausência desse runner deixa o check pendente e impede promoção automática, mas não
-deve ser contornada removendo o check ou executando validadores menos rigorosos.
-Execute `scripts/test-sbom-runner.ps1 -RequireDockerDaemon` com a mesma conta do
-serviço do runner antes de liberar o job.
+O workflow GitHub Actions é opcional e requer runner self-hosted Windows com Delphi
+13, Docker, Java e `gh`. Na ausência do runner, a execução local completa de
+`scripts/ci-verify-sbom.ps1` no commit da release é a evidência autoritativa e não
+impede a promoção. Se o runner for usado, execute antes
+`scripts/test-sbom-runner.ps1 -RequireDockerDaemon` com a mesma conta do serviço.

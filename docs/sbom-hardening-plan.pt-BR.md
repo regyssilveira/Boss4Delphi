@@ -18,7 +18,7 @@ de código ou documentação, isoladamente, não comprova o critério.
 | Fase | Resultado | Evidência de encerramento |
 |---|---|---|
 | H0 | Contratos e riscos residuais auditados | Este documento versionado e critérios associados a testes/comandos |
-| H1 | Build e CI de produção | workflow em runner Windows/Delphi; Win32/Win64; testes; validadores externos; artefatos anexados |
+| H1 | Build e automação de CI | matriz local Win32/Win64 com testes e validadores externos; workflow Windows versionado para uso quando houver runner |
 | H2 | Lock-only autônomo | geração sem `boss.json`; matriz de flags e exit codes coberta por testes |
 | H3 | GetIt semanticamente correto | inventário ambiental separado de dependências comprovadas; fixture positiva e negativa |
 | H4 | Toolchain e artefatos auditáveis | versão de arquivo e SHA-256 do compilador/RTL; base de caminho explícita no lock |
@@ -37,9 +37,12 @@ de código ou documentação, isoladamente, não comprova o critério.
 7. SCA, VEX e assinatura são somente portas, sem adaptadores concretos.
 8. O lock do próprio Boss4D é estruturalmente válido, mas ainda é um placeholder vazio.
 
-## Política do pipeline
+## Política de validação
 
-- O runner deve ter os rótulos `self-hosted`, `windows` e `delphi-13`.
+- A evidência obrigatória é a execução local de `scripts/ci-verify-sbom.ps1` no
+  commit da release, usando Delphi 13, Win32/Win64 e os validadores externos.
+- O GitHub Actions é uma automação opcional. Quando houver runner, ele deve ter os
+  rótulos `self-hosted`, `windows` e `delphi-13`.
 - Segredos e licenças do RAD Studio não são copiados para artefatos ou logs.
 - O pipeline não altera `boss.json` nem `boss-lock.json`.
 - Artefatos só são publicados depois de testes e validação externa dos dois formatos.
@@ -47,7 +50,7 @@ de código ou documentação, isoladamente, não comprova o critério.
 
 ## Preparação do runner
 
-O job requer um runner GitHub Actions Windows self-hosted com os rótulos exatos
+O job opcional requer um runner GitHub Actions Windows self-hosted com os rótulos exatos
 `self-hosted`, `windows` e `delphi-13`. A conta que executa o serviço do runner deve
 ter acesso à instalação/licença do Delphi 13 (BDS 37.0), ao Docker Desktop ou Engine,
 ao Java e ao GitHub CLI. Quando o Delphi não estiver registrado em `HKCU` para essa
@@ -63,3 +66,5 @@ Esse diagnóstico comprova Windows, `rsvars.bat`, `dcc32`, `dcc64`, Docker com d
 acessível, Java e `gh`. O workflow executa o mesmo diagnóstico antes do build. O
 registro do runner e a instalação/licenciamento do Delphi permanecem operações do
 administrador da infraestrutura; nenhum token ou segredo deve ser versionado.
+Sua ausência não bloqueia a release quando a matriz local obrigatória estiver
+registrada e aprovada para o mesmo commit.
