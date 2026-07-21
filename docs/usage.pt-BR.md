@@ -287,11 +287,17 @@ boss4d sbom --include-getit --include-toolchain --include-artifacts \
 
 `--include-getit` consulta os pacotes instalados pelo `GetItCmd`;
 `--include-toolchain` registra as instalações RAD Studio detectadas e a cobertura
-de compilador/RTL; `--include-artifacts` verifica os caminhos `artifacts` do lock e
+de compilador/RTL, incluindo versão e SHA-256 de `dcc32`, `dcc64` e `System.dcu`;
+`--include-artifacts` verifica os caminhos `artifacts` do lock e
 calcula SHA-256 dos arquivos encontrados. Falha de consulta nunca é interpretada
 como inventário vazio. Os coletores são opt-in porque refletem o ambiente local e
 podem tornar o SBOM não reproduzível. SDKs externos ainda devem ser declarados
 manualmente.
+
+Cada bloco `artifacts` do lock possui uma base explícita: `project` (padrão
+retrocompatível), `module` (`modules/<dependência>`) ou `absolute`. Caminhos
+absolutos são aceitos somente com base `absolute`; caminhos relativos que escapem
+da base com `..` são rejeitados.
 
 Pacotes apenas instalados no GetIt entram como inventário ambiental com uso
 desconhecido e não são ligados à raiz como dependências. Para afirmar uso pelo

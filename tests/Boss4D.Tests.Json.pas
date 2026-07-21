@@ -139,6 +139,7 @@ begin
     begin
       LLockedDep.Artifacts.Bin.Add('bin/horse.dll');
       LLockedDep.Artifacts.Dcu.Add('lib/horse.dcu');
+      LLockedDep.Artifacts.Base := 'module';
     end;
 
     FLockRepo.Save(LLock, LFilePath);
@@ -157,6 +158,7 @@ begin
       Assert.AreEqual<string>('commithash', LInstalled.Hash);
       Assert.AreEqual<Integer>(1, LInstalled.Artifacts.Bin.Count);
       Assert.AreEqual<string>('bin/horse.dll', LInstalled.Artifacts.Bin[0]);
+      Assert.AreEqual('module', LInstalled.Artifacts.Base);
     finally
       LLoadedLock.Free;
     end;

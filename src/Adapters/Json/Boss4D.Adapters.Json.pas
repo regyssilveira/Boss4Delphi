@@ -318,6 +318,9 @@ procedure ParseLockArtifacts(const AArtifactsObj: TJSONObject; const ALockedDep:
 var
   LBinArr, LDcpArr, LDcuArr, LBplArr: TJSONArray;
 begin
+  ALockedDep.Artifacts.Base := ReadString(AArtifactsObj, 'base');
+  if ALockedDep.Artifacts.Base.IsEmpty then
+    ALockedDep.Artifacts.Base := 'project';
   LBinArr := ReadArray(AArtifactsObj, 'bin');
   if Assigned(LBinArr) then
     for var I := 0 to LBinArr.Count - 1 do ALockedDep.Artifacts.Bin.Add(LBinArr[I].Value);
@@ -660,6 +663,7 @@ begin
 
       // Artifacts
       LArtifactsObj := TJSONObject.Create;
+      LArtifactsObj.AddPair('base', LLockedDependency.Artifacts.Base);
 
       LBinArr := TJSONArray.Create;
         for var LArt in LLockedDependency.Artifacts.Bin do LBinArr.Add(LArt);

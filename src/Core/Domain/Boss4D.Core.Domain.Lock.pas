@@ -18,6 +18,7 @@ type
     FDcp: TList<string>;
     FDcu: TList<string>;
     FBpl: TList<string>;
+    FBase: string;
   public
     constructor Create;
     destructor Destroy; override;
@@ -26,6 +27,7 @@ type
     property Dcp: TList<string> read FDcp;
     property Dcu: TList<string> read FDcu;
     property Bpl: TList<string> read FBpl;
+    property Base: string read FBase write FBase;
   end;
 
   { Representa uma dependencia travada no arquivo lock }
@@ -105,6 +107,7 @@ implementation
 constructor TBoss4DDependencyArtifacts.Create;
 begin
   inherited Create;
+  FBase := 'project';
   FBin := TList<string>.Create;
   FDcp := TList<string>.Create;
   FDcu := TList<string>.Create;

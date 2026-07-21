@@ -286,7 +286,8 @@ boss4d sbom --include-getit --include-toolchain --include-artifacts \
 
 `--include-getit` queries packages installed through `GetItCmd`;
 `--include-toolchain` records detected RAD Studio installations and compiler/RTL
-coverage; `--include-artifacts` checks lock-file `artifacts` paths and calculates
+coverage, including versions and SHA-256 for `dcc32`, `dcc64`, and `System.dcu`;
+`--include-artifacts` checks lock-file `artifacts` paths and calculates
 SHA-256 for files found. A failed query is never interpreted as an empty inventory.
 The collectors are opt-in because they reflect the local environment and can make
 the SBOM non-reproducible. External SDKs must still be declared manually.
@@ -301,6 +302,11 @@ The core exposes document transformers for future merge, SCA, and VEX
 integrations, plus a post-serialization signer. None is required to generate
 CycloneDX or SPDX locally; signing and vulnerability lookups remain optional
 adapter responsibilities.
+
+Every lock-file `artifacts` block has an explicit base: `project` (the
+backward-compatible default), `module` (`modules/<dependency>`), or `absolute`.
+Absolute paths are accepted only with the `absolute` base, and relative paths
+that escape their selected base through `..` are rejected.
 
 Components that Boss4D cannot discover automatically, including commercial
 libraries, can be declared explicitly in `boss.json`:

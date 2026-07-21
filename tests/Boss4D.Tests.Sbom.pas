@@ -354,7 +354,15 @@ var
   LDocument: TBoss4DSbomDocument;
   LRegistry: TRegistryMock;
   LCollector: IBoss4DSbomCollector;
+  LToolchainRoot: string;
 begin
+  LToolchainRoot := TPath.Combine(TPath.GetTempPath, 'boss4d-toolchain-' + TGUID.NewGuid.ToString);
+  for var LDirectory in TArray<string>.Create('bin', 'lib\win32\release', 'lib\win64\release') do
+    TDirectory.CreateDirectory(TPath.Combine(LToolchainRoot, LDirectory));
+  TFile.WriteAllText(TPath.Combine(LToolchainRoot, 'bin\dcc32.exe'), 'dcc32');
+  TFile.WriteAllText(TPath.Combine(LToolchainRoot, 'bin\dcc64.exe'), 'dcc64');
+  TFile.WriteAllText(TPath.Combine(LToolchainRoot, 'lib\win32\release\System.dcu'), 'rtl32');
+  TFile.WriteAllText(TPath.Combine(LToolchainRoot, 'lib\win64\release\System.dcu'), 'rtl64');
   LPkg := TBoss4DPackage.Create;
   LLock := TBoss4DLock.Create;
   LBuilder := TBoss4DSbomBuilder.Create;
@@ -362,13 +370,22 @@ begin
   try
     LPkg.Name := 'toolchain-app';
     LPkg.Version := '1.0.0';
-    LRegistry.Path37 := 'C:\Fake\RADStudio13';
+    LRegistry.Path22 := '';
+    LRegistry.Path23 := '';
+    LRegistry.Path37 := LToolchainRoot;
     LDocument := LBuilder.Build(LPkg, LLock);
     try
       LCollector := TBoss4DToolchainSbomCollector.Create(LRegistry);
       LCollector.Collect(LDocument, LPkg, LLock, TDirectory.GetCurrentDirectory);
       Assert.IsNotNull(LDocument.FindComponent('boss4d:toolchain:rad-studio@37.0'));
       Assert.Contains(LDocument.Coverage, 'delphi-toolchain-rtl');
+      Assert.AreEqual<Integer>(6, LDocument.Components.Count);
+      Assert.AreEqual<Integer>(0, LDocument.Issues.Count);
+      var LHasCompilerHash := False;
+      for var LComponent in LDocument.Components do
+        if SameText(LComponent.Name, 'dcc32.exe') then
+          LHasCompilerHash := LComponent.Hashes.Count = 1;
+      Assert.IsTrue(LHasCompilerHash);
     finally
       LDocument.Free;
     end;
@@ -376,6 +393,7 @@ begin
     LBuilder.Free;
     LLock.Free;
     LPkg.Free;
+    TDirectory.Delete(LToolchainRoot, True);
   end;
 end;
 
@@ -401,10 +419,11 @@ begin
   try
     LPkg.Name := 'artifact-app';
     LPkg.Version := '1.0.0';
-    LPkg.Dependencies.Add(LDep.Name, '1.0.0');
+    LPkg.Dependencies.Add(LDep.Repository, '1.0.0');
     ConfigureLockedDependency(LLock, LDep, '1.0.0', 'abc123', 'deadbeef');
     Assert.IsTrue(LLock.GetInstalled(LDep, LLocked));
     LLocked.Artifacts.Bin.Add('vendor.dll');
+    LLocked.Artifacts.Bin.Add('..\outside.dll');
     LDocument := LBuilder.Build(LPkg, LLock);
     try
       LCollector := TBoss4DArtifactSbomCollector.Create;
@@ -413,6 +432,8 @@ begin
       Assert.IsNotNull(LFile);
       Assert.AreEqual<Integer>(1, LFile.Hashes.Count);
       Assert.AreEqual<Integer>(64, LFile.Hashes[0].Value.Length);
+      Assert.AreEqual<Integer>(1, LDocument.Issues.Count);
+      Assert.Contains(LDocument.Issues[0], 'escapa da base project');
     finally
       LDocument.Free;
     end;

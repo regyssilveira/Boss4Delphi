@@ -46,11 +46,31 @@ implementation
 
 uses
   System.SysUtils, System.IOUtils, System.Classes, System.RegularExpressions,
-  System.Hash, System.Generics.Collections, Boss4D.Core.Domain.Env;
+  System.Hash, System.Generics.Collections, Boss4D.Core.Domain.Env, Winapi.Windows;
 
 function IdPart(const AValue: string): string;
 begin
   Result := AValue.Trim.ToLower.Replace(' ', '-').Replace('\\', '/');
+end;
+
+function FileVersion(const APath: string): string;
+var
+  LHandle, LSize: DWORD;
+  LBuffer: TBytes;
+  LInfo: PVSFixedFileInfo;
+  LInfoSize: UINT;
+begin
+  Result := '';
+  LHandle := 0;
+  LSize := GetFileVersionInfoSize(PChar(APath), LHandle);
+  if LSize = 0 then Exit;
+  SetLength(LBuffer, LSize);
+  if not GetFileVersionInfo(PChar(APath), 0, LSize, @LBuffer[0]) then Exit;
+  LInfo := nil;
+  if VerQueryValue(@LBuffer[0], '\', Pointer(LInfo), LInfoSize) and Assigned(LInfo) then
+    Result := Format('%d.%d.%d.%d', [HiWord(LInfo.dwFileVersionMS),
+      LoWord(LInfo.dwFileVersionMS), HiWord(LInfo.dwFileVersionLS),
+      LoWord(LInfo.dwFileVersionLS)]);
 end;
 
 function EnsureRelationship(const ADocument: TBoss4DSbomDocument;
@@ -72,6 +92,33 @@ begin
   LRelationship := EnsureRelationship(ADocument, AFrom);
   if not LRelationship.DependsOn.Contains(ATo) then
     LRelationship.DependsOn.Add(ATo);
+end;
+
+procedure AddToolchainFile(const ADocument: TBoss4DSbomDocument;
+  const AToolchainId, ARoot, ARelativePath, ARole, APlatform: string);
+begin
+  var LPath := TPath.Combine(ARoot, ARelativePath);
+  if not TFile.Exists(LPath) then
+  begin
+    ADocument.Issues.Add('Arquivo da toolchain nao encontrado: ' + ARelativePath);
+    Exit;
+  end;
+  var LDigest := THashSHA2.GetHashStringFromFile(LPath);
+  var LComponent := TBoss4DSbomComponent.Create;
+  LComponent.Id := 'boss4d:toolchain-file:' + IdPart(ARelativePath) + '@' +
+    LDigest.Substring(0, 16).ToLower;
+  LComponent.Name := TPath.GetFileName(LPath);
+  LComponent.Version := FileVersion(LPath);
+  LComponent.ComponentType := FileComponent;
+  LComponent.Properties.AddOrSetValue('boss4d:role', ARole);
+  LComponent.Properties.AddOrSetValue('boss4d:platform', APlatform);
+  LComponent.Properties.AddOrSetValue('boss4d:installationRelativePath', ARelativePath);
+  var LHash := TBoss4DSbomHash.Create;
+  LHash.Algorithm := 'SHA-256';
+  LHash.Value := LDigest;
+  LComponent.Hashes.Add(LHash);
+  ADocument.Components.Add(LComponent);
+  Link(ADocument, AToolchainId, LComponent.Id);
 end;
 
 constructor TBoss4DGetItSbomCollector.Create(const ARegistry: IBoss4DRegistryService);
@@ -198,7 +245,8 @@ begin
   TArray.Sort<string>(LVersions);
   for var LVersion in LVersions do
   begin
-    if FRegistry.GetDelphiPath(LVersion).IsEmpty then Continue;
+    var LDelphiRoot := FRegistry.GetDelphiPath(LVersion);
+    if LDelphiRoot.IsEmpty then Continue;
     var LComponent := TBoss4DSbomComponent.Create;
     LComponent.Id := 'boss4d:toolchain:rad-studio@' + IdPart(LVersion);
     LComponent.Name := 'Embarcadero RAD Studio';
@@ -209,6 +257,14 @@ begin
     LComponent.Properties.AddOrSetValue('boss4d:discoveredBy', 'BDS registry');
     ADocument.Components.Add(LComponent);
     Link(ADocument, ADocument.RootComponentId, LComponent.Id);
+    AddToolchainFile(ADocument, LComponent.Id, LDelphiRoot, 'bin\dcc32.exe',
+      'compiler', 'Win32');
+    AddToolchainFile(ADocument, LComponent.Id, LDelphiRoot, 'bin\dcc64.exe',
+      'compiler', 'Win64');
+    AddToolchainFile(ADocument, LComponent.Id, LDelphiRoot,
+      'lib\win32\release\System.dcu', 'rtl', 'Win32');
+    AddToolchainFile(ADocument, LComponent.Id, LDelphiRoot,
+      'lib\win64\release\System.dcu', 'rtl', 'Win64');
   end;
   ADocument.Coverage := ADocument.Coverage + ',delphi-toolchain-rtl';
 end;
@@ -222,13 +278,44 @@ procedure TBoss4DArtifactSbomCollector.Collect(const ADocument: TBoss4DSbomDocum
   const APackage: TBoss4DPackage; const ALock: TBoss4DLock;
   const AProjectDirectory: string);
 
-  procedure AddArtifacts(const AOwnerId: string; const APaths: TList<string>);
+  procedure AddArtifacts(const AOwnerId, ADependencyName, ABase: string;
+    const APaths: TList<string>);
   begin
     for var LDeclaredPath in APaths do
     begin
       var LPath := LDeclaredPath;
-      if not TPath.IsPathRooted(LPath) then
-        LPath := TPath.Combine(AProjectDirectory, LPath);
+      var LBasePath := AProjectDirectory;
+      if SameText(ABase, 'module') then
+        LBasePath := TPath.Combine(TPath.Combine(AProjectDirectory, 'modules'), ADependencyName)
+      else if SameText(ABase, 'absolute') then
+      begin
+        if not TPath.IsPathRooted(LPath) then
+        begin
+          ADocument.Issues.Add('Artefato com base absolute deve usar caminho absoluto: ' + LDeclaredPath);
+          Continue;
+        end;
+      end
+      else if not SameText(ABase, 'project') then
+      begin
+        ADocument.Issues.Add('Base de artefato desconhecida: ' + ABase);
+        Continue;
+      end;
+      if not SameText(ABase, 'absolute') then
+      begin
+        if TPath.IsPathRooted(LPath) then
+        begin
+          ADocument.Issues.Add('Artefato absoluto nao permitido para base ' + ABase + ': ' + LDeclaredPath);
+          Continue;
+        end;
+        LPath := TPath.GetFullPath(TPath.Combine(LBasePath, LPath));
+        LBasePath := TPath.GetFullPath(LBasePath);
+        if not LPath.StartsWith(LBasePath + TPath.DirectorySeparatorChar, True) and
+           not SameText(LPath, LBasePath) then
+        begin
+          ADocument.Issues.Add('Artefato escapa da base ' + ABase + ': ' + LDeclaredPath);
+          Continue;
+        end;
+      end;
       if not TFile.Exists(LPath) then
       begin
         ADocument.Issues.Add('Artefato declarado nao encontrado: ' + LDeclaredPath);
@@ -239,6 +326,7 @@ procedure TBoss4DArtifactSbomCollector.Collect(const ADocument: TBoss4DSbomDocum
       LComponent.Name := TPath.GetFileName(LPath);
       LComponent.ComponentType := FileComponent;
       LComponent.Properties.AddOrSetValue('boss4d:declaredPath', LDeclaredPath);
+      LComponent.Properties.AddOrSetValue('boss4d:pathBase', ABase);
       LComponent.Properties.AddOrSetValue('boss4d:discoveredBy', 'boss-lock.json:artifacts');
       var LHash := TBoss4DSbomHash.Create;
       LHash.Algorithm := 'SHA-256';
@@ -256,10 +344,10 @@ begin
     var LIdentityVersion := LLocked.Revision;
     if LIdentityVersion.IsEmpty then LIdentityVersion := LLocked.Version;
     var LOwnerId := 'boss4d:git:' + IdPart(LLocked.Repository) + '@' + IdPart(LIdentityVersion);
-    AddArtifacts(LOwnerId, LLocked.Artifacts.Bin);
-    AddArtifacts(LOwnerId, LLocked.Artifacts.Dcp);
-    AddArtifacts(LOwnerId, LLocked.Artifacts.Dcu);
-    AddArtifacts(LOwnerId, LLocked.Artifacts.Bpl);
+    AddArtifacts(LOwnerId, LLocked.Name, LLocked.Artifacts.Base, LLocked.Artifacts.Bin);
+    AddArtifacts(LOwnerId, LLocked.Name, LLocked.Artifacts.Base, LLocked.Artifacts.Dcp);
+    AddArtifacts(LOwnerId, LLocked.Name, LLocked.Artifacts.Base, LLocked.Artifacts.Dcu);
+    AddArtifacts(LOwnerId, LLocked.Name, LLocked.Artifacts.Base, LLocked.Artifacts.Bpl);
   end;
   ADocument.Coverage := ADocument.Coverage + ',declared-binary-artifacts';
 end;
