@@ -95,8 +95,14 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d version`
   Prints the CLI version (`v1.0.1-delphi-native`).
 * `boss4d sbom --format cyclonedx|spdx --output <file> --validate`
-  Generates a CycloneDX 1.7 or SPDX 2.3 SBOM from `boss.json` and the v2 lock.
-  See the [SBOM migration guide](docs/sbom-migration.md).
+  Generates CycloneDX 1.7 or SPDX 2.3 from `boss.json` plus `boss-lock.json` v2.
+  `--lock-only` can generate a reproducible release SBOM using only root and
+  dependency evidence stored in the lock. Optional collectors add GetIt inventory,
+  Delphi compiler/RTL provenance, and declared artifact hashes. CycloneDX can also
+  import offline VEX data and both formats support detached SHA-256 attestations.
+  See the [SBOM guide](docs/usage.md#71-sbom-generation-sbom),
+  [copyable examples](docs/sbom-examples.md), and
+  [v2 migration guide](docs/sbom-migration.md).
 * `boss4d help`
   Prints the CLI help menu.
 
@@ -107,7 +113,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Contribution Guide](CONTRIBUTING.md)**: Coding standards and guidelines for contribution.
 * **[Release Guide](RELEASE_GUIDE.md)**: Steps and instructions to compile with Delphi 13 (37.0) and publish releases on GitHub.
 * **[Project Backlog](docs/backlog.md)**: Future features, CLI diagnostics (`boss4d doctor`), visual interface (GUI), and RAD Studio integration roadmap.
-* **[Backlog Prioritization](docs/backlog_prioritization.md)**: Technical ROI analysis prioritizing the 15 project epics.
+* **[Backlog Prioritization](docs/matriz_priorizacao.pt-BR.md)**: Technical ROI analysis prioritizing the project epics (Portuguese).
 
 ---
 

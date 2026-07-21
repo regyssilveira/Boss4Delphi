@@ -5,7 +5,7 @@
 ### Added
 
 - CycloneDX 1.7 and SPDX 2.3 SBOM generation through `boss4d sbom`.
-- Reproducible, strict, validation, output, root-type, and lock-only modes.
+- Reproducible, strict, validation, output, root component type, and lock-only modes.
 - Opt-in GetIt, Delphi toolchain/RTL, and declared binary artifact collectors.
 - Manual SBOM components and shared SPDX-aware license normalization.
 - Neutral SBOM domain with extension points for SCA, VEX, merge, and signing.
@@ -13,6 +13,8 @@
 - Detached in-toto SHA-256 attestations and offline CycloneDX VEX enrichment.
 - Exact Delphi compiler/RTL file provenance and explicit artifact path bases.
 - Transactional release build and self-hosted Windows/Delphi SBOM CI matrix.
+- Bilingual SBOM migration, release, and copyable usage examples covering VEX,
+  attestations, environmental collectors, and artifact path bases.
 
 ### Changed
 

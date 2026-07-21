@@ -298,10 +298,10 @@ assert project usage, declare the component under `sbom.components` with
 `"source": "getit"`; the collector reconciles its name/version with the installed
 inventory and reports mismatches.
 
-The core exposes document transformers for future merge, SCA, and VEX
-integrations, plus a post-serialization signer. None is required to generate
-CycloneDX or SPDX locally; signing and vulnerability lookups remain optional
-adapter responsibilities.
+The core exposes extension points for merge, SCA, VEX, signing, and attestation.
+The CLI includes a concrete offline VEX transformer and a detached SHA-256
+attestor; neither is required for basic CycloneDX or SPDX generation. Network SCA
+lookups and identity-bearing digital signatures remain optional adapter concerns.
 
 An offline VEX file can enrich CycloneDX output without a network lookup:
 
@@ -350,6 +350,9 @@ libraries, can be declared explicitly in `boss.json`:
 
 Manual components are marked as declarations originating from `boss.json`; they
 are not presented as automatically discovered evidence.
+
+See [SBOM examples](sbom-examples.md) for complete copyable release, collector,
+artifact, VEX, and attestation workflows.
 
 ---
 

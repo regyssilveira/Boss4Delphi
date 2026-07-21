@@ -304,10 +304,11 @@ desconhecido e não são ligados à raiz como dependências. Para afirmar uso pe
 projeto, declare o componente em `sbom.components` com `"source": "getit"`;
 o coletor reconciliará nome/versão com a instalação e reportará divergências.
 
-O núcleo expõe transformadores de documento para integrações futuras de merge,
-SCA e VEX, além de um assinador pós-serialização. Nenhum deles é necessário para
-gerar CycloneDX ou SPDX localmente; assinatura e consulta de vulnerabilidades
-continuam responsabilidades de adaptadores opcionais.
+O núcleo expõe extensões para merge, SCA, VEX, assinatura e atestação. A CLI inclui
+um transformador VEX offline concreto e um atestador SHA-256 destacado; nenhum é
+necessário para a geração básica de CycloneDX ou SPDX. Consultas SCA em rede e
+assinaturas digitais vinculadas à identidade continuam responsabilidades de
+adaptadores opcionais.
 
 Um VEX offline pode enriquecer a saída CycloneDX sem consulta de rede:
 
@@ -350,6 +351,9 @@ bibliotecas comerciais, podem ser declarados explicitamente no `boss.json`:
 
 Componentes manuais são marcados como declarações provenientes do `boss.json`;
 eles não são apresentados como evidência descoberta automaticamente.
+
+Consulte os [exemplos SBOM](sbom-examples.pt-BR.md) para fluxos completos e
+copiáveis de release, coletores, artefatos, VEX e atestação.
 
 ---
 

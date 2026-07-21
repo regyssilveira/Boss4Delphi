@@ -89,8 +89,15 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d version`
   Exibe a versão atual do Boss4D (`v1.0.1-delphi-native`).
 * `boss4d sbom --format cyclonedx|spdx --output <arquivo> --validate`
-  Gera um SBOM CycloneDX 1.7 ou SPDX 2.3 a partir do `boss.json` e do lock v2.
-  Consulte o [guia de migração SBOM](docs/sbom-migration.pt-BR.md).
+  Gera CycloneDX 1.7 ou SPDX 2.3 usando `boss.json` e `boss-lock.json` v2.
+  Com `--lock-only`, gera um SBOM reproduzível de release usando apenas as
+  evidências da raiz e das dependências gravadas no lock. Coletores opcionais
+  adicionam inventário GetIt, proveniência do compilador/RTL Delphi e hashes dos
+  artefatos declarados. CycloneDX também aceita VEX offline e ambos os formatos
+  suportam atestações SHA-256 destacadas. Consulte o
+  [guia SBOM](docs/usage.pt-BR.md#71-geração-de-sbom-sbom), os
+  [exemplos copiáveis](docs/sbom-examples.pt-BR.md) e o
+  [guia de migração v2](docs/sbom-migration.pt-BR.md).
 * `boss4d help`
   Exibe o menu de ajuda com todos os comandos descritos em português.
 
@@ -101,7 +108,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Guia de Contribuição](CONTRIBUTING.pt-BR.md)**: Padrões de código e fluxo de desenvolvimento para contribuir com o projeto.
 * **[Guia de Lançamento de Release](RELEASE_GUIDE.md)**: Passos e instruções para compilar com Delphi 13 (37.0) e publicar releases no GitHub.
 * **[Backlog do Projeto](docs/backlog.pt-BR.md)**: Planejamento futuro de novas funcionalidades, diagnóstico CLI (`boss4d doctor`), interface visual (GUI) e integração com o RAD Studio.
-* **[Priorização do Backlog](docs/backlog_prioritization.pt-BR.md)**: Análise de ROI Técnico priorizando a implementação dos 15 épicos do projeto.
+* **[Priorização do Backlog](docs/matriz_priorizacao.pt-BR.md)**: Análise de ROI técnico priorizando os épicos do projeto.
 
 ---
 
