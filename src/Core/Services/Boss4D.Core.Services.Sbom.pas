@@ -420,7 +420,13 @@ begin
       else
         LDocument.Completeness := Incomplete;
       for var LTransformer in FTransformers do
+      begin
+        var LIssueCountBeforeTransform := LDocument.Issues.Count;
         LTransformer.Transform(LDocument);
+        if AOptions.StrictMode and
+           (LDocument.Issues.Count > LIssueCountBeforeTransform) then
+          raise EBoss4DSbomValidation.Create(LDocument.Issues[LIssueCountBeforeTransform]);
+      end;
       if AOptions.HasRootComponentType then
         LDocument.FindComponent(LDocument.RootComponentId).ComponentType := AOptions.RootComponentType;
       Result := FWriter.Serialize(LDocument, AOptions.ReproducibleOutput);

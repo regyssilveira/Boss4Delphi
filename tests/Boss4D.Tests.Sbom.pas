@@ -35,6 +35,8 @@ type
     procedure TestStrictLockOnlyRejectsLockWithoutRootEvidence;
     [Test]
     procedure TestGetItInventoryIsSeparatedFromDeclaredUsage;
+    [Test]
+    procedure TestOfflineVexAndDetachedAttestation;
   end;
 
 implementation
@@ -50,7 +52,7 @@ uses
   Boss4D.Core.Ports,
   Boss4D.Adapters.Sbom.CycloneDX,
   Boss4D.Adapters.Sbom.Collectors,
-  Boss4D.Adapters.Sbom.Spdx, Boss4D.Adapters.Json,
+  Boss4D.Adapters.Sbom.Spdx, Boss4D.Adapters.Sbom.Security, Boss4D.Adapters.Json,
   Boss4D.Tests.Mocks;
 
 procedure ConfigureLockedDependency(const ALock: TBoss4DLock; const ADependency: TBoss4DDependency;
@@ -592,6 +594,42 @@ begin
     Assert.AreEqual<Integer>(1, LDocument.Issues.Count);
   finally
     LDocument.Free;
+  end;
+end;
+
+procedure TTestsSbom.TestOfflineVexAndDetachedAttestation;
+var
+  LDocument: TBoss4DSbomDocument;
+  LTransformer: IBoss4DSbomTransformer;
+  LAttestor: IBoss4DSbomAttestor;
+  LWriter: IBoss4DSbomWriter;
+  LVexPath, LContent, LAttestation, LError: string;
+begin
+  LVexPath := TPath.Combine(TPath.GetTempPath, 'boss4d-vex-' + TGUID.NewGuid.ToString + '.json');
+  TFile.WriteAllText(LVexPath,
+    '{"vulnerabilities":[{"id":"CVE-2026-0001","component":"lib",' +
+    '"state":"not_affected","detail":"Code path is not reachable",' +
+    '"source":"security-team"}]}', TEncoding.UTF8);
+  LDocument := CreateMinimalDocument;
+  try
+    LTransformer := TBoss4DOfflineVexTransformer.Create(LVexPath);
+    LTransformer.Transform(LDocument);
+    Assert.AreEqual<Integer>(1, LDocument.Vulnerabilities.Count);
+    Assert.AreEqual('not_affected', LDocument.Vulnerabilities[0].State);
+    LWriter := TBoss4DCycloneDXWriter.Create;
+    LContent := LWriter.Serialize(LDocument, True);
+    Assert.IsTrue(LWriter.Validate(LContent, LError), LError);
+    Assert.Contains(LContent, 'CVE-2026-0001');
+    Assert.Contains(LContent, 'not_affected');
+
+    LAttestor := TBoss4DSbomSha256Attestor.Create;
+    LAttestation := LAttestor.CreateAttestation(LContent, 'cyclonedx');
+    Assert.IsTrue(LAttestor.VerifyAttestation(LContent, LAttestation, LError), LError);
+    Assert.IsFalse(LAttestor.VerifyAttestation(LContent + 'tampered', LAttestation, LError));
+    Assert.Contains(LError, 'nao confere');
+  finally
+    LDocument.Free;
+    TFile.Delete(LVexPath);
   end;
 end;
 

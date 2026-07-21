@@ -64,6 +64,7 @@ uses
   Boss4D.Adapters.Sbom.CycloneDX,
   Boss4D.Adapters.Sbom.Collectors,
   Boss4D.Adapters.Sbom.Spdx,
+  Boss4D.Adapters.Sbom.Security,
   Boss4D.Core.Domain.Dependency,
   Boss4D.Core.Domain.Lock,
   Boss4D.Core.Domain.Sbom,
@@ -114,7 +115,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -fix, --fix (tenta auto-configurar a versao delphi).');
   FLogger.Log(TBoss4DLogLevel.Info, '  license report       Gera relatorios de conformidade de licencas em docs/.');
   FLogger.Log(TBoss4DLogLevel.Info, '  sbom                 Gera SBOM CycloneDX 1.7 ou SPDX 2.3 a partir do boss-lock.json.');
-  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --output, --type, --strict, --validate, --lock-only, --reproducible, --include-getit, --include-toolchain, --include-artifacts.');
+  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --output, --type, --strict, --validate, --lock-only, --reproducible, --include-getit, --include-toolchain, --include-artifacts, --vex, --attestation-output, --verify-attestation.');
   FLogger.Log(TBoss4DLogLevel.Info, '  tree                 Exibe a arvore de dependencias do projeto.');
   FLogger.Log(TBoss4DLogLevel.Info, '  outdated             Verifica se ha atualizacoes disponiveis dos pacotes.');
   FLogger.Log(TBoss4DLogLevel.Info, '  tool install -g <repo> Compila e instala um utilitario Delphi globalmente.');
@@ -584,6 +585,7 @@ var
   LEncoding: TEncoding;
   I: Integer;
   LIncludeGetIt, LIncludeToolchain, LIncludeArtifacts: Boolean;
+  LVexPath, LAttestationOutput, LVerifyAttestation: string;
 begin
   LOptions := Default(TBoss4DSbomOptions);
   LOutputPath := '';
@@ -591,6 +593,9 @@ begin
   LIncludeGetIt := False;
   LIncludeToolchain := False;
   LIncludeArtifacts := False;
+  LVexPath := '';
+  LAttestationOutput := '';
+  LVerifyAttestation := '';
   I := 1;
   while I < Length(AArgs) do
   begin
@@ -643,6 +648,17 @@ begin
       LIncludeArtifacts := True;
       Inc(I);
     end
+    else if SameText(AArgs[I], '--vex') or
+            SameText(AArgs[I], '--attestation-output') or
+            SameText(AArgs[I], '--verify-attestation') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create('Informe um arquivo para ' + AArgs[I] + '.');
+      if SameText(AArgs[I], '--vex') then LVexPath := AArgs[I + 1]
+      else if SameText(AArgs[I], '--attestation-output') then LAttestationOutput := AArgs[I + 1]
+      else LVerifyAttestation := AArgs[I + 1];
+      Inc(I, 2);
+    end
     else if SameText(AArgs[I], '--type') then
     begin
       if I + 1 >= Length(AArgs) then
@@ -664,6 +680,8 @@ begin
 
   if (LFormat <> 'cyclonedx') and (LFormat <> 'spdx') then
     raise EArgumentException.Create('Formato SBOM ainda nao suportado: ' + LFormat);
+  if (LFormat = 'spdx') and not LVexPath.IsEmpty then
+    raise EArgumentException.Create('--vex requer CycloneDX; SPDX 2.3 nao possui perfil VEX.');
   if LOptions.LockOnly and (LIncludeGetIt or LIncludeToolchain or LIncludeArtifacts) then
     raise EArgumentException.Create('--lock-only nao pode ser combinado com coletores de ambiente.');
   LOptions.OutputFormat := LFormat;
@@ -681,8 +699,33 @@ begin
       LService.AddCollector(TBoss4DToolchainSbomCollector.Create(FRegistry));
     if LIncludeArtifacts then
       LService.AddCollector(TBoss4DArtifactSbomCollector.Create);
+    if not LVexPath.IsEmpty then
+      LService.AddTransformer(TBoss4DOfflineVexTransformer.Create(TPath.GetFullPath(LVexPath)));
     LContent := LService.Generate(GetBossFile,
       TPath.Combine(GetCurrentDir, FILE_PACKAGE_LOCK), LOptions);
+    var LAttestor: IBoss4DSbomAttestor := TBoss4DSbomSha256Attestor.Create;
+    if not LVerifyAttestation.IsEmpty then
+    begin
+      var LAttestationError: string;
+      if not LAttestor.VerifyAttestation(LContent,
+        TFile.ReadAllText(TPath.GetFullPath(LVerifyAttestation), TEncoding.UTF8),
+        LAttestationError) then
+        raise EBoss4DSbomValidation.Create('Atestacao invalida: ' + LAttestationError);
+    end;
+    if not LAttestationOutput.IsEmpty then
+    begin
+      var LAttestationPath := TPath.GetFullPath(LAttestationOutput);
+      var LAttestationDirectory := TPath.GetDirectoryName(LAttestationPath);
+      if not LAttestationDirectory.IsEmpty and not TDirectory.Exists(LAttestationDirectory) then
+        TDirectory.CreateDirectory(LAttestationDirectory);
+      var LAttestationEncoding := TUTF8Encoding.Create(False);
+      try
+        TFile.WriteAllText(LAttestationPath,
+          LAttestor.CreateAttestation(LContent, LFormat), LAttestationEncoding);
+      finally
+        LAttestationEncoding.Free;
+      end;
+    end;
     if LOutputPath.IsEmpty then
       System.Write(LContent)
     else

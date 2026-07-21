@@ -309,6 +309,21 @@ SCA e VEX, além de um assinador pós-serialização. Nenhum deles é necessári
 gerar CycloneDX ou SPDX localmente; assinatura e consulta de vulnerabilidades
 continuam responsabilidades de adaptadores opcionais.
 
+Um VEX offline pode enriquecer a saída CycloneDX sem consulta de rede:
+
+```bash
+boss4d sbom --format cyclonedx --vex security.vex.json \
+  --attestation-output bom.intoto.json --output bom.cdx.json --validate
+boss4d sbom --format cyclonedx --vex security.vex.json \
+  --verify-attestation bom.intoto.json --output bom-verificado.cdx.json
+```
+
+O arquivo VEX contém `vulnerabilities` com `id`, `component`, `state`, `detail` e
+`source`. Estados aceitos: `affected`, `not_affected`, `fixed` e
+`under_investigation`. A atestação destacada segue o envelope in-toto Statement v1
+e fixa o SHA-256 do SBOM; qualquer alteração posterior falha na verificação. O VEX
+é restrito ao CycloneDX porque SPDX 2.3 não possui o perfil de segurança do SPDX 3.
+
 Componentes que o Boss4D não consegue descobrir automaticamente, inclusive
 bibliotecas comerciais, podem ser declarados explicitamente no `boss.json`:
 

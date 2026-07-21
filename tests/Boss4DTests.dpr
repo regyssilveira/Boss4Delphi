@@ -32,6 +32,7 @@ uses
   Boss4D.Adapters.Sbom.CycloneDX in '..\src\Adapters\Sbom\Boss4D.Adapters.Sbom.CycloneDX.pas',
   Boss4D.Adapters.Sbom.Collectors in '..\src\Adapters\Sbom\Boss4D.Adapters.Sbom.Collectors.pas',
   Boss4D.Adapters.Sbom.Spdx in '..\src\Adapters\Sbom\Boss4D.Adapters.Sbom.Spdx.pas',
+  Boss4D.Adapters.Sbom.Security in '..\src\Adapters\Sbom\Boss4D.Adapters.Sbom.Security.pas',
   Boss4D.Adapters.Logger in '..\src\Adapters\Logger\Boss4D.Adapters.Logger.pas',
   Boss4D.Core.Services.Init in '..\src\Core\Services\Boss4D.Core.Services.Init.pas',
   Boss4D.Core.Services.Config in '..\src\Core\Services\Boss4D.Core.Services.Config.pas',

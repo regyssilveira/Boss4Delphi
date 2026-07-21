@@ -63,6 +63,14 @@ type
     function Sign(const AContent, AFormat: string): string;
   end;
 
+  { Atestacao destacada, verificavel sem alterar o documento SBOM original }
+  IBoss4DSbomAttestor = interface
+    ['{69527D56-F14E-43D4-A746-2D7227D6000C}']
+    function CreateAttestation(const AContent, AFormat: string): string;
+    function VerifyAttestation(const AContent, AAttestation: string;
+      out AError: string): Boolean;
+  end;
+
   { Contrato para operacoes de Git }
   IBoss4DGitClient = interface
     ['{69527D56-F14E-43D4-A746-2D7227D60004}']

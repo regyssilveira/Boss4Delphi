@@ -303,6 +303,22 @@ integrations, plus a post-serialization signer. None is required to generate
 CycloneDX or SPDX locally; signing and vulnerability lookups remain optional
 adapter responsibilities.
 
+An offline VEX file can enrich CycloneDX output without a network lookup:
+
+```bash
+boss4d sbom --format cyclonedx --vex security.vex.json \
+  --attestation-output bom.intoto.json --output bom.cdx.json --validate
+boss4d sbom --format cyclonedx --vex security.vex.json \
+  --verify-attestation bom.intoto.json --output verified-bom.cdx.json
+```
+
+The VEX file contains `vulnerabilities` entries with `id`, `component`, `state`,
+`detail`, and `source`. Supported states are `affected`, `not_affected`, `fixed`,
+and `under_investigation`. The detached attestation uses an in-toto Statement v1
+envelope and binds the SBOM SHA-256; any later modification fails verification.
+VEX is limited to CycloneDX because SPDX 2.3 does not include SPDX 3's security
+profile.
+
 Every lock-file `artifacts` block has an explicit base: `project` (the
 backward-compatible default), `module` (`modules/<dependency>`), or `absolute`.
 Absolute paths are accepted only with the `absolute` base, and relative paths

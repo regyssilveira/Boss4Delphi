@@ -57,6 +57,14 @@ begin
   end;
 end;
 
+function VexStateName(const AState: string): string;
+begin
+  if SameText(AState, 'affected') then Exit('exploitable');
+  if SameText(AState, 'fixed') then Exit('resolved');
+  if SameText(AState, 'under_investigation') then Exit('in_triage');
+  Result := 'not_affected';
+end;
+
 function ComponentToJSON(const AComponent: TBoss4DSbomComponent): TJSONObject;
 var
   LArray: TJSONArray;
@@ -208,6 +216,30 @@ begin
       LArray.AddElement(LDependencyObj);
     end;
     LRoot.AddPair('dependencies', LArray);
+
+    if ADocument.Vulnerabilities.Count > 0 then
+    begin
+      LArray := TJSONArray.Create;
+      for var LVulnerability in ADocument.Vulnerabilities do
+      begin
+        var LVulnerabilityObj := TJSONObject.Create;
+        LVulnerabilityObj.AddPair('id', LVulnerability.Id);
+        var LSource := TJSONObject.Create;
+        LSource.AddPair('name', LVulnerability.Source);
+        LVulnerabilityObj.AddPair('source', LSource);
+        var LAffects := TJSONArray.Create;
+        var LAffect := TJSONObject.Create;
+        LAffect.AddPair('ref', LVulnerability.ComponentId);
+        LAffects.AddElement(LAffect);
+        LVulnerabilityObj.AddPair('affects', LAffects);
+        var LAnalysis := TJSONObject.Create;
+        LAnalysis.AddPair('state', VexStateName(LVulnerability.State));
+        if not LVulnerability.Detail.IsEmpty then LAnalysis.AddPair('detail', LVulnerability.Detail);
+        LVulnerabilityObj.AddPair('analysis', LAnalysis);
+        LArray.AddElement(LVulnerabilityObj);
+      end;
+      LRoot.AddPair('vulnerabilities', LArray);
+    end;
 
     LArray := TJSONArray.Create;
     var LComposition := TJSONObject.Create;

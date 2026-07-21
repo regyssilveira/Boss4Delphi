@@ -84,6 +84,21 @@ type
     property DependsOn: TList<string> read FDependsOn;
   end;
 
+  TBoss4DSbomVulnerability = class
+  private
+    FId: string;
+    FComponentId: string;
+    FState: string;
+    FDetail: string;
+    FSource: string;
+  public
+    property Id: string read FId write FId;
+    property ComponentId: string read FComponentId write FComponentId;
+    property State: string read FState write FState;
+    property Detail: string read FDetail write FDetail;
+    property Source: string read FSource write FSource;
+  end;
+
   TBoss4DSbomDocument = class
   private
     FRootComponentId: string;
@@ -95,6 +110,7 @@ type
     FComponents: TObjectList<TBoss4DSbomComponent>;
     FRelationships: TObjectList<TBoss4DSbomRelationship>;
     FIssues: TList<string>;
+    FVulnerabilities: TObjectList<TBoss4DSbomVulnerability>;
   public
     constructor Create;
     destructor Destroy; override;
@@ -111,6 +127,7 @@ type
     property Components: TObjectList<TBoss4DSbomComponent> read FComponents;
     property Relationships: TObjectList<TBoss4DSbomRelationship> read FRelationships;
     property Issues: TList<string> read FIssues;
+    property Vulnerabilities: TObjectList<TBoss4DSbomVulnerability> read FVulnerabilities;
   end;
 
 implementation
@@ -156,10 +173,12 @@ begin
   FComponents := TObjectList<TBoss4DSbomComponent>.Create(True);
   FRelationships := TObjectList<TBoss4DSbomRelationship>.Create(True);
   FIssues := TList<string>.Create;
+  FVulnerabilities := TObjectList<TBoss4DSbomVulnerability>.Create(True);
 end;
 
 destructor TBoss4DSbomDocument.Destroy;
 begin
+  FVulnerabilities.Free;
   FIssues.Free;
   FRelationships.Free;
   FComponents.Free;
