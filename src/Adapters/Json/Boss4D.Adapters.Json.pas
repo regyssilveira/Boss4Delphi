@@ -193,6 +193,7 @@ begin
     LComponent.Description := ReadString(LObj, 'description');
     LComponent.License := ReadString(LObj, 'license');
     LComponent.Repository := ReadString(LObj, 'repository');
+    LComponent.Source := ReadString(LObj, 'source');
     var LHashObj := ReadObject(LObj, 'hash');
     if Assigned(LHashObj) then
     begin
@@ -450,6 +451,7 @@ begin
         if not LComponent.Description.IsEmpty then LComponentObj.AddPair('description', LComponent.Description);
         if not LComponent.License.IsEmpty then LComponentObj.AddPair('license', LComponent.License);
         if not LComponent.Repository.IsEmpty then LComponentObj.AddPair('repository', LComponent.Repository);
+        if not LComponent.Source.IsEmpty then LComponentObj.AddPair('source', LComponent.Source);
         if not LComponent.HashValue.IsEmpty then
         begin
           var LHashObj := TJSONObject.Create;

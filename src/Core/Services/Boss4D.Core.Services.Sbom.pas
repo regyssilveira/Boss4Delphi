@@ -215,6 +215,11 @@ begin
       LManualComponent.Description := LManual.Description;
       LManualComponent.ComponentType := ManualComponentType(LManual.ComponentType);
       LManualComponent.Properties.AddOrSetValue('boss4d:declaredBy', 'boss.json');
+      if not LManual.Source.IsEmpty then
+      begin
+        LManualComponent.Properties.AddOrSetValue('boss4d:source', LManual.Source.ToLower);
+        LManualComponent.Properties.AddOrSetValue('boss4d:usage', 'declared');
+      end;
       if not LManual.License.IsEmpty then
         LManualComponent.Licenses.Add(TBoss4DLicenseNormalizer.Normalize(
           LManual.License, 'boss.json:sbom.components'));
@@ -392,8 +397,11 @@ begin
     try
       for var LCollector in FCollectors do
         try
+          var LIssueCountBefore := LDocument.Issues.Count;
           LCollector.Collect(LDocument, LPackage, LLock,
             LProjectDirectory);
+          if AOptions.StrictMode and (LDocument.Issues.Count > LIssueCountBefore) then
+            raise EBoss4DSbomValidation.Create(LDocument.Issues[LIssueCountBefore]);
           if SameText(LCollector.Name, 'getit') then LGetItCollected := True;
           if SameText(LCollector.Name, 'delphi-toolchain') then LToolchainCollected := True;
           if SameText(LCollector.Name, 'binary-artifacts') then LArtifactsCollected := True;

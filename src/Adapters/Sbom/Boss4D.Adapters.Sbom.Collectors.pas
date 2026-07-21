@@ -7,6 +7,11 @@ uses
   Boss4D.Core.Domain.Lock;
 
 type
+  TBoss4DGetItInventoryParser = class
+  public
+    class procedure Enrich(const AOutput: string; const ADocument: TBoss4DSbomDocument); static;
+  end;
+
   TBoss4DGetItSbomCollector = class(TInterfacedObject, IBoss4DSbomCollector)
   private
     FRegistry: IBoss4DRegistryService;
@@ -75,6 +80,69 @@ begin
   FRegistry := ARegistry;
 end;
 
+class procedure TBoss4DGetItInventoryParser.Enrich(const AOutput: string;
+  const ADocument: TBoss4DSbomDocument);
+var
+  LLines: TStringList;
+begin
+  LLines := TStringList.Create;
+  try
+    LLines.Text := AOutput;
+    for var LLine in LLines do
+    begin
+      var LMatch := TRegEx.Match(LLine, '^\s*(\S+)\s{2,}(\S+)\s{2,}(.+)$');
+      if not LMatch.Success or SameText(LMatch.Groups[1].Value, 'Id') or
+         LMatch.Groups[1].Value.StartsWith('--') then Continue;
+      var LDeclaredComponent: TBoss4DSbomComponent := nil;
+      for var LExistingComponent in ADocument.Components do
+      begin
+        var LSource: string;
+        if LExistingComponent.Properties.TryGetValue('boss4d:source', LSource) and
+           SameText(LSource, 'getit') and SameText(LExistingComponent.Name,
+             LMatch.Groups[1].Value) and
+           (LExistingComponent.Version.IsEmpty or
+             SameText(LExistingComponent.Version, LMatch.Groups[2].Value)) then
+        begin
+          LDeclaredComponent := LExistingComponent;
+          Break;
+        end;
+      end;
+      if Assigned(LDeclaredComponent) then
+      begin
+        if LDeclaredComponent.Version.IsEmpty then
+          LDeclaredComponent.Version := LMatch.Groups[2].Value;
+        LDeclaredComponent.Properties.AddOrSetValue('boss4d:installed', 'true');
+        LDeclaredComponent.Properties.AddOrSetValue('boss4d:discoveredBy', 'GetItCmd');
+        Continue;
+      end;
+      var LComponent := TBoss4DSbomComponent.Create;
+      LComponent.Id := 'boss4d:getit:' + IdPart(LMatch.Groups[1].Value) + '@' +
+        IdPart(LMatch.Groups[2].Value);
+      LComponent.Name := LMatch.Groups[1].Value;
+      LComponent.Version := LMatch.Groups[2].Value;
+      LComponent.Description := LMatch.Groups[3].Value.Trim;
+      LComponent.ComponentType := LibraryComponent;
+      LComponent.Properties.AddOrSetValue('boss4d:discoveredBy', 'GetItCmd');
+      LComponent.Properties.AddOrSetValue('boss4d:inventoryScope', 'environment');
+      LComponent.Properties.AddOrSetValue('boss4d:usage', 'unknown');
+      ADocument.Components.Add(LComponent);
+    end;
+    for var LComponent in ADocument.Components do
+    begin
+      var LSource, LInstalled: string;
+      if LComponent.Properties.TryGetValue('boss4d:source', LSource) and
+         SameText(LSource, 'getit') and
+         not (LComponent.Properties.TryGetValue('boss4d:installed', LInstalled) and
+           SameText(LInstalled, 'true')) then
+        ADocument.Issues.Add('Componente GetIt declarado nao esta instalado: ' +
+          LComponent.Name + '@' + LComponent.Version);
+    end;
+    ADocument.Coverage := ADocument.Coverage + ',getit-installed';
+  finally
+    LLines.Free;
+  end;
+end;
+
 function TBoss4DGetItSbomCollector.Name: string;
 begin
   Result := 'getit';
@@ -86,7 +154,6 @@ procedure TBoss4DGetItSbomCollector.Collect(const ADocument: TBoss4DSbomDocument
 var
   LVersions: TArray<string>;
   LRoot, LCommand, LOutput: string;
-  LLines: TStringList;
 begin
   LVersions := FRegistry.GetInstalledDelphiVersions;
   TArray.Sort<string>(LVersions);
@@ -107,29 +174,7 @@ begin
     AProjectDirectory, LOutput) then
     raise Exception.Create('inventario GetIt nao pode ser consultado');
 
-  LLines := TStringList.Create;
-  try
-    LLines.Text := LOutput;
-    for var LLine in LLines do
-    begin
-      var LMatch := TRegEx.Match(LLine, '^\s*(\S+)\s{2,}(\S+)\s{2,}(.+)$');
-      if not LMatch.Success or SameText(LMatch.Groups[1].Value, 'Id') or
-         LMatch.Groups[1].Value.StartsWith('--') then Continue;
-      var LComponent := TBoss4DSbomComponent.Create;
-      LComponent.Id := 'boss4d:getit:' + IdPart(LMatch.Groups[1].Value) + '@' +
-        IdPart(LMatch.Groups[2].Value);
-      LComponent.Name := LMatch.Groups[1].Value;
-      LComponent.Version := LMatch.Groups[2].Value;
-      LComponent.Description := LMatch.Groups[3].Value.Trim;
-      LComponent.ComponentType := LibraryComponent;
-      LComponent.Properties.AddOrSetValue('boss4d:discoveredBy', 'GetItCmd');
-      ADocument.Components.Add(LComponent);
-      Link(ADocument, ADocument.RootComponentId, LComponent.Id);
-    end;
-    ADocument.Coverage := ADocument.Coverage + ',getit-installed';
-  finally
-    LLines.Free;
-  end;
+  TBoss4DGetItInventoryParser.Enrich(LOutput, ADocument);
 end;
 
 constructor TBoss4DToolchainSbomCollector.Create(const ARegistry: IBoss4DRegistryService);

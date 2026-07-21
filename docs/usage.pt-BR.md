@@ -293,6 +293,11 @@ como inventário vazio. Os coletores são opt-in porque refletem o ambiente loca
 podem tornar o SBOM não reproduzível. SDKs externos ainda devem ser declarados
 manualmente.
 
+Pacotes apenas instalados no GetIt entram como inventário ambiental com uso
+desconhecido e não são ligados à raiz como dependências. Para afirmar uso pelo
+projeto, declare o componente em `sbom.components` com `"source": "getit"`;
+o coletor reconciliará nome/versão com a instalação e reportará divergências.
+
 O núcleo expõe transformadores de documento para integrações futuras de merge,
 SCA e VEX, além de um assinador pós-serialização. Nenhum deles é necessário para
 gerar CycloneDX ou SPDX localmente; assinatura e consulta de vulnerabilidades

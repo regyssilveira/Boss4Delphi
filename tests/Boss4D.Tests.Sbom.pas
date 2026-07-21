@@ -33,6 +33,8 @@ type
     procedure TestLockOnlyDoesNotRequireBossJson;
     [Test]
     procedure TestStrictLockOnlyRejectsLockWithoutRootEvidence;
+    [Test]
+    procedure TestGetItInventoryIsSeparatedFromDeclaredUsage;
   end;
 
 implementation
@@ -524,6 +526,51 @@ begin
   finally
     LService.Free;
     TDirectory.Delete(LTempDir, True);
+  end;
+end;
+
+procedure TTestsSbom.TestGetItInventoryIsSeparatedFromDeclaredUsage;
+var
+  LDocument: TBoss4DSbomDocument;
+  LDeclared: TBoss4DSbomComponent;
+  LRootRelation: TBoss4DSbomRelationship;
+  LValue: string;
+begin
+  LDocument := CreateMinimalDocument;
+  try
+    LRootRelation := LDocument.FindRelationship(LDocument.RootComponentId);
+    var LInitialDependencyCount := LRootRelation.DependsOn.Count;
+    TBoss4DGetItInventoryParser.Enrich(
+      'Id  Version  Description' + sLineBreak +
+      '--  -------  -----------' + sLineBreak +
+      'InstalledOnly-1.0  1.0  Environment package', LDocument);
+    var LInventory := LDocument.FindComponent('boss4d:getit:installedonly-1.0@1.0');
+    Assert.IsNotNull(LInventory);
+    Assert.IsTrue(LInventory.Properties.TryGetValue('boss4d:usage', LValue));
+    Assert.AreEqual('unknown', LValue);
+    Assert.AreEqual(LInitialDependencyCount, LRootRelation.DependsOn.Count,
+      'Pacote apenas instalado nao pode virar dependencia do projeto.');
+
+    LDeclared := TBoss4DSbomComponent.Create;
+    LDeclared.Id := 'boss4d:manual:declared-getit';
+    LDeclared.Name := 'UsedPackage-2.0';
+    LDeclared.Version := '2.0';
+    LDeclared.ComponentType := LibraryComponent;
+    LDeclared.Properties.Add('boss4d:source', 'getit');
+    LDeclared.Properties.Add('boss4d:usage', 'declared');
+    LDocument.Components.Add(LDeclared);
+    LRootRelation.DependsOn.Add(LDeclared.Id);
+    TBoss4DGetItInventoryParser.Enrich(
+      'UsedPackage-2.0  2.0  Declared and installed', LDocument);
+    Assert.IsTrue(LDeclared.Properties.TryGetValue('boss4d:installed', LValue));
+    Assert.AreEqual('true', LValue);
+    Assert.AreEqual<Integer>(0, LDocument.Issues.Count);
+
+    LDeclared.Properties.AddOrSetValue('boss4d:installed', 'false');
+    TBoss4DGetItInventoryParser.Enrich('Different-1.0  1.0  Other', LDocument);
+    Assert.AreEqual<Integer>(1, LDocument.Issues.Count);
+  finally
+    LDocument.Free;
   end;
 end;
 

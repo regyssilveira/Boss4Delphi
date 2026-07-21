@@ -17,6 +17,7 @@ type
     FRepository: string;
     FHashAlgorithm: string;
     FHashValue: string;
+    FSource: string;
   public
     property Id: string read FId write FId;
     property Name: string read FName write FName;
@@ -27,6 +28,7 @@ type
     property Repository: string read FRepository write FRepository;
     property HashAlgorithm: string read FHashAlgorithm write FHashAlgorithm;
     property HashValue: string read FHashValue write FHashValue;
+    property Source: string read FSource write FSource;
   end;
 
   { Configurações de Engines no boss.json }

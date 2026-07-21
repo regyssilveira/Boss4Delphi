@@ -291,6 +291,12 @@ SHA-256 for files found. A failed query is never interpreted as an empty invento
 The collectors are opt-in because they reflect the local environment and can make
 the SBOM non-reproducible. External SDKs must still be declared manually.
 
+Packages that are merely installed through GetIt are recorded as environment
+inventory with unknown usage and are not linked to the root as dependencies. To
+assert project usage, declare the component under `sbom.components` with
+`"source": "getit"`; the collector reconciles its name/version with the installed
+inventory and reports mismatches.
+
 The core exposes document transformers for future merge, SCA, and VEX
 integrations, plus a post-serialization signer. None is required to generate
 CycloneDX or SPDX locally; signing and vulnerability lookups remain optional

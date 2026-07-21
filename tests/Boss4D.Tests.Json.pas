@@ -85,6 +85,7 @@ begin
     LManualComponent.License := 'Commercial';
     LManualComponent.HashAlgorithm := 'SHA-256';
     LManualComponent.HashValue := 'manual-hash';
+    LManualComponent.Source := 'getit';
     LPkg.SbomComponents.Add(LManualComponent);
 
     FPackageRepo.Save(LPkg, LFilePath);
@@ -107,6 +108,7 @@ begin
       Assert.AreEqual('commercial-driver', LLoadedPkg.SbomComponents[0].Id);
       Assert.AreEqual('Commercial', LLoadedPkg.SbomComponents[0].License);
       Assert.AreEqual('manual-hash', LLoadedPkg.SbomComponents[0].HashValue);
+      Assert.AreEqual('getit', LLoadedPkg.SbomComponents[0].Source);
     finally
       LLoadedPkg.Free;
     end;
