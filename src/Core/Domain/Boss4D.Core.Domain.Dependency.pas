@@ -18,6 +18,8 @@ type
     function Name: string;
     function GetURL: string;
     function GetKey: string;
+    function GetLegacyKey: string;
+    function GetCanonicalRepository: string;
 
     class function Parse(const ARepo: string; const AVersionInfo: string): TBoss4DDependency; static;
     class function ParseCommandLine(const ADepStr: string): TBoss4DDependency; static;
@@ -44,13 +46,38 @@ end;
 
 function TBoss4DDependency.HashName: string;
 begin
-  // Utiliza a classe nativa THashSHA2 do Delphi para computar o hash SHA-256 do repositorio em minusculas
-  Result := THashSHA2.GetHashString(FRepository.ToLower).ToLower;
+  Result := THashSHA2.GetHashString(GetCanonicalRepository.ToLower).ToLower;
 end;
 
 function TBoss4DDependency.GetKey: string;
 begin
+  Result := GetCanonicalRepository.ToLower;
+end;
+
+function TBoss4DDependency.GetLegacyKey: string;
+begin
   Result := FRepository.ToLower;
+end;
+
+function TBoss4DDependency.GetCanonicalRepository: string;
+var
+  LMatch: TMatch;
+begin
+  Result := FRepository.Trim;
+
+  // Normaliza o transporte SSH para uma identidade HTTPS sem credenciais.
+  LMatch := TRegEx.Match(Result, '^git@([^:]+):(.+)$', [roIgnoreCase]);
+  if LMatch.Success then
+    Result := 'https://' + LMatch.Groups[1].Value + '/' + LMatch.Groups[2].Value
+  else if TRegEx.IsMatch(Result, '^https?://', [roIgnoreCase]) then
+    Result := TRegEx.Replace(Result, '^(https?://)[^/@]+@', '$1', [roIgnoreCase])
+  else if not TRegEx.IsMatch(Result, '^(file://|\\|[a-zA-Z]:\\)') then
+    Result := 'https://' + Result;
+
+  while Result.EndsWith('/') do
+    Result := Result.Substring(0, Result.Length - 1);
+  if Result.EndsWith('.git', True) then
+    Result := Result.Substring(0, Result.Length - 4);
 end;
 
 function TBoss4DDependency.Name: string;

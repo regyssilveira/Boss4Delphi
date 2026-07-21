@@ -21,6 +21,7 @@ type
     procedure CloneCache(const ADep: TBoss4DDependency; const ATargetDir: string);
     procedure UpdateCache(const ADep: TBoss4DDependency; const ACacheDir: string);
     function GetVersions(const ACacheDir: string): TArray<string>;
+    function ResolveRevision(const ACacheDir: string; const AVersion: string): string;
     procedure Checkout(const ACacheDir: string; const AVersion: string; const ATargetDir: string);
   end;
 
@@ -119,6 +120,11 @@ begin
 
   // Retorno padrao se nao mapeado
   Result := TArray<string>.Create('v1.0.0', 'v1.1.0', 'v2.0.0');
+end;
+
+function TGitClientMock.ResolveRevision(const ACacheDir: string; const AVersion: string): string;
+begin
+  Result := '0123456789abcdef0123456789abcdef01234567';
 end;
 
 procedure TGitClientMock.Checkout(const ACacheDir: string; const AVersion: string; const ATargetDir: string);

@@ -54,6 +54,19 @@ begin
   end;
 end;
 
+function ReadInteger(const AObj: TJSONObject; const AKey: string; const ADefault: Integer): Integer;
+var
+  LVal: TJSONValue;
+begin
+  Result := ADefault;
+  if Assigned(AObj) then
+  begin
+    LVal := AObj.FindValue(AKey);
+    if Assigned(LVal) and not TryStrToInt(LVal.Value, Result) then
+      Result := ADefault;
+  end;
+end;
+
 function ReadObject(const AObj: TJSONObject; const AKey: string): TJSONObject;
 var
   LVal: TJSONValue;
@@ -78,6 +91,44 @@ begin
     if Assigned(LVal) and (LVal is TJSONArray) then
       Result := TJSONArray(LVal);
   end;
+end;
+
+procedure ParseLockMetadata(const ADepObj: TJSONObject; const ADependency: TBoss4DLockedDependency);
+var
+  LChecksumValue: TJSONValue;
+  LChecksumObj: TJSONObject;
+  LLicenseObj: TJSONObject;
+  LDependenciesArr: TJSONArray;
+begin
+  ADependency.Repository := ReadString(ADepObj, 'repository');
+  ADependency.Revision := ReadString(ADepObj, 'revision');
+  ADependency.ResolvedFrom := ReadString(ADepObj, 'resolvedFrom');
+
+  LChecksumValue := ADepObj.FindValue('checksum');
+  if LChecksumValue is TJSONObject then
+  begin
+    LChecksumObj := TJSONObject(LChecksumValue);
+    ADependency.ChecksumAlgorithm := ReadString(LChecksumObj, 'algorithm');
+    ADependency.Checksum := ReadString(LChecksumObj, 'value');
+  end
+  else if Assigned(LChecksumValue) then
+  begin
+    // Compatibilidade com boss-lock.json v1, que armazenava apenas o valor.
+    ADependency.ChecksumAlgorithm := 'SHA-256';
+    ADependency.Checksum := LChecksumValue.Value;
+  end;
+
+  LLicenseObj := ReadObject(ADepObj, 'license');
+  if Assigned(LLicenseObj) then
+  begin
+    ADependency.LicenseExpression := ReadString(LLicenseObj, 'expression');
+    ADependency.LicenseSource := ReadString(LLicenseObj, 'source');
+  end;
+
+  LDependenciesArr := ReadArray(ADepObj, 'dependencies');
+  if Assigned(LDependenciesArr) then
+    for var I := 0 to LDependenciesArr.Count - 1 do
+      ADependency.Dependencies.Add(LDependenciesArr[I].Value.ToLower);
 end;
 
 // Subfunções auxiliares de Parse para TBoss4DPackageJsonRepository.Load
@@ -114,6 +165,41 @@ begin
   begin
     for var LPair in LObj do
       APackage.Dependencies.Add(LPair.JsonString.Value, LPair.JsonValue.Value);
+  end;
+end;
+
+procedure ParsePackageSbomComponents(const AJSONObj: TJSONObject; const APackage: TBoss4DPackage);
+var
+  LSbomObj: TJSONObject;
+  LComponents: TJSONArray;
+begin
+  LSbomObj := ReadObject(AJSONObj, 'sbom');
+  if not Assigned(LSbomObj) then
+    Exit;
+  LComponents := ReadArray(LSbomObj, 'components');
+  if not Assigned(LComponents) then
+    Exit;
+
+  for var I := 0 to LComponents.Count - 1 do
+  begin
+    if not (LComponents[I] is TJSONObject) then
+      Continue;
+    var LObj := TJSONObject(LComponents[I]);
+    var LComponent := TBoss4DManualComponent.Create;
+    LComponent.Id := ReadString(LObj, 'id');
+    LComponent.Name := ReadString(LObj, 'name');
+    LComponent.Version := ReadString(LObj, 'version');
+    LComponent.ComponentType := ReadString(LObj, 'type');
+    LComponent.Description := ReadString(LObj, 'description');
+    LComponent.License := ReadString(LObj, 'license');
+    LComponent.Repository := ReadString(LObj, 'repository');
+    var LHashObj := ReadObject(LObj, 'hash');
+    if Assigned(LHashObj) then
+    begin
+      LComponent.HashAlgorithm := ReadString(LHashObj, 'algorithm');
+      LComponent.HashValue := ReadString(LHashObj, 'value');
+    end;
+    APackage.SbomComponents.Add(LComponent);
   end;
 end;
 
@@ -311,6 +397,7 @@ begin
       ParsePackageProjects(LJSONObj, Result);
       ParsePackageScripts(LJSONObj, Result);
       ParsePackageDependencies(LJSONObj, Result);
+      ParsePackageSbomComponents(LJSONObj, Result);
       ParsePackageEngines(LJSONObj, Result);
       ParsePackageToolchain(LJSONObj, Result);
       ParsePackageWorkspaces(LJSONObj, Result);
@@ -348,6 +435,33 @@ begin
     SavePackageProjects(LJSONObj, APackage);
     SavePackageScripts(LJSONObj, APackage);
     SavePackageDependencies(LJSONObj, APackage);
+
+    if APackage.SbomComponents.Count > 0 then
+    begin
+      var LSbomObj := TJSONObject.Create;
+      var LComponentsArr := TJSONArray.Create;
+      for var LComponent in APackage.SbomComponents do
+      begin
+        var LComponentObj := TJSONObject.Create;
+        if not LComponent.Id.IsEmpty then LComponentObj.AddPair('id', LComponent.Id);
+        LComponentObj.AddPair('name', LComponent.Name);
+        if not LComponent.Version.IsEmpty then LComponentObj.AddPair('version', LComponent.Version);
+        if not LComponent.ComponentType.IsEmpty then LComponentObj.AddPair('type', LComponent.ComponentType);
+        if not LComponent.Description.IsEmpty then LComponentObj.AddPair('description', LComponent.Description);
+        if not LComponent.License.IsEmpty then LComponentObj.AddPair('license', LComponent.License);
+        if not LComponent.Repository.IsEmpty then LComponentObj.AddPair('repository', LComponent.Repository);
+        if not LComponent.HashValue.IsEmpty then
+        begin
+          var LHashObj := TJSONObject.Create;
+          LHashObj.AddPair('algorithm', LComponent.HashAlgorithm);
+          LHashObj.AddPair('value', LComponent.HashValue);
+          LComponentObj.AddPair('hash', LHashObj);
+        end;
+        LComponentsArr.AddElement(LComponentObj);
+      end;
+      LSbomObj.AddPair('components', LComponentsArr);
+      LJSONObj.AddPair('sbom', LSbomObj);
+    end;
     SavePackageEngines(LJSONObj, APackage);
     SavePackageToolchain(LJSONObj, APackage);
     SavePackageWorkspaces(LJSONObj, APackage);
@@ -391,6 +505,11 @@ begin
 
     LJSONObj := LParsedValue as TJSONObject;
     try
+      Result.LockVersion := ReadInteger(LJSONObj, 'lockVersion', 1);
+      if Result.LockVersion > TBoss4DLockSchema.CurrentVersion then
+        raise EConvertError.CreateFmt(
+          'Versao de boss-lock.json nao suportada: %d (maximo suportado: %d).',
+          [Result.LockVersion, TBoss4DLockSchema.CurrentVersion]);
       Result.Hash := ReadString(LJSONObj, 'hash');
       Result.Updated := ReadString(LJSONObj, 'updated');
 
@@ -406,7 +525,7 @@ begin
             LLockedDep.Name := ReadString(LDepObj, 'name');
             LLockedDep.Version := ReadString(LDepObj, 'version');
             LLockedDep.Hash := ReadString(LDepObj, 'hash');
-            LLockedDep.Checksum := ReadString(LDepObj, 'checksum');
+            ParseLockMetadata(LDepObj, LLockedDep);
 
             var LArtifactsObj := ReadObject(LDepObj, 'artifacts');
             if Assigned(LArtifactsObj) then
@@ -432,48 +551,98 @@ var
   LInstalledObj: TJSONObject;
   LDepObj: TJSONObject;
   LArtifactsObj: TJSONObject;
+  LChecksumObj: TJSONObject;
+  LLicenseObj: TJSONObject;
+  LDependenciesArr: TJSONArray;
   LBinArr, LDcpArr, LDcuArr, LBplArr: TJSONArray;
   LJSONStr: string;
   LEncoding: TEncoding;
+  LInstalledKeys: TList<string>;
+  LDependencyKeys: TList<string>;
 begin
   LJSONObj := TJSONObject.Create;
   try
+    LJSONObj.AddPair('lockVersion', TJSONNumber.Create(TBoss4DLockSchema.CurrentVersion));
     LJSONObj.AddPair('hash', ALock.Hash);
     LJSONObj.AddPair('updated', ALock.Updated);
 
     LInstalledObj := TJSONObject.Create;
-    for var LPair in ALock.Installed do
-    begin
-      LDepObj := TJSONObject.Create;
-      LDepObj.AddPair('name', LPair.Value.Name);
-      LDepObj.AddPair('version', LPair.Value.Version);
-      LDepObj.AddPair('hash', LPair.Value.Hash);
+    LInstalledKeys := TList<string>.Create;
+    try
+      for var LInstalledKey in ALock.Installed.Keys do
+        LInstalledKeys.Add(LInstalledKey);
+      LInstalledKeys.Sort;
 
-      if not LPair.Value.Checksum.IsEmpty then
-        LDepObj.AddPair('checksum', LPair.Value.Checksum);
+      for var LInstalledKey in LInstalledKeys do
+      begin
+        var LLockedDependency := ALock.Installed[LInstalledKey];
+        LDepObj := TJSONObject.Create;
+        LDepObj.AddPair('name', LLockedDependency.Name);
+        LDepObj.AddPair('version', LLockedDependency.Version);
+        LDepObj.AddPair('hash', LLockedDependency.Hash);
+
+        if not LLockedDependency.Repository.IsEmpty then
+          LDepObj.AddPair('repository', LLockedDependency.Repository);
+        if not LLockedDependency.Revision.IsEmpty then
+          LDepObj.AddPair('revision', LLockedDependency.Revision);
+        if not LLockedDependency.ResolvedFrom.IsEmpty then
+          LDepObj.AddPair('resolvedFrom', LLockedDependency.ResolvedFrom);
+
+        if not LLockedDependency.Checksum.IsEmpty then
+        begin
+          LChecksumObj := TJSONObject.Create;
+          LChecksumObj.AddPair('algorithm', LLockedDependency.ChecksumAlgorithm);
+          LChecksumObj.AddPair('value', LLockedDependency.Checksum);
+          LDepObj.AddPair('checksum', LChecksumObj);
+        end;
+
+        if not LLockedDependency.LicenseExpression.IsEmpty or not LLockedDependency.LicenseSource.IsEmpty then
+        begin
+          LLicenseObj := TJSONObject.Create;
+          if not LLockedDependency.LicenseExpression.IsEmpty then
+            LLicenseObj.AddPair('expression', LLockedDependency.LicenseExpression);
+          if not LLockedDependency.LicenseSource.IsEmpty then
+            LLicenseObj.AddPair('source', LLockedDependency.LicenseSource);
+          LDepObj.AddPair('license', LLicenseObj);
+        end;
+
+        LDependenciesArr := TJSONArray.Create;
+        LDependencyKeys := TList<string>.Create;
+        try
+          LDependencyKeys.AddRange(LLockedDependency.Dependencies);
+          LDependencyKeys.Sort;
+          for var LDependencyKey in LDependencyKeys do
+            LDependenciesArr.Add(LDependencyKey);
+        finally
+          LDependencyKeys.Free;
+        end;
+        LDepObj.AddPair('dependencies', LDependenciesArr);
 
       // Artifacts
       LArtifactsObj := TJSONObject.Create;
 
       LBinArr := TJSONArray.Create;
-      for var LArt in LPair.Value.Artifacts.Bin do LBinArr.Add(LArt);
+        for var LArt in LLockedDependency.Artifacts.Bin do LBinArr.Add(LArt);
       LArtifactsObj.AddPair('bin', LBinArr);
 
       LDcpArr := TJSONArray.Create;
-      for var LArt in LPair.Value.Artifacts.Dcp do LDcpArr.Add(LArt);
+        for var LArt in LLockedDependency.Artifacts.Dcp do LDcpArr.Add(LArt);
       LArtifactsObj.AddPair('dcp', LDcpArr);
 
       LDcuArr := TJSONArray.Create;
-      for var LArt in LPair.Value.Artifacts.Dcu do LDcuArr.Add(LArt);
+        for var LArt in LLockedDependency.Artifacts.Dcu do LDcuArr.Add(LArt);
       LArtifactsObj.AddPair('dcu', LDcuArr);
 
       LBplArr := TJSONArray.Create;
-      for var LArt in LPair.Value.Artifacts.Bpl do LBplArr.Add(LArt);
+        for var LArt in LLockedDependency.Artifacts.Bpl do LBplArr.Add(LArt);
       LArtifactsObj.AddPair('bpl', LBplArr);
 
       LDepObj.AddPair('artifacts', LArtifactsObj);
 
-      LInstalledObj.AddPair(LPair.Key, LDepObj);
+        LInstalledObj.AddPair(LInstalledKey, LDepObj);
+      end;
+    finally
+      LInstalledKeys.Free;
     end;
 
     LJSONObj.AddPair('installedModules', LInstalledObj);

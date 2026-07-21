@@ -4,7 +4,7 @@ interface
 
 uses
   Boss4D.Core.Domain.Package, Boss4D.Core.Domain.Dependency,
-  Boss4D.Core.Domain.Lock;
+  Boss4D.Core.Domain.Lock, Boss4D.Core.Domain.Sbom;
 
 type
   { Niveis de log suportados pelo sistema }
@@ -34,12 +34,42 @@ type
     function Exists(const ALockPath: string): Boolean;
   end;
 
+  { Contrato para serializadores SBOM interoperaveis }
+  IBoss4DSbomWriter = interface
+    ['{69527D56-F14E-43D4-A746-2D7227D60008}']
+    function Serialize(const ADocument: TBoss4DSbomDocument;
+      const AReproducible: Boolean = False): string;
+    function Validate(const AContent: string; out AError: string): Boolean;
+  end;
+
+  { Coletor opcional que enriquece o modelo neutro com evidencia do ambiente }
+  IBoss4DSbomCollector = interface
+    ['{69527D56-F14E-43D4-A746-2D7227D60009}']
+    function Name: string;
+    procedure Collect(const ADocument: TBoss4DSbomDocument;
+      const APackage: TBoss4DPackage; const ALock: TBoss4DLock;
+      const AProjectDirectory: string);
+  end;
+
+  { Extensao neutra para merge, enriquecimento SCA e documentos VEX }
+  IBoss4DSbomTransformer = interface
+    ['{69527D56-F14E-43D4-A746-2D7227D6000A}']
+    procedure Transform(const ADocument: TBoss4DSbomDocument);
+  end;
+
+  { Extensao pos-serializacao para assinatura/atestacao sem acoplar o dominio }
+  IBoss4DSbomSigner = interface
+    ['{69527D56-F14E-43D4-A746-2D7227D6000B}']
+    function Sign(const AContent, AFormat: string): string;
+  end;
+
   { Contrato para operacoes de Git }
   IBoss4DGitClient = interface
     ['{69527D56-F14E-43D4-A746-2D7227D60004}']
     procedure CloneCache(const ADep: TBoss4DDependency; const ATargetDir: string);
     procedure UpdateCache(const ADep: TBoss4DDependency; const ACacheDir: string);
     function GetVersions(const ACacheDir: string): TArray<string>;
+    function ResolveRevision(const ACacheDir: string; const AVersion: string): string;
     procedure Checkout(const ACacheDir: string; const AVersion: string; const ATargetDir: string);
   end;
 

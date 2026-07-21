@@ -16,6 +16,7 @@ __recovery/
 *.map
 
 # Build outputs
+.codex-build/
 bin/
 Win32/
 Win64/

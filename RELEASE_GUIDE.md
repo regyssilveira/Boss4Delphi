@@ -26,6 +26,12 @@ Antes de qualquer release, compile todos os executáveis oficiais e os plugins d
    * `dist/plugins/11/Boss4D.IDE.Plugin.bpl` (Delphi 11)
    * `dist/plugins/12/Boss4D.IDE.Plugin.bpl` (Delphi 12)
    * `dist/plugins/13/Boss4D.IDE.Plugin.bpl` (Delphi 13)
+   * `dist/sbom/boss4d.cdx.json` (CycloneDX 1.7)
+   * `dist/sbom/boss4d.spdx.json` (SPDX 2.3)
+
+   O build interrompe a release se a validação semântica de qualquer SBOM falhar.
+   Antes de publicar, valide também com consumidores externos, como CycloneDX CLI
+   e SPDX tools-java, conforme `docs/sbom-migration.pt-BR.md`.
 
 4. Compile o instalador offline usando o Inno Setup:
    ```cmd

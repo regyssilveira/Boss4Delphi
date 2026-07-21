@@ -47,6 +47,13 @@ copy dist\bin\Win64\Boss4D.GUI.exe dist\bin\Boss4D.GUI_x64.exe
 rmdir /s /q dist\bin\Win32
 rmdir /s /q dist\bin\Win64
 
+:: Gera os SBOMs reproduziveis do proprio Boss4D
+mkdir dist\sbom 2>nul
+call dist\bin\boss4d.exe sbom --format cyclonedx --strict --validate --reproducible --output dist\sbom\boss4d.cdx.json
+if errorlevel 1 exit /b 1
+call dist\bin\boss4d.exe sbom --format spdx --strict --validate --reproducible --output dist\sbom\boss4d.spdx.json
+if errorlevel 1 exit /b 1
+
 :: Compilando os Plugins de IDE para cada versao suportada
 mkdir dist\plugins\11 2>nul
 mkdir dist\plugins\12 2>nul

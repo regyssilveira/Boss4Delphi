@@ -247,6 +247,84 @@ Essential for corporate environments that require open-source licensing validati
 
 ---
 
+## 7.1. SBOM generation (`sbom`)
+
+Generate a CycloneDX 1.7 JSON Software Bill of Materials from `boss.json` and
+`boss-lock.json` v2:
+
+```bash
+boss4d sbom --format cyclonedx --output bom.cdx.json --validate
+```
+
+The same neutral model can also be serialized as SPDX 2.3 JSON:
+
+```bash
+boss4d sbom --format spdx --output bom.spdx.json --validate
+```
+
+For CI and reproducible releases:
+
+```bash
+boss4d sbom --format cyclonedx --lock-only --strict --validate \
+  --reproducible --type application --output dist/bom.cdx.json
+```
+
+Without `--output`, the JSON document is written to standard output and
+diagnostics are written to standard error. `--strict` rejects missing revision,
+identity, checksum, or graph evidence. `--reproducible` omits volatile UUID and
+timestamp fields and guarantees stable ordering.
+`--lock-only` guarantees that no collector queries GetIt, Delphi installations,
+or artifact files, so it cannot be combined with any `--include-*` option.
+
+The basic SBOM covers dependencies managed by Boss4D. To enrich it with build
+machine evidence:
+
+```bash
+boss4d sbom --include-getit --include-toolchain --include-artifacts \
+  --output enriched-bom.cdx.json --validate
+```
+
+`--include-getit` queries packages installed through `GetItCmd`;
+`--include-toolchain` records detected RAD Studio installations and compiler/RTL
+coverage; `--include-artifacts` checks lock-file `artifacts` paths and calculates
+SHA-256 for files found. A failed query is never interpreted as an empty inventory.
+The collectors are opt-in because they reflect the local environment and can make
+the SBOM non-reproducible. External SDKs must still be declared manually.
+
+The core exposes document transformers for future merge, SCA, and VEX
+integrations, plus a post-serialization signer. None is required to generate
+CycloneDX or SPDX locally; signing and vulnerability lookups remain optional
+adapter responsibilities.
+
+Components that Boss4D cannot discover automatically, including commercial
+libraries, can be declared explicitly in `boss.json`:
+
+```json
+{
+  "sbom": {
+    "components": [
+      {
+        "id": "vendor-database-driver",
+        "name": "Vendor Database Driver",
+        "version": "5.4",
+        "type": "library",
+        "license": "Commercial",
+        "repository": "https://vendor.example/driver",
+        "hash": {
+          "algorithm": "SHA-256",
+          "value": "..."
+        }
+      }
+    ]
+  }
+}
+```
+
+Manual components are marked as declarations originating from `boss.json`; they
+are not presented as automatically discovered evidence.
+
+---
+
 ## 🌳 8. Dependency Diagnostics (`tree` and `outdated`)
 
 ### Viewing Dependency Tree

@@ -85,6 +85,7 @@ var
   LCacheDir: string;
   LTargetDir: string;
   LResolvedVersion: string;
+  LResolvedRevision: string;
   LSubDeps: TArray<TBoss4DDependency>;
 begin
   var LDepKey := ADep.GetKey;
@@ -126,6 +127,7 @@ begin
 
     // 2. Resolve a melhor versao disponivel usando SemVer se a versao informada for um range
     LResolvedVersion := ResolveDependencyVersion(ADep, LCacheDir);
+    LResolvedRevision := FGitClient.ResolveRevision(LCacheDir, LResolvedVersion);
 
     FLogger.Log(TBoss4DLogLevel.Debug, 'Versao selecionada para %s: %s', [ADep.Name, LResolvedVersion]);
 
@@ -152,6 +154,12 @@ begin
 
     // 4. Adiciona no arquivo lock com a sobrecarga de checksum
     ALock.AddDependency(ADep, LResolvedVersion, ADep.HashName, LChecksum);
+    if ALock.GetInstalled(ADep, LExistingLocked) then
+    begin
+      LExistingLocked.Revision := LResolvedRevision;
+      LExistingLocked.ResolvedFrom := LResolvedVersion;
+      LExistingLocked.ChecksumAlgorithm := 'SHA-256';
+    end;
   finally
     FGitCriticalSection.Leave;
   end;
@@ -163,6 +171,26 @@ begin
     var LSubPackage := FPackageRepo.Load(LPkgPath);
     try
       LSubDeps := LSubPackage.GetParsedDependencies;
+
+      FGitCriticalSection.Enter;
+      try
+        var LLockedDependency: TBoss4DLockedDependency;
+        if ALock.GetInstalled(ADep, LLockedDependency) then
+        begin
+          if not LSubPackage.License.IsEmpty then
+          begin
+            LLockedDependency.LicenseExpression := LSubPackage.License;
+            LLockedDependency.LicenseSource := FILE_PACKAGE;
+          end;
+
+          LLockedDependency.Dependencies.Clear;
+          for var LSubDep in LSubDeps do
+            LLockedDependency.Dependencies.Add(LSubDep.GetKey);
+        end;
+      finally
+        FGitCriticalSection.Leave;
+      end;
+
       for var LSubDep in LSubDeps do
       begin
         try

@@ -93,7 +93,10 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d config git shallow <true/false>`
   Enables or disables shallow clones for faster Git download processes.
 * `boss4d version`
-  Prints the CLI version (`v1.0.0-delphi-native`).
+  Prints the CLI version (`v1.0.1-delphi-native`).
+* `boss4d sbom --format cyclonedx|spdx --output <file> --validate`
+  Generates a CycloneDX 1.7 or SPDX 2.3 SBOM from `boss.json` and the v2 lock.
+  See the [SBOM migration guide](docs/sbom-migration.md).
 * `boss4d help`
   Prints the CLI help menu.
 
@@ -111,4 +114,3 @@ cd /d d:\Projetos\BossDelphi
 ## ❤️ Special Thanks
 
 This project is a direct evolution and native port of the original **[HashLoad BOSS](https://github.com/HashLoad/boss)**. We express our sincere gratitude and recognition to the **HashLoad** team and all their contributors for their brilliant initiative in introducing a modern package management ecosystem to the global Delphi community.
-

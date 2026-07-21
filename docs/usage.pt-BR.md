@@ -248,6 +248,85 @@ Cadastre seus scripts na seção `"scripts"` do seu `boss.json`:
 
 ---
 
+## 7.1. Geração de SBOM (`sbom`)
+
+Gere um Software Bill of Materials em CycloneDX 1.7 JSON usando o `boss.json`
+e o `boss-lock.json` v2:
+
+```bash
+boss4d sbom --format cyclonedx --output bom.cdx.json --validate
+```
+
+O mesmo modelo neutro também pode ser serializado como SPDX 2.3 JSON:
+
+```bash
+boss4d sbom --format spdx --output bom.spdx.json --validate
+```
+
+Para CI e releases reproduzíveis:
+
+```bash
+boss4d sbom --format cyclonedx --lock-only --strict --validate \
+  --reproducible --type application --output dist/bom.cdx.json
+```
+
+Sem `--output`, o JSON é escrito na saída padrão e diagnósticos são escritos na
+saída de erro. `--strict` recusa revisão, identidade, checksum ou evidência de
+grafo ausente. `--reproducible` omite UUID e timestamp voláteis e garante
+ordenação estável.
+`--lock-only` garante que nenhum coletor consulte GetIt, instalações Delphi ou
+arquivos de artefatos; por isso, não pode ser combinado com `--include-*`.
+
+O SBOM básico cobre as dependências gerenciadas pelo Boss4D. Para enriquecê-lo
+com evidências da máquina de build:
+
+```bash
+boss4d sbom --include-getit --include-toolchain --include-artifacts \
+  --output bom-enriquecido.cdx.json --validate
+```
+
+`--include-getit` consulta os pacotes instalados pelo `GetItCmd`;
+`--include-toolchain` registra as instalações RAD Studio detectadas e a cobertura
+de compilador/RTL; `--include-artifacts` verifica os caminhos `artifacts` do lock e
+calcula SHA-256 dos arquivos encontrados. Falha de consulta nunca é interpretada
+como inventário vazio. Os coletores são opt-in porque refletem o ambiente local e
+podem tornar o SBOM não reproduzível. SDKs externos ainda devem ser declarados
+manualmente.
+
+O núcleo expõe transformadores de documento para integrações futuras de merge,
+SCA e VEX, além de um assinador pós-serialização. Nenhum deles é necessário para
+gerar CycloneDX ou SPDX localmente; assinatura e consulta de vulnerabilidades
+continuam responsabilidades de adaptadores opcionais.
+
+Componentes que o Boss4D não consegue descobrir automaticamente, inclusive
+bibliotecas comerciais, podem ser declarados explicitamente no `boss.json`:
+
+```json
+{
+  "sbom": {
+    "components": [
+      {
+        "id": "vendor-database-driver",
+        "name": "Vendor Database Driver",
+        "version": "5.4",
+        "type": "library",
+        "license": "Commercial",
+        "repository": "https://vendor.example/driver",
+        "hash": {
+          "algorithm": "SHA-256",
+          "value": "..."
+        }
+      }
+    ]
+  }
+}
+```
+
+Componentes manuais são marcados como declarações provenientes do `boss.json`;
+eles não são apresentados como evidência descoberta automaticamente.
+
+---
+
 ## 🌳 8. Diagnóstico de Dependências (`tree` e `outdated`)
 
 ### Visualizando a Árvore de Dependências

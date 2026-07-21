@@ -21,7 +21,8 @@ implementation
 
 uses
   System.SysUtils, System.Classes, System.IOUtils, Boss4D.Core.Domain.Env,
-  Boss4D.Core.Domain.Package, Boss4D.Core.Domain.Consts;
+  Boss4D.Core.Domain.Package, Boss4D.Core.Domain.Consts,
+  Boss4D.Core.Domain.Sbom, Boss4D.Core.Domain.License;
 
 { TBoss4DLicenseService }
 
@@ -99,6 +100,8 @@ var
   LSourceInfo: string;
   LSubPkgPath: string;
   LSubPkg: TBoss4DPackage;
+  LNormalizedLicense: TBoss4DSbomLicense;
+  LLicenseKind: string;
 begin
   FLogger.Log(TBoss4DLogLevel.Info, '📄 Iniciando auditoria de licenças...');
 
@@ -127,11 +130,11 @@ begin
     // Cabecalhos do Relatorio Markdown
     LMarkdownReport := '# Relatório de Conformidade de Licenças (Compliance)' + sLineBreak + sLineBreak;
     LMarkdownReport := LMarkdownReport + 'Este documento lista todas as dependências de terceiros instaladas no projeto e suas respectivas licenças.' + sLineBreak + sLineBreak;
-    LMarkdownReport := LMarkdownReport + '| Dependência | Versão | Licença | Origem da Informação |' + sLineBreak;
-    LMarkdownReport := LMarkdownReport + '| --- | --- | --- | --- |' + sLineBreak;
+    LMarkdownReport := LMarkdownReport + '| Dependência | Versão | Licença | Tipo | Origem da Informação |' + sLineBreak;
+    LMarkdownReport := LMarkdownReport + '| --- | --- | --- | --- | --- |' + sLineBreak;
 
     // Cabecalhos do Relatorio CSV
-    LCSVReport := 'dependency,version,license,source' + sLineBreak;
+    LCSVReport := 'dependency,version,license,licenseKind,source' + sLineBreak;
 
     for var LSubDir in LSubDirs do
     begin
@@ -171,11 +174,26 @@ begin
       if LDepLicense.IsEmpty then
         LDepLicense := 'Nao especificada';
 
+      LNormalizedLicense := TBoss4DLicenseNormalizer.Normalize(LDepLicense, LSourceInfo);
+      try
+        LLicenseKind := TBoss4DLicenseNormalizer.KindName(LNormalizedLicense.Kind);
+        if not LNormalizedLicense.Expression.IsEmpty then
+          LDepLicense := LNormalizedLicense.Expression
+        else if not LNormalizedLicense.Name.IsEmpty then
+          LDepLicense := LNormalizedLicense.Name
+        else
+          LDepLicense := 'NOASSERTION';
+      finally
+        LNormalizedLicense.Free;
+      end;
+
       // Remove quebras de linha e virgulas para formatacao adequada do Markdown/CSV
       LDepLicense := LDepLicense.Replace(sLineBreak, ' ').Replace(',', ' ').Trim;
 
-      LMarkdownReport := LMarkdownReport + Format('| %s | %s | %s | %s |', [LDepName, LDepVersion, LDepLicense, LSourceInfo]) + sLineBreak;
-      LCSVReport := LCSVReport + Format('%s,%s,%s,%s', [LDepName, LDepVersion, LDepLicense, LSourceInfo]) + sLineBreak;
+      LMarkdownReport := LMarkdownReport + Format('| %s | %s | %s | %s | %s |',
+        [LDepName, LDepVersion, LDepLicense, LLicenseKind, LSourceInfo]) + sLineBreak;
+      LCSVReport := LCSVReport + Format('%s,%s,%s,%s,%s',
+        [LDepName, LDepVersion, LDepLicense, LLicenseKind, LSourceInfo]) + sLineBreak;
     end;
 
     // Salva na pasta docs/

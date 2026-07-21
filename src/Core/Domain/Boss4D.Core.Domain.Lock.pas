@@ -6,6 +6,11 @@ uses
   System.Generics.Collections, Boss4D.Core.Domain.Dependency;
 
 type
+  TBoss4DLockSchema = class
+  public const
+    CurrentVersion = 2;
+  end;
+
   { Representa os artefatos compilados de uma dependencia }
   TBoss4DDependencyArtifacts = class
   private
@@ -30,6 +35,13 @@ type
     FVersion: string;
     FHash: string;
     FChecksum: string;
+    FChecksumAlgorithm: string;
+    FRepository: string;
+    FRevision: string;
+    FResolvedFrom: string;
+    FLicenseExpression: string;
+    FLicenseSource: string;
+    FDependencies: TList<string>;
     FArtifacts: TBoss4DDependencyArtifacts;
     FChanged: Boolean;
   public
@@ -40,6 +52,13 @@ type
     property Version: string read FVersion write FVersion;
     property Hash: string read FHash write FHash;
     property Checksum: string read FChecksum write FChecksum;
+    property ChecksumAlgorithm: string read FChecksumAlgorithm write FChecksumAlgorithm;
+    property Repository: string read FRepository write FRepository;
+    property Revision: string read FRevision write FRevision;
+    property ResolvedFrom: string read FResolvedFrom write FResolvedFrom;
+    property LicenseExpression: string read FLicenseExpression write FLicenseExpression;
+    property LicenseSource: string read FLicenseSource write FLicenseSource;
+    property Dependencies: TList<string> read FDependencies;
     property Artifacts: TBoss4DDependencyArtifacts read FArtifacts;
     property Changed: Boolean read FChanged write FChanged;
   end;
@@ -47,6 +66,7 @@ type
   { Entidade pura de dominio representando o arquivo boss.lock }
   TBoss4DLock = class
   private
+    FLockVersion: Integer;
     FHash: string;
     FUpdated: string;
     FInstalled: TObjectDictionary<string, TBoss4DLockedDependency>;
@@ -60,6 +80,7 @@ type
 
     property Hash: string read FHash write FHash;
     property Updated: string read FUpdated write FUpdated;
+    property LockVersion: Integer read FLockVersion write FLockVersion;
     property Installed: TObjectDictionary<string, TBoss4DLockedDependency> read FInstalled;
   end;
 
@@ -91,11 +112,14 @@ constructor TBoss4DLockedDependency.Create;
 begin
   inherited Create;
   FArtifacts := TBoss4DDependencyArtifacts.Create;
+  FDependencies := TList<string>.Create;
+  FChecksumAlgorithm := 'SHA-256';
   FChanged := False;
 end;
 
 destructor TBoss4DLockedDependency.Destroy;
 begin
+  FDependencies.Free;
   FArtifacts.Free;
   inherited Destroy;
 end;
@@ -105,6 +129,7 @@ end;
 constructor TBoss4DLock.Create;
 begin
   inherited Create;
+  FLockVersion := TBoss4DLockSchema.CurrentVersion;
   FInstalled := TObjectDictionary<string, TBoss4DLockedDependency>.Create([doOwnsValues]);
 end;
 
@@ -125,10 +150,12 @@ var
   LLocked: TBoss4DLockedDependency;
 begin
   LKey := ADep.GetKey;
-  if not FInstalled.TryGetValue(LKey, LLocked) then
+  if not FInstalled.TryGetValue(LKey, LLocked) and
+     not FInstalled.TryGetValue(ADep.GetLegacyKey, LLocked) then
   begin
     LLocked := TBoss4DLockedDependency.Create;
     LLocked.Name := ADep.Name;
+    LLocked.Repository := ADep.GetCanonicalRepository;
     LLocked.Version := AVersion;
     LLocked.Hash := AHash;
     LLocked.Checksum := AChecksum;
@@ -137,6 +164,7 @@ begin
   end
   else
   begin
+    LLocked.Repository := ADep.GetCanonicalRepository;
     LLocked.Version := AVersion;
     LLocked.Hash := AHash;
     LLocked.Checksum := AChecksum;
@@ -147,6 +175,8 @@ end;
 function TBoss4DLock.GetInstalled(const ADep: TBoss4DDependency; out ALockedDep: TBoss4DLockedDependency): Boolean;
 begin
   Result := FInstalled.TryGetValue(ADep.GetKey, ALockedDep);
+  if not Result then
+    Result := FInstalled.TryGetValue(ADep.GetLegacyKey, ALockedDep);
 end;
 
 end.

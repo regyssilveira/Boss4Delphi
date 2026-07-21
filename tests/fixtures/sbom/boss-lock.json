@@ -1,0 +1,30 @@
+{
+  "lockVersion": 2,
+  "hash": "fixture-manifest-hash",
+  "updated": "2026-07-21T12:00:00Z",
+  "installedModules": {
+    "https://github.com/example/example-lib": {
+      "name": "example-lib",
+      "version": "1.2.3",
+      "hash": "legacy-identity-hash",
+      "repository": "https://github.com/example/example-lib",
+      "revision": "0123456789abcdef0123456789abcdef01234567",
+      "resolvedFrom": "v1.2.3",
+      "checksum": {
+        "algorithm": "SHA-256",
+        "value": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      },
+      "license": {
+        "expression": "MIT",
+        "source": "boss.json"
+      },
+      "dependencies": [],
+      "artifacts": {
+        "bin": [],
+        "dcp": [],
+        "dcu": [],
+        "bpl": []
+      }
+    }
+  }
+}

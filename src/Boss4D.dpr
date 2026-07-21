@@ -14,12 +14,17 @@ uses
   Boss4D.Core.Domain.Dependency in 'Core/Domain/Boss4D.Core.Domain.Dependency.pas',
   Boss4D.Core.Domain.Package in 'Core/Domain/Boss4D.Core.Domain.Package.pas',
   Boss4D.Core.Domain.Lock in 'Core/Domain/Boss4D.Core.Domain.Lock.pas',
+  Boss4D.Core.Domain.Sbom in 'Core/Domain/Boss4D.Core.Domain.Sbom.pas',
+  Boss4D.Core.Domain.License in 'Core/Domain/Boss4D.Core.Domain.License.pas',
   Boss4D.Adapters.Json in 'Adapters/Json/Boss4D.Adapters.Json.pas',
   Boss4D.Adapters.Logger in 'Adapters/Logger/Boss4D.Adapters.Logger.pas',
   Boss4D.Adapters.Http in 'Adapters/Http/Boss4D.Adapters.Http.pas',
   Boss4D.Adapters.Git in 'Adapters/Git/Boss4D.Adapters.Git.pas',
   Boss4D.Adapters.Registry in 'Adapters/Registry/Boss4D.Adapters.Registry.pas',
   Boss4D.Adapters.Compiler in 'Adapters/Compiler/Boss4D.Adapters.Compiler.pas',
+  Boss4D.Adapters.Sbom.CycloneDX in 'Adapters/Sbom/Boss4D.Adapters.Sbom.CycloneDX.pas',
+  Boss4D.Adapters.Sbom.Collectors in 'Adapters/Sbom/Boss4D.Adapters.Sbom.Collectors.pas',
+  Boss4D.Adapters.Sbom.Spdx in 'Adapters/Sbom/Boss4D.Adapters.Sbom.Spdx.pas',
   Boss4D.Core.Services.Init in 'Core/Services/Boss4D.Core.Services.Init.pas',
   Boss4D.Core.Services.Config in 'Core/Services/Boss4D.Core.Services.Config.pas',
   Boss4D.Core.Services.Install in 'Core/Services/Boss4D.Core.Services.Install.pas',
@@ -34,6 +39,7 @@ uses
   Boss4D.Core.Services.Workspace in 'Core/Services/Boss4D.Core.Services.Workspace.pas',
   Boss4D.Core.Services.GetIt in 'Core/Services/Boss4D.Core.Services.GetIt.pas',
   Boss4D.Core.Services.Clean in 'Core/Services/Boss4D.Core.Services.Clean.pas',
+  Boss4D.Core.Services.Sbom in 'Core/Services/Boss4D.Core.Services.Sbom.pas',
   Boss4D.CLI.Parser in 'CLI/Boss4D.CLI.Parser.pas';
 
 var
@@ -101,11 +107,15 @@ begin
   except
     on E: EAggregateException do
     begin
-      Writeln('Erro fatal do Boss4D: ' + E.Message);
+      System.ExitCode := 1;
+      Writeln(ErrOutput, 'Erro fatal do Boss4D: ' + E.Message);
       for var LIdx := 0 to E.Count - 1 do
-        Writeln('  -> ' + E[LIdx].Message);
+        Writeln(ErrOutput, '  -> ' + E[LIdx].Message);
     end;
     on E: Exception do
-      Writeln('Erro fatal do Boss4D: ' + E.Message);
+    begin
+      System.ExitCode := 1;
+      Writeln(ErrOutput, 'Erro fatal do Boss4D: ' + E.Message);
+    end;
   end;
 end.
