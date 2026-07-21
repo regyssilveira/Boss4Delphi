@@ -163,4 +163,3 @@ The second command compiles and tests Win32/Win64, compares reproducible outputs
 verifies attestations, and runs the official CycloneDX and SPDX validators. Local
 execution on the release commit is authoritative; the GitHub Actions workflow is
 optional automation of the same matrix.
-

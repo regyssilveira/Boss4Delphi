@@ -164,4 +164,3 @@ O segundo comando compila e testa Win32/Win64, compara saídas reproduzíveis,
 verifica atestações e executa os validadores oficiais CycloneDX e SPDX. A execução
 local no commit da release é autoritativa; GitHub Actions é apenas uma automação
 opcional da mesma matriz.
-
