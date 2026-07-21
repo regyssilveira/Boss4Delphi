@@ -1,0 +1,8 @@
+{
+  "name": "boss4d",
+  "description": "Native Delphi dependency manager",
+  "version": "1.0.1",
+  "homepage": "https://github.com/HashLoad/boss4delphi",
+  "license": "MIT",
+  "dependencies": {}
+}

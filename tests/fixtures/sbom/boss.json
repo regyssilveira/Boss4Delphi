@@ -1,0 +1,10 @@
+{
+  "name": "boss4d-sbom-fixture",
+  "description": "Fixture for CycloneDX integration validation",
+  "version": "1.0.0",
+  "homepage": "https://github.com/example/boss4d-sbom-fixture",
+  "license": "MIT",
+  "dependencies": {
+    "github.com/example/example-lib": "1.2.3"
+  }
+}

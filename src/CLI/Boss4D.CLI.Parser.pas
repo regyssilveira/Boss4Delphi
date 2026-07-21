@@ -9,7 +9,9 @@ uses
   Boss4D.Core.Services.Doctor, Boss4D.Core.Services.License,
   Boss4D.Core.Services.Tree, Boss4D.Core.Services.Outdated,
   Boss4D.Core.Services.Tool, Boss4D.Core.Services.IDEIntegration,
-  Boss4D.Core.Services.GetIt, Boss4D.Core.Services.Clean;
+  Boss4D.Core.Services.GetIt, Boss4D.Core.Services.Clean,
+  Boss4D.Core.Services.Sbom;
+
 
 type
   { Interpretador e orquestrador de comandos da linha de comando (CLI) }
@@ -37,6 +39,7 @@ type
     procedure HandlePlugin(const AArgs: TArray<string>);
     procedure HandleGetIt(const AArgs: TArray<string>);
     procedure HandleClean(const AArgs: TArray<string>);
+    procedure HandleSbom(const AArgs: TArray<string>);
   public
     constructor Create(
       const ALogger: IBoss4DLogger;
@@ -58,9 +61,15 @@ uses
   Boss4D.Adapters.Git,
   Boss4D.Adapters.Compiler,
   Boss4D.Adapters.Registry,
+  Boss4D.Adapters.Sbom.CycloneDX,
+  Boss4D.Adapters.Sbom.Collectors,
+  Boss4D.Adapters.Sbom.Spdx,
+  Boss4D.Adapters.Sbom.Security,
   Boss4D.Core.Domain.Dependency,
   Boss4D.Core.Domain.Lock,
-  Boss4D.Core.Domain.Env;
+  Boss4D.Core.Domain.Sbom,
+  Boss4D.Core.Domain.Env,
+  Boss4D.Core.Domain.Consts;
 
 { TBoss4DCommandLineParser }
 
@@ -105,6 +114,8 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  doctor               Executa diagnosticos do ambiente de compilacao.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -fix, --fix (tenta auto-configurar a versao delphi).');
   FLogger.Log(TBoss4DLogLevel.Info, '  license report       Gera relatorios de conformidade de licencas em docs/.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  sbom                 Gera SBOM CycloneDX 1.7 ou SPDX 2.3 a partir do boss-lock.json.');
+  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --output, --type, --strict, --validate, --lock-only, --reproducible, --include-getit, --include-toolchain, --include-artifacts, --vex, --attestation-output, --verify-attestation.');
   FLogger.Log(TBoss4DLogLevel.Info, '  tree                 Exibe a arvore de dependencias do projeto.');
   FLogger.Log(TBoss4DLogLevel.Info, '  outdated             Verifica se ha atualizacoes disponiveis dos pacotes.');
   FLogger.Log(TBoss4DLogLevel.Info, '  tool install -g <repo> Compila e instala um utilitario Delphi globalmente.');
@@ -158,7 +169,9 @@ begin
   else if LCommand = 'getit' then
     HandleGetIt(AArgs)
   else if LCommand = 'clean' then
-    HandleClean(AArgs);
+    HandleClean(AArgs)
+  else if LCommand = 'sbom' then
+    HandleSbom(AArgs);
 end;
 
 procedure TBoss4DCommandLineParser.HandleInit(const AArgs: TArray<string>);
@@ -557,6 +570,183 @@ begin
     LCleanService.Execute;
   finally
     LCleanService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleSbom(const AArgs: TArray<string>);
+var
+  LOptions: TBoss4DSbomOptions;
+  LOutputPath: string;
+  LFormat: string;
+  LLockRepository: IBoss4DLockRepository;
+  LWriter: IBoss4DSbomWriter;
+  LService: TBoss4DSbomService;
+  LContent: string;
+  LEncoding: TEncoding;
+  I: Integer;
+  LIncludeGetIt, LIncludeToolchain, LIncludeArtifacts: Boolean;
+  LVexPath, LAttestationOutput, LVerifyAttestation: string;
+begin
+  LOptions := Default(TBoss4DSbomOptions);
+  LOutputPath := '';
+  LFormat := 'cyclonedx';
+  LIncludeGetIt := False;
+  LIncludeToolchain := False;
+  LIncludeArtifacts := False;
+  LVexPath := '';
+  LAttestationOutput := '';
+  LVerifyAttestation := '';
+  I := 1;
+  while I < Length(AArgs) do
+  begin
+    if SameText(AArgs[I], '--format') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create('Informe um valor para --format.');
+      LFormat := AArgs[I + 1].ToLower;
+      Inc(I, 2);
+    end
+    else if SameText(AArgs[I], '--output') or SameText(AArgs[I], '-o') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create('Informe um arquivo para --output.');
+      LOutputPath := AArgs[I + 1];
+      Inc(I, 2);
+    end
+    else if SameText(AArgs[I], '--strict') then
+    begin
+      LOptions.StrictMode := True;
+      Inc(I);
+    end
+    else if SameText(AArgs[I], '--validate') then
+    begin
+      LOptions.ValidateOutput := True;
+      Inc(I);
+    end
+    else if SameText(AArgs[I], '--reproducible') then
+    begin
+      LOptions.ReproducibleOutput := True;
+      Inc(I);
+    end
+    else if SameText(AArgs[I], '--lock-only') then
+    begin
+      LOptions.LockOnly := True;
+      Inc(I);
+    end
+    else if SameText(AArgs[I], '--include-getit') then
+    begin
+      LIncludeGetIt := True;
+      Inc(I);
+    end
+    else if SameText(AArgs[I], '--include-toolchain') then
+    begin
+      LIncludeToolchain := True;
+      Inc(I);
+    end
+    else if SameText(AArgs[I], '--include-artifacts') then
+    begin
+      LIncludeArtifacts := True;
+      Inc(I);
+    end
+    else if SameText(AArgs[I], '--vex') or
+            SameText(AArgs[I], '--attestation-output') or
+            SameText(AArgs[I], '--verify-attestation') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create('Informe um arquivo para ' + AArgs[I] + '.');
+      if SameText(AArgs[I], '--vex') then LVexPath := AArgs[I + 1]
+      else if SameText(AArgs[I], '--attestation-output') then LAttestationOutput := AArgs[I + 1]
+      else LVerifyAttestation := AArgs[I + 1];
+      Inc(I, 2);
+    end
+    else if SameText(AArgs[I], '--type') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create('Informe um valor para --type.');
+      if SameText(AArgs[I + 1], 'application') then
+        LOptions.RootComponentType := ApplicationComponent
+      else if SameText(AArgs[I + 1], 'library') then
+        LOptions.RootComponentType := LibraryComponent
+      else if SameText(AArgs[I + 1], 'framework') then
+        LOptions.RootComponentType := FrameworkComponent
+      else
+        raise EArgumentException.Create('Tipo SBOM invalido: ' + AArgs[I + 1]);
+      LOptions.HasRootComponentType := True;
+      Inc(I, 2);
+    end
+    else
+      raise EArgumentException.Create('Opcao desconhecida para sbom: ' + AArgs[I]);
+  end;
+
+  if (LFormat <> 'cyclonedx') and (LFormat <> 'spdx') then
+    raise EArgumentException.Create('Formato SBOM ainda nao suportado: ' + LFormat);
+  if (LFormat = 'spdx') and not LVexPath.IsEmpty then
+    raise EArgumentException.Create('--vex requer CycloneDX; SPDX 2.3 nao possui perfil VEX.');
+  if LOptions.LockOnly and (LIncludeGetIt or LIncludeToolchain or LIncludeArtifacts) then
+    raise EArgumentException.Create('--lock-only nao pode ser combinado com coletores de ambiente.');
+  LOptions.OutputFormat := LFormat;
+
+  LLockRepository := TBoss4DLockJsonRepository.Create;
+  if LFormat = 'spdx' then
+    LWriter := TBoss4DSpdxWriter.Create
+  else
+    LWriter := TBoss4DCycloneDXWriter.Create;
+  LService := TBoss4DSbomService.Create(FPackageRepo, LLockRepository, LWriter);
+  try
+    if LIncludeGetIt then
+      LService.AddCollector(TBoss4DGetItSbomCollector.Create(FRegistry));
+    if LIncludeToolchain then
+      LService.AddCollector(TBoss4DToolchainSbomCollector.Create(FRegistry));
+    if LIncludeArtifacts then
+      LService.AddCollector(TBoss4DArtifactSbomCollector.Create);
+    if not LVexPath.IsEmpty then
+      LService.AddTransformer(TBoss4DOfflineVexTransformer.Create(TPath.GetFullPath(LVexPath)));
+    LContent := LService.Generate(GetBossFile,
+      TPath.Combine(GetCurrentDir, FILE_PACKAGE_LOCK), LOptions);
+    var LAttestor: IBoss4DSbomAttestor := TBoss4DSbomSha256Attestor.Create;
+    if not LVerifyAttestation.IsEmpty then
+    begin
+      var LAttestationError: string;
+      if not LAttestor.VerifyAttestation(LContent,
+        TFile.ReadAllText(TPath.GetFullPath(LVerifyAttestation), TEncoding.UTF8),
+        LAttestationError) then
+        raise EBoss4DSbomValidation.Create('Atestacao invalida: ' + LAttestationError);
+    end;
+    if not LAttestationOutput.IsEmpty then
+    begin
+      var LAttestationPath := TPath.GetFullPath(LAttestationOutput);
+      var LAttestationDirectory := TPath.GetDirectoryName(LAttestationPath);
+      if not LAttestationDirectory.IsEmpty and not TDirectory.Exists(LAttestationDirectory) then
+        TDirectory.CreateDirectory(LAttestationDirectory);
+      var LAttestationEncoding := TUTF8Encoding.Create(False);
+      try
+        TFile.WriteAllText(LAttestationPath,
+          LAttestor.CreateAttestation(LContent, LFormat), LAttestationEncoding);
+      finally
+        LAttestationEncoding.Free;
+      end;
+    end;
+    if LOutputPath.IsEmpty then
+      System.Write(LContent)
+    else
+    begin
+      LOutputPath := TPath.GetFullPath(LOutputPath);
+      var LOutputDirectory := TPath.GetDirectoryName(LOutputPath);
+      if not LOutputDirectory.IsEmpty and not TDirectory.Exists(LOutputDirectory) then
+        TDirectory.CreateDirectory(LOutputDirectory);
+      LEncoding := TUTF8Encoding.Create(False);
+      try
+        TFile.WriteAllText(LOutputPath, LContent, LEncoding);
+      finally
+        LEncoding.Free;
+      end;
+      if LFormat = 'spdx' then
+        FLogger.Log(TBoss4DLogLevel.Info, 'SBOM SPDX 2.3 gerado em: ' + LOutputPath)
+      else
+        FLogger.Log(TBoss4DLogLevel.Info, 'SBOM CycloneDX 1.7 gerado em: ' + LOutputPath);
+    end;
+  finally
+    LService.Free;
   end;
 end;
 

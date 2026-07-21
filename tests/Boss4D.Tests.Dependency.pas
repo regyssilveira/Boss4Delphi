@@ -26,6 +26,9 @@ type
     procedure TestGetURL;
 
     [Test]
+    procedure TestCanonicalRepositoryIdentity;
+
+    [Test]
     procedure TestParseCommandLine;
   end;
 
@@ -82,6 +85,26 @@ begin
   finally
     LDepHttps.Free;
     LDepSsh.Free;
+  end;
+end;
+
+procedure TTestsDependency.TestCanonicalRepositoryIdentity;
+var
+  LHTTPS, LSSH, LCredential: TBoss4DDependency;
+begin
+  LHTTPS := TBoss4DDependency.Create('https://GitHub.com/HashLoad/Horse.git/', '1.0.0');
+  LSSH := TBoss4DDependency.Create('git@github.com:HashLoad/Horse.git', '1.0.0');
+  LCredential := TBoss4DDependency.Create('https://secret-token@github.com/HashLoad/Horse.git', '1.0.0');
+  try
+    Assert.AreEqual('https://GitHub.com/HashLoad/Horse', LHTTPS.GetCanonicalRepository);
+    Assert.AreEqual(LHTTPS.GetKey, LSSH.GetKey);
+    Assert.AreEqual(LHTTPS.GetKey, LCredential.GetKey);
+    Assert.AreEqual(LHTTPS.HashName, LSSH.HashName);
+    Assert.AreEqual<Integer>(0, Pos('secret-token', LCredential.GetCanonicalRepository));
+  finally
+    LCredential.Free;
+    LSSH.Free;
+    LHTTPS.Free;
   end;
 end;
 

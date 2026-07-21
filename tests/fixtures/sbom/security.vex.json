@@ -1,0 +1,11 @@
+{
+  "vulnerabilities": [
+    {
+      "id": "CVE-2099-0001",
+      "component": "boss4d",
+      "state": "not_affected",
+      "detail": "Synthetic CI fixture; affected code is not present.",
+      "source": "Boss4D CI"
+    }
+  ]
+}

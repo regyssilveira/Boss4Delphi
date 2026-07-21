@@ -2,6 +2,16 @@
 
 Este documento detalha o ambiente correto do Delphi e as etapas necessárias para compilar, testar e publicar releases do **Boss4D** de forma consistente e livre de erros.
 
+O script `scripts/ci-verify-sbom.ps1` é a verificação autoritativa e pode ser
+executado localmente. Ele valida Win32, Win64, os testes, a reprodutibilidade entre
+arquiteturas, VEX, atestações e os formatos com CycloneDX CLI e SPDX tools-java.
+O workflow opcional `.github/workflows/sbom-ci.yml` pode ser iniciado manualmente
+pela ação `workflow_dispatch` e executa a mesma matriz quando
+houver um runner self-hosted com os rótulos `windows` e `delphi-13`, Delphi 13,
+Docker, Java e GitHub CLI. A ausência desse runner não bloqueia a release local.
+Antes de promover o PR ou publicar uma tag, preencha
+[`docs/sbom-release-checklist.pt-BR.md`](docs/sbom-release-checklist.pt-BR.md).
+
 ---
 
 ## 💻 1. Ambiente Delphi e Versão Oficial
@@ -26,6 +36,14 @@ Antes de qualquer release, compile todos os executáveis oficiais e os plugins d
    * `dist/plugins/11/Boss4D.IDE.Plugin.bpl` (Delphi 11)
    * `dist/plugins/12/Boss4D.IDE.Plugin.bpl` (Delphi 12)
    * `dist/plugins/13/Boss4D.IDE.Plugin.bpl` (Delphi 13)
+   * `dist/sbom/boss4d.cdx.json` (CycloneDX 1.7)
+   * `dist/sbom/boss4d.spdx.json` (SPDX 2.3)
+   * `dist/sbom/boss4d.cdx.intoto.json` (atestação destacada CycloneDX)
+   * `dist/sbom/boss4d.spdx.intoto.json` (atestação destacada SPDX)
+
+   O build interrompe a release se a validação semântica de qualquer SBOM falhar.
+   Antes de publicar, valide também com consumidores externos, como CycloneDX CLI
+   e SPDX tools-java, conforme `docs/sbom-migration.pt-BR.md`.
 
 4. Compile o instalador offline usando o Inno Setup:
    ```cmd

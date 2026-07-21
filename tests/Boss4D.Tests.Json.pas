@@ -23,6 +23,16 @@ type
     [Test]
     procedure TestLockSerialization;
     [Test]
+    procedure TestLockV1BackwardCompatibility;
+    [Test]
+    procedure TestLockV2MetadataRoundTrip;
+    [Test]
+    procedure TestLockV2DeterministicSerialization;
+    [Test]
+    procedure TestLockV2RejectsFutureVersion;
+    [Test]
+    procedure TestLockV2SharedAndCircularGraph;
+    [Test]
     procedure TestUTF8WithoutBOMSerialization;
   end;
 
@@ -67,6 +77,16 @@ begin
     LPkg.Scripts.Add('build', 'msbuild');
     LPkg.Engines.Compiler := '36.0';
     LPkg.Engines.Platforms.Add('Win32');
+    var LManualComponent := TBoss4DManualComponent.Create;
+    LManualComponent.Id := 'commercial-driver';
+    LManualComponent.Name := 'Commercial Database Driver';
+    LManualComponent.Version := '5.4';
+    LManualComponent.ComponentType := 'library';
+    LManualComponent.License := 'Commercial';
+    LManualComponent.HashAlgorithm := 'SHA-256';
+    LManualComponent.HashValue := 'manual-hash';
+    LManualComponent.Source := 'getit';
+    LPkg.SbomComponents.Add(LManualComponent);
 
     FPackageRepo.Save(LPkg, LFilePath);
     Assert.IsTrue(TFile.Exists(LFilePath));
@@ -84,6 +104,11 @@ begin
       Assert.AreEqual<string>('msbuild', LLoadedPkg.Scripts['build']);
       Assert.AreEqual('36.0', LLoadedPkg.Engines.Compiler);
       Assert.AreEqual('Win32', LLoadedPkg.Engines.Platforms[0]);
+      Assert.AreEqual<Integer>(1, LLoadedPkg.SbomComponents.Count);
+      Assert.AreEqual('commercial-driver', LLoadedPkg.SbomComponents[0].Id);
+      Assert.AreEqual('Commercial', LLoadedPkg.SbomComponents[0].License);
+      Assert.AreEqual('manual-hash', LLoadedPkg.SbomComponents[0].HashValue);
+      Assert.AreEqual('getit', LLoadedPkg.SbomComponents[0].Source);
     finally
       LLoadedPkg.Free;
     end;
@@ -114,6 +139,7 @@ begin
     begin
       LLockedDep.Artifacts.Bin.Add('bin/horse.dll');
       LLockedDep.Artifacts.Dcu.Add('lib/horse.dcu');
+      LLockedDep.Artifacts.Base := 'module';
     end;
 
     FLockRepo.Save(LLock, LFilePath);
@@ -132,11 +158,217 @@ begin
       Assert.AreEqual<string>('commithash', LInstalled.Hash);
       Assert.AreEqual<Integer>(1, LInstalled.Artifacts.Bin.Count);
       Assert.AreEqual<string>('bin/horse.dll', LInstalled.Artifacts.Bin[0]);
+      Assert.AreEqual('module', LInstalled.Artifacts.Base);
     finally
       LLoadedLock.Free;
     end;
   finally
     LDep.Free;
+    LLock.Free;
+  end;
+end;
+
+procedure TTestsJson.TestLockV1BackwardCompatibility;
+var
+  LFilePath: string;
+  LLock: TBoss4DLock;
+  LDep: TBoss4DDependency;
+  LInstalled: TBoss4DLockedDependency;
+  LSerialized: string;
+begin
+  LFilePath := TPath.Combine(FTempDir, 'boss-lock-v1.json');
+  TFile.WriteAllText(LFilePath,
+    '{' +
+    '"hash":"manifest-hash",' +
+    '"updated":"2026-07-21T12:00:00Z",' +
+    '"installedModules":{' +
+      '"github.com/hashload/horse":{' +
+        '"name":"horse",' +
+        '"version":"3.1.0",' +
+        '"hash":"legacy-hash",' +
+        '"checksum":"legacy-checksum",' +
+        '"artifacts":{"bin":[],"dcp":[],"dcu":[],"bpl":[]}' +
+      '}' +
+    '}' +
+    '}', TEncoding.UTF8);
+
+  LLock := FLockRepo.Load(LFilePath);
+  LDep := TBoss4DDependency.Create('github.com/hashload/horse', '*');
+  try
+    Assert.AreEqual<Integer>(1, LLock.LockVersion);
+    Assert.IsTrue(LLock.GetInstalled(LDep, LInstalled));
+    Assert.AreEqual('legacy-checksum', LInstalled.Checksum);
+    Assert.AreEqual('SHA-256', LInstalled.ChecksumAlgorithm);
+
+    FLockRepo.Save(LLock, LFilePath);
+    LSerialized := TFile.ReadAllText(LFilePath, TEncoding.UTF8);
+    Assert.IsTrue(LSerialized.Contains('"lockVersion": 2'));
+    Assert.IsTrue(LSerialized.Contains('"algorithm": "SHA-256"'));
+  finally
+    LDep.Free;
+    LLock.Free;
+  end;
+end;
+
+procedure TTestsJson.TestLockV2MetadataRoundTrip;
+var
+  LFilePath: string;
+  LLock, LLoadedLock: TBoss4DLock;
+  LDep: TBoss4DDependency;
+  LLocked, LLoaded: TBoss4DLockedDependency;
+begin
+  LFilePath := TPath.Combine(FTempDir, 'boss-lock-v2.json');
+  LLock := TBoss4DLock.Create;
+  LDep := TBoss4DDependency.Create('github.com/hashload/horse', '^3.0.0');
+  try
+    LLock.HasRootMetadata := True;
+    LLock.RootName := 'sample-app';
+    LLock.RootVersion := '2.0.0';
+    LLock.RootDescription := 'Lock-only root';
+    LLock.RootHomepage := 'https://example.test/sample';
+    LLock.RootLicense := 'Apache-2.0';
+    LLock.RootDependencies.Add(LDep.GetKey);
+    LLock.AddDependency(LDep, '3.1.0', 'legacy-identity-hash', 'content-checksum');
+    Assert.IsTrue(LLock.GetInstalled(LDep, LLocked));
+    LLocked.Revision := '0123456789abcdef0123456789abcdef01234567';
+    LLocked.ResolvedFrom := 'refs/tags/v3.1.0';
+    LLocked.LicenseExpression := 'MIT';
+    LLocked.LicenseSource := 'boss.json';
+    LLocked.Dependencies.Add('github.com/vendor/dependency');
+
+    FLockRepo.Save(LLock, LFilePath);
+    LLoadedLock := FLockRepo.Load(LFilePath);
+    try
+      Assert.AreEqual<Integer>(2, LLoadedLock.LockVersion);
+      Assert.IsTrue(LLoadedLock.HasRootMetadata);
+      Assert.AreEqual('sample-app', LLoadedLock.RootName);
+      Assert.AreEqual('2.0.0', LLoadedLock.RootVersion);
+      Assert.AreEqual('Apache-2.0', LLoadedLock.RootLicense);
+      Assert.AreEqual<Integer>(1, LLoadedLock.RootDependencies.Count);
+      Assert.AreEqual(LDep.GetKey, LLoadedLock.RootDependencies[0]);
+      Assert.IsTrue(LLoadedLock.GetInstalled(LDep, LLoaded));
+      Assert.AreEqual('https://github.com/hashload/horse', LLoaded.Repository);
+      Assert.AreEqual(LLocked.Revision, LLoaded.Revision);
+      Assert.AreEqual('refs/tags/v3.1.0', LLoaded.ResolvedFrom);
+      Assert.AreEqual('SHA-256', LLoaded.ChecksumAlgorithm);
+      Assert.AreEqual('content-checksum', LLoaded.Checksum);
+      Assert.AreEqual('MIT', LLoaded.LicenseExpression);
+      Assert.AreEqual('boss.json', LLoaded.LicenseSource);
+      Assert.AreEqual<Integer>(1, LLoaded.Dependencies.Count);
+      Assert.AreEqual('github.com/vendor/dependency', LLoaded.Dependencies[0]);
+    finally
+      LLoadedLock.Free;
+    end;
+  finally
+    LDep.Free;
+    LLock.Free;
+  end;
+end;
+
+procedure TTestsJson.TestLockV2DeterministicSerialization;
+var
+  LLock: TBoss4DLock;
+  LDepA, LDepZ: TBoss4DDependency;
+  LLocked: TBoss4DLockedDependency;
+  LFirstPath, LSecondPath: string;
+begin
+  LFirstPath := TPath.Combine(FTempDir, 'first-lock.json');
+  LSecondPath := TPath.Combine(FTempDir, 'second-lock.json');
+  LLock := TBoss4DLock.Create;
+  LDepA := TBoss4DDependency.Create('github.com/example/alpha', '1.0.0');
+  LDepZ := TBoss4DDependency.Create('github.com/example/zeta', '1.0.0');
+  try
+    // Insere em ordem inversa para provar que a ordem de escrita nao depende do dicionario.
+    LLock.AddDependency(LDepZ, '1.0.0', 'zeta-hash');
+    LLock.AddDependency(LDepA, '1.0.0', 'alpha-hash');
+    Assert.IsTrue(LLock.GetInstalled(LDepZ, LLocked));
+    LLocked.Dependencies.Add('github.com/example/z-child');
+    LLocked.Dependencies.Add('github.com/example/a-child');
+
+    FLockRepo.Save(LLock, LFirstPath);
+    FLockRepo.Save(LLock, LSecondPath);
+
+    Assert.AreEqual(
+      TFile.ReadAllText(LFirstPath, TEncoding.UTF8),
+      TFile.ReadAllText(LSecondPath, TEncoding.UTF8));
+    Assert.IsTrue(
+      TFile.ReadAllText(LFirstPath, TEncoding.UTF8).IndexOf('github.com/example/alpha') <
+      TFile.ReadAllText(LFirstPath, TEncoding.UTF8).IndexOf('github.com/example/zeta'));
+  finally
+    LDepZ.Free;
+    LDepA.Free;
+    LLock.Free;
+  end;
+end;
+
+procedure TTestsJson.TestLockV2RejectsFutureVersion;
+var
+  LFilePath: string;
+  LRaised: Boolean;
+  LLock: TBoss4DLock;
+begin
+  LFilePath := TPath.Combine(FTempDir, 'future-lock.json');
+  TFile.WriteAllText(LFilePath,
+    '{"lockVersion":999,"installedModules":{}}', TEncoding.UTF8);
+
+  LRaised := False;
+  LLock := nil;
+  try
+    try
+      LLock := FLockRepo.Load(LFilePath);
+    except
+      on E: EConvertError do
+      begin
+        LRaised := True;
+        Assert.IsTrue(E.Message.Contains('nao suportada'));
+      end;
+    end;
+    Assert.IsTrue(LRaised, 'Locks de versoes futuras devem ser recusados.');
+  finally
+    LLock.Free;
+  end;
+end;
+
+procedure TTestsJson.TestLockV2SharedAndCircularGraph;
+var
+  LFilePath: string;
+  LLock, LLoaded: TBoss4DLock;
+  LDepA, LDepB, LDepC: TBoss4DDependency;
+  LLocked: TBoss4DLockedDependency;
+begin
+  LFilePath := TPath.Combine(FTempDir, 'graph-lock.json');
+  LLock := TBoss4DLock.Create;
+  LDepA := TBoss4DDependency.Create('github.com/example/a', '1.0.0');
+  LDepB := TBoss4DDependency.Create('github.com/example/b', '1.0.0');
+  LDepC := TBoss4DDependency.Create('github.com/example/c', '1.0.0');
+  try
+    LLock.AddDependency(LDepA, '1.0.0', 'a');
+    LLock.AddDependency(LDepB, '1.0.0', 'b');
+    LLock.AddDependency(LDepC, '1.0.0', 'c');
+    Assert.IsTrue(LLock.GetInstalled(LDepA, LLocked));
+    LLocked.Dependencies.Add(LDepC.GetKey);
+    Assert.IsTrue(LLock.GetInstalled(LDepB, LLocked));
+    LLocked.Dependencies.Add(LDepC.GetKey);
+    Assert.IsTrue(LLock.GetInstalled(LDepC, LLocked));
+    LLocked.Dependencies.Add(LDepA.GetKey);
+
+    FLockRepo.Save(LLock, LFilePath);
+    LLoaded := FLockRepo.Load(LFilePath);
+    try
+      Assert.AreEqual<Integer>(3, LLoaded.Installed.Count);
+      Assert.IsTrue(LLoaded.GetInstalled(LDepA, LLocked));
+      Assert.AreEqual(LDepC.GetKey, LLocked.Dependencies[0]);
+      Assert.IsTrue(LLoaded.GetInstalled(LDepB, LLocked));
+      Assert.AreEqual(LDepC.GetKey, LLocked.Dependencies[0]);
+      Assert.IsTrue(LLoaded.GetInstalled(LDepC, LLocked));
+      Assert.AreEqual(LDepA.GetKey, LLocked.Dependencies[0]);
+    finally
+      LLoaded.Free;
+    end;
+  finally
+    LDepC.Free;
+    LDepB.Free;
+    LDepA.Free;
     LLock.Free;
   end;
 end;

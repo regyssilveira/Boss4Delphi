@@ -247,6 +247,115 @@ Essential for corporate environments that require open-source licensing validati
 
 ---
 
+## 7.1. SBOM generation (`sbom`)
+
+Generate a CycloneDX 1.7 JSON Software Bill of Materials from `boss.json` and
+`boss-lock.json` v2:
+
+```bash
+boss4d sbom --format cyclonedx --output bom.cdx.json --validate
+```
+
+The same neutral model can also be serialized as SPDX 2.3 JSON:
+
+```bash
+boss4d sbom --format spdx --output bom.spdx.json --validate
+```
+
+For CI and reproducible releases:
+
+```bash
+boss4d sbom --format cyclonedx --lock-only --strict --validate \
+  --reproducible --type application --output dist/bom.cdx.json
+```
+
+Without `--output`, the JSON document is written to standard output and
+diagnostics are written to standard error. `--strict` rejects missing revision,
+identity, checksum, or graph evidence. `--reproducible` omits volatile UUID and
+timestamp fields and guarantees stable ordering.
+`--lock-only` guarantees that no collector queries GetIt, Delphi installations,
+or artifact files, so it cannot be combined with any `--include-*` option.
+
+The basic SBOM covers dependencies managed by Boss4D. To enrich it with build
+machine evidence:
+
+```bash
+boss4d sbom --include-getit --include-toolchain --include-artifacts \
+  --output enriched-bom.cdx.json --validate
+```
+
+`--include-getit` queries packages installed through `GetItCmd`;
+`--include-toolchain` records detected RAD Studio installations and compiler/RTL
+coverage, including versions and SHA-256 for `dcc32`, `dcc64`, and `System.dcu`;
+`--include-artifacts` checks lock-file `artifacts` paths and calculates
+SHA-256 for files found. A failed query is never interpreted as an empty inventory.
+The collectors are opt-in because they reflect the local environment and can make
+the SBOM non-reproducible. External SDKs must still be declared manually.
+
+Packages that are merely installed through GetIt are recorded as environment
+inventory with unknown usage and are not linked to the root as dependencies. To
+assert project usage, declare the component under `sbom.components` with
+`"source": "getit"`; the collector reconciles its name/version with the installed
+inventory and reports mismatches.
+
+The core exposes extension points for merge, SCA, VEX, signing, and attestation.
+The CLI includes a concrete offline VEX transformer and a detached SHA-256
+attestor; neither is required for basic CycloneDX or SPDX generation. Network SCA
+lookups and identity-bearing digital signatures remain optional adapter concerns.
+
+An offline VEX file can enrich CycloneDX output without a network lookup:
+
+```bash
+boss4d sbom --format cyclonedx --vex security.vex.json \
+  --attestation-output bom.intoto.json --output bom.cdx.json --validate
+boss4d sbom --format cyclonedx --vex security.vex.json \
+  --verify-attestation bom.intoto.json --output verified-bom.cdx.json
+```
+
+The VEX file contains `vulnerabilities` entries with `id`, `component`, `state`,
+`detail`, and `source`. Supported states are `affected`, `not_affected`, `fixed`,
+and `under_investigation`. The detached attestation uses an in-toto Statement v1
+envelope and binds the SBOM SHA-256; any later modification fails verification.
+VEX is limited to CycloneDX because SPDX 2.3 does not include SPDX 3's security
+profile.
+
+Every lock-file `artifacts` block has an explicit base: `project` (the
+backward-compatible default), `module` (`modules/<dependency>`), or `absolute`.
+Absolute paths are accepted only with the `absolute` base, and relative paths
+that escape their selected base through `..` are rejected.
+
+Components that Boss4D cannot discover automatically, including commercial
+libraries, can be declared explicitly in `boss.json`:
+
+```json
+{
+  "sbom": {
+    "components": [
+      {
+        "id": "vendor-database-driver",
+        "name": "Vendor Database Driver",
+        "version": "5.4",
+        "type": "library",
+        "license": "Commercial",
+        "repository": "https://vendor.example/driver",
+        "hash": {
+          "algorithm": "SHA-256",
+          "value": "..."
+        }
+      }
+    ]
+  }
+}
+```
+
+Manual components are marked as declarations originating from `boss.json`; they
+are not presented as automatically discovered evidence.
+
+See [SBOM examples](sbom-examples.md) for complete copyable release, collector,
+artifact, VEX, and attestation workflows.
+
+---
+
 ## 🌳 8. Dependency Diagnostics (`tree` and `outdated`)
 
 ### Viewing Dependency Tree

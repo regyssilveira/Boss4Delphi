@@ -270,6 +270,11 @@ begin
       var LLockedDep: TBoss4DLockedDependency;
       Assert.IsTrue(LLock.GetInstalled(TBoss4DDependency.Create('github.com/hashload/horse', ''), LLockedDep));
       Assert.AreEqual('3.2.0', LLockedDep.Version); // v3.2.0 atende ^3.1.0 e Ã© a mais recente!
+      Assert.AreEqual<Integer>(2, LLock.LockVersion);
+      Assert.AreEqual('https://github.com/hashload/horse', LLockedDep.Repository);
+      Assert.AreEqual('0123456789abcdef0123456789abcdef01234567', LLockedDep.Revision);
+      Assert.AreEqual('3.2.0', LLockedDep.ResolvedFrom);
+      Assert.AreEqual('SHA-256', LLockedDep.ChecksumAlgorithm);
     finally
       LLock.Free;
     end;
@@ -368,6 +373,34 @@ begin
     // Testa o comando "help"
     LParser.ParseAndExecute(TArray<string>.Create('-h'));
     Assert.IsTrue(LLogger.LastLogMessage.Contains('Uso:'));
+
+    // Gera um SBOM por meio do parser real, sem escrever JSON no fluxo de logs.
+    LInit.Execute(True);
+    var LSbomLock := TBoss4DLock.Create;
+    try
+      LSbomLock.HasRootMetadata := True;
+      LSbomLock.RootName := 'cli-test';
+      LSbomLock.RootVersion := '1.0.0';
+      LLockRepo.Save(LSbomLock, TPath.Combine(FTempDir, FILE_PACKAGE_LOCK));
+    finally
+      LSbomLock.Free;
+    end;
+    var LSbomPath := TPath.Combine(FTempDir, 'bom.cdx.json');
+    LParser.ParseAndExecute(TArray<string>.Create('sbom', '--format', 'cyclonedx',
+      '--output', LSbomPath, '--validate', '--strict', '--reproducible', '--lock-only',
+      '--type', 'library'));
+    Assert.IsTrue(TFile.Exists(LSbomPath));
+    var LSbomContent := TFile.ReadAllText(LSbomPath, TEncoding.UTF8);
+    Assert.IsTrue(LSbomContent.Contains('"specVersion": "1.7"'));
+    Assert.IsTrue(LSbomContent.Contains('"type": "library"'));
+    Assert.IsFalse(LSbomContent.Contains('"timestamp"'));
+    var LInvalidFlagsRaised := False;
+    try
+      LParser.ParseAndExecute(TArray<string>.Create('sbom', '--lock-only', '--include-getit'));
+    except
+      on E: EArgumentException do LInvalidFlagsRaised := True;
+    end;
+    Assert.IsTrue(LInvalidFlagsRaised, 'Lock-only deve rejeitar coletores de ambiente.');
   finally
     LParser.Free;
     LConfigService.Free;
@@ -554,6 +587,8 @@ begin
       var LMDContent := TFile.ReadAllText(LReportMD, TEncoding.UTF8);
       Assert.IsTrue(LMDContent.Contains('horse'));
       Assert.IsTrue(LMDContent.Contains('MIT'));
+      Assert.IsTrue(LMDContent.Contains('spdx-expression'));
+      Assert.IsTrue(TFile.ReadAllText(LReportCSV, TEncoding.UTF8).Contains('licenseKind'));
     finally
       LLicenseService.Free;
     end;

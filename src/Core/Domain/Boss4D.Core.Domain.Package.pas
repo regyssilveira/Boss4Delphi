@@ -6,6 +6,31 @@ uses
   System.Generics.Collections, Boss4D.Core.Domain.Dependency;
 
 type
+  TBoss4DManualComponent = class
+  private
+    FId: string;
+    FName: string;
+    FVersion: string;
+    FComponentType: string;
+    FDescription: string;
+    FLicense: string;
+    FRepository: string;
+    FHashAlgorithm: string;
+    FHashValue: string;
+    FSource: string;
+  public
+    property Id: string read FId write FId;
+    property Name: string read FName write FName;
+    property Version: string read FVersion write FVersion;
+    property ComponentType: string read FComponentType write FComponentType;
+    property Description: string read FDescription write FDescription;
+    property License: string read FLicense write FLicense;
+    property Repository: string read FRepository write FRepository;
+    property HashAlgorithm: string read FHashAlgorithm write FHashAlgorithm;
+    property HashValue: string read FHashValue write FHashValue;
+    property Source: string read FSource write FSource;
+  end;
+
   { Configurações de Engines no boss.json }
   TBoss4DPackageEngines = class
   private
@@ -49,6 +74,7 @@ type
     FEngines: TBoss4DPackageEngines;
     FToolchain: TBoss4DPackageToolchain;
     FWorkspaces: TList<string>;
+    FSbomComponents: TObjectList<TBoss4DManualComponent>;
   public
     constructor Create;
     destructor Destroy; override;
@@ -72,6 +98,7 @@ type
     property Engines: TBoss4DPackageEngines read FEngines;
     property Toolchain: TBoss4DPackageToolchain read FToolchain;
     property Workspaces: TList<string> read FWorkspaces;
+    property SbomComponents: TObjectList<TBoss4DManualComponent> read FSbomComponents;
   end;
 
 implementation
@@ -104,10 +131,12 @@ begin
   FEngines := TBoss4DPackageEngines.Create;
   FToolchain := TBoss4DPackageToolchain.Create;
   FWorkspaces := TList<string>.Create;
+  FSbomComponents := TObjectList<TBoss4DManualComponent>.Create(True);
 end;
 
 destructor TBoss4DPackage.Destroy;
 begin
+  FSbomComponents.Free;
   FWorkspaces.Free;
   FToolchain.Free;
   FEngines.Free;

@@ -85,6 +85,7 @@ var
   LCacheDir: string;
   LTargetDir: string;
   LResolvedVersion: string;
+  LResolvedRevision: string;
   LSubDeps: TArray<TBoss4DDependency>;
 begin
   var LDepKey := ADep.GetKey;
@@ -126,6 +127,7 @@ begin
 
     // 2. Resolve a melhor versao disponivel usando SemVer se a versao informada for um range
     LResolvedVersion := ResolveDependencyVersion(ADep, LCacheDir);
+    LResolvedRevision := FGitClient.ResolveRevision(LCacheDir, LResolvedVersion);
 
     FLogger.Log(TBoss4DLogLevel.Debug, 'Versao selecionada para %s: %s', [ADep.Name, LResolvedVersion]);
 
@@ -152,6 +154,12 @@ begin
 
     // 4. Adiciona no arquivo lock com a sobrecarga de checksum
     ALock.AddDependency(ADep, LResolvedVersion, ADep.HashName, LChecksum);
+    if ALock.GetInstalled(ADep, LExistingLocked) then
+    begin
+      LExistingLocked.Revision := LResolvedRevision;
+      LExistingLocked.ResolvedFrom := LResolvedVersion;
+      LExistingLocked.ChecksumAlgorithm := 'SHA-256';
+    end;
   finally
     FGitCriticalSection.Leave;
   end;
@@ -163,6 +171,26 @@ begin
     var LSubPackage := FPackageRepo.Load(LPkgPath);
     try
       LSubDeps := LSubPackage.GetParsedDependencies;
+
+      FGitCriticalSection.Enter;
+      try
+        var LLockedDependency: TBoss4DLockedDependency;
+        if ALock.GetInstalled(ADep, LLockedDependency) then
+        begin
+          if not LSubPackage.License.IsEmpty then
+          begin
+            LLockedDependency.LicenseExpression := LSubPackage.License;
+            LLockedDependency.LicenseSource := FILE_PACKAGE;
+          end;
+
+          LLockedDependency.Dependencies.Clear;
+          for var LSubDep in LSubDeps do
+            LLockedDependency.Dependencies.Add(LSubDep.GetKey);
+        end;
+      finally
+        FGitCriticalSection.Leave;
+      end;
+
       for var LSubDep in LSubDeps do
       begin
         try
@@ -231,6 +259,25 @@ var
   LTasks: TList<ITask>;
   LSubPkgPath: string;
   LSubPkg: TBoss4DPackage;
+
+  procedure CaptureRootMetadata;
+  begin
+    LLock.HasRootMetadata := True;
+    LLock.RootName := LPkg.Name;
+    LLock.RootVersion := LPkg.Version;
+    LLock.RootDescription := LPkg.Description;
+    LLock.RootHomepage := LPkg.Homepage;
+    LLock.RootLicense := LPkg.License;
+    LLock.RootDependencies.Clear;
+    var LDeclaredDependencies := LPkg.GetParsedDependencies;
+    for var LDeclaredDependency in LDeclaredDependencies do
+      try
+        LLock.RootDependencies.Add(LDeclaredDependency.GetKey);
+      finally
+        LDeclaredDependency.Free;
+      end;
+    LLock.RootDependencies.Sort;
+  end;
 begin
   LPkgPath := GetBossFile;
   LLockPath := TPath.Combine(GetCurrentDir, FILE_PACKAGE_LOCK);
@@ -246,6 +293,7 @@ begin
   LProcessedDeps := TList<string>.Create;
   LTasks := TList<ITask>.Create;
   try
+    CaptureRootMetadata;
     // Se o lock nao tem hash do pacote, usa o hash do pacote atual
     if LLock.Hash.IsEmpty then
       LLock.Hash := THashMD5.GetHashString(LPkg.Name + LPkg.Version);
@@ -258,6 +306,7 @@ begin
         ProcessDependency(LDep, LLock, LProcessedDeps);
         LPkg.AddDependency(LDep.Repository, LDep.Version);
         FPackageRepo.Save(LPkg, LPkgPath);
+        CaptureRootMetadata;
 
         // Build da dependencia especifica
         BuildDependency(LDep, LLock, APlatform);
@@ -318,10 +367,11 @@ begin
         FLogger.Log(TBoss4DLogLevel.Info, 'Nenhuma dependencia declarada no boss.json.');
         LSubprojects.Free;
         LWorkspaceService.Free;
-        Exit;
       end;
 
-      FLogger.Log(TBoss4DLogLevel.Info, 'Baixando dependencias do projeto...');
+      if Length(LActiveDeps) > 0 then
+      begin
+        FLogger.Log(TBoss4DLogLevel.Info, 'Baixando dependencias do projeto...');
 
       FGlobalProcessedDeps.Clear;
 
@@ -364,6 +414,7 @@ begin
       // Limpa os objetos de dependencias do array
       for var LDep in LActiveDeps do
         LDep.Free;
+      end;
     end;
 
     // Atualiza metadados do lock e salva
@@ -372,13 +423,16 @@ begin
 
     FLogger.Log(TBoss4DLogLevel.Info, 'Instalacao concluida com sucesso!');
 
-    // Dispara a integracao automatica de Library Paths na IDE
-    var LRegistry: IBoss4DRegistryService := TBoss4DWindowsRegistryAdapter.Create;
-    var LIDEIntegration := TBoss4DIDEIntegrationService.Create(LRegistry, FLogger);
-    try
-      LIDEIntegration.IntegrateLibraryPaths(APlatform);
-    finally
-      LIDEIntegration.Free;
+    // Sem dependencias nao ha Library Paths a registrar; evita mutacao desnecessaria da IDE.
+    if LLock.Installed.Count > 0 then
+    begin
+      var LRegistry: IBoss4DRegistryService := TBoss4DWindowsRegistryAdapter.Create;
+      var LIDEIntegration := TBoss4DIDEIntegrationService.Create(LRegistry, FLogger);
+      try
+        LIDEIntegration.IntegrateLibraryPaths(APlatform);
+      finally
+        LIDEIntegration.Free;
+      end;
     end;
   finally
     LTasks.Free;

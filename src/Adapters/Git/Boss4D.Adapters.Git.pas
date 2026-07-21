@@ -18,6 +18,7 @@ type
     procedure CloneCache(const ADep: TBoss4DDependency; const ATargetDir: string);
     procedure UpdateCache(const ADep: TBoss4DDependency; const ACacheDir: string);
     function GetVersions(const ACacheDir: string): TArray<string>;
+    function ResolveRevision(const ACacheDir: string; const AVersion: string): string;
     procedure Checkout(const ACacheDir: string; const AVersion: string; const ATargetDir: string);
   end;
 
@@ -184,6 +185,27 @@ begin
     SetFileAttributes(PChar(LGitFolder), FILE_ATTRIBUTE_DIRECTORY);
     TDirectory.Delete(LGitFolder, True);
   end;
+end;
+
+function TBoss4DGitCliAdapter.ResolveRevision(const ACacheDir: string; const AVersion: string): string;
+var
+  LOutput: string;
+  LReference: string;
+begin
+  if AVersion.IsEmpty then
+    LReference := 'HEAD'
+  else
+    LReference := AVersion;
+
+  if not ExecuteGit('rev-parse "' + LReference + '^{commit}"', ACacheDir, LOutput) then
+  begin
+    if not AVersion.StartsWith('v', True) and
+       ExecuteGit('rev-parse "v' + AVersion + '^{commit}"', ACacheDir, LOutput) then
+      Exit(LOutput.Trim);
+    raise Exception.CreateFmt('Erro ao resolver a revisao Git de %s: %s', [LReference, LOutput]);
+  end;
+
+  Result := LOutput.Trim;
 end;
 
 end.
