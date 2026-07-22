@@ -93,7 +93,7 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d config git shallow <true/false>`
   Enables or disables shallow clones for faster Git download processes.
 * `boss4d version`
-  Prints the CLI version (`v1.0.1-delphi-native`).
+  Prints the CLI version (`v1.1.0-delphi-native`).
 * `boss4d sbom --format cyclonedx|spdx --output <file> --validate`
   Generates CycloneDX 1.7 or SPDX 2.3 from `boss.json` plus `boss-lock.json` v2.
   `--lock-only` can generate a reproducible release SBOM using only root and
