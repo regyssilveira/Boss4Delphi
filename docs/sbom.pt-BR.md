@@ -157,4 +157,3 @@ manual opcional para runner Windows/Delphi self-hosted.
 - [Migração para o schema v2 do lock](sbom-migration.pt-BR.md)
 - [Checklist de release](sbom-release-checklist.pt-BR.md)
 - [Roadmap e decisões arquiteturais](sbom-roadmap.pt-BR.md)
-

@@ -158,4 +158,3 @@ optional manual automation for a self-hosted Windows/Delphi runner.
 - [Migrating to lock schema v2](sbom-migration.md)
 - [Release checklist](sbom-release-checklist.md)
 - [Architecture roadmap and decisions](sbom-roadmap.pt-BR.md) (Portuguese)
-
