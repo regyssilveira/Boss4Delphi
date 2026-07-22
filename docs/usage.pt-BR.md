@@ -581,8 +581,8 @@ array ordenado `projects` pode conter `.dproj`, `.lpi` ou `.lpk`; os paths devem
 permanecer dentro da raiz. Delphi usa MSBuild e Lazarus requer `lazbuild` no
 `PATH`. Fontes textuais são normalizados antes da verificação de checksum.
 
-Consulte o [guia completo](upstream-improvements.pt-BR.md) e o
-[exemplo copiável](../examples/upstream-improvements/README.md).
+Consulte o [guia completo](build-improvements.pt-BR.md) e o
+[exemplo copiável](../examples/build-improvements/README.md).
 
 ---
 

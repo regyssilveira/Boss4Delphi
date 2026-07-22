@@ -1,7 +1,7 @@
-# BOSS compatibility and build improvements
+# Deterministic build improvements
 
-Boss4D incorporates selected behavior from recent BOSS releases while keeping
-the native Delphi architecture and reproducible lock/SBOM model.
+Boss4D provides deterministic dependency storage, explicit toolchain selection,
+Delphi/Lazarus project builds, and a reproducible lock/SBOM evidence model.
 
 ## Collision-free dependency directories
 
@@ -52,4 +52,4 @@ SBOM describe the exact installed bytes.
 The DPK manifest helper adds missing `requires` entries without rebuilding the
 clause, preserving comments and conditional compiler directives.
 
-See the [copyable example](../examples/upstream-improvements/README.md).
+See the [copyable example](../examples/build-improvements/README.md).

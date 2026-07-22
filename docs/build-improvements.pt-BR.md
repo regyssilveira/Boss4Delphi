@@ -1,7 +1,7 @@
-# Melhorias de compatibilidade e build do BOSS
+# Melhorias de build determinístico
 
-O Boss4D incorpora comportamentos selecionados das versões recentes do BOSS,
-preservando a arquitetura Delphi nativa e o modelo reproduzível de lock/SBOM.
+O Boss4D oferece armazenamento determinístico de dependências, seleção explícita
+de toolchain, builds Delphi/Lazarus e um modelo reproduzível de evidências lock/SBOM.
 
 ## Diretórios de dependências sem colisão
 
@@ -50,4 +50,4 @@ SBOM descrevem exatamente os bytes instalados.
 O helper de DPK inclui dependências ausentes em `requires` sem reconstruir a
 cláusula, preservando comentários e diretivas condicionais.
 
-Veja o [exemplo copiável](../examples/upstream-improvements/README.md).
+Veja o [exemplo copiável](../examples/build-improvements/README.md).

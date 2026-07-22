@@ -578,8 +578,8 @@ An ordered `projects` array may contain `.dproj`, `.lpi`, or `.lpk`; paths must
 remain inside the package root. Delphi uses MSBuild and Lazarus requires
 `lazbuild` on `PATH`. Text sources are normalized before checksum verification.
 
-See [the complete guide](upstream-improvements.md) and
-[copyable example](../examples/upstream-improvements/README.md).
+See [the complete guide](build-improvements.md) and
+[copyable example](../examples/build-improvements/README.md).
 
 ---
 
