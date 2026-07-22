@@ -100,7 +100,8 @@ cd /d d:\Projetos\BossDelphi
   dependency evidence stored in the lock. Optional collectors add GetIt inventory,
   Delphi compiler/RTL provenance, and declared artifact hashes. CycloneDX can also
   import offline VEX data and both formats support detached SHA-256 attestations.
-  See the [SBOM guide](docs/usage.md#71-sbom-generation-sbom),
+  See [why and how SBOM support works](docs/sbom.md), the
+  [CLI reference](docs/usage.md#71-sbom-generation-sbom),
   [copyable examples](docs/sbom-examples.md), and
   [v2 migration guide](docs/sbom-migration.md).
 * `boss4d help`
@@ -109,6 +110,7 @@ cd /d d:\Projetos\BossDelphi
 ---
 
 ## 📖 Additional Documentation
+* **[SBOM Feature Guide](docs/sbom.md)**: Motivation, evidence model, coverage, VEX, attestations, limitations, and recommended release workflow.
 * **[CLI Usage Manual](docs/usage.md)**: Detailed step-by-step guide covering all command options and dependency configurations.
 * **[Contribution Guide](CONTRIBUTING.md)**: Coding standards and guidelines for contribution.
 * **[Release Guide](RELEASE_GUIDE.md)**: Steps and instructions to compile with Delphi 13 (37.0) and publish releases on GitHub.

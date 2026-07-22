@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Documentation
+
+- Added dedicated English and Portuguese SBOM feature guides explaining motivation,
+  evidence sources, coverage semantics, VEX, attestations, limitations, and the
+  recommended release workflow.
+
 ## 1.1.0 - 2026-07-21
 
 ### Added
