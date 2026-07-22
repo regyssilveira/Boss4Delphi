@@ -396,7 +396,7 @@ begin
   try
     // Testa o comando "version"
     LParser.ParseAndExecute(TArray<string>.Create('version'));
-    Assert.AreEqual('v1.1.0-delphi-native', LLogger.LastLogMessage.Trim);
+    Assert.AreEqual('v1.2.0-delphi-native', LLogger.LastLogMessage.Trim);
 
     // Testa o comando "help"
     LParser.ParseAndExecute(TArray<string>.Create('-h'));

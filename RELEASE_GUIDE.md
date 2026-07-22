@@ -64,13 +64,13 @@ Sempre execute e garanta que 100% dos testes unitários estejam passando antes d
 ---
 
 ## 🏷️ 4. Procedimento para Atualizar ou Criar Tags no Git
-Para criar e apontar uma tag física (por exemplo, `v1.1.0`) para o commit atualizado:
+Para criar e apontar uma tag física (por exemplo, `v1.2.0`) para o commit atualizado:
 ```bash
 # Cria a nova tag local no commit atual
-git tag v1.1.0
+git tag v1.2.0
 
 # Envia a tag para o repositório remoto do GitHub
-git push origin v1.1.0
+git push origin v1.2.0
 ```
 
 ---
@@ -88,5 +88,5 @@ Execute o seguinte comando no terminal do Windows para criar a release e fazer o
 $env:GITHUB_TOKEN = $null
 
 # 2. Cria a release e anexa o instalador de Setup
-gh release create v1.1.0 installer\Output\Boss4D_Setup.exe --title "v1.1.0" --notes "Sua descrição detalhada da release aqui"
+gh release create v1.2.0 installer\Output\Boss4D_Setup.exe --title "v1.2.0" --notes "Sua descrição detalhada da release aqui"
 ```

@@ -95,7 +95,7 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d config git shallow <true/false>`
   Enables or disables shallow clones for faster Git download processes.
 * `boss4d version`
-  Prints the CLI version (`v1.1.0-delphi-native`).
+  Prints the CLI version (`v1.2.0-delphi-native`).
 * `boss4d new app|package <name> [--path <directory>]`
   Creates a protected project skeleton without overwriting a non-empty directory.
 * `boss4d sbom --format cyclonedx|spdx --output <file> --validate`
