@@ -105,6 +105,19 @@ Falha de coletor é reportada como cobertura incompleta. Ela nunca é convertida
 inventário vazio, pois “nada foi encontrado” e “a descoberta falhou” são afirmações
 de segurança diferentes.
 
+## Normalização de build e identidade dos componentes
+
+Os diretórios das dependências podem incluir um hash curto do repositório
+canônico para impedir colisões de nomes. Esse nome físico é apenas um detalhe da
+instalação: `bom-ref` do CycloneDX, `SPDXID`, relacionamentos e correspondência
+VEX continuam usando as evidências canônicas do `boss-lock.json`, e não a pasta.
+
+Fontes textuais Delphi e Lazarus são normalizados para CRLF após o checkout e
+antes do cálculo SHA-256. Portanto, o checksum registrado no lock e exportado
+para CycloneDX/SPDX descreve exatamente os bytes instalados. DFM binário é
+detectado e preservado. Projetos `.dproj`, `.lpi` e `.lpk` declarados determinam
+a ferramenta de build, mas não alteram a identidade do componente nem o VEX.
+
 ## VEX e contexto de vulnerabilidade
 
 Um documento VEX explica se uma vulnerabilidade conhecida afeta um componente do

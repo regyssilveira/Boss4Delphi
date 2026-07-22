@@ -10,7 +10,7 @@ uses
   Boss4D.Core.Services.Tree, Boss4D.Core.Services.Outdated,
   Boss4D.Core.Services.Tool, Boss4D.Core.Services.IDEIntegration,
   Boss4D.Core.Services.GetIt, Boss4D.Core.Services.Clean,
-  Boss4D.Core.Services.Sbom;
+  Boss4D.Core.Services.Sbom, Boss4D.Core.Services.Scaffold;
 
 
 type
@@ -51,6 +51,7 @@ type
     procedure HandlePlugin(const AArgs: TArray<string>);
     procedure HandleGetIt(const AArgs: TArray<string>);
     procedure HandleClean(const AArgs: TArray<string>);
+    procedure HandleNew(const AArgs: TArray<string>);
     function ParseSbomArguments(
       const AArgs: TArray<string>): TBoss4DSbomCommandOptions;
     procedure HandleSbom(const AArgs: TArray<string>);
@@ -134,6 +135,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  outdated             Verifica se ha atualizacoes disponiveis dos pacotes.');
   FLogger.Log(TBoss4DLogLevel.Info, '  tool install -g <repo> Compila e instala um utilitario Delphi globalmente.');
   FLogger.Log(TBoss4DLogLevel.Info, '  clean                Apaga a pasta modules e o arquivo boss-lock.json.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  new app|package <nome> [--path <dir>] Cria um projeto a partir de template.');
   FLogger.Log(TBoss4DLogLevel.Info, '  version, -v, --version Exibe a versao atual do Boss4D.');
   FLogger.Log(TBoss4DLogLevel.Info, '  help, -h, --help     Exibe este menu de ajuda.');
   FLogger.Log(TBoss4DLogLevel.Info, '');
@@ -184,6 +186,8 @@ begin
     HandleGetIt(AArgs)
   else if LCommand = 'clean' then
     HandleClean(AArgs)
+  else if LCommand = 'new' then
+    HandleNew(AArgs)
   else if LCommand = 'sbom' then
     HandleSbom(AArgs);
 end;
@@ -492,7 +496,8 @@ begin
 
   LDep := TBoss4DDependency.Create(AArgs[2], '*');
   LLock := TBoss4DLock.Create;
-  LTempCloneDir := TPath.Combine(TPath.Combine(GetBossHome, 'temp_plugins'), LDep.Name);
+  LTempCloneDir := TPath.Combine(TPath.Combine(GetBossHome, 'temp_plugins'),
+    LDep.StorageName);
   LPluginsDir := TPath.Combine(TPath.Combine(GetEnvironmentVariable('APPDATA'), 'Boss4D'), 'plugins');
   try
     if TDirectory.Exists(LTempCloneDir) then
@@ -584,6 +589,33 @@ begin
     LCleanService.Execute;
   finally
     LCleanService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleNew(const AArgs: TArray<string>);
+var
+  LTemplate, LName, LTargetPath: string;
+  LService: TBoss4DScaffoldService;
+begin
+  if Length(AArgs) < 3 then
+    raise EArgumentException.Create(
+      'Uso: boss4d new app|package <nome> [--path <diretorio>]');
+  LTemplate := AArgs[1];
+  LName := AArgs[2];
+  LTargetPath := TPath.Combine(GetCurrentDir, LName);
+  for var I := 3 to Length(AArgs) - 1 do
+    if SameText(AArgs[I], '--path') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create('Informe um diretorio para --path.');
+      LTargetPath := AArgs[I + 1];
+      Break;
+    end;
+  LService := TBoss4DScaffoldService.Create(FPackageRepo, FLogger);
+  try
+    LService.Execute(LTemplate, LName, LTargetPath);
+  finally
+    LService.Free;
   end;
 end;
 

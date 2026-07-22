@@ -13,7 +13,7 @@ Este documento apresenta a matriz de priorização de novas funcionalidades e me
 | **Compartilhamento de Cache via Hardlinks** | Épico 17 (Performance) | Média | Alto | **Must Have** (Essencial) |
 | **Registros Privados corporativos** (`boss4d registry`) | Épico 18 (Hospedagem) | Média | Alto | **Should Have** (Importante) |
 | **Paralelização de Downloads e MSBuild** | Épico 17 (Performance) | Alta | Alto | **Should Have** (Importante) |
-| **Inicialização com Templates** (`boss4d new <template>`) | Épico 19 (Produtividade) | Baixa | Médio | **Should Have** (Importante) |
+| **Inicialização com Templates** (`boss4d new <template>`) | Épico 19 (Produtividade) | Baixa | Médio | **Entregue** (`app` e `package`) |
 | **Geração de Documentação de APIs** (`boss4d doc`) | Épico 20 (Ciclo de Vida) | Alta | Médio | **Should Have** (Importante) |
 | **Auditoria de Segurança de Pacotes** (`boss4d audit`) | Épico 16 (Segurança) | Alta | Médio | **Should Have** (Importante) |
 | **Resolução Estrita de Versões** (MVS) | Épico 20 (Ciclo de Vida) | Média | Médio | **Should Have** (Importante) |

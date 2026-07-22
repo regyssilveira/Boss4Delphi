@@ -106,6 +106,19 @@ Collector failure is reported as incomplete coverage. It is never converted into
 an empty inventory, because “nothing was found” and “discovery failed” are different
 security statements.
 
+## Build normalization and component identity
+
+Dependency directories may include a short canonical-repository hash to prevent
+same-name collisions. This physical directory name is an installation detail:
+CycloneDX `bom-ref`, SPDX `SPDXID`, relationships, and VEX matching continue to
+use canonical component evidence from `boss-lock.json`, not the folder name.
+
+Textual Delphi and Lazarus sources are normalized to CRLF after checkout and
+before SHA-256 calculation. Therefore, the checksum stored in the lock and
+exported to CycloneDX/SPDX describes the exact installed bytes. Binary DFM files
+are detected and left unchanged. Declared `.dproj`, `.lpi`, and `.lpk` projects
+affect the build tool used, but do not change component identity or VEX states.
+
 ## VEX and vulnerability context
 
 A VEX document explains whether a known vulnerability affects a particular product

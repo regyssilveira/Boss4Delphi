@@ -52,7 +52,8 @@ begin
   LDep := TBoss4DDependency.Create(ARepository, '*');
   LLock := TBoss4DLock.Create;
   LHomeDir := GetBossHome;
-  LTempCloneDir := TPath.Combine(TPath.Combine(LHomeDir, 'temp_tools'), LDep.Name);
+  LTempCloneDir := TPath.Combine(TPath.Combine(LHomeDir, 'temp_tools'),
+    LDep.StorageName);
   LBinGlobalDir := TPath.Combine(LHomeDir, 'bin');
   try
     // 1. Limpa clone temporario anterior se houver

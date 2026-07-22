@@ -75,6 +75,12 @@ type
     procedure TestMultiplatformCompilation;
 
     [Test]
+    procedure TestToolchainAndDeclaredProjects;
+
+    [Test]
+    procedure TestDeclaredProjectRejectsTraversal;
+
+    [Test]
     procedure TestIDEIntegration;
 
     [Test]
@@ -106,12 +112,22 @@ type
 
     [Test]
     procedure TestCleanService;
+
+    [Test]
+    procedure TestScaffoldService;
+
+    [Test]
+    procedure TestSourceNormalizer;
+
+    [Test]
+    procedure TestPackageRequiresPreservesConditionals;
   end;
 
 implementation
 
 uses
-  Winapi.Windows, System.SysUtils, System.Classes, System.IOUtils, System.Generics.Collections,
+  Winapi.Windows, System.SysUtils, System.Classes, System.IOUtils,
+  System.Generics.Collections, System.RegularExpressions,
   System.Win.Registry,
   Boss4D.Core.Domain.Package, Boss4D.Core.Domain.Lock, Boss4D.Core.Domain.Dependency,
   Boss4D.Core.Domain.Consts, Boss4D.Core.Domain.Env, Boss4D.Core.Services.Init,
@@ -121,7 +137,9 @@ uses
   Boss4D.Core.Services.Doctor, Boss4D.Core.Services.License,
   Boss4D.Core.Services.Tree, Boss4D.Core.Services.Outdated,
   Boss4D.Core.Services.IDEIntegration, Boss4D.Core.Services.Tool, Boss4D.Core.Services.Workspace, Boss4D.Core.Services.GetIt,
-  Boss4D.Core.Services.Clean, Boss4D.IDE.Wizard;
+  Boss4D.Core.Services.Clean, Boss4D.Core.Services.Scaffold,
+  Boss4D.Core.Services.SourceNormalizer,
+  Boss4D.Core.Services.PackageManifest, Boss4D.IDE.Wizard;
 
 { TTestLogger }
 
@@ -258,8 +276,13 @@ begin
     LInstall.Execute('github.com/hashload/horse@^3.1.0');
 
     // Valida se o diretÃ³rio do mÃ³dulo foi criado em modules/horse
-    var LModuleDir := TPath.Combine(GetModulesDir, 'horse');
-    Assert.IsTrue(TDirectory.Exists(LModuleDir));
+    var LInstalledDep := TBoss4DDependency.Create('github.com/hashload/horse', '');
+    try
+      var LModuleDir := TPath.Combine(GetModulesDir, LInstalledDep.StorageName);
+      Assert.IsTrue(TDirectory.Exists(LModuleDir));
+    finally
+      LInstalledDep.Free;
+    end;
 
     // Valida se o boss-lock.json foi gerado e travado na versÃ£o resolvida
     LLockPath := TPath.Combine(FTempDir, FILE_PACKAGE_LOCK);
@@ -319,8 +342,13 @@ begin
     LInstall.Execute('github.com/hashload/horse@master');
 
     // Valida se o diretorio do modulo foi criado
-    var LModuleDir := TPath.Combine(GetModulesDir, 'horse');
-    Assert.IsTrue(TDirectory.Exists(LModuleDir));
+    var LInstalledDep := TBoss4DDependency.Create('github.com/hashload/horse', '');
+    try
+      var LModuleDir := TPath.Combine(GetModulesDir, LInstalledDep.StorageName);
+      Assert.IsTrue(TDirectory.Exists(LModuleDir));
+    finally
+      LInstalledDep.Free;
+    end;
 
     // Valida se o boss-lock.json foi gerado e travado no branch literal
     LLockPath := TPath.Combine(FTempDir, FILE_PACKAGE_LOCK);
@@ -640,7 +668,7 @@ begin
         Assert.IsFalse(LLockedDep.Checksum.IsEmpty); // Deve ter computado hash SHA-256
 
         // Simula uma alteraÃ§Ã£o indevida de arquivos na dependÃªncia instalada
-        LTargetDir := TPath.Combine(GetModulesDir, LLockedDep.Name);
+        LTargetDir := TPath.Combine(GetModulesDir, LDep.StorageName);
         TFile.WriteAllText(TPath.Combine(LTargetDir, 'unauthorized.txt'), 'tampered content', TEncoding.UTF8);
 
         // 2. Tenta re-instalar (deve disparar erro de seguranÃ§a, pois o checksum calculado diverge do trancado!)
@@ -686,7 +714,9 @@ begin
   LPkg.Free;
 
   // 2. Cria subdependÃªncia mockada em modules/
-  LSubDir := TPath.Combine(GetModulesDir, 'dep1');
+  var LDep1 := TBoss4DDependency.Create('github.com/dep1', '');
+  LSubDir := TPath.Combine(GetModulesDir, LDep1.StorageName);
+  LDep1.Free;
   TDirectory.CreateDirectory(LSubDir);
   LPkg := TBoss4DPackage.Create;
   LPkg.Name := 'dep1';
@@ -695,7 +725,9 @@ begin
   LPkgRepo.Save(LPkg, TPath.Combine(LSubDir, FILE_PACKAGE));
   LPkg.Free;
 
-  LSubDir2 := TPath.Combine(GetModulesDir, 'dep2');
+  var LDep2 := TBoss4DDependency.Create('github.com/dep2', '');
+  LSubDir2 := TPath.Combine(GetModulesDir, LDep2.StorageName);
+  LDep2.Free;
   TDirectory.CreateDirectory(LSubDir2);
   LPkg := TBoss4DPackage.Create;
   LPkg.Name := 'dep2';
@@ -813,6 +845,78 @@ begin
     end;
   finally
     LConfigService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestToolchainAndDeclaredProjects;
+var
+  LPackageRepository: IBoss4DPackageRepository;
+  LLockRepository: IBoss4DLockRepository;
+  LPackage: TBoss4DPackage;
+  LGitClient: TGitClientMock;
+  LCompiler: TCompilerMock;
+  LInstall: TBoss4DInstallService;
+begin
+  LPackageRepository := TBoss4DPackageJsonRepository.Create;
+  LLockRepository := TBoss4DLockJsonRepository.Create;
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'toolchain-test';
+    LPackage.Version := '1.0.0';
+    LPackage.Toolchain.Platform := 'Win64';
+    LPackage.Toolchain.Compiler := '37.0';
+    LPackageRepository.Save(LPackage, GetBossFile);
+  finally
+    LPackage.Free;
+  end;
+
+  LGitClient := TGitClientMock.Create;
+  LCompiler := TCompilerMock.Create;
+  LInstall := TBoss4DInstallService.Create(LPackageRepository, LLockRepository,
+    LGitClient, THttpClientMock.Create, LCompiler, TTestLogger.Create);
+  try
+    LInstall.Execute('github.com/test/declared_projects@1.0.0');
+    Assert.AreEqual<Integer>(2, LCompiler.CompiledProjects.Count);
+    Assert.AreEqual('runtime.dproj',
+      TPath.GetFileName(LCompiler.CompiledProjects[0]).ToLower);
+    Assert.AreEqual('runtime.lpk',
+      TPath.GetFileName(LCompiler.CompiledProjects[1]).ToLower);
+    Assert.AreEqual('Win64', LCompiler.LastPlatform);
+    Assert.AreEqual('37.0', LCompiler.LastCompilerVersion);
+    LInstall.Execute('github.com/test/declared_projects@1.0.0', 'Win32');
+    Assert.AreEqual('Win32', LCompiler.LastPlatform);
+  finally
+    LInstall.Free;
+  end;
+end;
+
+procedure TTestsServices.TestDeclaredProjectRejectsTraversal;
+var
+  LRepository: IBoss4DPackageRepository;
+  LPackage: TBoss4DPackage;
+  LInstall: TBoss4DInstallService;
+begin
+  LRepository := TBoss4DPackageJsonRepository.Create;
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'invalid-project-test';
+    LPackage.Version := '1.0.0';
+    LRepository.Save(LPackage, GetBossFile);
+  finally
+    LPackage.Free;
+  end;
+  LInstall := TBoss4DInstallService.Create(LRepository,
+    TBoss4DLockJsonRepository.Create, TGitClientMock.Create,
+    THttpClientMock.Create, TCompilerMock.Create, TTestLogger.Create);
+  try
+    Assert.WillRaise(
+      procedure
+      begin
+        LInstall.Execute('github.com/test/invalid_project@1.0.0');
+      end,
+      EArgumentException);
+  finally
+    LInstall.Free;
   end;
 end;
 
@@ -1373,6 +1477,74 @@ begin
 
   Assert.IsFalse(TDirectory.Exists(LModulesDir), 'Pasta modules deveria ter sido removida!');
   Assert.IsFalse(TFile.Exists(LLockFile), 'Arquivo boss-lock.json deveria ter sido removido!');
+end;
+
+procedure TTestsServices.TestScaffoldService;
+var
+  LRepository: IBoss4DPackageRepository;
+  LService: TBoss4DScaffoldService;
+  LTarget: string;
+  LPackage: TBoss4DPackage;
+begin
+  LRepository := TBoss4DPackageJsonRepository.Create;
+  LTarget := TPath.Combine(FTempDir, 'SampleApp');
+  LService := TBoss4DScaffoldService.Create(LRepository, TTestLogger.Create);
+  try
+    LService.Execute('app', 'SampleApp', LTarget);
+  finally
+    LService.Free;
+  end;
+
+  Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget, FILE_PACKAGE)));
+  Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget, 'SampleApp.dpr')));
+  Assert.IsTrue(TDirectory.Exists(TPath.Combine(LTarget, 'src')));
+  Assert.IsTrue(TDirectory.Exists(TPath.Combine(LTarget, 'tests')));
+  LPackage := LRepository.Load(TPath.Combine(LTarget, FILE_PACKAGE));
+  try
+    Assert.AreEqual('SampleApp', LPackage.Name);
+    Assert.AreEqual<Integer>(1, LPackage.Projects.Count);
+    Assert.AreEqual('SampleApp.dpr', LPackage.Projects[0]);
+  finally
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsServices.TestSourceNormalizer;
+var
+  LSourcePath, LTextPath, LBinaryPath: string;
+  LBytes: TBytes;
+begin
+  LSourcePath := TPath.Combine(FTempDir, 'unit.pas');
+  LTextPath := TPath.Combine(FTempDir, 'notes.txt');
+  LBinaryPath := TPath.Combine(FTempDir, 'binary.dfm');
+  TFile.WriteAllBytes(LSourcePath, TEncoding.UTF8.GetBytes('unit X;'#10'end.'));
+  TFile.WriteAllBytes(LTextPath, TEncoding.UTF8.GetBytes('one'#10'two'));
+  TFile.WriteAllBytes(LBinaryPath, TBytes.Create(0, 10, 20));
+
+  TBoss4DSourceNormalizer.NormalizeDirectoryToCRLF(FTempDir);
+  LBytes := TFile.ReadAllBytes(LSourcePath);
+  Assert.IsTrue(TEncoding.UTF8.GetString(LBytes).Contains(#13#10));
+  Assert.AreEqual('one'#10'two',
+    TEncoding.UTF8.GetString(TFile.ReadAllBytes(LTextPath)));
+  Assert.AreEqual<Integer>(3, Length(TFile.ReadAllBytes(LBinaryPath)));
+end;
+
+procedure TTestsServices.TestPackageRequiresPreservesConditionals;
+var
+  LOriginal, LUpdated: string;
+begin
+  LOriginal := 'package Sample;' + sLineBreak + 'requires' + sLineBreak +
+    '  rtl,' + sLineBreak + '  {$IFDEF MSWINDOWS}' + sLineBreak +
+    '  designide,' + sLineBreak + '  {$ENDIF}' + sLineBreak +
+    '  vcl;' + sLineBreak + 'end.';
+  LUpdated := TBoss4DPackageManifest.AddRequires(LOriginal,
+    TArray<string>.Create('newruntime', 'rtl'));
+  Assert.IsTrue(LUpdated.Contains('{$IFDEF MSWINDOWS}'));
+  Assert.IsTrue(LUpdated.Contains('designide,'));
+  Assert.IsTrue(LUpdated.Contains('{$ENDIF}'));
+  Assert.IsTrue(LUpdated.Contains('newruntime'));
+  Assert.AreEqual<Integer>(1,
+    TRegEx.Matches(LUpdated, '(?i)\brtl\b').Count);
 end;
 
 end.

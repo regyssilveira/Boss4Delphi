@@ -1,0 +1,14 @@
+{
+  "name": "mixed-toolchain-example",
+  "version": "1.0.0",
+  "mainsrc": "src",
+  "projects": [
+    "src/runtime.dproj",
+    "src/runtime.lpk"
+  ],
+  "toolchain": {
+    "compiler": "37.0",
+    "platform": "Win64"
+  },
+  "dependencies": {}
+}
