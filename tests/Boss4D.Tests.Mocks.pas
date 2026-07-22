@@ -39,9 +39,20 @@ type
 
   { Mock para simulacao do Compilador Delphi }
   TCompilerMock = class(TInterfacedObject, IBoss4DCompiler)
+  private
+    FCompiledProjects: TList<string>;
+    FLastPlatform: string;
+    FLastCompilerVersion: string;
   public
-    function Compile(const ADprojPath: string; const ADep: TBoss4DDependency; const ARootLock: TBoss4DLock; const APlatform: string = ''): Boolean;
+    constructor Create;
+    destructor Destroy; override;
+    function Compile(const AProjectPath: string; const ADep: TBoss4DDependency;
+      const ARootLock: TBoss4DLock; const APlatform: string = '';
+      const ACompilerVersion: string = ''): Boolean;
     function BuildSearchPath(const ADep: TBoss4DDependency; const APlatform: string = ''): string;
+    property CompiledProjects: TList<string> read FCompiledProjects;
+    property LastPlatform: string read FLastPlatform;
+    property LastCompilerVersion: string read FLastCompilerVersion;
   end;
 
   { Mock para simulacao do Registro do Windows }
@@ -134,11 +145,29 @@ begin
     TDirectory.CreateDirectory(ATargetDir);
 
   // Cria um arquivo boss.json mockado na dependencia se nao existir
+  var LRepository := '';
+  FCacheMap.TryGetValue(TPath.GetFileName(ACacheDir).ToLower, LRepository);
   var LPkgPath := TPath.Combine(ATargetDir, 'boss.json');
   if not TFile.Exists(LPkgPath) then
   begin
     var LName := TPath.GetFileName(ATargetDir);
-    TFile.WriteAllText(LPkgPath, '{"name": "' + LName + '", "version": "' + AVersion + '", "dependencies": {}}');
+    if LRepository.Contains('invalid_project') then
+      TFile.WriteAllText(LPkgPath, '{"name": "' + LName +
+        '", "version": "' + AVersion +
+        '", "projects": ["../escape.dproj"], "dependencies": {}}')
+    else if LRepository.Contains('declared_projects') then
+    begin
+      TDirectory.CreateDirectory(TPath.Combine(ATargetDir, 'src'));
+      TDirectory.CreateDirectory(TPath.Combine(ATargetDir, 'examples'));
+      TFile.WriteAllText(TPath.Combine(ATargetDir, 'src\runtime.dproj'), 'runtime');
+      TFile.WriteAllText(TPath.Combine(ATargetDir, 'src\runtime.lpk'), 'lazarus');
+      TFile.WriteAllText(TPath.Combine(ATargetDir, 'examples\demo.dproj'), 'demo');
+      TFile.WriteAllText(LPkgPath, '{"name": "' + LName +
+        '", "version": "' + AVersion +
+        '", "projects": ["src/runtime.dproj", "src/runtime.lpk"], "dependencies": {}}');
+    end
+    else
+      TFile.WriteAllText(LPkgPath, '{"name": "' + LName + '", "version": "' + AVersion + '", "dependencies": {}}');
   end;
 end;
 
@@ -171,10 +200,25 @@ end;
 
 { TCompilerMock }
 
-function TCompilerMock.Compile(const ADprojPath: string; const ADep: TBoss4DDependency;
-  const ARootLock: TBoss4DLock; const APlatform: string = ''): Boolean;
+constructor TCompilerMock.Create;
 begin
-  // Apenas simula sucesso de compilacao
+  inherited Create;
+  FCompiledProjects := TList<string>.Create;
+end;
+
+destructor TCompilerMock.Destroy;
+begin
+  FCompiledProjects.Free;
+  inherited Destroy;
+end;
+
+function TCompilerMock.Compile(const AProjectPath: string; const ADep: TBoss4DDependency;
+  const ARootLock: TBoss4DLock; const APlatform: string = '';
+  const ACompilerVersion: string = ''): Boolean;
+begin
+  FCompiledProjects.Add(AProjectPath);
+  FLastPlatform := APlatform;
+  FLastCompilerVersion := ACompilerVersion;
   Result := True;
 end;
 

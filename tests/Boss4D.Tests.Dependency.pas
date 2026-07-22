@@ -29,12 +29,16 @@ type
     procedure TestCanonicalRepositoryIdentity;
 
     [Test]
+    procedure TestCollisionFreeStorageName;
+
+    [Test]
     procedure TestParseCommandLine;
   end;
 
 implementation
 
 uses
+  System.SysUtils,
   Boss4D.Core.Domain.Dependency;
 
 { TTestsDependency }
@@ -105,6 +109,24 @@ begin
     LCredential.Free;
     LSSH.Free;
     LHTTPS.Free;
+  end;
+end;
+
+procedure TTestsDependency.TestCollisionFreeStorageName;
+var
+  LFirst, LSecond, LSSH: TBoss4DDependency;
+begin
+  LFirst := TBoss4DDependency.Create('github.com/company-a/common', '1.0.0');
+  LSecond := TBoss4DDependency.Create('gitlab.com/company-b/common', '1.0.0');
+  LSSH := TBoss4DDependency.Create('git@github.com:company-a/common.git', '1.0.0');
+  try
+    Assert.AreNotEqual(LFirst.StorageName, LSecond.StorageName);
+    Assert.AreEqual(LFirst.StorageName, LSSH.StorageName);
+    Assert.IsTrue(LFirst.StorageName.StartsWith('common-'));
+  finally
+    LSSH.Free;
+    LSecond.Free;
+    LFirst.Free;
   end;
 end;
 

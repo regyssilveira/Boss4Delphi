@@ -4,7 +4,8 @@ interface
 
 uses
   System.Generics.Collections, System.Threading, System.SyncObjs, Boss4D.Core.Ports,
-  Boss4D.Core.Domain.Dependency, Boss4D.Core.Domain.Lock;
+  Boss4D.Core.Domain.Dependency, Boss4D.Core.Domain.Lock,
+  Boss4D.Core.Domain.Package;
 
 type
   { Servico de caso de uso para instalacao e atualizacao de dependencias (boss install) }
@@ -21,7 +22,12 @@ type
 
     procedure ProcessDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock;
       const AProcessedDeps: TList<string>);
-    procedure BuildDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock; const APlatform: string = '');
+    procedure BuildDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock;
+      const APlatform: string = ''; const ACompilerVersion: string = '');
+    function ResolveBuildProjects(const ADep: TBoss4DDependency): TArray<string>;
+    function DiscoverBuildProjects(const ARootDirectory: string): TArray<string>;
+    function ResolveEffectivePlatform(const APackage: TBoss4DPackage;
+      const ACliPlatform: string): string;
     function ResolveSemVerRange(const ARangeStr, ACacheDir: string): string;
     function ResolveDependencyVersion(const ADep: TBoss4DDependency; const ACacheDir: string): string;
     function CalculateDirectoryChecksum(const ADirPath: string): string;
@@ -45,10 +51,11 @@ implementation
 
 uses
   System.SysUtils, System.Classes, System.IOUtils, System.Hash,
-  Boss4D.Core.Domain.Package, Boss4D.Core.Domain.SemVer, Boss4D.Core.Domain.Consts,
+  Boss4D.Core.Domain.SemVer, Boss4D.Core.Domain.Consts,
   Boss4D.Core.Domain.Env,
   Boss4D.Adapters.Registry,
-  Boss4D.Core.Services.IDEIntegration, Boss4D.Core.Services.Workspace;
+  Boss4D.Core.Services.IDEIntegration, Boss4D.Core.Services.Workspace,
+  Boss4D.Core.Services.SourceNormalizer;
 
 { TBoss4DInstallService }
 
@@ -107,7 +114,7 @@ begin
   AProcessedDeps.Add(LDepKey);
 
   LCacheDir := TPath.Combine(GetCacheDir, ADep.HashName);
-  LTargetDir := TPath.Combine(GetModulesDir, ADep.Name);
+  LTargetDir := TPath.Combine(GetModulesDir, ADep.StorageName);
 
   FLogger.Log(TBoss4DLogLevel.Info, 'Resolvendo %s (%s)...', [ADep.Name, ADep.Version]);
 
@@ -133,6 +140,10 @@ begin
 
     // 3. Executa o checkout local da versao selecionada na pasta modules/
     FGitClient.Checkout(LCacheDir, LResolvedVersion, LTargetDir);
+
+    // Normaliza antes do checksum: o lock e a SBOM descrevem exatamente o
+    // conteudo instalado, sem divergencia entre checkouts LF e CRLF.
+    TBoss4DSourceNormalizer.NormalizeDirectoryToCRLF(LTargetDir);
 
     // Calcular Checksum da pasta de destino instalada
     var LChecksum := CalculateDirectoryChecksum(LTargetDir);
@@ -205,17 +216,98 @@ begin
   end;
 end;
 
-procedure TBoss4DInstallService.BuildDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock; const APlatform: string = '');
+function TBoss4DInstallService.DiscoverBuildProjects(
+  const ARootDirectory: string): TArray<string>;
+var
+  LProjects: TList<string>;
+begin
+  LProjects := TList<string>.Create;
+  try
+    LProjects.AddRange(TDirectory.GetFiles(ARootDirectory, '*' + EXT_DPROJ,
+      TSearchOption.soAllDirectories));
+    LProjects.AddRange(TDirectory.GetFiles(ARootDirectory, '*' + EXT_LPI,
+      TSearchOption.soAllDirectories));
+    LProjects.AddRange(TDirectory.GetFiles(ARootDirectory, '*' + EXT_LPK,
+      TSearchOption.soAllDirectories));
+    LProjects.Sort;
+    Result := LProjects.ToArray;
+  finally
+    LProjects.Free;
+  end;
+end;
+
+function TBoss4DInstallService.ResolveBuildProjects(
+  const ADep: TBoss4DDependency): TArray<string>;
 var
   LTargetDir: string;
-  LFiles: TArray<string>;
+  LPackagePath: string;
+  LPackage: TBoss4DPackage;
+  LProjects: TList<string>;
 begin
-  LTargetDir := TPath.Combine(GetModulesDir, ADep.Name);
+  SetLength(Result, 0);
+  LTargetDir := TPath.Combine(GetModulesDir, ADep.StorageName);
   if not TDirectory.Exists(LTargetDir) then
     Exit;
 
-  // Busca arquivos dproj no diretorio da dependencia
-  LFiles := TDirectory.GetFiles(LTargetDir, '*' + EXT_DPROJ, TSearchOption.soAllDirectories);
+  LPackagePath := TPath.Combine(LTargetDir, FILE_PACKAGE);
+  if not TFile.Exists(LPackagePath) then
+    Exit(DiscoverBuildProjects(LTargetDir));
+
+  LPackage := FPackageRepo.Load(LPackagePath);
+  try
+    if LPackage.Projects.Count = 0 then
+      Exit(DiscoverBuildProjects(LTargetDir));
+
+    LProjects := TList<string>.Create;
+    try
+      var LRootPath := IncludeTrailingPathDelimiter(TPath.GetFullPath(LTargetDir));
+      for var LDeclaredProject in LPackage.Projects do
+      begin
+        var LProjectPath := TPath.GetFullPath(TPath.Combine(LTargetDir,
+          LDeclaredProject));
+        if not LProjectPath.StartsWith(LRootPath, True) then
+          raise EArgumentException.Create('Projeto declarado fora da raiz da dependencia: ' +
+            LDeclaredProject);
+        var LExtension := TPath.GetExtension(LProjectPath);
+        if not SameText(LExtension, EXT_DPROJ) and
+           not SameText(LExtension, EXT_LPI) and
+           not SameText(LExtension, EXT_LPK) then
+          raise EArgumentException.Create('Extensao de projeto ainda nao suportada: ' +
+            LDeclaredProject);
+        if not TFile.Exists(LProjectPath) then
+          raise EFileNotFoundException.Create('Projeto declarado nao encontrado: ' +
+            LDeclaredProject);
+        if not LProjects.Contains(LProjectPath) then
+          LProjects.Add(LProjectPath);
+      end;
+      Result := LProjects.ToArray;
+    finally
+      LProjects.Free;
+    end;
+  finally
+    LPackage.Free;
+  end;
+end;
+
+function TBoss4DInstallService.ResolveEffectivePlatform(
+  const APackage: TBoss4DPackage; const ACliPlatform: string): string;
+begin
+  if not ACliPlatform.IsEmpty then
+    Exit(ACliPlatform);
+  if not APackage.Toolchain.Platform.IsEmpty then
+    Exit(APackage.Toolchain.Platform);
+  if APackage.Engines.Platforms.Count > 0 then
+    Exit(APackage.Engines.Platforms[0]);
+  Result := 'Win32';
+end;
+
+procedure TBoss4DInstallService.BuildDependency(const ADep: TBoss4DDependency;
+  const ALock: TBoss4DLock; const APlatform: string = '';
+  const ACompilerVersion: string = '');
+var
+  LFiles: TArray<string>;
+begin
+  LFiles := ResolveBuildProjects(ADep);
 
   if Length(LFiles) > 0 then
   begin
@@ -239,7 +331,7 @@ begin
         Continue;
 
       // Executa compilaÃ§Ã£o nativa
-      FCompiler.Compile(LFile, ADep, ALock, APlatform);
+      FCompiler.Compile(LFile, ADep, ALock, APlatform, ACompilerVersion);
     end;
   end
   else
@@ -259,6 +351,8 @@ var
   LTasks: TList<ITask>;
   LSubPkgPath: string;
   LSubPkg: TBoss4DPackage;
+  LEffectivePlatform: string;
+  LEffectiveCompiler: string;
 
   procedure CaptureRootMetadata;
   begin
@@ -293,6 +387,8 @@ begin
   LProcessedDeps := TList<string>.Create;
   LTasks := TList<ITask>.Create;
   try
+    LEffectivePlatform := ResolveEffectivePlatform(LPkg, APlatform);
+    LEffectiveCompiler := LPkg.Toolchain.Compiler;
     CaptureRootMetadata;
     // Se o lock nao tem hash do pacote, usa o hash do pacote atual
     if LLock.Hash.IsEmpty then
@@ -309,7 +405,7 @@ begin
         CaptureRootMetadata;
 
         // Build da dependencia especifica
-        BuildDependency(LDep, LLock, APlatform);
+        BuildDependency(LDep, LLock, LEffectivePlatform, LEffectiveCompiler);
       finally
         LDep.Free;
       end;
@@ -399,7 +495,7 @@ begin
       // FASE 2: Compilacao (deve ser sequencial para evitar lock no msbuild)
       for var LDep in LActiveDeps do
       begin
-        BuildDependency(LDep, LLock, APlatform);
+        BuildDependency(LDep, LLock, LEffectivePlatform, LEffectiveCompiler);
       end;
 
       // Se for um workspace, linka os subprojetos
@@ -429,7 +525,7 @@ begin
       var LRegistry: IBoss4DRegistryService := TBoss4DWindowsRegistryAdapter.Create;
       var LIDEIntegration := TBoss4DIDEIntegrationService.Create(LRegistry, FLogger);
       try
-        LIDEIntegration.IntegrateLibraryPaths(APlatform);
+        LIDEIntegration.IntegrateLibraryPaths(LEffectivePlatform);
       finally
         LIDEIntegration.Free;
       end;

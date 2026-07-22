@@ -72,7 +72,8 @@ begin
 
       for I := 0 to Length(LDeps) - 1 do
       begin
-        LSubPath := TPath.Combine(TPath.Combine(GetModulesDir, LDeps[I].Name), FILE_PACKAGE);
+        LSubPath := TPath.Combine(TPath.Combine(GetModulesDir,
+          LDeps[I].StorageName), FILE_PACKAGE);
         PrintTreeRecursive(LSubPath, LNewPrefix, I = Length(LDeps) - 1, AProcessed);
       end;
     finally
@@ -109,7 +110,8 @@ begin
     try
       for I := 0 to Length(LDeps) - 1 do
       begin
-        LSubPath := TPath.Combine(TPath.Combine(GetModulesDir, LDeps[I].Name), FILE_PACKAGE);
+        LSubPath := TPath.Combine(TPath.Combine(GetModulesDir,
+          LDeps[I].StorageName), FILE_PACKAGE);
         PrintTreeRecursive(LSubPath, '', I = Length(LDeps) - 1, LProcessed);
       end;
     finally

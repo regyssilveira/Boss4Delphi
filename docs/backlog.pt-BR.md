@@ -199,8 +199,8 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 🚀 Épico 19: Produtividade e Templates (Bootstrap)
 *Objetivo: Reduzir o tempo de configuração inicial de novos projetos e descoberta de novas ferramentas.*
 
-- [ ] **[Story] Inicialização com Templates (`boss4d new <template>`)**
-  - Criar estruturas prontas de projetos Delphi (Console, VCL, FMX, API Horse, DUnitX) com dependências iniciais pré-configuradas no `boss.json`.
+- [x] **[Story] Inicialização com Templates (`boss4d new <template>`)**
+  - Os templates `app` e `package` geram estruturas protegidas e `boss.json`. Presets VCL, FMX, API Horse e DUnitX permanecem extensões futuras.
 - [ ] **[Story] Busca de Dependências via CLI/IDE (`boss4d search <termo>`)**
   - Mecanismo de busca direta no registro de pacotes a partir do terminal ou interface gráfica na IDE.
 

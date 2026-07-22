@@ -15,6 +15,7 @@ type
     function GetConfiguredDelphiPath: string;
     function DetectDelphiVersionFromDproj: string;
     function ExecuteBatch(const ABatchPath: string; const AWorkingDir: string; out AOutput: string): Boolean;
+    function CompileLazarus(const AProjectPath, APlatform: string): Boolean;
     function GetCompilerParameters(
       const ARootPath: string;
       const ADep: TBoss4DDependency;
@@ -23,8 +24,11 @@ type
   public
     constructor Create(const ARegistry: IBoss4DRegistryService; const ALogger: IBoss4DLogger);
 
-    function FindRsvarsPath(out ARsvarsPath: string; out APlatform: string): Boolean;
-    function Compile(const ADprojPath: string; const ADep: TBoss4DDependency; const ARootLock: TBoss4DLock; const APlatform: string = ''): Boolean;
+    function FindRsvarsPath(out ARsvarsPath: string; out APlatform: string;
+      const ACompilerVersion: string = ''): Boolean;
+    function Compile(const AProjectPath: string; const ADep: TBoss4DDependency;
+      const ARootLock: TBoss4DLock; const APlatform: string = '';
+      const ACompilerVersion: string = ''): Boolean;
     function BuildSearchPath(const ADep: TBoss4DDependency; const APlatform: string = ''): string;
   end;
 
@@ -159,7 +163,8 @@ begin
   end;
 end;
 
-function TBoss4DDelphiCompilerAdapter.FindRsvarsPath(out ARsvarsPath: string; out APlatform: string): Boolean;
+function TBoss4DDelphiCompilerAdapter.FindRsvarsPath(out ARsvarsPath: string;
+  out APlatform: string; const ACompilerVersion: string = ''): Boolean;
 var
   LVersions: TArray<string>;
   LRootDir: string;
@@ -169,8 +174,10 @@ begin
   ARsvarsPath := '';
   APlatform := 'Win32';
 
-  // 1. Tenta autodetectar a versao pelo dproj do projeto atual (Prioridade Maxima)
-  LDetectedVer := DetectDelphiVersionFromDproj;
+  // 1. A versao declarada no toolchain tem precedencia sobre autodeteccao.
+  LDetectedVer := ACompilerVersion;
+  if LDetectedVer.IsEmpty then
+    LDetectedVer := DetectDelphiVersionFromDproj;
   if not LDetectedVer.IsEmpty then
   begin
     LRootDir := FRegistry.GetDelphiPath(LDetectedVer);
@@ -263,7 +270,7 @@ begin
   if not Assigned(ADep) then
     Exit;
 
-  LSearchPath := CleanPath(TPath.Combine(GetModulesDir, ADep.Name));
+  LSearchPath := CleanPath(TPath.Combine(GetModulesDir, ADep.StorageName));
   LPackagePath := TPath.Combine(LSearchPath, FILE_PACKAGE);
   if not TFile.Exists(LPackagePath) then
   begin
@@ -281,7 +288,8 @@ begin
       begin
         var LTrimmedPath := LSubPath.Trim;
         if not LTrimmedPath.IsEmpty then
-          LSearchPath := LSearchPath + ';' + CleanPath(TPath.Combine(TPath.Combine(GetModulesDir, ADep.Name), LTrimmedPath));
+          LSearchPath := LSearchPath + ';' + CleanPath(TPath.Combine(
+            TPath.Combine(GetModulesDir, ADep.StorageName), LTrimmedPath));
       end;
     end;
 
@@ -304,8 +312,9 @@ begin
   Result := ExecuteCommandLine('cmd.exe /c "' + ABatchPath + '"', AWorkingDir, AOutput);
 end;
 
-function TBoss4DDelphiCompilerAdapter.Compile(const ADprojPath: string; const ADep: TBoss4DDependency;
-  const ARootLock: TBoss4DLock; const APlatform: string = ''): Boolean;
+function TBoss4DDelphiCompilerAdapter.Compile(const AProjectPath: string;
+  const ADep: TBoss4DDependency; const ARootLock: TBoss4DLock;
+  const APlatform: string = ''; const ACompilerVersion: string = ''): Boolean;
 var
   LRsvarsPath, LPlatform: string;
   LAbsDir, LBuildLog, LBuildBat, LCfgPath: string;
@@ -315,7 +324,11 @@ var
 begin
   Result := False;
 
-  if not FindRsvarsPath(LRsvarsPath, LPlatform) then
+  if SameText(TPath.GetExtension(AProjectPath), EXT_LPI) or
+     SameText(TPath.GetExtension(AProjectPath), EXT_LPK) then
+    Exit(CompileLazarus(AProjectPath, APlatform));
+
+  if not FindRsvarsPath(LRsvarsPath, LPlatform, ACompilerVersion) then
   begin
     FLogger.Log(TBoss4DLogLevel.Error, 'Delphi Environment (rsvars.bat) nao encontrado no registro.');
     Exit;
@@ -324,10 +337,10 @@ begin
   if not APlatform.IsEmpty then
     LPlatform := APlatform;
 
-  FLogger.Log(TBoss4DLogLevel.Info, '  Compilando ' + TPath.GetFileName(ADprojPath));
+  FLogger.Log(TBoss4DLogLevel.Info, '  Compilando ' + TPath.GetFileName(AProjectPath));
 
-  LAbsDir := TPath.GetDirectoryName(TPath.GetFullPath(ADprojPath));
-  var LFileRes := 'build_boss4d_' + TPath.GetFileNameWithoutExtension(ADprojPath);
+  LAbsDir := TPath.GetDirectoryName(TPath.GetFullPath(AProjectPath));
+  var LFileRes := 'build_boss4d_' + TPath.GetFileNameWithoutExtension(AProjectPath);
   LBuildLog := TPath.Combine(LAbsDir, LFileRes + '.log');
   LBuildBat := TPath.Combine(LAbsDir, LFileRes + '.bat');
   LCfgPath := TPath.Combine(LAbsDir, 'boss.cfg');
@@ -378,7 +391,7 @@ begin
     LBatchContent.Add('call "' + LRsvarsPath + '"');
     LBatchContent.Add('set PATH=%PATH%;' + LBplPath + ';');
 
-    var LMsbuildCmd := 'msbuild "' + TPath.GetFullPath(ADprojPath) + '" /p:Configuration=Debug ' +
+    var LMsbuildCmd := 'msbuild "' + TPath.GetFullPath(AProjectPath) + '" /p:Configuration=Debug ' +
                        GetCompilerParameters(GetModulesDir, ADep, LPlatform) +
                        ' /p:DCC_AdditionalSwitches="@' + LCfgPath + '"';
 
@@ -408,6 +421,50 @@ begin
   finally
     // Sempre remove o boss.cfg temporario
     if TFile.Exists(LCfgPath) then TFile.Delete(LCfgPath);
+  end;
+end;
+
+function TBoss4DDelphiCompilerAdapter.CompileLazarus(
+  const AProjectPath, APlatform: string): Boolean;
+var
+  LWorkingDirectory, LBatchPath, LLogPath, LOutput: string;
+  LBatch: TStringList;
+  LTargetArguments: string;
+begin
+  LWorkingDirectory := TPath.GetDirectoryName(TPath.GetFullPath(AProjectPath));
+  LBatchPath := TPath.Combine(LWorkingDirectory, 'build_boss4d_lazarus.bat');
+  LLogPath := TPath.Combine(LWorkingDirectory, 'build_boss4d_lazarus.log');
+  LTargetArguments := '';
+  if SameText(APlatform, 'Win64') then
+    LTargetArguments := '--os=win64 --cpu=x86_64 '
+  else if SameText(APlatform, 'Win32') then
+    LTargetArguments := '--os=win32 --cpu=i386 ';
+
+  LBatch := TStringList.Create;
+  try
+    LBatch.Add('@where lazbuild >nul 2>&1 || (echo lazbuild nao encontrado & exit /b 1)');
+    LBatch.Add('lazbuild ' + LTargetArguments + '"' +
+      TPath.GetFullPath(AProjectPath) + '" > "' + LLogPath + '" 2>&1');
+    LBatch.SaveToFile(LBatchPath, TEncoding.UTF8);
+  finally
+    LBatch.Free;
+  end;
+
+  try
+    FLogger.Log(TBoss4DLogLevel.Info, '  Compilando com Lazarus: ' +
+      TPath.GetFileName(AProjectPath));
+    Result := ExecuteBatch(LBatchPath, LWorkingDirectory, LOutput);
+    if Result then
+    begin
+      if TFile.Exists(LLogPath) then
+        TFile.Delete(LLogPath);
+    end
+    else
+      FLogger.Log(TBoss4DLogLevel.Error,
+        '  Falha no lazbuild. Veja o log: ' + LLogPath);
+  finally
+    if TFile.Exists(LBatchPath) then
+      TFile.Delete(LBatchPath);
   end;
 end;
 

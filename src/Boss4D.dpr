@@ -41,6 +41,9 @@ uses
   Boss4D.Core.Services.GetIt in 'Core/Services/Boss4D.Core.Services.GetIt.pas',
   Boss4D.Core.Services.Clean in 'Core/Services/Boss4D.Core.Services.Clean.pas',
   Boss4D.Core.Services.Sbom in 'Core/Services/Boss4D.Core.Services.Sbom.pas',
+  Boss4D.Core.Services.Scaffold in 'Core/Services/Boss4D.Core.Services.Scaffold.pas',
+  Boss4D.Core.Services.SourceNormalizer in 'Core/Services/Boss4D.Core.Services.SourceNormalizer.pas',
+  Boss4D.Core.Services.PackageManifest in 'Core/Services/Boss4D.Core.Services.PackageManifest.pas',
   Boss4D.CLI.Parser in 'CLI/Boss4D.CLI.Parser.pas';
 
 var

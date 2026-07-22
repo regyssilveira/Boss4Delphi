@@ -16,6 +16,8 @@ O **Boss4D** é um gerenciador de dependências nativo e moderno para projetos D
 4. **Prevenção de Comandos Longos e Múltiplos Caminhos**: Adota a técnica do arquivo `boss.cfg` temporário (evitando estouro da linha de comando no Windows - Issue #205) e suporta múltiplos caminhos separados por ponto-e-vírgula no `mainsrc` (alinhado ao PR #256 do BOSS Go).
 5. **Logs Avançados e Thread-Safe**: Saída do console colorida de forma assíncrona usando semáforos críticos, com gravação opcional de arquivos `.log` em modo debug.
 6. **100% Testável**: Suíte de testes unitários que utiliza injeção de dependências e classes Mock para simular Git, HTTP e compilador sem necessitar de conexões de rede ou ferramentas instaladas no ambiente de testes.
+7. **Build Determinístico**: Diretórios sem colisão, ordem declarada de projetos, precedência de toolchain e normalização CRLF segura.
+8. **Projetos Delphi e Lazarus**: Compila `.dproj`, `.lpi` e `.lpk` declarados usando MSBuild ou `lazbuild`.
 
 ---
 
@@ -47,7 +49,7 @@ O código fonte está estruturado da seguinte forma:
 Como o Boss4D é escrito no Delphi moderno, você pode compilá-lo de duas formas:
 
 ### 1. Pela IDE do Delphi 13
-* Abra o projeto de produção **`src/Boss4D.dproj`** ou o de testes **`tests/Boss4DTests.dproj`** diretamente na IDE.
+* Abra **`src/Boss4D.dpr`** ou **`tests/Boss4DTests.dpr`** na IDE; o RAD Studio cria os metadados locais do projeto quando necessário.
 * Pressione **Ctrl + F9** para compilar.
 * Pressione **F9** no projeto de testes para executar as suites do DUnitX no terminal integrado.
 
@@ -88,6 +90,8 @@ cd /d d:\Projetos\BossDelphi
   Habilita ou desabilita o uso de clones rasos (shallow clone) para downloads mais velozes.
 * `boss4d version`
   Exibe a versão atual do Boss4D (`v1.1.0-delphi-native`).
+* `boss4d new app|package <nome> [--path <diretório>]`
+  Cria uma estrutura protegida sem sobrescrever um diretório não vazio.
 * `boss4d sbom --format cyclonedx|spdx --output <arquivo> --validate`
   Gera CycloneDX 1.7 ou SPDX 2.3 usando `boss.json` e `boss-lock.json` v2.
   Com `--lock-only`, gera um SBOM reproduzível de release usando apenas as
@@ -106,6 +110,7 @@ cd /d d:\Projetos\BossDelphi
 
 ## 📖 Documentação Adicional
 * **[Guia da Feature SBOM](docs/sbom.pt-BR.md)**: Motivação, modelo de evidências, cobertura, VEX, atestações, limites e fluxo recomendado de release.
+* **[Melhorias de Build e Compatibilidade BOSS](docs/upstream-improvements.pt-BR.md)**: Paths sem colisão, toolchains, projetos declarados, Lazarus, scaffolding e normalização.
 * **[Manual de Uso da CLI](docs/usage.pt-BR.md)**: Guia completo detalhado de todos os parâmetros e opções de instalação de dependências.
 * **[Guia de Contribuição](CONTRIBUTING.pt-BR.md)**: Padrões de código e fluxo de desenvolvimento para contribuir com o projeto.
 * **[Guia de Lançamento de Release](RELEASE_GUIDE.md)**: Passos e instruções para compilar com Delphi 13 (37.0) e publicar releases no GitHub.

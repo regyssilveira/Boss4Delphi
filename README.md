@@ -19,6 +19,8 @@
 5. **Multi-path mainsrc Support**: Fully supports multiple paths separated by semicolons in the `mainsrc` option (aligned with BOSS Go PR #256).
 6. **Thread-Safe Colored Logging**: Outputs clean, colored console logs asynchronously using critical sections, with optional `.log` file persistence for debug mode.
 7. **100% Testable**: Comprehensive DUnitX unit-testing suite using Mock adapters to isolate network (HTTP), Git processes, and compiler executions.
+8. **Deterministic Package Builds**: Collision-free module directories, declared project ordering, toolchain precedence, and safe CRLF normalization.
+9. **Delphi and Lazarus Projects**: Builds declared `.dproj`, `.lpi`, and `.lpk` projects through MSBuild or `lazbuild`.
 
 ---
 
@@ -53,7 +55,7 @@ Boss4D/
 Since Boss4D is written in modern Delphi, you can build it in two ways:
 
 ### 1. Via the RAD Studio IDE
-* Open the production project **`src/Boss4D.dproj`** or the test project **`tests/Boss4DTests.dproj`** in the IDE.
+* Open **`src/Boss4D.dpr`** or **`tests/Boss4DTests.dpr`** in the IDE; RAD Studio creates local project metadata when needed.
 * Press **Ctrl + F9** to build.
 * Press **F9** on the test project to run the DUnitX test runner.
 
@@ -94,6 +96,8 @@ cd /d d:\Projetos\BossDelphi
   Enables or disables shallow clones for faster Git download processes.
 * `boss4d version`
   Prints the CLI version (`v1.1.0-delphi-native`).
+* `boss4d new app|package <name> [--path <directory>]`
+  Creates a protected project skeleton without overwriting a non-empty directory.
 * `boss4d sbom --format cyclonedx|spdx --output <file> --validate`
   Generates CycloneDX 1.7 or SPDX 2.3 from `boss.json` plus `boss-lock.json` v2.
   `--lock-only` can generate a reproducible release SBOM using only root and
@@ -111,6 +115,7 @@ cd /d d:\Projetos\BossDelphi
 
 ## 📖 Additional Documentation
 * **[SBOM Feature Guide](docs/sbom.md)**: Motivation, evidence model, coverage, VEX, attestations, limitations, and recommended release workflow.
+* **[Build and BOSS Compatibility Improvements](docs/upstream-improvements.md)**: Collision-free paths, toolchains, declared projects, Lazarus, scaffolding, and normalization.
 * **[CLI Usage Manual](docs/usage.md)**: Detailed step-by-step guide covering all command options and dependency configurations.
 * **[Contribution Guide](CONTRIBUTING.md)**: Coding standards and guidelines for contribution.
 * **[Release Guide](RELEASE_GUIDE.md)**: Steps and instructions to compile with Delphi 13 (37.0) and publish releases on GitHub.

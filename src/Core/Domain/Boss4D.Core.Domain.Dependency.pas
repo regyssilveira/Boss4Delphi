@@ -20,6 +20,7 @@ type
     function GetKey: string;
     function GetLegacyKey: string;
     function GetCanonicalRepository: string;
+    function StorageName: string;
 
     class function Parse(const ARepo: string; const AVersionInfo: string): TBoss4DDependency; static;
     class function ParseCommandLine(const ADepStr: string): TBoss4DDependency; static;
@@ -94,6 +95,11 @@ begin
 
   if Result.EndsWith('.git', True) then
     Result := Result.Substring(0, Result.Length - 4);
+end;
+
+function TBoss4DDependency.StorageName: string;
+begin
+  Result := Name + '-' + HashName.Substring(0, 8);
 end;
 
 function TBoss4DDependency.GetSSHUrl: string;

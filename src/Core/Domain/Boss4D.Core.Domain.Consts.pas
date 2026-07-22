@@ -10,6 +10,8 @@ const
 
   { Nomes de extensões }
   EXT_DPROJ            = '.dproj';
+  EXT_LPI              = '.lpi';
+  EXT_LPK              = '.lpk';
 
   { Pastas padrão }
   FOLDER_DEPENDENCIES  = 'modules';

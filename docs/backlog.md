@@ -199,8 +199,8 @@ This document details the future planning, new features (backlog), and architect
 ## 🚀 Epic 19: Productivity and Templates (Bootstrap)
 *Objective: Reduce initial setup time for new projects and simplify package discovery.*
 
-- [ ] **[Story] Template-based Bootstrap (`boss4d new <template>`)**
-  - Generate ready-to-use Delphi project structures (Console, VCL, FMX, Horse API, DUnitX) with pre-configured dependencies in `boss.json`.
+- [x] **[Story] Template-based Bootstrap (`boss4d new <template>`)**
+  - `app` and `package` templates generate protected structures and `boss.json` manifests. Additional VCL, FMX, Horse API, and DUnitX presets remain future extensions.
 - [ ] **[Story] Dependency Search via CLI/IDE (`boss4d search <term>`)**
   - Provide direct package search capabilities from the CLI or within the IDE visual wizard interface.
 

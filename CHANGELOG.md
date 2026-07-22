@@ -2,11 +2,21 @@
 
 ## Unreleased
 
+### Added
+
+- Collision-free dependency storage derived from canonical repository identity.
+- Effective toolchain precedence and ordered declared project builds.
+- Native routing for Lazarus `.lpi`/`.lpk` projects through `lazbuild`.
+- `boss4d new app|package` protected project scaffolding.
+- Deterministic CRLF normalization before checksum and SBOM evidence generation.
+- DPK `requires` updates that preserve conditional compilation directives.
+
 ### Documentation
 
 - Added dedicated English and Portuguese SBOM feature guides explaining motivation,
   evidence sources, coverage semantics, VEX, attestations, limitations, and the
   recommended release workflow.
+- Added bilingual build compatibility guides and a mixed Delphi/Lazarus example.
 
 ## 1.1.0 - 2026-07-21
 

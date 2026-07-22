@@ -568,7 +568,25 @@ boss4d clean
 
 ---
 
-## 🖥️ 15. Interface Gráfica Standalone (GUI)
+## 15. Builds determinísticos e scaffolding
+
+```powershell
+boss4d new app MeuConsole
+boss4d new package MinhaBiblioteca --path D:\trabalho\MinhaBiblioteca
+```
+
+`--platform` prevalece sobre `toolchain.platform`, seguido pela primeira entrada
+de `engines.platforms` e Win32. `toolchain.compiler` seleciona o RAD Studio. Um
+array ordenado `projects` pode conter `.dproj`, `.lpi` ou `.lpk`; os paths devem
+permanecer dentro da raiz. Delphi usa MSBuild e Lazarus requer `lazbuild` no
+`PATH`. Fontes textuais são normalizados antes da verificação de checksum.
+
+Consulte o [guia completo](upstream-improvements.pt-BR.md) e o
+[exemplo copiável](../examples/upstream-improvements/README.md).
+
+---
+
+## 🖥️ 16. Interface Gráfica Standalone (GUI)
 
 A interface gráfica do **Boss4D** (**`Boss4D.GUI.exe`**) fornece uma aplicação visual moderna e amigável integrada in-process com o motor de negócios do Boss4D.
 
@@ -586,7 +604,7 @@ A interface gráfica do **Boss4D** (**`Boss4D.GUI.exe`**) fornece uma aplicaçã
 
 ---
 
-## 🔌 16. Integração RAD Studio IDE (Plugin)
+## 🔌 17. Integração RAD Studio IDE (Plugin)
 
 O assistente integrado do Boss4D adiciona recursos e atalhos na IDE para agilizar o desenvolvimento:
 
