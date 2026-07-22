@@ -94,8 +94,9 @@ cd /d d:\Projetos\BossDelphi
   evidências da raiz e das dependências gravadas no lock. Coletores opcionais
   adicionam inventário GetIt, proveniência do compilador/RTL Delphi e hashes dos
   artefatos declarados. CycloneDX também aceita VEX offline e ambos os formatos
-  suportam atestações SHA-256 destacadas. Consulte o
-  [guia SBOM](docs/usage.pt-BR.md#71-geração-de-sbom-sbom), os
+  suportam atestações SHA-256 destacadas. Consulte
+  [por que e como funciona o suporte SBOM](docs/sbom.pt-BR.md), a
+  [referência da CLI](docs/usage.pt-BR.md#71-geração-de-sbom-sbom), os
   [exemplos copiáveis](docs/sbom-examples.pt-BR.md) e o
   [guia de migração v2](docs/sbom-migration.pt-BR.md).
 * `boss4d help`
@@ -104,6 +105,7 @@ cd /d d:\Projetos\BossDelphi
 ---
 
 ## 📖 Documentação Adicional
+* **[Guia da Feature SBOM](docs/sbom.pt-BR.md)**: Motivação, modelo de evidências, cobertura, VEX, atestações, limites e fluxo recomendado de release.
 * **[Manual de Uso da CLI](docs/usage.pt-BR.md)**: Guia completo detalhado de todos os parâmetros e opções de instalação de dependências.
 * **[Guia de Contribuição](CONTRIBUTING.pt-BR.md)**: Padrões de código e fluxo de desenvolvimento para contribuir com o projeto.
 * **[Guia de Lançamento de Release](RELEASE_GUIDE.md)**: Passos e instruções para compilar com Delphi 13 (37.0) e publicar releases no GitHub.
