@@ -408,11 +408,7 @@ end;
 
 procedure TBoss4DIDEWizard.RemoveToolsMenuItems;
 begin
-  if Assigned(FBossMenuItem) then
-  begin
-    FBossMenuItem.Free;
-    FBossMenuItem := nil;
-  end;
+  FreeAndNil(FBossMenuItem);
 end;
 
 procedure TBoss4DIDEWizard.MenuActionClick(Sender: TObject);

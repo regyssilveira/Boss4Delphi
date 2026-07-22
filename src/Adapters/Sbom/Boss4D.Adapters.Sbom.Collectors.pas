@@ -69,8 +69,8 @@ begin
   LInfo := nil;
   if VerQueryValue(@LBuffer[0], '\', Pointer(LInfo), LInfoSize) and Assigned(LInfo) then
     Result := Format('%d.%d.%d.%d', [HiWord(LInfo.dwFileVersionMS),
-      LoWord(LInfo.dwFileVersionMS), HiWord(LInfo.dwFileVersionLS),
-      LoWord(LInfo.dwFileVersionLS)]);
+      LOWORD(LInfo.dwFileVersionMS), HiWord(LInfo.dwFileVersionLS),
+      LOWORD(LInfo.dwFileVersionLS)]);
 end;
 
 function EnsureRelationship(const ADocument: TBoss4DSbomDocument;
