@@ -1,7 +1,7 @@
 // Boss4D IDE Plugin Resource File
 1 VERSIONINFO
-FILEVERSION 1,0,1,0
-PRODUCTVERSION 1,0,1,0
+FILEVERSION 1,1,0,0
+PRODUCTVERSION 1,1,0,0
 FILEFLAGSMASK 0x3fL
 FILEFLAGS 0x0L
 FILEOS 0x40004L
@@ -14,12 +14,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Regys Silveira"
             VALUE "FileDescription", "Boss4D IDE Integration Plugin"
-            VALUE "FileVersion", "1.0.1.0"
+            VALUE "FileVersion", "1.1.0.0"
             VALUE "InternalName", "Boss4D.IDE.Plugin"
             VALUE "LegalCopyright", "Copyright (C) 2026"
             VALUE "OriginalFilename", "Boss4D.IDE.Plugin.bpl"
             VALUE "ProductName", "Boss4D"
-            VALUE "ProductVersion", "1.0.1.0"
+            VALUE "ProductVersion", "1.1.0.0"
         END
     END
     BLOCK "VarFileInfo"

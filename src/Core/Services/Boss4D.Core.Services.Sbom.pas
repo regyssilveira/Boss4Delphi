@@ -121,13 +121,13 @@ begin
   try
     try
       Result.ToolName := 'Boss4D';
-    Result.ToolVersion := '1.0.1';
-    Result.Lifecycle := 'build';
-    Result.Coverage := 'boss-managed-dependencies';
-    Result.Completeness := Incomplete;
+      Result.ToolVersion := '1.1.0';
+      Result.Lifecycle := 'build';
+      Result.Coverage := 'boss-managed-dependencies';
+      Result.Completeness := Incomplete;
 
-    if ALock.LockVersion < TBoss4DLockSchema.CurrentVersion then
-      AddIssue(Result, 'O lock v1 nao contem metadados suficientes para um SBOM auditavel.', AStrict);
+      if ALock.LockVersion < TBoss4DLockSchema.CurrentVersion then
+        AddIssue(Result, 'O lock v1 nao contem metadados suficientes para um SBOM auditavel.', AStrict);
 
     LRoot := TBoss4DSbomComponent.Create;
     LRoot.Id := RootComponentId(APackage);
