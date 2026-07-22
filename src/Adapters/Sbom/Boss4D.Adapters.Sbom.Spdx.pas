@@ -92,8 +92,8 @@ begin
 
     LComponents.AddRange(ADocument.Components);
     LComponents.Sort(TComparer<TBoss4DSbomComponent>.Construct(
-      function(const L, R: TBoss4DSbomComponent): Integer
-      begin Result := CompareText(L.Id, R.Id); end));
+      function(const ALeft, ARight: TBoss4DSbomComponent): Integer
+      begin Result := CompareText(ALeft.Id, ARight.Id); end));
     LPackages := TJSONArray.Create;
     for var LComponent in LComponents do LPackages.AddElement(ComponentPackage(LComponent));
     LRoot.AddPair('packages', LPackages);
