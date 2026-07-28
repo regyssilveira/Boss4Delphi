@@ -4,9 +4,9 @@
   "updated": "2026-07-21T21:01:33Z",
   "root": {
     "name": "boss4d",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "description": "Native Delphi dependency manager",
-    "homepage": "https://github.com/HashLoad/boss4delphi",
+    "homepage": "https://github.com/regyssilveira/Boss4Delphi",
     "license": "MIT",
     "dependencies": [
     ]

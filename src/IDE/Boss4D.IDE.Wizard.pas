@@ -912,7 +912,7 @@ begin
         'Plugin do Boss4D para gerenciamento nativo de dependencias',
         LBitmap.Handle,
         False,
-        '1.2.0'
+        '1.2.1'
       );
     finally
       LBitmap.Free;

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.1 - 2026-07-27
+
+### Added
+- Suporte a caminhos de depuração (`browsingpath`) de pacotes na integração com a IDE (RAD Studio).
+
+### Fixed
+- Correção na injeção de dependências em arquivos DPK (`requires`) tratando corretamente comentários de fim de linha `//` e múltiplos blocos sob diretivas condicionais (`{$IFDEF}`).
+
 ## 1.2.0 - 2026-07-21
 
 ### Added
