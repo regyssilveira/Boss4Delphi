@@ -121,6 +121,12 @@ type
 
     [Test]
     procedure TestPackageRequiresPreservesConditionals;
+    [Test]
+    procedure TestPackageRequiresPreservesSpacing;
+    [Test]
+    procedure TestPackageRequiresWithTrailingComments;
+    [Test]
+    procedure TestPackageRequiresWithMultipleBlocks;
   end;
 
 implementation
@@ -1545,6 +1551,41 @@ begin
   Assert.IsTrue(LUpdated.Contains('newruntime'));
   Assert.AreEqual<Integer>(1,
     TRegEx.Matches(LUpdated, '(?i)\brtl\b').Count);
+end;
+
+procedure TTestsServices.TestPackageRequiresPreservesSpacing;
+var
+  LOriginal, LExpected, LUpdated: string;
+begin
+  LOriginal := 'package Sample;' + sLineBreak + 'requires' + sLineBreak + '  rtl;' + sLineBreak + 'end.';
+  LExpected := 'package Sample;' + sLineBreak + 'requires' + sLineBreak + '  rtl,' + sLineBreak + '  newruntime;' + sLineBreak + 'end.';
+  LUpdated := TBoss4DPackageManifest.AddRequires(LOriginal, TArray<string>.Create('newruntime'));
+  Assert.AreEqual<string>(LExpected, LUpdated);
+end;
+
+procedure TTestsServices.TestPackageRequiresWithTrailingComments;
+var
+  LOriginal, LUpdated: string;
+begin
+  LOriginal := 'package Sample;' + sLineBreak + 'requires' + sLineBreak +
+    '  rtl // base runtime' + sLineBreak + '  ;' + sLineBreak + 'end.';
+  LUpdated := TBoss4DPackageManifest.AddRequires(LOriginal, TArray<string>.Create('newruntime'));
+  // Deve garantir que newruntime não fique comentada
+  Assert.IsFalse(TRegEx.IsMatch(LUpdated, '//.*newruntime'));
+  Assert.IsTrue(LUpdated.Contains('newruntime'));
+end;
+
+procedure TTestsServices.TestPackageRequiresWithMultipleBlocks;
+var
+  LOriginal, LUpdated: string;
+begin
+  LOriginal := 'package Sample;' + sLineBreak + 'requires' + sLineBreak +
+    '  {$IFDEF MSWINDOWS}' + sLineBreak + '  vcl;' + sLineBreak +
+    '  {$ELSE}' + sLineBreak + '  fmx;' + sLineBreak + '  {$ENDIF}' + sLineBreak + 'end.';
+  LUpdated := TBoss4DPackageManifest.AddRequires(LOriginal, TArray<string>.Create('newruntime'));
+  // Ambas as partes da diretiva condicional devem ter a nova dependência adicionada
+  Assert.IsTrue(TRegEx.IsMatch(LUpdated, 'vcl,\s*newruntime;'));
+  Assert.IsTrue(TRegEx.IsMatch(LUpdated, 'fmx,\s*newruntime;'));
 end;
 
 end.

@@ -227,6 +227,105 @@ begin
   end;
 end;
 
+function BuildProjectBrowsingPaths(const AProjectDir: string; const AMessageServices: IOTAMessageServices; const AGroup: IOTAMessageGroup): TArray<string>;
+  procedure ParseModuleBrowsingPkg(const AModName, AModDir: string; LPaths: TStringList);
+  var
+    LPkgPath: string;
+    LPkgJSON: TJSONObject;
+    LBrowsingPath: string;
+    LSubPaths: TArray<string>;
+    LSubPath: string;
+  begin
+    LPkgPath := TPath.Combine(AModDir, 'boss.json');
+    if not TFile.Exists(LPkgPath) then Exit;
+    try
+      var LPkgStr := TFile.ReadAllText(LPkgPath, TEncoding.UTF8);
+      LPkgJSON := TJSONObject.ParseJSONValue(LPkgStr) as TJSONObject;
+      if not Assigned(LPkgJSON) then Exit;
+      try
+        var LBrowsingValue := LPkgJSON.GetValue('browsingpath');
+        if not Assigned(LBrowsingValue) then Exit;
+        LBrowsingPath := LBrowsingValue.Value;
+        if LBrowsingPath = '' then Exit;
+        LSubPaths := LBrowsingPath.Split([';']);
+        for LSubPath in LSubPaths do
+        begin
+          var LTrimmed := LSubPath.Trim.Replace('/', '\');
+          if LTrimmed.EndsWith('\') and (Length(LTrimmed) > 1) then
+            LTrimmed := LTrimmed.Substring(0, LTrimmed.Length - 1);
+          if LTrimmed <> '' then
+            LPaths.Add('.\modules\' + AModName + '\' + LTrimmed);
+        end;
+      finally
+        LPkgJSON.Free;
+      end;
+    except
+      on E: Exception do
+      begin
+        AMessageServices.AddTitleMessage(
+          '[AVISO] Erro ao ler browsingpath de ' + AModName + ': ' + E.Message,
+          AGroup
+        );
+      end;
+    end;
+  end;
+  procedure ParseLockBrowsingModules(const ALockPath: string; LPaths: TStringList);
+  var
+    LJSONStr: string;
+    LJSONObj, LModulesObj: TJSONObject;
+    Idx: Integer;
+    LModName: string;
+    LModDir: string;
+  begin
+    if not TFile.Exists(ALockPath) then Exit;
+    try
+      LJSONStr := TFile.ReadAllText(ALockPath, TEncoding.UTF8);
+      LJSONObj := TJSONObject.ParseJSONValue(LJSONStr) as TJSONObject;
+      if not Assigned(LJSONObj) then Exit;
+      try
+        LModulesObj := LJSONObj.GetValue('installedModules') as TJSONObject;
+        if not Assigned(LModulesObj) then Exit;
+        for Idx := 0 to LModulesObj.Count - 1 do
+        begin
+          var LPair := LModulesObj.Pairs[Idx];
+          var LModInfo := LPair.JsonValue as TJSONObject;
+          if not Assigned(LModInfo) then Continue;
+          LModName := LModInfo.GetValue('name').Value;
+          if LModName = '' then Continue;
+          LModDir := TPath.Combine(TPath.Combine(AProjectDir, 'modules'), LModName);
+          if not TDirectory.Exists(LModDir) then Continue;
+          ParseModuleBrowsingPkg(LModName, LModDir, LPaths);
+        end;
+      finally
+        LJSONObj.Free;
+      end;
+    except
+      on E: Exception do
+      begin
+        AMessageServices.AddTitleMessage(
+          '[AVISO] Erro ao ler boss-lock.json para browsingpath: ' + E.Message,
+          AGroup
+        );
+      end;
+    end;
+  end;
+var
+  LPaths: TStringList;
+  LLockPath: string;
+  Idx: Integer;
+begin
+  LPaths := TStringList.Create;
+  try
+    LLockPath := TPath.Combine(AProjectDir, 'boss-lock.json');
+    ParseLockBrowsingModules(LLockPath, LPaths);
+    SetLength(Result, LPaths.Count);
+    for Idx := 0 to LPaths.Count - 1 do
+      Result[Idx] := LPaths[Idx];
+  finally
+    LPaths.Free;
+  end;
+end;
+
 procedure CheckAndAdd(const AProj: IOTAProject; const AOptions: IOTAProjectOptions; const AOptionName: string; const APathToAdd: string; const AMessageServices: IOTAMessageServices; const AGroup: IOTAMessageGroup);
 begin
   try
@@ -255,7 +354,7 @@ procedure UpdateProj(const AProj: IOTAProject; const AMessageServices: IOTAMessa
 var
   LProjDir: string;
   LOptions: IOTAProjectOptions;
-  LSearchPaths: TArray<string>;
+  LSearchPaths, LBrowsingPaths: TArray<string>;
   LPath: string;
 begin
   if not Assigned(AProj) then Exit;
@@ -263,12 +362,21 @@ begin
   if Assigned(LOptions) then
   begin
     LProjDir := TPath.GetDirectoryName(AProj.FileName);
+    
     LSearchPaths := BuildProjectSearchPaths(LProjDir, AMessageServices, AGroup);
     for LPath in LSearchPaths do
     begin
       CheckAndAdd(AProj, LOptions, 'UnitSearchPath', LPath, AMessageServices, AGroup);
       CheckAndAdd(AProj, LOptions, 'DCC_UnitSearchPath', LPath, AMessageServices, AGroup);
       CheckAndAdd(AProj, LOptions, 'SearchPath', LPath, AMessageServices, AGroup);
+    end;
+    
+    LBrowsingPaths := BuildProjectBrowsingPaths(LProjDir, AMessageServices, AGroup);
+    for LPath in LBrowsingPaths do
+    begin
+      CheckAndAdd(AProj, LOptions, 'DebugSourcePath', LPath, AMessageServices, AGroup);
+      CheckAndAdd(AProj, LOptions, 'DCC_DebugSourcePath', LPath, AMessageServices, AGroup);
+      CheckAndAdd(AProj, LOptions, 'BrowsingPath', LPath, AMessageServices, AGroup);
     end;
   end;
 end;
