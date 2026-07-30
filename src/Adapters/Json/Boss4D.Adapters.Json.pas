@@ -25,7 +25,8 @@ type
 implementation
 
 uses
-  System.SysUtils, System.IOUtils, System.JSON, System.Generics.Collections;
+  System.SysUtils, System.IOUtils, System.JSON, System.Generics.Collections,
+  System.Generics.Defaults, Boss4D.Core.Domain.BuildMatrix;
 
 // Funcoes auxiliares locais de leitura segura para evitar excecoes no System.JSON
 function ReadString(const AObj: TJSONObject; const AKey: string): string;
@@ -248,6 +249,75 @@ begin
   end;
 end;
 
+procedure ParseStringArray(const AObject: TJSONObject; const AName: string;
+  const ADestination: TList<string>);
+var
+  LArray: TJSONArray;
+begin
+  LArray := ReadArray(AObject, AName);
+  if not Assigned(LArray) then
+    Exit;
+  for var I := 0 to LArray.Count - 1 do
+    if LArray[I] is TJSONString then
+      ADestination.Add(LArray[I].Value);
+end;
+
+procedure ParsePackageBuildMatrix(const AJSONObj: TJSONObject;
+  const APackage: TBoss4DPackage);
+var
+  LMatrixObject: TJSONObject;
+  LDefaultsObject: TJSONObject;
+  LProjectsArray: TJSONArray;
+begin
+  LMatrixObject := ReadObject(AJSONObj, 'buildMatrix');
+  if not Assigned(LMatrixObject) then
+    Exit;
+
+  ParseStringArray(LMatrixObject, 'compilers',
+    APackage.BuildMatrix.Compilers);
+  ParseStringArray(LMatrixObject, 'platforms',
+    APackage.BuildMatrix.Platforms);
+  ParseStringArray(LMatrixObject, 'configurations',
+    APackage.BuildMatrix.Configurations);
+
+  LDefaultsObject := ReadObject(LMatrixObject, 'defaults');
+  if Assigned(LDefaultsObject) then
+  begin
+    APackage.BuildMatrix.DefaultCompiler :=
+      ReadString(LDefaultsObject, 'compiler');
+    APackage.BuildMatrix.DefaultPlatform :=
+      ReadString(LDefaultsObject, 'platform');
+    APackage.BuildMatrix.DefaultConfiguration :=
+      ReadString(LDefaultsObject, 'configuration');
+  end;
+
+  LProjectsArray := ReadArray(LMatrixObject, 'projects');
+  if not Assigned(LProjectsArray) then
+    Exit;
+  for var I := 0 to LProjectsArray.Count - 1 do
+  begin
+    if not (LProjectsArray[I] is TJSONObject) then
+      Continue;
+    var LProjectObject := TJSONObject(LProjectsArray[I]);
+    var LProject := TBoss4DBuildProject.Create;
+    try
+      LProject.Path := ReadString(LProjectObject, 'path');
+      LProject.Kind := ReadString(LProjectObject, 'kind');
+      if LProject.Kind.IsEmpty then
+        LProject.Kind := 'runtime';
+      ParseStringArray(LProjectObject, 'dependsOn', LProject.DependsOn);
+      ParseStringArray(LProjectObject, 'compilers', LProject.Compilers);
+      ParseStringArray(LProjectObject, 'platforms', LProject.Platforms);
+      ParseStringArray(LProjectObject, 'configurations',
+        LProject.Configurations);
+      APackage.BuildMatrix.Projects.Add(LProject);
+      LProject := nil;
+    finally
+      LProject.Free;
+    end;
+  end;
+end;
+
 // Subfunções auxiliares de Save para TBoss4DPackageJsonRepository.Save
 procedure SavePackageProjects(const AJSONObj: TJSONObject; const APackage: TBoss4DPackage);
 var
@@ -376,6 +446,104 @@ begin
   end;
 end;
 
+function CreateSortedStringArray(const AValues: TList<string>): TJSONArray;
+var
+  LSorted: TList<string>;
+begin
+  Result := TJSONArray.Create;
+  LSorted := TList<string>.Create;
+  try
+    LSorted.AddRange(AValues);
+    LSorted.Sort(TComparer<string>.Construct(
+      function(const ALeft, ARight: string): Integer
+      begin
+        Result := CompareText(ALeft, ARight);
+      end));
+    for var LValue in LSorted do
+      Result.Add(LValue);
+  finally
+    LSorted.Free;
+  end;
+end;
+
+procedure AddStringArrayIfPresent(const AObject: TJSONObject;
+  const AName: string; const AValues: TList<string>);
+begin
+  if AValues.Count > 0 then
+    AObject.AddPair(AName, CreateSortedStringArray(AValues));
+end;
+
+procedure SavePackageBuildMatrix(const AJSONObj: TJSONObject;
+  const APackage: TBoss4DPackage);
+var
+  LMatrixObject: TJSONObject;
+  LDefaultsObject: TJSONObject;
+  LProjectsArray: TJSONArray;
+  LProjects: TList<TBoss4DBuildProject>;
+begin
+  if not APackage.BuildMatrix.IsDeclared then
+    Exit;
+
+  LMatrixObject := TJSONObject.Create;
+  AddStringArrayIfPresent(LMatrixObject, 'compilers',
+    APackage.BuildMatrix.Compilers);
+  AddStringArrayIfPresent(LMatrixObject, 'platforms',
+    APackage.BuildMatrix.Platforms);
+  AddStringArrayIfPresent(LMatrixObject, 'configurations',
+    APackage.BuildMatrix.Configurations);
+
+  if not APackage.BuildMatrix.DefaultCompiler.IsEmpty or
+     not APackage.BuildMatrix.DefaultPlatform.IsEmpty or
+     not APackage.BuildMatrix.DefaultConfiguration.IsEmpty then
+  begin
+    LDefaultsObject := TJSONObject.Create;
+    if not APackage.BuildMatrix.DefaultCompiler.IsEmpty then
+      LDefaultsObject.AddPair('compiler',
+        APackage.BuildMatrix.DefaultCompiler);
+    if not APackage.BuildMatrix.DefaultPlatform.IsEmpty then
+      LDefaultsObject.AddPair('platform',
+        APackage.BuildMatrix.DefaultPlatform);
+    if not APackage.BuildMatrix.DefaultConfiguration.IsEmpty then
+      LDefaultsObject.AddPair('configuration',
+        APackage.BuildMatrix.DefaultConfiguration);
+    LMatrixObject.AddPair('defaults', LDefaultsObject);
+  end;
+
+  if APackage.BuildMatrix.Projects.Count > 0 then
+  begin
+    LProjectsArray := TJSONArray.Create;
+    LProjects := TList<TBoss4DBuildProject>.Create;
+    try
+      for var LProject in APackage.BuildMatrix.Projects do
+        LProjects.Add(LProject);
+      LProjects.Sort(TComparer<TBoss4DBuildProject>.Construct(
+        function(const ALeft, ARight: TBoss4DBuildProject): Integer
+        begin
+          Result := CompareText(ALeft.Path, ARight.Path);
+        end));
+      for var LProject in LProjects do
+      begin
+        var LProjectObject := TJSONObject.Create;
+        LProjectObject.AddPair('path', LProject.Path);
+        LProjectObject.AddPair('kind', LProject.Kind);
+        AddStringArrayIfPresent(LProjectObject, 'dependsOn',
+          LProject.DependsOn);
+        AddStringArrayIfPresent(LProjectObject, 'compilers',
+          LProject.Compilers);
+        AddStringArrayIfPresent(LProjectObject, 'platforms',
+          LProject.Platforms);
+        AddStringArrayIfPresent(LProjectObject, 'configurations',
+          LProject.Configurations);
+        LProjectsArray.AddElement(LProjectObject);
+      end;
+    finally
+      LProjects.Free;
+    end;
+    LMatrixObject.AddPair('projects', LProjectsArray);
+  end;
+  AJSONObj.AddPair('buildMatrix', LMatrixObject);
+end;
+
 // Subfunções auxiliares de Parse para TBoss4DLockJsonRepository.Load
 procedure ParseLockArtifacts(const AArtifactsObj: TJSONObject; const ALockedDep: TBoss4DLockedDependency);
 var
@@ -468,6 +636,7 @@ begin
       ParsePackageSbomComponents(LJSONObj, Result);
       ParsePackageEngines(LJSONObj, Result);
       ParsePackageToolchain(LJSONObj, Result);
+      ParsePackageBuildMatrix(LJSONObj, Result);
       ParsePackageTrust(LJSONObj, Result);
       ParsePackageWorkspaces(LJSONObj, Result);
     finally
@@ -535,6 +704,7 @@ begin
     end;
     SavePackageEngines(LJSONObj, APackage);
     SavePackageToolchain(LJSONObj, APackage);
+    SavePackageBuildMatrix(LJSONObj, APackage);
     SavePackageTrust(LJSONObj, APackage);
     SavePackageWorkspaces(LJSONObj, APackage);
 

@@ -1,9 +1,7 @@
 # Contrato da matriz de build
 
-Este documento registra as decisões de compatibilidade que orientam a evolução
-do Boss4D para compilar e instalar componentes em múltiplas versões do Delphi.
-Ele descreve o contrato; a sintaxe declarativa da matriz será documentada quando
-for implementada.
+Este documento define as regras de compatibilidade e o modelo declarativo usado
+pelo Boss4D para descrever builds em múltiplas versões do Delphi.
 
 ## Escopo inicial
 
@@ -35,6 +33,51 @@ Os formatos existentes continuam válidos sem migração:
 A matriz será aditiva. Campos novos não podem alterar a leitura, a gravação ou
 o resultado efetivo de um manifesto legado.
 
+## Sintaxe declarativa
+
+```json
+{
+  "buildMatrix": {
+    "compilers": ["18.0", "22.0", "23.0", "37.0"],
+    "platforms": ["Win32", "Win64"],
+    "configurations": ["Debug", "Release"],
+    "defaults": {
+      "compiler": "37.0",
+      "platform": "Win64",
+      "configuration": "Release"
+    },
+    "projects": [
+      {
+        "path": "packages/ComponentRuntime.dproj",
+        "kind": "runtime"
+      },
+      {
+        "path": "packages/ComponentDesign.dproj",
+        "kind": "design",
+        "dependsOn": ["packages/ComponentRuntime.dproj"],
+        "compilers": ["22.0", "23.0", "37.0"],
+        "platforms": ["Win32"],
+        "configurations": ["Release"]
+      }
+    ]
+  }
+}
+```
+
+Os eixos globais declaram todos os valores suportados. As listas opcionais de
+um projeto restringem esse projeto a um subconjunto de cada eixo global.
+Restrições fora do eixo, valores duplicados, plataforma/configuração não
+suportada, paths de projeto duplicados e seleções sem targets são recusados
+antes da compilação.
+
+`kind` aceita `runtime` ou `design` e usa `runtime` como padrão. `dependsOn`
+registra relações de build pelo path do projeto; a ordenação das dependências é
+responsabilidade da etapa de grafo.
+
+A seleção padrão expande um target por projeto aplicável. A seleção completa
+expande o produto cartesiano após aplicar as restrições por projeto. O resultado
+é ordenado pela identidade do target e não depende da ordem de declaração.
+
 ## Identidade de um target
 
 Um target de build é identificado pelo conjunto:
@@ -48,7 +91,7 @@ diretório final.
 
 ## Precedência esperada
 
-Quando a matriz estiver disponível, a seleção seguirá esta ordem:
+A seleção segue esta ordem:
 
 1. filtros explícitos da CLI;
 2. targets declarados no projeto;

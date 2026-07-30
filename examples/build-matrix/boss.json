@@ -1,0 +1,51 @@
+{
+  "name": "multi-delphi-component",
+  "description": "Boss4D declarative build matrix example",
+  "version": "1.0.0",
+  "homepage": "https://example.test/multi-delphi-component",
+  "buildMatrix": {
+    "compilers": [
+      "18.0",
+      "22.0",
+      "23.0",
+      "37.0"
+    ],
+    "platforms": [
+      "Win32",
+      "Win64"
+    ],
+    "configurations": [
+      "Debug",
+      "Release"
+    ],
+    "defaults": {
+      "compiler": "37.0",
+      "platform": "Win64",
+      "configuration": "Release"
+    },
+    "projects": [
+      {
+        "path": "packages/ComponentRuntime.dproj",
+        "kind": "runtime"
+      },
+      {
+        "path": "packages/ComponentDesign.dproj",
+        "kind": "design",
+        "dependsOn": [
+          "packages/ComponentRuntime.dproj"
+        ],
+        "compilers": [
+          "22.0",
+          "23.0",
+          "37.0"
+        ],
+        "platforms": [
+          "Win32"
+        ],
+        "configurations": [
+          "Release"
+        ]
+      }
+    ]
+  }
+}
