@@ -135,11 +135,16 @@ begin
       LArtifact.AddPair('content',
         TNetEncoding.Base64.EncodeBytesToString(
           TFile.ReadAllBytes(LPackResult.OutputPath)));
+      LArtifact.AddPair('provenance',
+        TNetEncoding.Base64.EncodeBytesToString(
+          TFile.ReadAllBytes(LPackResult.ProvenancePath)));
       LRoot.AddPair('artifact', LArtifact);
     finally
       LPackService.Free;
       if TFile.Exists(LPackPath) then
         TFile.Delete(LPackPath);
+      if TFile.Exists(LPackPath + '.intoto.json') then
+        TFile.Delete(LPackPath + '.intoto.json');
     end;
     LDependencies := TJSONObject.Create;
     var LKeys := TList<string>.Create;

@@ -40,11 +40,15 @@ begin
     Assert.AreEqual(LResult1.Digest, LResult2.Digest);
     Assert.AreEqual(TFile.ReadAllText(LFirst), TFile.ReadAllText(LSecond));
     Assert.AreEqual<Integer>(2, LResult1.FileCount);
+    Assert.IsTrue(TFile.ReadAllText(LResult1.ProvenancePath).Contains(
+      LResult1.Digest));
   finally
     LService.Free;
     TDirectory.Delete(LRoot, True);
     TFile.Delete(LFirst);
     TFile.Delete(LSecond);
+    TFile.Delete(LFirst + '.intoto.json');
+    TFile.Delete(LSecond + '.intoto.json');
   end;
 end;
 
@@ -67,6 +71,7 @@ begin
     LService.Free;
     TDirectory.Delete(LRoot, True);
     TFile.Delete(LOutput);
+    TFile.Delete(LOutput + '.intoto.json');
   end;
 end;
 
