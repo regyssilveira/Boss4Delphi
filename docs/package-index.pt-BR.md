@@ -35,7 +35,17 @@ pacotes em arquivos ou repositórios separados:
       "artifact": "https://packages.example.com/InternalLib-2.4.0.b4dpkg",
       "sha256": "...",
       "signature": "https://packages.example.com/InternalLib-2.4.0.b4dpkg.asc",
-      "provenance": "https://packages.example.com/InternalLib-2.4.0.b4dpkg.intoto.json"
+      "provenance": "https://packages.example.com/InternalLib-2.4.0.b4dpkg.intoto.json",
+      "variants": [{
+        "platform": "Win64",
+        "compiler": "37.0",
+        "artifact": "https://packages.example.com/InternalLib-2.4.0-win64-d37.b4dpkg",
+        "sha256": "..."
+      }, {
+        "platform": "Linux64",
+        "artifact": "https://packages.example.com/InternalLib-2.4.0-linux64.b4dpkg",
+        "sha256": "..."
+      }]
     }]
   }]
 }
@@ -50,6 +60,18 @@ O schema v1 continua totalmente suportado. Índices existentes e o mapa
 string/string original de `dependencies` no `boss.json` não precisam de
 migração. No v2, `versions` é opcional, e um pacote ainda pode expor os campos
 compatíveis com v1 `version`, `artifact` e `sha256` no nível superior.
+
+As variantes de artefato são opcionais e não alteram o `boss.json`. Para
+selecioná-las:
+
+```text
+boss4d package install InternalLib --platform Win64 --compiler 37.0
+```
+
+A seleção é determinística: plataforma e compilador exatos, somente plataforma,
+somente compilador e, por fim, uma variante genérica. Uma variante com seletor
+não vazio incompatível nunca é escolhida. Quando não há artefato compatível, a
+instalação usa a fonte Git indexada, exceto com `--no-source-fallback`.
 
 As fontes adicionais ficam na configuração global. A falha de uma fonte gera
 aviso sem ocultar resultados das demais. Schemas desconhecidos são rejeitados,
