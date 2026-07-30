@@ -25,6 +25,8 @@ type
     [Test]
     procedure TestBuildMatrixSerialization;
     [Test]
+    procedure TestBuildMatrixExampleIsExecutable;
+    [Test]
     procedure TestLockSerialization;
     [Test]
     procedure TestLockV1BackwardCompatibility;
@@ -45,7 +47,7 @@ implementation
 uses
   System.SysUtils, System.IOUtils, System.JSON, Boss4D.Core.Domain.Package,
   Boss4D.Core.Domain.Lock, Boss4D.Core.Domain.Dependency,
-  Boss4D.Core.Domain.BuildMatrix;
+  Boss4D.Core.Domain.BuildMatrix, Boss4D.Core.Services.BuildMatrix;
 
 { TTestsJson }
 
@@ -129,6 +131,34 @@ begin
     end;
   finally
     LPkg.Free;
+  end;
+end;
+
+procedure TTestsJson.TestBuildMatrixExampleIsExecutable;
+var
+  LExamplePath: string;
+  LPackage: TBoss4DPackage;
+  LTargets: TBoss4DBuildTargetList;
+begin
+  LExamplePath := TPath.GetFullPath(TPath.Combine(
+    TDirectory.GetCurrentDirectory, '..\examples\build-matrix\boss.json'));
+  Assert.IsTrue(TFile.Exists(LExamplePath),
+    'O exemplo documentado da matriz deve existir.');
+
+  LPackage := FPackageRepo.Load(LExamplePath);
+  try
+    LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+      TBoss4DBuildSelection.All);
+    try
+      Assert.AreEqual<Integer>(19, LTargets.Count);
+      Assert.AreEqual(
+        'multi-delphi-component|packages/ComponentDesign.dproj|22.0|Win32|Release',
+        LTargets[0].Identity);
+    finally
+      LTargets.Free;
+    end;
+  finally
+    LPackage.Free;
   end;
 end;
 

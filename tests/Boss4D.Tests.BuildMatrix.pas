@@ -17,6 +17,10 @@ type
     procedure TestLegacyManifestExpandsSingleCompatibleTarget;
     [Test]
     procedure TestInvalidSelectionFailsBeforeBuild;
+    [Test]
+    procedure TestDefaultsChooseSingleTarget;
+    [Test]
+    procedure TestProjectConstraintOutsideMatrixFails;
   end;
 
 implementation
@@ -68,6 +72,43 @@ begin
         LTargets[15].Identity);
       Assert.AreEqual('design', LTargets[0].ProjectKind);
       Assert.AreEqual<Integer>(1, LTargets[0].DependsOn.Count);
+    finally
+      LTargets.Free;
+    end;
+  finally
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsBuildMatrix.TestDefaultsChooseSingleTarget;
+var
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+  LTargets: TBoss4DBuildTargetList;
+begin
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'defaults-component';
+    LPackage.BuildMatrix.Compilers.Add('22.0');
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Platforms.Add('Win64');
+    LPackage.BuildMatrix.Configurations.Add('Debug');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LPackage.BuildMatrix.DefaultCompiler := '37.0';
+    LPackage.BuildMatrix.DefaultPlatform := 'Win64';
+    LPackage.BuildMatrix.DefaultConfiguration := 'Release';
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'source/component.dproj';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+
+    LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+      TBoss4DBuildSelection.Default);
+    try
+      Assert.AreEqual<Integer>(1, LTargets.Count);
+      Assert.AreEqual('37.0', LTargets[0].Compiler);
+      Assert.AreEqual('Win64', LTargets[0].Platform);
+      Assert.AreEqual('Release', LTargets[0].Configuration);
     finally
       LTargets.Free;
     end;
@@ -132,6 +173,48 @@ begin
       Assert.AreEqual('23.0', LTargets[0].Compiler);
       Assert.AreEqual('Win64', LTargets[0].Platform);
       Assert.AreEqual('Debug', LTargets[0].Configuration);
+    finally
+      LTargets.Free;
+    end;
+  finally
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsBuildMatrix.TestProjectConstraintOutsideMatrixFails;
+var
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+  LTargets: TBoss4DBuildTargetList;
+  LRaised: Boolean;
+begin
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'invalid-project-filter';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Configurations.Add('Debug');
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'source/component.dproj';
+    LProject.Compilers.Add('22.0');
+    LPackage.BuildMatrix.Projects.Add(LProject);
+
+    LRaised := False;
+    LTargets := nil;
+    try
+      try
+        LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+          TBoss4DBuildSelection.All);
+      except
+        on E: EArgumentException do
+        begin
+          LRaised := True;
+          Assert.IsTrue(E.Message.Contains('22.0'));
+          Assert.IsTrue(E.Message.Contains('source/component.dproj'));
+        end;
+      end;
+      Assert.IsTrue(LRaised,
+        'Filtros de projeto fora dos eixos globais devem ser recusados.');
     finally
       LTargets.Free;
     end;

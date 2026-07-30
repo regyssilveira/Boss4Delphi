@@ -40,6 +40,39 @@ begin
     end));
 end;
 
+procedure ValidateUniqueValues(const AValues: TList<string>;
+  const ALabel: string);
+var
+  LSeen: TDictionary<string, Boolean>;
+begin
+  LSeen := TDictionary<string, Boolean>.Create;
+  try
+    for var LValue in AValues do
+    begin
+      if LValue.Trim.IsEmpty then
+        raise EArgumentException.CreateFmt(
+          '%s contem um valor vazio.', [ALabel]);
+      var LKey := LValue.ToLower;
+      if LSeen.ContainsKey(LKey) then
+        raise EArgumentException.CreateFmt(
+          '%s contem um valor duplicado: %s.', [ALabel, LValue]);
+      LSeen.Add(LKey, True);
+    end;
+  finally
+    LSeen.Free;
+  end;
+end;
+
+procedure ValidateSubset(const AProjectPath, ALabel: string;
+  const AValues, AGlobalValues: TList<string>);
+begin
+  for var LValue in AValues do
+    if not ContainsText(AGlobalValues, LValue) then
+      raise EArgumentException.CreateFmt(
+        'Projeto %s declara %s "%s" fora da buildMatrix.',
+        [AProjectPath, ALabel, LValue]);
+end;
+
 procedure ValidateMatrix(const AMatrix: TBoss4DBuildMatrix);
 var
   LSeenProjects: TDictionary<string, Boolean>;
@@ -56,6 +89,27 @@ begin
   if AMatrix.Projects.Count = 0 then
     raise EArgumentException.Create(
       'buildMatrix.projects deve declarar ao menos um projeto.');
+
+  ValidateUniqueValues(AMatrix.Compilers, 'buildMatrix.compilers');
+  ValidateUniqueValues(AMatrix.Platforms, 'buildMatrix.platforms');
+  ValidateUniqueValues(AMatrix.Configurations,
+    'buildMatrix.configurations');
+  if not AMatrix.DefaultCompiler.IsEmpty and
+     not ContainsText(AMatrix.Compilers, AMatrix.DefaultCompiler) then
+    raise EArgumentException.CreateFmt(
+      'Compilador default "%s" nao pertence a buildMatrix.',
+      [AMatrix.DefaultCompiler]);
+  if not AMatrix.DefaultPlatform.IsEmpty and
+     not ContainsText(AMatrix.Platforms, AMatrix.DefaultPlatform) then
+    raise EArgumentException.CreateFmt(
+      'Plataforma default "%s" nao pertence a buildMatrix.',
+      [AMatrix.DefaultPlatform]);
+  if not AMatrix.DefaultConfiguration.IsEmpty and
+     not ContainsText(AMatrix.Configurations,
+       AMatrix.DefaultConfiguration) then
+    raise EArgumentException.CreateFmt(
+      'Configuracao default "%s" nao pertence a buildMatrix.',
+      [AMatrix.DefaultConfiguration]);
 
   for var LPlatform in AMatrix.Platforms do
     if not SameText(LPlatform, 'Win32') and
@@ -85,6 +139,18 @@ begin
         raise EArgumentException.CreateFmt(
           'Projeto duplicado na matriz: %s.', [LProject.Path]);
       LSeenProjects.Add(LKey, True);
+      ValidateUniqueValues(LProject.Compilers,
+        'compilers do projeto ' + LProject.Path);
+      ValidateUniqueValues(LProject.Platforms,
+        'platforms do projeto ' + LProject.Path);
+      ValidateUniqueValues(LProject.Configurations,
+        'configurations do projeto ' + LProject.Path);
+      ValidateSubset(LProject.Path, 'compilador', LProject.Compilers,
+        AMatrix.Compilers);
+      ValidateSubset(LProject.Path, 'plataforma', LProject.Platforms,
+        AMatrix.Platforms);
+      ValidateSubset(LProject.Path, 'configuracao',
+        LProject.Configurations, AMatrix.Configurations);
     end;
   finally
     LSeenProjects.Free;
