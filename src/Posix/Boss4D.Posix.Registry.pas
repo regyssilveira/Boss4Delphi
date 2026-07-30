@@ -11,17 +11,28 @@ type
   TBoss4DRegistryFetcher = function(const ASource: string): string of object;
 
   TBoss4DRegistryEntry = class
+  private
+    FName: string;
+    FRepository: string;
+    FDescription: string;
+    FVersion: string;
+    FLicenseName: string;
+    FArtifactUrl: string;
+    FArtifactDigest: string;
+    FSignatureUrl: string;
+    FProvenanceUrl: string;
+    FSource: string;
   public
-    Name: string;
-    Repository: string;
-    Description: string;
-    Version: string;
-    LicenseName: string;
-    ArtifactUrl: string;
-    ArtifactDigest: string;
-    SignatureUrl: string;
-    ProvenanceUrl: string;
-    Source: string;
+    property Name: string read FName write FName;
+    property Repository: string read FRepository write FRepository;
+    property Description: string read FDescription write FDescription;
+    property Version: string read FVersion write FVersion;
+    property LicenseName: string read FLicenseName write FLicenseName;
+    property ArtifactUrl: string read FArtifactUrl write FArtifactUrl;
+    property ArtifactDigest: string read FArtifactDigest write FArtifactDigest;
+    property SignatureUrl: string read FSignatureUrl write FSignatureUrl;
+    property ProvenanceUrl: string read FProvenanceUrl write FProvenanceUrl;
+    property Source: string read FSource write FSource;
   end;
 
   TBoss4DRegistryEntries = class(TFPObjectList)

@@ -18,7 +18,6 @@ type
     function Registries: TStringList;
     procedure AddRegistry(const ASource: string);
     procedure RemoveRegistry(const ASource: string);
-    property Path: string read FPath;
   end;
 
 function DefaultConfigPath: string;
