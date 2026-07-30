@@ -10,6 +10,31 @@ type
   { Niveis de log suportados pelo sistema }
   TBoss4DLogLevel = (Debug, Info, Warning, Error);
 
+  { Execucao de processos isolada do sistema operacional hospedeiro. }
+  IBoss4DProcessRunner = interface
+    ['{69527D56-F14E-43D4-A746-2D7227D6000D}']
+    function Execute(const ACommandLine, AWorkingDirectory: string;
+      out AOutput: string): Boolean;
+  end;
+
+  { Operacoes de ambiente e filesystem que variam entre plataformas. }
+  IBoss4DPlatformEnvironment = interface
+    ['{69527D56-F14E-43D4-A746-2D7227D6000E}']
+    function PlatformName: string;
+    function HomePath: string;
+    function CurrentDirectory: string;
+    procedure MakeFileWritable(const APath: string);
+    function SupportsWindowsRegistry: Boolean;
+    function SupportsGetIt: Boolean;
+  end;
+
+  { Criacao e remocao de links de diretorio sem expor comandos do host. }
+  IBoss4DFileLinkService = interface
+    ['{69527D56-F14E-43D4-A746-2D7227D6000F}']
+    function RemoveDirectoryLink(const ALinkPath: string): Boolean;
+    function CreateDirectoryLink(const ATargetPath, ALinkPath: string): Boolean;
+  end;
+
   { Contrato para logs e diagnosticos }
   IBoss4DLogger = interface
     ['{69527D56-F14E-43D4-A746-2D7227D60001}']

@@ -27,7 +27,7 @@ implementation
 
 uses
   System.SysUtils, System.IOUtils, Boss4D.Core.Domain.Consts,
-  Boss4D.Core.Domain.Env;
+  Boss4D.Core.Platform;
 
 { TBoss4DWorkspaceService }
 
@@ -101,8 +101,6 @@ begin
 end;
 
 procedure TBoss4DWorkspaceService.CreateDirectoryJunction(const ASourceDir, ADestJunction: string);
-var
-  LOutput: string;
 begin
   // Remove link ou pasta anterior se houver
   if TDirectory.Exists(ADestJunction) then
@@ -110,7 +108,7 @@ begin
     FLogger.Log(TBoss4DLogLevel.Debug, '  Limpando pasta/link de modules existente em: ' + ADestJunction);
     try
       // Se for uma Junction, removemos usando rmdir no Windows
-      ExecuteCommandLine('cmd.exe /c rmdir "' + ADestJunction + '"', TPath.GetDirectoryName(ADestJunction), LOutput);
+      Boss4DFileLinkService.RemoveDirectoryLink(ADestJunction);
     except
       // Se falhar (ex: e uma pasta fÃ­sica comum), deleta de forma recursiva normal
       TDirectory.Delete(ADestJunction, True);
@@ -124,7 +122,8 @@ begin
   FLogger.Log(TBoss4DLogLevel.Debug, '  Criando junÃ§Ã£o de diretÃ³rio: %s -> %s', [ADestJunction, ASourceDir]);
 
   // No Windows, criamos junÃ§Ã£o via mklink /J (nÃ£o exige privilÃ©gios de Admin)
-  if not ExecuteCommandLine('cmd.exe /c mklink /J "' + ADestJunction + '" "' + ASourceDir + '"', TPath.GetDirectoryName(ADestJunction), LOutput) then
+  if not Boss4DFileLinkService.CreateDirectoryLink(
+    ASourceDir, ADestJunction) then
   begin
     FLogger.Log(TBoss4DLogLevel.Warning, '  Falha ao criar Directory Junction via cmd. Fazendo copia de seguranca.');
     // Fallback: se mklink falhar por algum motivo de OS, cria o diretorio fisico

@@ -13,6 +13,8 @@ uses
   Boss4D.Core.Domain.Sbom in '..\Core\Domain\Boss4D.Core.Domain.Sbom.pas',
   Boss4D.Core.Domain.License in '..\Core\Domain\Boss4D.Core.Domain.License.pas',
   Boss4D.Core.Ports in '..\Core\Ports\Boss4D.Core.Ports.pas',
+  Boss4D.Core.Platform in '..\Core\Platform\Boss4D.Core.Platform.pas',
+  Boss4D.Adapters.Platform.Windows in '..\Adapters\Platform\Windows\Boss4D.Adapters.Platform.Windows.pas',
   Boss4D.Adapters.Json in '..\Adapters\Json\Boss4D.Adapters.Json.pas',
   Boss4D.Adapters.Http in '..\Adapters\Http\Boss4D.Adapters.Http.pas',
   Boss4D.Adapters.Git in '..\Adapters\Git\Boss4D.Adapters.Git.pas',
@@ -46,6 +48,7 @@ uses
 
 
 begin
+  ConfigureWindowsPlatform;
   Application.Initialize;
   Application.MainFormOnTaskBar := True;
 

@@ -1,5 +1,23 @@
 # Boss4D Development Backlog
 
+## Epic 21: Portable CLI and distribution foundation
+
+- [x] **[Story] Platform abstraction foundation**
+  - Isolate process execution, host environment, writable files, and workspace
+    directory links behind tested contracts with Windows implementations.
+- [ ] **[Story] Structured terminal progress**
+  - Provide interactive, plain, JSON Lines, and quiet renderers over portable
+    lifecycle events.
+- [ ] **[Story] Secure self-update**
+  - Add signed update manifests, channels, staging, atomic promotion, and
+    rollback.
+- [ ] **[Story] Compiler compatibility matrix**
+  - Validate Delphi 10.4 through Delphi 13 before advertising each compiler.
+- [ ] **[Story] POSIX CLI**
+  - Implement Linux64 and macOS adapters while capability-gating Windows-only
+    RAD Studio and GetIt features.
+
+
 This document details the future planning, new features (backlog), and architectural evolution of **Boss4D**, based on community feedback and best practices in the Delphi ecosystem (inspired by tools such as *TMS Smart Setup*).
 
 ---

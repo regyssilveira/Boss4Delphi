@@ -8,6 +8,8 @@ uses
   System.Threading,
   Winapi.Windows,
   Boss4D.Core.Ports in 'Core/Ports/Boss4D.Core.Ports.pas',
+  Boss4D.Core.Platform in 'Core/Platform/Boss4D.Core.Platform.pas',
+  Boss4D.Adapters.Platform.Windows in 'Adapters/Platform/Windows/Boss4D.Adapters.Platform.Windows.pas',
   Boss4D.Core.Domain.Consts in 'Core/Domain/Boss4D.Core.Domain.Consts.pas',
   Boss4D.Core.Domain.Env in 'Core/Domain/Boss4D.Core.Domain.Env.pas',
   Boss4D.Core.Domain.SemVer in 'Core/Domain/Boss4D.Core.Domain.SemVer.pas',
@@ -75,6 +77,7 @@ var
   // Parser
   LParser: TBoss4DCommandLineParser;
 begin
+  ConfigureWindowsPlatform;
   SetConsoleOutputCP(CP_UTF8);
   SetConsoleCP(CP_UTF8);
   try

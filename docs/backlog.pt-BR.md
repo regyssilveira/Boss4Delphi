@@ -1,5 +1,23 @@
 # Backlog de Desenvolvimento do Boss4D
 
+## Épico 21: CLI portável e fundação de distribuição
+
+- [x] **[Story] Fundação de abstração de plataforma**
+  - Isolar execução de processos, ambiente do host, arquivos somente leitura e
+    links de diretório de workspaces atrás de contratos testados e
+    implementações Windows.
+- [ ] **[Story] Progresso estruturado no terminal**
+  - Oferecer renderizadores interativo, plain, JSON Lines e quiet sobre eventos
+    portáveis do ciclo de vida.
+- [ ] **[Story] Autoatualização segura**
+  - Adicionar manifestos assinados, canais, staging, promoção atômica e rollback.
+- [ ] **[Story] Matriz de compatibilidade de compiladores**
+  - Validar Delphi 10.4 até Delphi 13 antes de anunciar cada compilador.
+- [ ] **[Story] CLI POSIX**
+  - Implementar adaptadores Linux64 e macOS, limitando por capacidade os
+    recursos exclusivos do RAD Studio e GetIt no Windows.
+
+
 Este documento detalha o planejamento futuro, as novas funcionalidades (backlog) e a evolução arquitetônica do **Boss4D**, com base no feedback da comunidade e nas melhores práticas do ecossistema Delphi (inspirado nas ferramentas como o *TMS Smart Setup*).
 
 ---
