@@ -1,4 +1,4 @@
-unit Boss4D.IDE.Wizard;
+﻿unit Boss4D.IDE.Wizard;
 
 interface
 
@@ -362,7 +362,7 @@ begin
   if Assigned(LOptions) then
   begin
     LProjDir := TPath.GetDirectoryName(AProj.FileName);
-    
+
     LSearchPaths := BuildProjectSearchPaths(LProjDir, AMessageServices, AGroup);
     for LPath in LSearchPaths do
     begin
@@ -370,7 +370,7 @@ begin
       CheckAndAdd(AProj, LOptions, 'DCC_UnitSearchPath', LPath, AMessageServices, AGroup);
       CheckAndAdd(AProj, LOptions, 'SearchPath', LPath, AMessageServices, AGroup);
     end;
-    
+
     LBrowsingPaths := BuildProjectBrowsingPaths(LProjDir, AMessageServices, AGroup);
     for LPath in LBrowsingPaths do
     begin

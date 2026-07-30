@@ -81,6 +81,12 @@ type
     procedure TestDeclaredProjectRejectsTraversal;
 
     [Test]
+    procedure TestInstallIntegratesDeclaredLazarusPaths;
+
+    [Test]
+    procedure TestInstallDiscoversRootLazarusProject;
+
+    [Test]
     procedure TestIDEIntegration;
 
     [Test]
@@ -924,6 +930,94 @@ begin
   finally
     LInstall.Free;
   end;
+end;
+
+procedure TTestsServices.TestInstallIntegratesDeclaredLazarusPaths;
+var
+  LPackageRepository: IBoss4DPackageRepository;
+  LPackage: TBoss4DPackage;
+  LCompiler: TCompilerMock;
+  LInstall: TBoss4DInstallService;
+  LLpiPath: string;
+  LDprojPath: string;
+  LContent: string;
+begin
+  LPackageRepository := TBoss4DPackageJsonRepository.Create;
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'lazarus-root';
+    LPackage.Version := '1.0.0';
+    LPackage.AddDependency('github.com/test/library', '1.0.0');
+    LPackage.AddProject('app.lpi');
+    LPackage.AddProject('app.dproj');
+    LPackageRepository.Save(LPackage, GetBossFile);
+  finally
+    LPackage.Free;
+  end;
+
+  LLpiPath := TPath.Combine(FTempDir, 'app.lpi');
+  TFile.WriteAllText(LLpiPath,
+    '<CONFIG><CompilerOptions><SearchPaths>' +
+    '<OtherUnitFiles Value="src"/></SearchPaths></CompilerOptions></CONFIG>',
+    TEncoding.UTF8);
+  LDprojPath := TPath.Combine(FTempDir, 'app.dproj');
+  TFile.WriteAllText(LDprojPath, '<Project>unchanged</Project>',
+    TEncoding.UTF8);
+
+  LCompiler := TCompilerMock.Create;
+  LCompiler.SearchPath := 'modules\zeta;modules\alpha';
+  LInstall := TBoss4DInstallService.Create(LPackageRepository,
+    TBoss4DLockJsonRepository.Create, TGitClientMock.Create,
+    THttpClientMock.Create, LCompiler, TTestLogger.Create);
+  try
+    LInstall.Execute;
+  finally
+    LInstall.Free;
+  end;
+
+  LContent := TFile.ReadAllText(LLpiPath, TEncoding.UTF8);
+  Assert.Contains(LContent, 'Value="src;modules\alpha;modules\zeta"');
+  Assert.AreEqual('<Project>unchanged</Project>',
+    TFile.ReadAllText(LDprojPath, TEncoding.UTF8));
+end;
+
+procedure TTestsServices.TestInstallDiscoversRootLazarusProject;
+var
+  LPackageRepository: IBoss4DPackageRepository;
+  LPackage: TBoss4DPackage;
+  LCompiler: TCompilerMock;
+  LInstall: TBoss4DInstallService;
+  LLpkPath: string;
+begin
+  LPackageRepository := TBoss4DPackageJsonRepository.Create;
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'lazarus-package-root';
+    LPackage.Version := '1.0.0';
+    LPackage.AddDependency('github.com/test/library', '1.0.0');
+    LPackageRepository.Save(LPackage, GetBossFile);
+  finally
+    LPackage.Free;
+  end;
+
+  LLpkPath := TPath.Combine(FTempDir, 'runtime.lpk');
+  TFile.WriteAllText(LLpkPath,
+    '<CONFIG><Package><CompilerOptions/></Package></CONFIG>',
+    TEncoding.UTF8);
+
+  LCompiler := TCompilerMock.Create;
+  LCompiler.SearchPath := 'modules\library';
+  LInstall := TBoss4DInstallService.Create(LPackageRepository,
+    TBoss4DLockJsonRepository.Create, TGitClientMock.Create,
+    THttpClientMock.Create, LCompiler, TTestLogger.Create);
+  try
+    LInstall.Execute;
+  finally
+    LInstall.Free;
+  end;
+
+  Assert.Contains(TFile.ReadAllText(LLpkPath, TEncoding.UTF8),
+    'Value="modules\library"');
 end;
 
 procedure TTestsServices.TestMultiplatformCompilation;

@@ -1,4 +1,4 @@
-unit Boss4D.Core.Services.PackageManifest;
+﻿unit Boss4D.Core.Services.PackageManifest;
 
 interface
 
@@ -46,14 +46,14 @@ begin
   LRequiresStart := LMatch.Groups['body'].Index;
   LRequiresBlock := LMatch.Groups['body'].Value;
   LRestOfFile := AContent.Substring(LRequiresStart - 1 + LRequiresBlock.Length);
-  
+
   LSemicolonPositions := TList<Integer>.Create;
   try
     LInSingleComment := False;
     LInBlockComment1 := False;
     LInBlockComment2 := False;
     LInString := False;
-    
+
     I := 1;
     while I <= Length(LRequiresBlock) do
     begin
@@ -62,7 +62,7 @@ begin
         LNextChar := LRequiresBlock[I + 1]
       else
         LNextChar := #0;
-        
+
       if LInSingleComment then
       begin
         if (LChar = #10) or (LChar = #13) then
@@ -115,7 +115,7 @@ begin
     end;
 
     LUpdatedBlock := LRequiresBlock;
-    
+
     for J := LSemicolonPositions.Count - 1 downto 0 do
     begin
       LPos := LSemicolonPositions[J];
@@ -123,18 +123,18 @@ begin
         LPrevPos := LSemicolonPositions[J - 1] + 1
       else
         LPrevPos := 0;
-        
+
       LChunk := LUpdatedBlock.Substring(LPrevPos, LPos - LPrevPos);
       LUpdatedChunk := LChunk;
-      
+
       for LDependency in ADependencies do
       begin
         if LDependency.Trim.IsEmpty then
           Continue;
-          
+
         if TRegEx.IsMatch(LUpdatedChunk, '(?i)\b' + TRegEx.Escape(LDependency.Trim) + '\b') then
           Continue;
-          
+
         LLines := LUpdatedChunk.Split([sLineBreak, #10, #13]);
         LLastLineIdx := -1;
         for var K := Length(LLines) - 1 downto 0 do
@@ -145,18 +145,18 @@ begin
             Break;
           end;
         end;
-        
+
         LCommentIdx := -1;
         if LLastLineIdx >= 0 then
         begin
           LLastLine := LLines[LLastLineIdx];
           LCommentIdx := LLastLine.IndexOf('//');
-          
+
           if LCommentIdx >= 0 then
           begin
             LBeforeComment := LLastLine.Substring(0, LCommentIdx);
             LCommentPart := LLastLine.Substring(LCommentIdx);
-            
+
             LIndent := '';
             var K := 0;
             while (K < LBeforeComment.Length) and CharInSet(LBeforeComment[K + 1], [' ', #9]) do
@@ -166,14 +166,14 @@ begin
             end;
             if LIndent.IsEmpty then
               LIndent := '  ';
-              
+
             if not LBeforeComment.Trim.EndsWith(',') then
               LBeforeComment := LBeforeComment.TrimRight + ',';
-              
+
             LLines[LLastLineIdx] := LBeforeComment.TrimRight + sLineBreak + LIndent + LDependency.Trim + ' ' + LCommentPart;
           end;
         end;
-        
+
         if (LLastLineIdx < 0) or (LCommentIdx < 0) then
         begin
           if LUpdatedChunk.Trim.IsEmpty then
@@ -188,7 +188,7 @@ begin
           LUpdatedChunk := string.Join(sLineBreak, LLines);
         end;
       end;
-      
+
       LUpdatedBlock := LUpdatedBlock.Substring(0, LPrevPos) + LUpdatedChunk + LUpdatedBlock.Substring(LPos);
     end;
   finally

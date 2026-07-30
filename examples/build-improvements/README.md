@@ -4,6 +4,10 @@ Copy `boss.json` to a package root and adjust the project names. Boss4D builds
 only the declared files, in order. `runtime.dproj` uses Delphi/MSBuild and
 `runtime.lpk` uses Lazarus/lazbuild.
 
+For a root Lazarus project, `boss4d install` also merges resolved dependency
+unit directories into every `CompilerOptions/SearchPaths/OtherUnitFiles`
+section. Existing paths are preserved and repeated installs are idempotent.
+
 ```powershell
 boss4d install
 boss4d install --platform Win32

@@ -577,6 +577,10 @@ boss4d new package MyLibrary --path D:\work\MyLibrary
 An ordered `projects` array may contain `.dproj`, `.lpi`, or `.lpk`; paths must
 remain inside the package root. Delphi uses MSBuild and Lazarus requires
 `lazbuild` on `PATH`. Text sources are normalized before checksum verification.
+On install, dependency unit paths are merged idempotently into `OtherUnitFiles`
+for root `.lpi`/`.lpk` files, including every Lazarus build mode. Declared
+project paths remain confined to the project root; without declarations,
+root-level Lazarus files are discovered automatically.
 
 See [the complete guide](build-improvements.md) and
 [copyable example](../examples/build-improvements/README.md).

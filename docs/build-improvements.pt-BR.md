@@ -30,6 +30,18 @@ raiz e usar `.dproj`, `.lpi` ou `.lpk`. Sem `projects`, permanece a descoberta
 recursiva, ignorando diretórios comuns de testes e exemplos. Delphi usa MSBuild;
 Lazarus usa `lazbuild`, que deve estar no `PATH`.
 
+Durante `boss4d install`, os paths de units das dependências resolvidas são
+mesclados em `OtherUnitFiles` de todas as seções `CompilerOptions` dos arquivos
+`.lpi` e `.lpk` da raiz, incluindo opções do pacote e todos os modos de build.
+As entradas existentes preservam sua ordem, as novas entradas são ordenadas de
+forma determinística, a comparação ignora maiúsculas/minúsculas e instalações
+repetidas não duplicam paths nem regravam um arquivo inalterado.
+
+Quando `projects` é declarado, somente os arquivos Lazarus listados são
+atualizados e todos os paths devem permanecer dentro da raiz. Sem `projects`, o
+Boss4D descobre arquivos `.lpi` e `.lpk` no diretório raiz. Arquivos Delphi
+`.dproj` nunca são modificados por essa integração.
+
 ## Criação de projetos
 
 ```powershell

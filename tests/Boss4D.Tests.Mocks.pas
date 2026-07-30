@@ -43,6 +43,7 @@ type
     FCompiledProjects: TList<string>;
     FLastPlatform: string;
     FLastCompilerVersion: string;
+    FSearchPath: string;
   public
     constructor Create;
     destructor Destroy; override;
@@ -53,6 +54,7 @@ type
     property CompiledProjects: TList<string> read FCompiledProjects;
     property LastPlatform: string read FLastPlatform;
     property LastCompilerVersion: string read FLastCompilerVersion;
+    property SearchPath: string read FSearchPath write FSearchPath;
   end;
 
   { Mock para simulacao do Registro do Windows }
@@ -224,7 +226,7 @@ end;
 
 function TCompilerMock.BuildSearchPath(const ADep: TBoss4DDependency; const APlatform: string = ''): string;
 begin
-  Result := '';
+  Result := FSearchPath;
 end;
 
 { TRegistryMock }
