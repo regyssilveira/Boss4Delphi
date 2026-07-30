@@ -33,6 +33,9 @@ string-to-string `boss.json` dependency maps are covered by FPCUnit. The
 verifies external and internal SHA-256 digests, optional OpenPGP signatures and
 in-toto Statement v1 provenance, and commits extraction transactionally. A
 verified install is recorded in the legacy-compatible manifest and lock v3.
+The host also provides structured progress, stable automation exit codes,
+cooperative Ctrl+C cancellation, and `doctor` checks for Git, SHA-256, GPG,
+FPC, and a writable Boss home.
 
 The Windows host remains required for SBOM/audit commands, credential storage,
 RAD Studio/GetIt integration, GUI, IDE plugins, and self-update. These

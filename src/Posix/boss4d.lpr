@@ -4,14 +4,16 @@ program boss4d;
 
 uses
   Classes, SysUtils, Boss4D.Posix.Core, Boss4D.Posix.Registry,
-  Boss4D.Posix.Config, Boss4D.Posix.Package;
+  Boss4D.Posix.Config, Boss4D.Posix.Package, Boss4D.Posix.Operations;
 
 procedure Help;
 begin
   WriteLn('Boss4D portable CLI');
-  WriteLn('Commands: version, platform, init, install, ci, add, remove, list, search, info, registry, package');
+  WriteLn('Commands: version, platform, init, install, ci, add, remove, list,');
+  WriteLn('          search, info, registry, package, doctor');
   WriteLn('Install options: --locked --frozen-lockfile --offline --production');
   WriteLn('                 --resolution=highest|minimal');
+  WriteLn('                 --progress plain|interactive --json --quiet');
   WriteLn('Add options: boss4d add <repository> [version] [--dev]');
   WriteLn('Registry options: --registry=<index-v1-or-v2-path-or-url>');
   WriteLn('Package: boss4d package install <name> [--platform <name>]');
@@ -58,9 +60,15 @@ var
   LPackageResult: TBoss4DPackageResult;
   LPlatform, LCompiler, LTarget, LFailure: string;
   LAllowFallback: Boolean;
+  LProgressMode: TBoss4DProgressMode;
+  LReporter: TBoss4DProgressReporter;
+  LOperationId: string;
+  LDoctorResults: TStringList;
+  LDoctorOk: Boolean;
   LFoundFlag: Boolean;
   I: Integer;
 begin
+  InstallCancellationHandler;
   try
     if ParamCount = 0 then
     begin
@@ -76,6 +84,10 @@ begin
       InitProject(GetCurrentDir)
     else if (LCommand = 'install') or (LCommand = 'ci') then
     begin
+      LProgressMode := ParseProgressMode(OptionValue('--progress', ''),
+        HasOption('--json'), HasOption('--quiet'));
+      LReporter := TBoss4DProgressReporter.Create(LProgressMode);
+      LOperationId := LCommand + '-' + IntToHex(Random(MaxInt), 8);
       FillChar(LOptions, SizeOf(LOptions), 0);
       LOptions.Locked := HasOption('--locked') or (LCommand = 'ci');
       LOptions.FrozenLockfile := HasOption('--frozen-lockfile') or
@@ -86,7 +98,19 @@ begin
       if not SameText(LOptions.Resolution, 'highest') and
          not SameText(LOptions.Resolution, 'minimal') then
         raise Exception.Create('resolution must be highest or minimal');
-      InstallProject(GetCurrentDir, LOptions);
+      try
+        LReporter.Emit(NewProgressEvent(LOperationId, '', 'resolution',
+          'reading manifest and lock', 0, 0));
+        CheckCancelled;
+        LReporter.Emit(NewProgressEvent(LOperationId, '', 'installation',
+          'installing dependencies', 0, 0));
+        InstallProject(GetCurrentDir, LOptions);
+        CheckCancelled;
+        LReporter.Emit(NewProgressEvent(LOperationId, '', 'completion',
+          'dependencies installed', 1, 1));
+      finally
+        LReporter.Free;
+      end;
     end
     else if LCommand = 'add' then
     begin
@@ -229,6 +253,10 @@ begin
       if (ParamCount < 3) or not SameText(ParamStr(2), 'install') then
         raise Exception.Create('usage: boss4d package install <name>');
       LAllowFallback := not HasOption('--no-source-fallback');
+      LProgressMode := ParseProgressMode(OptionValue('--progress', ''),
+        HasOption('--json'), HasOption('--quiet'));
+      LReporter := TBoss4DProgressReporter.Create(LProgressMode);
+      LOperationId := 'package-' + IntToHex(Random(MaxInt), 8);
       LPlatform := OptionValue('--platform', PlatformName);
       LCompiler := OptionValue('--compiler', '');
       LSource := OptionValue('--registry', GetEnvironmentVariable(
@@ -250,16 +278,20 @@ begin
           LConfig.Free;
         end;
       end;
-      LRegistry := TBoss4DRegistryService.Create;
-      LFoundFlag := False;
       try
-        for J := 0 to LSources.Count - 1 do
-        begin
-          LEntries := LRegistry.Load(LSources[J], HasOption('--offline'));
-          try
-            LFound := LEntries.Find(ParamStr(3));
-            if not Assigned(LFound) then Continue;
-            LFoundFlag := True;
+        LRegistry := TBoss4DRegistryService.Create;
+        LFoundFlag := False;
+        try
+          LReporter.Emit(NewProgressEvent(LOperationId, ParamStr(3),
+            'resolution', 'searching registries', 0, 0));
+          CheckCancelled;
+          for J := 0 to LSources.Count - 1 do
+          begin
+            LEntries := LRegistry.Load(LSources[J], HasOption('--offline'));
+            try
+              LFound := LEntries.Find(ParamStr(3));
+              if not Assigned(LFound) then Continue;
+              LFoundFlag := True;
             LVariant := LFound.SelectVariant(LPlatform, LCompiler);
             if Assigned(LVariant) then
             begin
@@ -290,20 +322,24 @@ begin
               LPackageService := TBoss4DPackageService.Create;
               try
                 try
+                  LReporter.Emit(NewProgressEvent(LOperationId, LFound.Name,
+                    'verification', 'verifying immutable artifact', 0, 0));
+                  CheckCancelled;
                   LPackageResult := LPackageService.Install(LPackageRequest);
                   RecordArtifactDependency(GetCurrentDir, LFound.Repository,
                     LFound.Version, LPackageResult.Digest,
                     'modules/' + DependencyTarget(LFound.Repository));
-                  WriteLn('verified package installed: ' + LFound.Name +
-                    ' (' + IntToStr(LPackageResult.FileCount) + ' files)');
+                  LReporter.Emit(NewProgressEvent(LOperationId, LFound.Name,
+                    'completion', 'verified package installed', 1, 1));
                   Exit;
                 except
                   on E: Exception do
                   begin
                     LFailure := E.Message;
                     if not LAllowFallback then raise;
-                    WriteLn(StdErr, 'boss4d: artifact rejected; using Git: ' +
-                      LFailure);
+                    LReporter.Emit(NewProgressEvent(LOperationId, LFound.Name,
+                      'fallback', 'artifact rejected; using Git: ' +
+                      LFailure, 0, 0));
                   end;
                 end;
               finally
@@ -315,19 +351,37 @@ begin
                 'package has no compatible immutable artifact');
             AddDependency(GetCurrentDir, LFound.Repository,
               LFound.Version, False);
+            CheckCancelled;
             InstallProject(GetCurrentDir);
-            WriteLn('package installed from Git: ' + LFound.Name);
+            LReporter.Emit(NewProgressEvent(LOperationId, LFound.Name,
+              'completion', 'package installed from Git', 1, 1));
             Exit;
-          finally
-            LEntries.Free;
+            finally
+              LEntries.Free;
+            end;
           end;
+        finally
+          LRegistry.Free;
         end;
       finally
-        LRegistry.Free;
         LSources.Free;
+        LReporter.Free;
       end;
       if not LFoundFlag then
         raise Exception.Create('package not found: ' + ParamStr(3));
+    end
+    else if LCommand = 'doctor' then
+    begin
+      LDoctorResults := RunDoctor;
+      try
+        for I := 0 to LDoctorResults.Count - 1 do
+          WriteLn(LDoctorResults[I]);
+        LDoctorOk := DoctorPassed(LDoctorResults);
+      finally
+        LDoctorResults.Free;
+      end;
+      if not LDoctorOk then
+        raise Exception.Create('doctor found required tools missing');
     end
     else if (LCommand = 'help') or (LCommand = '--help') then
       Help
@@ -337,7 +391,7 @@ begin
     on E: Exception do
     begin
       WriteLn(StdErr, 'boss4d: ' + E.Message);
-      Halt(1);
+      Halt(ClassifyExitCode(E.Message));
     end;
   end;
 end.

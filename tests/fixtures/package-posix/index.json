@@ -1,1 +1,1 @@
-{"schemaVersion":2,"packages":[{"name":"Demo","repository":"example.test/demo","versions":[{"version":"1.0.0","variants":[{"platform":"linux","artifact":"demo.b4dpkg","sha256":"b818dbf061afb9300f4bbe7d8f8de6c4408ca82b80826437223cb9922d4d8e88"}]}]}]}
+{"schemaVersion":2,"packages":[{"name":"Demo","repository":"example.test/demo","versions":[{"version":"1.0.0","variants":[{"platform":"linux","artifact":"demo.b4dpkg","sha256":"98edf4d44451f2378c668f7427d6a335f3f4946c0643409019994f0f4eeb4a68"}]}]}]}
