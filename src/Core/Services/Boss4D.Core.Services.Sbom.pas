@@ -303,7 +303,7 @@ begin
   try
     try
       Result.ToolName := 'Boss4D';
-      Result.ToolVersion := '1.2.1';
+      Result.ToolVersion := '1.3.0';
       Result.Lifecycle := 'build';
       Result.Coverage := 'boss-managed-dependencies';
       Result.Completeness := Incomplete;
