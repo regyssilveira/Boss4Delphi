@@ -4,7 +4,7 @@ interface
 
 uses
   System.Generics.Collections, Boss4D.Core.Ports, Boss4D.Core.Domain.Dependency,
-  Boss4D.Core.Domain.Lock;
+  Boss4D.Core.Domain.Lock, Boss4D.Core.Services.IDERegistration;
 
 type
   { Mock para simulacao do cliente Git }
@@ -84,6 +84,25 @@ type
     property LastCompilerVersion: string read FLastCompilerVersion;
     property LastConfiguration: string read FLastConfiguration;
     property SearchPath: string read FSearchPath write FSearchPath;
+  end;
+
+  TIDERegistryStoreMock = class(TInterfacedObject,
+    IBoss4DIDERegistryStore)
+  private
+    FValues: TDictionary<string, string>;
+    FWriteCount: Integer;
+    FFailOnWrite: Integer;
+    function CompositeKey(const AKey, AName: string): string;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    function TryRead(const AKey, AName: string; out AValue: string): Boolean;
+    procedure WriteValue(const AKey, AName, AValue: string);
+    procedure DeleteValue(const AKey, AName: string);
+    function GetValue(const AKey, AName: string): string;
+    procedure SeedValue(const AKey, AName, AValue: string);
+    property FailOnWrite: Integer read FFailOnWrite write FFailOnWrite;
+    property WriteCount: Integer read FWriteCount;
   end;
 
   { Mock para simulacao do Registro do Windows }
@@ -317,6 +336,56 @@ end;
 function TCompilerMock.BuildSearchPath(const ADep: TBoss4DDependency; const APlatform: string = ''): string;
 begin
   Result := FSearchPath;
+end;
+
+constructor TIDERegistryStoreMock.Create;
+begin
+  inherited Create;
+  FValues := TDictionary<string, string>.Create;
+end;
+
+destructor TIDERegistryStoreMock.Destroy;
+begin
+  FValues.Free;
+  inherited Destroy;
+end;
+
+function TIDERegistryStoreMock.CompositeKey(const AKey,
+  AName: string): string;
+begin
+  Result := AKey.ToLower + '|' + AName.ToLower;
+end;
+
+function TIDERegistryStoreMock.TryRead(const AKey, AName: string;
+  out AValue: string): Boolean;
+begin
+  Result := FValues.TryGetValue(CompositeKey(AKey, AName), AValue);
+end;
+
+procedure TIDERegistryStoreMock.WriteValue(const AKey, AName,
+  AValue: string);
+begin
+  Inc(FWriteCount);
+  if (FFailOnWrite > 0) and (FWriteCount = FFailOnWrite) then
+    raise Exception.Create('simulated registry write failure');
+  FValues.AddOrSetValue(CompositeKey(AKey, AName), AValue);
+end;
+
+procedure TIDERegistryStoreMock.DeleteValue(const AKey, AName: string);
+begin
+  FValues.Remove(CompositeKey(AKey, AName));
+end;
+
+function TIDERegistryStoreMock.GetValue(const AKey, AName: string): string;
+begin
+  if not TryRead(AKey, AName, Result) then
+    Result := '';
+end;
+
+procedure TIDERegistryStoreMock.SeedValue(const AKey, AName,
+  AValue: string);
+begin
+  FValues.AddOrSetValue(CompositeKey(AKey, AName), AValue);
 end;
 
 { TRegistryMock }

@@ -94,6 +94,12 @@ type
     procedure TestBuildExecutorCompilesExpandedTargets;
     [Test]
     procedure TestIncrementalBuildStateExplainsRebuildReasons;
+    [Test]
+    procedure TestIDERegistrationTargetsOneToolchainAndUnregistersCleanly;
+    [Test]
+    procedure TestIDERegistrationRollsBackOnFailure;
+    [Test]
+    procedure TestIDERegistrationRepairRestoresDrift;
 
     [Test]
     procedure TestCLICommandLineParser;
@@ -218,6 +224,7 @@ uses
   Boss4D.Core.Services.BuildExecutor,
   Boss4D.Core.Services.BuildState,
   Boss4D.Core.Services.BuildPaths,
+  Boss4D.Core.Services.IDERegistration,
   Boss4D.Core.Services.PackageManifest, Boss4D.IDE.Wizard;
 
 { TTestLogger }
@@ -1423,6 +1430,154 @@ begin
       LDecision.Reason);
   finally
     LTarget.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDERegistrationRepairRestoresDrift;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LInventoryPath: string;
+  LLibraryKey: string;
+  LPackageKey: string;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LInventoryPath := TPath.Combine(FTempDir, 'ide-inventory.json');
+  LService := TBoss4DIDERegistrationService.Create(LStore, LInventoryPath);
+  LRegistration := TBoss4DIDERegistration.Create;
+  try
+    LRegistration.PackageName := 'Sample';
+    LRegistration.Compiler := '37.0';
+    LRegistration.Platform := 'Win32';
+    LRegistration.BplPath := 'C:\artifacts\SampleDesign.bpl';
+    LRegistration.Description := 'Sample design package';
+    LRegistration.SearchPath := 'C:\artifacts\dcu';
+    LRegistration.BrowsingPath := 'C:\sources';
+    LRegistration.DebugDcuPath := 'C:\artifacts\debug-dcu';
+    LService.RegisterTarget(LRegistration);
+
+    LLibraryKey := 'Software\Embarcadero\BDS\37.0\Library\Win32';
+    LPackageKey := 'Software\Embarcadero\BDS\37.0\Known Packages';
+    LStore.DeleteValue(LLibraryKey, 'Search Path');
+    LStore.DeleteValue(LPackageKey, LRegistration.BplPath);
+
+    Assert.AreEqual<Integer>(1, LService.Repair);
+    Assert.AreEqual('C:\artifacts\dcu',
+      LStore.GetValue(LLibraryKey, 'Search Path'));
+    Assert.AreEqual('Sample design package',
+      LStore.GetValue(LPackageKey, LRegistration.BplPath));
+  finally
+    LRegistration.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDERegistrationRollsBackOnFailure;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LInventoryPath: string;
+  LLibraryKey: string;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LInventoryPath := TPath.Combine(FTempDir, 'failed-inventory.json');
+  LService := TBoss4DIDERegistrationService.Create(LStore, LInventoryPath);
+  LRegistration := TBoss4DIDERegistration.Create;
+  try
+    LLibraryKey := 'Software\Embarcadero\BDS\37.0\Library\Win64';
+    LStore.SeedValue(LLibraryKey, 'Search Path', 'C:\existing');
+    LStore.FailOnWrite := 2;
+    LRegistration.PackageName := 'Rollback';
+    LRegistration.Compiler := '37.0';
+    LRegistration.Platform := 'Win64';
+    LRegistration.BplPath := 'C:\artifacts\Rollback.bpl';
+    LRegistration.SearchPath := 'C:\artifacts\dcu';
+    LRegistration.BrowsingPath := 'C:\sources';
+
+    Assert.WillRaise(
+      procedure
+      begin
+        LService.RegisterTarget(LRegistration);
+      end,
+      EBoss4DIDERegistrationError);
+    Assert.AreEqual('C:\existing',
+      LStore.GetValue(LLibraryKey, 'Search Path'));
+    Assert.IsFalse(TFile.Exists(LInventoryPath),
+      'Falha transacional nao pode persistir inventario parcial.');
+  finally
+    LRegistration.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDERegistrationTargetsOneToolchainAndUnregistersCleanly;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LInventoryPath: string;
+  LLibraryKey: string;
+  LPackageKey: string;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LInventoryPath := TPath.Combine(FTempDir, 'ide-inventory.json');
+  LService := TBoss4DIDERegistrationService.Create(LStore, LInventoryPath);
+  LRegistration := TBoss4DIDERegistration.Create;
+  try
+    LLibraryKey := 'Software\Embarcadero\BDS\37.0\Library\Win32';
+    LPackageKey := 'Software\Embarcadero\BDS\37.0\Known Packages';
+    LStore.SeedValue(LLibraryKey, 'Search Path', '$(BDSLIB)');
+    LRegistration.PackageName := 'Sample';
+    LRegistration.Compiler := '37.0';
+    LRegistration.Platform := 'Win32';
+    LRegistration.BplPath := 'C:\artifacts\SampleDesign.bpl';
+    LRegistration.Description := 'Sample design package';
+    LRegistration.SearchPath := 'C:\artifacts\dcu';
+    LRegistration.BrowsingPath := 'C:\sources';
+    LRegistration.DebugDcuPath := 'C:\artifacts\debug-dcu';
+
+    LService.RegisterTarget(LRegistration);
+
+    Assert.AreEqual('$(BDSLIB);C:\artifacts\dcu',
+      LStore.GetValue(LLibraryKey, 'Search Path'));
+    Assert.AreEqual('C:\sources',
+      LStore.GetValue(LLibraryKey, 'Browsing Path'));
+    Assert.AreEqual('C:\artifacts\debug-dcu',
+      LStore.GetValue(LLibraryKey, 'Debug DCU Path'));
+    Assert.AreEqual('Sample design package',
+      LStore.GetValue(LPackageKey, LRegistration.BplPath));
+    Assert.AreEqual('', LStore.GetValue(
+      'Software\Embarcadero\BDS\23.0\Known Packages',
+      LRegistration.BplPath),
+      'O BPL de Delphi 13 nao pode ser registrado no Delphi 12.');
+    Assert.IsTrue(TFile.Exists(LInventoryPath));
+
+    LRegistration.BplPath := 'C:\artifacts\v2\SampleDesign.bpl';
+    LRegistration.SearchPath := 'C:\artifacts\v2\dcu';
+    LRegistration.BrowsingPath := 'C:\sources\v2';
+    LRegistration.DebugDcuPath := 'C:\artifacts\v2\debug-dcu';
+    LService.RegisterTarget(LRegistration);
+    Assert.AreEqual('$(BDSLIB);C:\artifacts\v2\dcu',
+      LStore.GetValue(LLibraryKey, 'Search Path'));
+    Assert.AreEqual('', LStore.GetValue(LPackageKey,
+      'C:\artifacts\SampleDesign.bpl'),
+      'Atualizar um target deve remover o BPL anterior.');
+    Assert.AreEqual('Sample design package',
+      LStore.GetValue(LPackageKey, LRegistration.BplPath));
+
+    Assert.AreEqual<Integer>(1,
+      LService.Unregister('Sample', '37.0', 'Win32'));
+    Assert.AreEqual('$(BDSLIB)',
+      LStore.GetValue(LLibraryKey, 'Search Path'));
+    Assert.AreEqual('', LStore.GetValue(LLibraryKey, 'Browsing Path'));
+    Assert.AreEqual('', LStore.GetValue(LLibraryKey, 'Debug DCU Path'));
+    Assert.AreEqual('', LStore.GetValue(LPackageKey,
+      LRegistration.BplPath));
+  finally
+    LRegistration.Free;
     LService.Free;
   end;
 end;

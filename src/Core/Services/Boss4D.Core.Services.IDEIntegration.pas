@@ -3,7 +3,8 @@ unit Boss4D.Core.Services.IDEIntegration;
 interface
 
 uses
-  Boss4D.Core.Ports, System.Win.Registry, Winapi.Windows;
+  Boss4D.Core.Ports, System.Win.Registry, Winapi.Windows,
+  Boss4D.Core.Services.IDERegistration;
 
 type
   { Servico para integrar e registrar Library Paths de dependencias automaticamente na IDE do Delphi }
@@ -13,12 +14,18 @@ type
     FLogger: IBoss4DLogger;
     FRegistryRoot: HKEY;
     FRegistryKeyPrefix: string;
+    FRegistrationService: TBoss4DIDERegistrationService;
     procedure UpdateSearchPathForVersion(const AVersion, APlatform, APathToInject: string);
   public
     constructor Create(const ARegistry: IBoss4DRegistryService; const ALogger: IBoss4DLogger);
+    destructor Destroy; override;
     procedure IntegrateLibraryPaths(const APlatform: string = '');
     procedure RegisterDesignTimePackage(const ABPLPath: string; const ADescription: string = '');
     procedure RegisterIDEPackage(const ABPLPath: string; const ADescription: string = '');
+    procedure RegisterTarget(const ARegistration: TBoss4DIDERegistration);
+    function UnregisterTarget(const APackageName, ACompiler,
+      APlatform: string): Integer;
+    function RepairRegistrations: Integer;
 
     property RegistryKeyPrefix: string read FRegistryKeyPrefix write FRegistryKeyPrefix;
   end;
@@ -26,7 +33,8 @@ type
 implementation
 
 uses
-  System.SysUtils, System.IOUtils, Boss4D.Core.Domain.Consts;
+  System.SysUtils, System.IOUtils, Boss4D.Core.Domain.Consts,
+  Boss4D.Core.Domain.Env;
 
 { TBoss4DIDEIntegrationService }
 
@@ -37,6 +45,15 @@ begin
   FLogger := ALogger;
   FRegistryRoot := HKEY_CURRENT_USER;
   FRegistryKeyPrefix := 'Software\Embarcadero\BDS\';
+  FRegistrationService := TBoss4DIDERegistrationService.Create(
+    TBoss4DWindowsIDERegistryStore.Create,
+    TPath.Combine(GetBossHome, 'ide-registrations.json'));
+end;
+
+destructor TBoss4DIDEIntegrationService.Destroy;
+begin
+  FRegistrationService.Free;
+  inherited Destroy;
 end;
 
 procedure TBoss4DIDEIntegrationService.UpdateSearchPathForVersion(const AVersion, APlatform, APathToInject: string);
@@ -150,6 +167,31 @@ end;
 procedure TBoss4DIDEIntegrationService.RegisterIDEPackage(const ABPLPath: string; const ADescription: string = '');
 begin
   RegisterDesignTimePackage(ABPLPath, ADescription);
+end;
+
+procedure TBoss4DIDEIntegrationService.RegisterTarget(
+  const ARegistration: TBoss4DIDERegistration);
+begin
+  FRegistrationService.RegisterTarget(ARegistration);
+  FLogger.Log(TBoss4DLogLevel.Info,
+    '  [OK] Target IDE registrado para Delphi %s (%s).',
+    [ARegistration.Compiler, ARegistration.Platform]);
+end;
+
+function TBoss4DIDEIntegrationService.UnregisterTarget(
+  const APackageName, ACompiler, APlatform: string): Integer;
+begin
+  Result := FRegistrationService.Unregister(APackageName, ACompiler,
+    APlatform);
+  FLogger.Log(TBoss4DLogLevel.Info,
+    '  [OK] %d registro(s) IDE removido(s).', [Result]);
+end;
+
+function TBoss4DIDEIntegrationService.RepairRegistrations: Integer;
+begin
+  Result := FRegistrationService.Repair;
+  FLogger.Log(TBoss4DLogLevel.Info,
+    '  [OK] %d registro(s) IDE reparado(s).', [Result]);
 end;
 
 end.
