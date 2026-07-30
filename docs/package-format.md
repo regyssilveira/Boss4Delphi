@@ -53,6 +53,10 @@ repository. `--no-source-fallback` makes the immutable artifact mandatory.
 Signature and provenance are mandatory whenever their URLs are declared by the
 registry.
 
+The native Linux/FPC CLI supports this verified installation flow, including
+Registry v2 platform/compiler variants. OpenPGP verification requires `gpg` on
+`PATH`; SHA-256 verification requires `sha256sum`.
+
 The format favors auditability and deterministic behavior. Future schema
 versions may introduce compression, but consumers must reject unknown versions
 instead of guessing their semantics.

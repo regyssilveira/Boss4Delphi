@@ -31,6 +31,8 @@ procedure InitProject(const ADirectory: string);
 procedure AddDependency(const ADirectory, ARepository, AVersion: string;
   const ADevelopment: Boolean);
 procedure RemoveDependency(const ADirectory, ARepository: string);
+procedure RecordArtifactDependency(const ADirectory, ARepository,
+  AVersion, ADigest, ATarget: string);
 procedure InstallProject(const ADirectory: string); overload;
 procedure InstallProject(const ADirectory: string;
   const AOptions: TBoss4DInstallOptions); overload;
@@ -300,6 +302,54 @@ begin
     LDependencies := FindObject(LManifest, 'devDependencies');
     if Assigned(LDependencies) then LDependencies.Delete(ARepository);
     SaveJsonObject(LPath, LManifest);
+  finally
+    LManifest.Free;
+  end;
+end;
+
+procedure RecordArtifactDependency(const ADirectory, ARepository,
+  AVersion, ADigest, ATarget: string);
+var
+  LManifest, LLock, LInstalled, LEntry, LRoot: TJSONObject;
+  LManifestPath, LLockPath: string;
+begin
+  AddDependency(ADirectory, ARepository, AVersion, False);
+  LManifestPath := IncludeTrailingPathDelimiter(ADirectory) + MANIFEST_FILE;
+  LLockPath := IncludeTrailingPathDelimiter(ADirectory) + LOCK_FILE;
+  LManifest := LoadJsonObject(LManifestPath);
+  try
+    if FileExists(LLockPath) then
+      LLock := LoadJsonObject(LLockPath)
+    else
+      LLock := TJSONObject.Create;
+    try
+      LLock.Delete('lockVersion');
+      LLock.Add('lockVersion', 3);
+      LLock.Delete('hash');
+      LLock.Add('hash', ManifestFingerprint(LManifest));
+      LRoot := FindObject(LLock, 'root');
+      if not Assigned(LRoot) then
+      begin
+        LRoot := TJSONObject.Create;
+        LRoot.Add('name', LManifest.Get('name', 'app'));
+        LRoot.Add('version', LManifest.Get('version', '0.0.0'));
+        LLock.Add('root', LRoot);
+      end;
+      LInstalled := EnsureObject(LLock, 'installedModules');
+      LInstalled.Delete(ARepository);
+      LEntry := TJSONObject.Create;
+      LEntry.Add('name', DependencyTarget(ARepository));
+      LEntry.Add('version', AVersion);
+      LEntry.Add('repository', ARepository);
+      LEntry.Add('resolvedFrom', 'registry-artifact');
+      LEntry.Add('scope', 'runtime');
+      LEntry.Add('checksum', 'sha256:' + LowerCase(ADigest));
+      LEntry.Add('target', ATarget);
+      LInstalled.Add(ARepository, LEntry);
+      SaveJsonObject(LLockPath, LLock);
+    finally
+      LLock.Free;
+    end;
   finally
     LManifest.Free;
   end;

@@ -20,6 +20,16 @@ type
     property Fail: Boolean read FFail write FFail;
   end;
 
+  TSignatureVerifierMock = class
+  private
+    FAccept: Boolean;
+    FCalls: Integer;
+  public
+    function Verify(const AArtifactPath, ASignaturePath: string): Boolean;
+    property Accept: Boolean read FAccept write FAccept;
+    property Calls: Integer read FCalls;
+  end;
+
   TPosixCoreTests = class(TTestCase)
   published
     procedure TestPlatform;
@@ -44,12 +54,21 @@ type
     procedure TestRegistryConfigurationPreservesExistingFields;
     procedure TestRegistryOfflineUsesCache;
     procedure TestRegistryOnlineFallsBackToCache;
+    procedure TestRegistrySelectsArtifactVariant;
+    procedure TestVerifiedPackageInstall;
+    procedure TestPackageRejectsArtifactDigestMismatch;
+    procedure TestPackageRejectsFileDigestMismatch;
+    procedure TestPackageRejectsUnsafePath;
+    procedure TestPackageRejectsInvalidSignature;
+    procedure TestPackageRejectsInvalidProvenance;
+    procedure TestArtifactInstallRecordsLegacyManifestAndLock;
   end;
 
 implementation
 
 uses
-  fpjson, Boss4D.Posix.Core, Boss4D.Posix.Registry, Boss4D.Posix.Config;
+  fpjson, Boss4D.Posix.Core, Boss4D.Posix.Registry, Boss4D.Posix.Config,
+  Boss4D.Posix.Package;
 
 procedure SaveFixture(const APath, AContent: string); forward;
 
@@ -58,6 +77,14 @@ begin
   Inc(FCalls);
   if FFail then raise Exception.Create('network unavailable');
   Result := FContent;
+end;
+
+function TSignatureVerifierMock.Verify(const AArtifactPath,
+  ASignaturePath: string): Boolean;
+begin
+  Inc(FCalls);
+  Result := FAccept and FileExists(AArtifactPath) and
+    FileExists(ASignaturePath);
 end;
 
 function NewTempDirectory: string;
@@ -195,6 +222,294 @@ begin
     LContent.SaveToFile(APath);
   finally
     LContent.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestRegistrySelectsArtifactVariant;
+var
+  LDir, LRoot: string;
+  LService: TBoss4DRegistryService;
+  LEntries: TBoss4DRegistryEntries;
+  LEntry: TBoss4DRegistryEntry;
+  LVariant: TBoss4DArtifactVariant;
+begin
+  LDir := NewTempDirectory;
+  LRoot := IncludeTrailingPathDelimiter(LDir) + 'index.json';
+  SaveFixture(LRoot, '{"schemaVersion":2,"packages":[{"name":"Demo",' +
+    '"repository":"example.test/demo","versions":[{"version":"2.0.0",' +
+    '"variants":[{"platform":"linux","compiler":"3.2.2",' +
+    '"artifact":"exact.b4dpkg","sha256":"exact"},' +
+    '{"platform":"linux","artifact":"platform.b4dpkg",' +
+    '"sha256":"platform"},{"artifact":"generic.b4dpkg",' +
+    '"sha256":"generic"}]}]}]}');
+  LService := TBoss4DRegistryService.Create;
+  try
+    LEntries := LService.Load(LRoot);
+    try
+      LEntry := LEntries.Find('Demo');
+      AssertEquals(3, LEntry.Variants.Count);
+      LVariant := LEntry.SelectVariant('linux', '3.2.2');
+      AssertEquals('exact.b4dpkg', LVariant.ArtifactUrl);
+      LVariant := LEntry.SelectVariant('linux', '3.0.0');
+      AssertEquals('platform.b4dpkg', LVariant.ArtifactUrl);
+      LVariant := LEntry.SelectVariant('macos', '3.0.0');
+      AssertEquals('generic.b4dpkg', LVariant.ArtifactUrl);
+    finally
+      LEntries.Free;
+    end;
+  finally
+    LService.Free;
+  end;
+end;
+
+function CreatePackageFixture(const ADirectory, APath,
+  AFileDigest: string): string;
+var
+  LContentPath: string;
+begin
+  LContentPath := IncludeTrailingPathDelimiter(ADirectory) + 'content.tmp';
+  SaveFixture(LContentPath, 'unit verified;');
+  Result := IncludeTrailingPathDelimiter(ADirectory) + 'fixture.b4dpkg';
+  SaveFixture(Result, '{"format":"boss4d-package","schemaVersion":1,' +
+    '"files":[{"path":"' + APath + '","content":"dW5pdCB2ZXJpZmllZDsK",' +
+    '"sha256":"' + AFileDigest + '"}]}');
+end;
+
+procedure InitPackageRequest(var ARequest: TBoss4DPackageRequest;
+  const AArtifact, ATarget: string);
+begin
+  ARequest.ArtifactUrl := AArtifact;
+  ARequest.Sha256 := Sha256File(AArtifact);
+  ARequest.SignatureUrl := '';
+  ARequest.ProvenanceUrl := '';
+  ARequest.TargetDirectory := ATarget;
+end;
+
+procedure TPosixCoreTests.TestVerifiedPackageInstall;
+var
+  LDir, LContent, LArtifact, LTarget, LSignature, LProvenance: string;
+  LRequest: TBoss4DPackageRequest;
+  LResult: TBoss4DPackageResult;
+  LVerifier: TSignatureVerifierMock;
+  LService: TBoss4DPackageService;
+begin
+  LDir := NewTempDirectory;
+  LContent := IncludeTrailingPathDelimiter(LDir) + 'content.tmp';
+  SaveFixture(LContent, 'unit verified;');
+  LArtifact := CreatePackageFixture(LDir, 'src/verified.pas',
+    Sha256File(LContent));
+  LTarget := IncludeTrailingPathDelimiter(LDir) + 'modules/verified';
+  LSignature := LArtifact + '.asc';
+  LProvenance := LArtifact + '.intoto.json';
+  SaveFixture(LSignature, 'test signature');
+  InitPackageRequest(LRequest, LArtifact, LTarget);
+  SaveFixture(LProvenance, '{"_type":"https://in-toto.io/Statement/v1",' +
+    '"subject":[{"name":"fixture.b4dpkg","digest":{"sha256":"' +
+    LRequest.Sha256 + '"}}]}');
+  LRequest.SignatureUrl := LSignature;
+  LRequest.ProvenanceUrl := LProvenance;
+  LVerifier := TSignatureVerifierMock.Create;
+  try
+    LVerifier.Accept := True;
+    LService := TBoss4DPackageService.Create(@LVerifier.Verify);
+    try
+      LResult := LService.Install(LRequest);
+      AssertTrue(LResult.Installed);
+      AssertEquals(1, LResult.FileCount);
+      AssertEquals(1, LVerifier.Calls);
+      AssertTrue(FileExists(IncludeTrailingPathDelimiter(LTarget) +
+        'src/verified.pas'));
+    finally
+      LService.Free;
+    end;
+  finally
+    LVerifier.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestPackageRejectsArtifactDigestMismatch;
+var
+  LDir, LContent, LArtifact, LTarget, LExisting: string;
+  LRequest: TBoss4DPackageRequest;
+  LService: TBoss4DPackageService;
+begin
+  LDir := NewTempDirectory;
+  LContent := IncludeTrailingPathDelimiter(LDir) + 'content.tmp';
+  SaveFixture(LContent, 'unit verified;');
+  LArtifact := CreatePackageFixture(LDir, 'verified.pas',
+    Sha256File(LContent));
+  LTarget := IncludeTrailingPathDelimiter(LDir) + 'modules/verified';
+  ForceDirectories(LTarget);
+  LExisting := IncludeTrailingPathDelimiter(LTarget) + 'existing.txt';
+  SaveFixture(LExisting, 'preserve');
+  InitPackageRequest(LRequest, LArtifact, LTarget);
+  LRequest.Sha256 := StringOfChar('0', 64);
+  LService := TBoss4DPackageService.Create;
+  try
+    try
+      LService.Install(LRequest);
+      Fail('Artifact digest mismatch should fail');
+    except
+      on E: Exception do AssertTrue(Pos('SHA-256 mismatch', E.Message) > 0);
+    end;
+    AssertTrue(FileExists(LExisting));
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestPackageRejectsFileDigestMismatch;
+var
+  LDir, LArtifact: string;
+  LRequest: TBoss4DPackageRequest;
+  LService: TBoss4DPackageService;
+begin
+  LDir := NewTempDirectory;
+  LArtifact := CreatePackageFixture(LDir, 'verified.pas',
+    StringOfChar('0', 64));
+  InitPackageRequest(LRequest, LArtifact,
+    IncludeTrailingPathDelimiter(LDir) + 'modules/verified');
+  LService := TBoss4DPackageService.Create;
+  try
+    try
+      LService.Install(LRequest);
+      Fail('File digest mismatch should fail');
+    except
+      on E: Exception do AssertTrue(Pos('file digest mismatch', E.Message) > 0);
+    end;
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestPackageRejectsUnsafePath;
+var
+  LDir, LContent, LArtifact: string;
+  LRequest: TBoss4DPackageRequest;
+  LService: TBoss4DPackageService;
+begin
+  LDir := NewTempDirectory;
+  LContent := IncludeTrailingPathDelimiter(LDir) + 'content.tmp';
+  SaveFixture(LContent, 'unit verified;');
+  LArtifact := CreatePackageFixture(LDir, '../escaped.pas',
+    Sha256File(LContent));
+  InitPackageRequest(LRequest, LArtifact,
+    IncludeTrailingPathDelimiter(LDir) + 'modules/verified');
+  LService := TBoss4DPackageService.Create;
+  try
+    try
+      LService.Install(LRequest);
+      Fail('Unsafe path should fail');
+    except
+      on E: Exception do AssertTrue(Pos('unsafe package path', E.Message) > 0);
+    end;
+    AssertFalse(FileExists(IncludeTrailingPathDelimiter(LDir) + 'escaped.pas'));
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestPackageRejectsInvalidSignature;
+var
+  LDir, LContent, LArtifact: string;
+  LRequest: TBoss4DPackageRequest;
+  LVerifier: TSignatureVerifierMock;
+  LService: TBoss4DPackageService;
+begin
+  LDir := NewTempDirectory;
+  LContent := IncludeTrailingPathDelimiter(LDir) + 'content.tmp';
+  SaveFixture(LContent, 'unit verified;');
+  LArtifact := CreatePackageFixture(LDir, 'verified.pas',
+    Sha256File(LContent));
+  InitPackageRequest(LRequest, LArtifact,
+    IncludeTrailingPathDelimiter(LDir) + 'modules/verified');
+  LRequest.SignatureUrl := LArtifact + '.asc';
+  SaveFixture(LRequest.SignatureUrl, 'invalid');
+  LVerifier := TSignatureVerifierMock.Create;
+  try
+    LVerifier.Accept := False;
+    LService := TBoss4DPackageService.Create(@LVerifier.Verify);
+    try
+      try
+        LService.Install(LRequest);
+        Fail('Invalid signature should fail');
+      except
+        on E: Exception do
+          AssertTrue(Pos('signature verification failed', E.Message) > 0);
+      end;
+    finally
+      LService.Free;
+    end;
+  finally
+    LVerifier.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestPackageRejectsInvalidProvenance;
+var
+  LDir, LContent, LArtifact: string;
+  LRequest: TBoss4DPackageRequest;
+  LService: TBoss4DPackageService;
+begin
+  LDir := NewTempDirectory;
+  LContent := IncludeTrailingPathDelimiter(LDir) + 'content.tmp';
+  SaveFixture(LContent, 'unit verified;');
+  LArtifact := CreatePackageFixture(LDir, 'verified.pas',
+    Sha256File(LContent));
+  InitPackageRequest(LRequest, LArtifact,
+    IncludeTrailingPathDelimiter(LDir) + 'modules/verified');
+  LRequest.ProvenanceUrl := LArtifact + '.intoto.json';
+  SaveFixture(LRequest.ProvenanceUrl,
+    '{"_type":"https://in-toto.io/Statement/v1","subject":[]}');
+  LService := TBoss4DPackageService.Create;
+  try
+    try
+      LService.Install(LRequest);
+      Fail('Invalid provenance should fail');
+    except
+      on E: Exception do
+        AssertTrue(Pos('provenance verification failed', E.Message) > 0);
+    end;
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestArtifactInstallRecordsLegacyManifestAndLock;
+var
+  LDir: string;
+  LManifest, LDependencies, LLock, LInstalled, LEntry: TJSONObject;
+  LExpectedHash: string;
+begin
+  LDir := NewTempDirectory;
+  InitProject(LDir);
+  RecordArtifactDependency(LDir, 'example.test/verified', 'v2.0.0',
+    StringOfChar('a', 64), 'modules/verified');
+  LManifest := LoadJsonObject(IncludeTrailingPathDelimiter(LDir) + 'boss.json');
+  try
+    LDependencies := TJSONObject(LManifest.Find('dependencies'));
+    AssertEquals('v2.0.0',
+      LDependencies.Get('example.test/verified', ''));
+  finally
+    LManifest.Free;
+  end;
+  LManifest := LoadJsonObject(IncludeTrailingPathDelimiter(LDir) + 'boss.json');
+  try
+    LExpectedHash := ManifestFingerprint(LManifest);
+  finally
+    LManifest.Free;
+  end;
+  LLock := LoadJsonObject(IncludeTrailingPathDelimiter(LDir) +
+    'boss-lock.json');
+  try
+    LInstalled := TJSONObject(LLock.Find('installedModules'));
+    LEntry := TJSONObject(LInstalled.Find('example.test/verified'));
+    AssertEquals('registry-artifact', LEntry.Get('resolvedFrom', ''));
+    AssertEquals('sha256:' + StringOfChar('a', 64),
+      LEntry.Get('checksum', ''));
+    AssertEquals(LExpectedHash, LLock.Get('hash', ''));
+  finally
+    LLock.Free;
   end;
 end;
 

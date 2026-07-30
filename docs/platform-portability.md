@@ -28,19 +28,21 @@ supports manifest initialization, `add`, `remove`, `list`, Git installation,
 lock schema v3, runtime/development scopes, production mode, frozen and offline
 installation, CI mode, highest/minimal SemVer selection, Registry v1/v2
 discovery, persistent sources, and offline registry caching. Legacy
-string-to-string `boss.json` dependency maps are covered by FPCUnit.
+string-to-string `boss.json` dependency maps are covered by FPCUnit. The
+`package install` command selects Registry v2 variants by platform/compiler,
+verifies external and internal SHA-256 digests, optional OpenPGP signatures and
+in-toto Statement v1 provenance, and commits extraction transactionally. A
+verified install is recorded in the legacy-compatible manifest and lock v3.
 
-The Windows host remains required for verified `.b4dpkg` installation,
-SBOM/audit commands, OpenPGP, credential storage,
+The Windows host remains required for SBOM/audit commands, credential storage,
 RAD Studio/GetIt integration, GUI, IDE plugins, and self-update. These
 boundaries are intentional and documented, not silently emulated.
 
 ## Next portability steps
 
-1. Share the verified package reader with the FPC host.
-2. Port SBOM lock-only generation, OSV audit, and structured progress output.
-3. Add POSIX credential, workspace-link, and artifact-cache adapters.
-4. Add macOS builds after the Linux contracts reach feature parity.
+1. Port SBOM lock-only generation, OSV audit, and structured progress output.
+2. Add POSIX credential, workspace-link, and artifact-cache adapters.
+3. Add macOS builds after the Linux contracts reach feature parity.
 
 Every new portable capability requires unit tests and an actual target-host
 build. Linux is currently supported for the dependency workflow listed above;

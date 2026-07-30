@@ -1,6 +1,6 @@
 # Pacotes imutáveis do Boss4D
 
-`boss4d pack` cria um artefato `.b4dpkg` determinístico a partir do projeto:
+`boss4d pack` cria um artefato `.b4dpkg` determinístico:
 
 ```text
 boss4d pack
@@ -8,24 +8,18 @@ boss4d pack --output dist/minha-biblioteca-1.0.0.b4dpkg
 boss4d pack --output dist/minha-biblioteca-1.0.0.b4dpkg --sign release@example.com
 ```
 
-O formato v1 é um envelope JSON canônico. Ele registra `format`,
-`schemaVersion` e uma lista de arquivos ordenada pelo caminho. Cada arquivo
-possui caminho normalizado com barras, digest SHA-256 e conteúdo Base64.
-Binários gerados, `.git`, `modules`, `dist`, dados de scratch e saídas do
-compilador são excluídos.
+O formato v1 é um envelope JSON canônico com `format`, `schemaVersion` e uma
+lista de arquivos ordenada. Cada arquivo possui caminho normalizado, digest
+SHA-256 e conteúdo Base64. Saídas geradas, `.git`, `modules`, `dist` e scratch
+são excluídos.
 
-A mesma árvore de fontes produz os mesmos bytes e o mesmo SHA-256 do pacote.
-Cada execução também grava uma declaração in-toto Statement v1 em
-`.intoto.json`, vinculando nome e SHA-256 do artefato ao builder Boss4D e à
-quantidade de arquivos. Com `--sign`, o Boss4D solicita ao GPG uma assinatura
-destacada ASCII `.asc` e a verifica imediatamente antes de informar sucesso.
-`boss4d publish` inclui esse artefato imutável e seu digest no payload de
-publicação, permitindo que o registro armazene conteúdo pelo digest em vez de
-estado mutável do repositório.
+A mesma árvore produz os mesmos bytes e SHA-256. O empacotamento também grava
+uma declaração in-toto Statement v1 em `.intoto.json`. Com `--sign`, o GPG cria
+e verifica uma assinatura destacada `.asc`.
 
 ## Instalação verificada
 
-Uma release no Registry v2 pode publicar as evidências do artefato em conjunto:
+Uma versão no Registry v2 pode publicar as evidências:
 
 ```json
 {
@@ -37,23 +31,21 @@ Uma release no Registry v2 pode publicar as evidências do artefato em conjunto:
 }
 ```
 
-Para instalar um pacote indexado:
-
 ```text
 boss4d package install minha-biblioteca
+boss4d package install minha-biblioteca --platform linux --compiler 3.2.2
 boss4d package install minha-biblioteca --no-source-fallback
 ```
 
-O Boss4D baixa o conteúdo para uma área isolada, confere o SHA-256 do pacote,
-valida cada caminho e digest interno, verifica a assinatura OpenPGP declarada
-e o digest do subject in-toto, e somente depois substitui o diretório do
-módulo. Uma falha de verificação preserva o destino anterior.
+O Boss4D baixa para uma área isolada, confere o SHA-256 externo, valida caminhos
+e digests internos, verifica assinatura OpenPGP e o subject in-toto declarados,
+e somente então substitui o módulo. Uma falha preserva o destino anterior.
 
-Por padrão, um artefato indisponível ou recusado usa o repositório Git indexado
-como fallback. `--no-source-fallback` torna obrigatório o artefato imutável.
-Assinatura e proveniência são obrigatórias sempre que suas URLs forem
-declaradas pelo registro.
+Por padrão, um artefato ausente ou recusado usa a fonte Git indexada.
+`--no-source-fallback` torna o artefato imutável obrigatório. A CLI nativa
+Linux/FPC oferece o mesmo fluxo e seleciona variantes por
+plataforma/compilador. Ela requer `gpg` no `PATH` quando houver assinatura e
+`sha256sum` para as verificações de integridade.
 
-O formato prioriza auditoria e determinismo. Versões futuras podem introduzir
-compactação, mas consumidores devem rejeitar versões desconhecidas em vez de
-inferir sua semântica.
+Consumidores rejeitam versões desconhecidas do formato em vez de inferir sua
+semântica.
