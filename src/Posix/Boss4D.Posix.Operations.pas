@@ -23,8 +23,10 @@ type
   TBoss4DProgressReporter = class
   private
     FMode: TBoss4DProgressMode;
+    FInteractiveLine: Boolean;
   public
     constructor Create(const AMode: TBoss4DProgressMode);
+    destructor Destroy; override;
     procedure Emit(const AEvent: TBoss4DProgressEvent);
   end;
 
@@ -50,6 +52,8 @@ uses
 
 var
   GCancelled: Boolean = False;
+
+function isatty(AFileDescriptor: cint): cint; cdecl; external 'c';
 
 procedure HandleSignal(ASignal: cint); cdecl;
 begin
@@ -115,6 +119,13 @@ constructor TBoss4DProgressReporter.Create(const AMode: TBoss4DProgressMode);
 begin
   inherited Create;
   FMode := AMode;
+  FInteractiveLine := False;
+end;
+
+destructor TBoss4DProgressReporter.Destroy;
+begin
+  if FInteractiveLine then WriteLn;
+  inherited Destroy;
 end;
 
 procedure TBoss4DProgressReporter.Emit(const AEvent: TBoss4DProgressEvent);
@@ -122,7 +133,20 @@ var
   LText: string;
 begin
   LText := FormatProgressEvent(AEvent, FMode);
-  if LText <> '' then WriteLn(LText);
+  if LText = '' then Exit;
+  if (FMode = pmInteractive) and (isatty(1) = 1) then
+  begin
+    Write(#13, LText);
+    FInteractiveLine := True;
+    if SameText(AEvent.Phase, 'completion') or
+       SameText(AEvent.Phase, 'failure') then
+    begin
+      WriteLn;
+      FInteractiveLine := False;
+    end;
+  end
+  else
+    WriteLn(LText);
 end;
 
 function ClassifyExitCode(const AMessage: string): Integer;

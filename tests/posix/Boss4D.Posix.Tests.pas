@@ -66,6 +66,7 @@ type
     procedure TestProgressModePrecedence;
     procedure TestExitCodeClassification;
     procedure TestCancellation;
+    procedure TestInstallHonorsCancellation;
     procedure TestLinuxDoctor;
   end;
 
@@ -894,6 +895,25 @@ begin
     on E: Exception do AssertEquals('operation cancelled', E.Message);
   end;
   ResetCancellation;
+end;
+
+procedure TPosixCoreTests.TestInstallHonorsCancellation;
+var
+  LDir: string;
+begin
+  LDir := NewTempDirectory;
+  InitProject(LDir);
+  RequestCancellation;
+  try
+    try
+      InstallProject(LDir);
+      Fail('Install should honor cancellation');
+    except
+      on E: Exception do AssertEquals('operation cancelled', E.Message);
+    end;
+  finally
+    ResetCancellation;
+  end;
 end;
 
 procedure TPosixCoreTests.TestLinuxDoctor;
