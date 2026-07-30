@@ -65,6 +65,7 @@ type
     procedure HandleClean(const AArgs: TArray<string>);
     procedure HandleNew(const AArgs: TArray<string>);
     procedure HandleSelfUpdate;
+    procedure HandlePack(const AArgs: TArray<string>);
     function ParseSbomArguments(
       const AArgs: TArray<string>): TBoss4DSbomCommandOptions;
     procedure HandleSbom(const AArgs: TArray<string>);
@@ -106,7 +107,8 @@ uses
   Boss4D.Core.Services.PackageIndex,
   Boss4D.Core.Services.DependencySubmission,
   Boss4D.Core.Services.Publish,
-  Boss4D.Core.Services.SelfUpdate;
+  Boss4D.Core.Services.SelfUpdate,
+  Boss4D.Core.Services.Pack;
 
 { TBoss4DCommandLineParser }
 
@@ -173,6 +175,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  new <template> <nome> [--path <dir>] Cria app/package/VCL/FMX/API/DUnitX/Lazarus/workspace.');
   FLogger.Log(TBoss4DLogLevel.Info, '  version, -v, --version Exibe a versao atual do Boss4D.');
   FLogger.Log(TBoss4DLogLevel.Info, '  self-update          Baixa, verifica e inicia a atualizacao oficial.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  pack [--output arq]  Gera um pacote .b4dpkg deterministico e imutavel.');
   FLogger.Log(TBoss4DLogLevel.Info, '  help, -h, --help     Exibe este menu de ajuda.');
   FLogger.Log(TBoss4DLogLevel.Info, '');
 end;
@@ -250,8 +253,35 @@ begin
     HandleNew(AArgs)
   else if LCommand = 'self-update' then
     HandleSelfUpdate
+  else if LCommand = 'pack' then
+    HandlePack(AArgs)
   else if LCommand = 'sbom' then
     HandleSbom(AArgs);
+end;
+
+procedure TBoss4DCommandLineParser.HandlePack(const AArgs: TArray<string>);
+var
+  LOutput: string;
+  LService: TBoss4DPackService;
+  LResult: TBoss4DPackResult;
+begin
+  LOutput := TPath.Combine(GetCurrentDir, 'dist\package.b4dpkg');
+  for var I := 1 to High(AArgs) do
+    if SameText(AArgs[I], '--output') then
+    begin
+      if I + 1 > High(AArgs) then
+        raise EArgumentException.Create('Informe o arquivo de saida.');
+      LOutput := AArgs[I + 1];
+    end;
+  LService := TBoss4DPackService.Create;
+  try
+    LResult := LService.Execute(GetCurrentDir, LOutput);
+    FLogger.Log(TBoss4DLogLevel.Info,
+      'Pacote gerado: %s (sha256:%s, %d arquivos)',
+      [LResult.OutputPath, LResult.Digest, LResult.FileCount]);
+  finally
+    LService.Free;
+  end;
 end;
 
 procedure TBoss4DCommandLineParser.HandleSelfUpdate;

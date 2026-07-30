@@ -41,6 +41,7 @@ uses
   Boss4D.Core.Services.Config in '..\src\Core\Services\Boss4D.Core.Services.Config.pas',
   Boss4D.Core.Services.Install in '..\src\Core\Services\Boss4D.Core.Services.Install.pas',
   Boss4D.Core.Services.SelfUpdate in '..\src\Core\Services\Boss4D.Core.Services.SelfUpdate.pas',
+  Boss4D.Core.Services.Pack in '..\src\Core\Services\Boss4D.Core.Services.Pack.pas',
   Boss4D.Core.Services.Progress in '..\src\Core\Services\Boss4D.Core.Services.Progress.pas',
   Boss4D.Core.Services.Transaction in '..\src\Core\Services\Boss4D.Core.Services.Transaction.pas',
   Boss4D.Core.Services.Dependencies in '..\src\Core\Services\Boss4D.Core.Services.Dependencies.pas',
@@ -75,6 +76,7 @@ uses
   Boss4D.Tests.Platform in 'Boss4D.Tests.Platform.pas',
   Boss4D.Tests.Progress in 'Boss4D.Tests.Progress.pas',
   Boss4D.Tests.SelfUpdate in 'Boss4D.Tests.SelfUpdate.pas',
+  Boss4D.Tests.Pack in 'Boss4D.Tests.Pack.pas',
   Boss4D.IDE.Wizard in '..\src\IDE\Boss4D.IDE.Wizard.pas',
   Boss4D.Tests.Services in 'Boss4D.Tests.Services.pas';
 

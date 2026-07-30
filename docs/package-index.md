@@ -16,17 +16,22 @@ Index format:
 
 ```json
 {
+  "schemaVersion": 1,
   "packages": [{
     "name": "InternalLib",
     "repository": "git.example.com/team/internal",
     "description": "Internal Delphi library",
     "version": "2.4.0",
-    "license": "MIT"
+    "license": "MIT",
+    "artifact": "https://packages.example.com/InternalLib-2.4.0.b4dpkg",
+    "sha256": "..."
   }]
 }
 ```
 
 Registry sources are stored in the global Boss4D configuration. A source
 failure is reported as a warning and does not hide results from other indexes.
+Unknown protocol schemas are rejected. Artifact URLs are always paired with
+their immutable SHA-256 digest.
 The standalone GUI catalog and RAD Studio search action use the same index
 service as the CLI.

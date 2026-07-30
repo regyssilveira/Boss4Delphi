@@ -16,12 +16,15 @@ Formato do índice:
 
 ```json
 {
+  "schemaVersion": 1,
   "packages": [{
     "name": "InternalLib",
     "repository": "git.example.com/team/internal",
     "description": "Biblioteca Delphi interna",
     "version": "2.4.0",
-    "license": "MIT"
+    "license": "MIT",
+    "artifact": "https://packages.example.com/InternalLib-2.4.0.b4dpkg",
+    "sha256": "..."
   }]
 }
 ```

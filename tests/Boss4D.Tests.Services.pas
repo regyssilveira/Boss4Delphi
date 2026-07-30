@@ -931,9 +931,11 @@ var
 begin
   LIndexPath := TPath.Combine(FTempDir, 'private-index.json');
   TFile.WriteAllText(LIndexPath,
-    '{"packages":[{"name":"InternalLib","repository":' +
+    '{"schemaVersion":1,"packages":[{"name":"InternalLib","repository":' +
     '"git.example.test/team/internal","description":"Private package",' +
-    '"version":"2.4.0","license":"MIT"}]}', TEncoding.UTF8);
+    '"version":"2.4.0","license":"MIT","artifact":' +
+    '"https://packages.example/InternalLib-2.4.0.b4dpkg",' +
+    '"sha256":"abc123"}]}', TEncoding.UTF8);
   LConfig := TBoss4DConfigService.Create(TTestLogger.Create);
   LService := TBoss4DPackageIndexService.Create(LConfig,
     THttpClientMock.Create, TTestLogger.Create);
@@ -952,6 +954,9 @@ begin
       Assert.IsNotNull(LEntry);
       Assert.AreEqual('2.4.0', LEntry.LatestVersion);
       Assert.AreEqual('MIT', LEntry.License);
+      Assert.AreEqual('https://packages.example/InternalLib-2.4.0.b4dpkg',
+        LEntry.ArtifactUrl);
+      Assert.AreEqual('abc123', LEntry.ArtifactDigest);
     finally
       LEntry.Free;
     end;
@@ -1056,6 +1061,9 @@ begin
       LPayload := LService.Execute(LPackagePath, LLockPath, LOptions);
       Assert.IsTrue(LPayload.Contains('"name":"publish-test"'));
       Assert.IsTrue(LPayload.Contains('"checksum":"sha256-value"'));
+      Assert.IsTrue(LPayload.Contains('"format":"boss4d-package-v1"'));
+      Assert.IsTrue(LPayload.Contains('"sha256":'));
+      Assert.IsTrue(LPayload.Contains('"content":'));
       Assert.AreEqual(0, LHttp.AuthorizedPostCount,
         'Dry-run nao pode realizar chamadas de publicacao.');
 

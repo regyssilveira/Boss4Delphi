@@ -15,6 +15,8 @@ type
     FLatestVersion: string;
     FLicense: string;
     FSource: string;
+    FArtifactUrl: string;
+    FArtifactDigest: string;
   public
     property Name: string read FName write FName;
     property Repository: string read FRepository write FRepository;
@@ -22,6 +24,8 @@ type
     property LatestVersion: string read FLatestVersion write FLatestVersion;
     property License: string read FLicense write FLicense;
     property Source: string read FSource write FSource;
+    property ArtifactUrl: string read FArtifactUrl write FArtifactUrl;
+    property ArtifactDigest: string read FArtifactDigest write FArtifactDigest;
   end;
 
   TBoss4DPackageIndexService = class
@@ -99,6 +103,11 @@ begin
   try
     if not (LValue is TJSONObject) then
       raise Exception.Create('Indice deve ser um objeto JSON: ' + ASource);
+    var LSchemaVersion := TJSONObject(LValue).GetValue<Integer>(
+      'schemaVersion', 0);
+    if LSchemaVersion <> 1 then
+      raise Exception.CreateFmt('Schema de registry nao suportado: %d',
+        [LSchemaVersion]);
     var LPackages := TJSONObject(LValue).GetValue<TJSONArray>('packages');
     if not Assigned(LPackages) then
       raise Exception.Create('Indice nao contem packages: ' + ASource);
@@ -112,6 +121,8 @@ begin
         LEntry.Description := LObject.GetValue<string>('description', '');
         LEntry.LatestVersion := LObject.GetValue<string>('version', '');
         LEntry.License := LObject.GetValue<string>('license', '');
+        LEntry.ArtifactUrl := LObject.GetValue<string>('artifact', '');
+        LEntry.ArtifactDigest := LObject.GetValue<string>('sha256', '');
         LEntry.Source := ASource;
         if not LEntry.Name.IsEmpty and not LEntry.Repository.IsEmpty then
           AEntries.Add(LEntry)
@@ -153,6 +164,8 @@ begin
         LCopy.LatestVersion := LEntry.LatestVersion;
         LCopy.License := LEntry.License;
         LCopy.Source := LEntry.Source;
+        LCopy.ArtifactUrl := LEntry.ArtifactUrl;
+        LCopy.ArtifactDigest := LEntry.ArtifactDigest;
         Result.Add(LCopy);
       end;
   finally
@@ -178,6 +191,8 @@ begin
         Result.LatestVersion := LEntry.LatestVersion;
         Result.License := LEntry.License;
         Result.Source := LEntry.Source;
+        Result.ArtifactUrl := LEntry.ArtifactUrl;
+        Result.ArtifactDigest := LEntry.ArtifactDigest;
         Exit;
       end;
   finally
