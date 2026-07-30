@@ -61,6 +61,7 @@ type
     procedure TestPackageRejectsUnsafePath;
     procedure TestPackageRejectsInvalidSignature;
     procedure TestPackageRejectsInvalidProvenance;
+    procedure TestArtifactInstallRecordsLegacyManifestAndLock;
   end;
 
 implementation
@@ -471,6 +472,44 @@ begin
     end;
   finally
     LService.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestArtifactInstallRecordsLegacyManifestAndLock;
+var
+  LDir: string;
+  LManifest, LDependencies, LLock, LInstalled, LEntry: TJSONObject;
+  LExpectedHash: string;
+begin
+  LDir := NewTempDirectory;
+  InitProject(LDir);
+  RecordArtifactDependency(LDir, 'example.test/verified', 'v2.0.0',
+    StringOfChar('a', 64), 'modules/verified');
+  LManifest := LoadJsonObject(IncludeTrailingPathDelimiter(LDir) + 'boss.json');
+  try
+    LDependencies := TJSONObject(LManifest.Find('dependencies'));
+    AssertEquals('v2.0.0',
+      LDependencies.Get('example.test/verified', ''));
+  finally
+    LManifest.Free;
+  end;
+  LManifest := LoadJsonObject(IncludeTrailingPathDelimiter(LDir) + 'boss.json');
+  try
+    LExpectedHash := ManifestFingerprint(LManifest);
+  finally
+    LManifest.Free;
+  end;
+  LLock := LoadJsonObject(IncludeTrailingPathDelimiter(LDir) +
+    'boss-lock.json');
+  try
+    LInstalled := TJSONObject(LLock.Find('installedModules'));
+    LEntry := TJSONObject(LInstalled.Find('example.test/verified'));
+    AssertEquals('registry-artifact', LEntry.Get('resolvedFrom', ''));
+    AssertEquals('sha256:' + StringOfChar('a', 64),
+      LEntry.Get('checksum', ''));
+    AssertEquals(LExpectedHash, LLock.Get('hash', ''));
+  finally
+    LLock.Free;
   end;
 end;
 

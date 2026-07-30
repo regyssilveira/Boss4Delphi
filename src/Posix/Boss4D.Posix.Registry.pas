@@ -85,6 +85,7 @@ type
   end;
 
 function PublicRegistryUrl: string;
+function ResolveRegistryReference(const ASource, AReference: string): string;
 
 implementation
 
@@ -217,6 +218,12 @@ begin
   Result := nil;
   LData := AObject.Find(AName);
   if LData is TJSONArray then Result := TJSONArray(LData);
+end;
+
+function ResolveRegistryReference(const ASource, AReference: string): string;
+begin
+  if AReference = '' then Exit('');
+  Result := ResolveReference(ASource, AReference);
 end;
 
 constructor TBoss4DRegistryEntry.Create;
