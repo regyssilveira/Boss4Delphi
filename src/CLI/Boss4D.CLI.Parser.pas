@@ -66,6 +66,7 @@ type
     procedure HandleNew(const AArgs: TArray<string>);
     procedure HandleSelfUpdate;
     procedure HandlePack(const AArgs: TArray<string>);
+    procedure HandleConformance(const AArgs: TArray<string>);
     function ParseSbomArguments(
       const AArgs: TArray<string>): TBoss4DSbomCommandOptions;
     procedure HandleSbom(const AArgs: TArray<string>);
@@ -110,7 +111,9 @@ uses
   Boss4D.Core.Services.Publish,
   Boss4D.Core.Services.SelfUpdate,
   Boss4D.Core.Services.Pack,
-  Boss4D.Core.Services.Resolver;
+  Boss4D.Core.Services.Resolver,
+  Boss4D.Core.Services.Conformance,
+  Boss4D.Core.Services.RegistryPortal;
 
 { TBoss4DCommandLineParser }
 
@@ -257,8 +260,38 @@ begin
     HandleSelfUpdate
   else if LCommand = 'pack' then
     HandlePack(AArgs)
+  else if LCommand = 'conformance' then
+    HandleConformance(AArgs)
   else if LCommand = 'sbom' then
     HandleSbom(AArgs);
+end;
+
+procedure TBoss4DCommandLineParser.HandleConformance(
+  const AArgs: TArray<string>);
+var
+  LService: TBoss4DConformanceService;
+  LResult: TBoss4DConformanceResult;
+begin
+  if Length(AArgs) < 3 then
+    raise EArgumentException.Create(
+      'Uso: conformance registry|package <arquivo>.');
+  LService := TBoss4DConformanceService.Create;
+  try
+    if SameText(AArgs[1], 'registry') then
+      LResult := LService.ValidateRegistryContent(
+        TFile.ReadAllText(TPath.GetFullPath(AArgs[2]), TEncoding.UTF8))
+    else if SameText(AArgs[1], 'package') then
+      LResult := LService.ValidatePackageFile(TPath.GetFullPath(AArgs[2]))
+    else
+      raise EArgumentException.Create('Tipo de conformidade desconhecido.');
+    if not LResult.Passed then
+      raise Exception.Create('Falha de conformidade: ' +
+        LResult.ErrorMessage);
+    FLogger.Log(TBoss4DLogLevel.Info, Format(
+      'Conformidade aprovada (%d entradas).', [LResult.PackageCount]));
+  finally
+    LService.Free;
+  end;
 end;
 
 procedure TBoss4DCommandLineParser.HandlePack(const AArgs: TArray<string>);
@@ -597,6 +630,21 @@ begin
   if Length(AArgs) < 2 then
     raise EArgumentException.Create(
       'Uso: boss4d registry add|remove|list [origem]');
+  if (Length(AArgs) = 4) and SameText(AArgs[1], 'portal') then
+  begin
+    var LPortal := TBoss4DRegistryPortalService.Create;
+    try
+      var LHtml := LPortal.Generate(TFile.ReadAllText(
+        TPath.GetFullPath(AArgs[2]), TEncoding.UTF8));
+      TFile.WriteAllText(TPath.GetFullPath(AArgs[3]), LHtml,
+        TEncoding.UTF8);
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Portal de registry gerado: ' + TPath.GetFullPath(AArgs[3]));
+    finally
+      LPortal.Free;
+    end;
+    Exit;
+  end;
   LHttp := TBoss4DHttpNativeAdapter.Create;
   LService := TBoss4DPackageIndexService.Create(
     FConfigService, LHttp, FLogger);

@@ -45,6 +45,7 @@ begin
     LRelative.StartsWith('modules/', True) or
     LRelative.StartsWith('dist/', True) or
     LRelative.StartsWith('.codex-build/', True) or
+    LRelative.StartsWith('.benchmark-pack/', True) or
     LRelative.StartsWith('scratch/', True) or
     LRelative.EndsWith('.dcu', True) or LRelative.EndsWith('.exe', True) or
     LRelative.EndsWith('.bpl', True) or LRelative.EndsWith('.dcp', True) or
