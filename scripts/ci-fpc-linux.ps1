@@ -33,6 +33,9 @@ grep -q CVE-2099-0001 .fpc-build/package-smoke/project/sbom.cdx.json
 grep -q SPDX-2.3 .fpc-build/package-smoke/project/sbom.spdx.json
 (cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d audit --offline > audit.txt)
 grep -q 'audited packages' .fpc-build/package-smoke/project/audit.txt
+(cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d publish --dry-run --allow-dirty --skip-tests --output publish.json)
+grep -q '"artifact"' .fpc-build/package-smoke/project/publish.json
+grep -q '"content"' .fpc-build/package-smoke/project/publish.json
 rm -rf .fpc-build/tool-home
 BOSS_HOME=/work/.fpc-build/tool-home ./.fpc-build/boss4d tool install -g /work/tests/fixtures/tool-posix --name hello
 /work/.fpc-build/tool-home/bin/hello | grep -q 'Boss4D global tool'

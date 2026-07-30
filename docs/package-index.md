@@ -60,6 +60,43 @@ string-to-string `dependencies` map in `boss.json` do not require migration.
 In v2, `versions` is optional, and a package may still expose the v1-compatible
 top-level `version`, `artifact`, and `sha256` fields.
 
+## Sparse metadata and revocation
+
+Large schema-v2 registries can keep one metadata document per package. The
+entry point lists those documents in `sparse`; each uses the normal schema-v2
+`packages` contract:
+
+```json
+{
+  "schemaVersion": 2,
+  "sparse": [
+    "packages/horse.json",
+    {
+      "path": "packages/dext.json",
+      "mirrors": ["https://mirror.example/packages/dext.json"]
+    }
+  ],
+  "revocations": [{
+    "name": "InternalLib",
+    "version": "2.4.0",
+    "reason": "publisher request"
+  }],
+  "packages": []
+}
+```
+
+A version may also carry `"revoked": true` and `revocationReason`. Resolution
+selects the first non-revoked version. A root-level revocation overrides
+included or sparse metadata, and installation refuses a revoked selected
+version. Historical metadata remains available to preserve lockfile and audit
+evidence.
+
+Sparse metadata objects try `path` first and then each `mirrors` entry in the
+declared order. Package versions and platform/compiler variants can likewise
+declare an ordered `mirrors` array containing alternate artifact URLs. Every
+candidate must match the same immutable SHA-256; a reachable but altered mirror
+is rejected and resolution continues to the next source.
+
 Artifact variants are optional and do not change `boss.json`. Select them with:
 
 ```text
@@ -78,3 +115,9 @@ Unknown protocol schemas are rejected. Artifact URLs are always paired with
 their immutable SHA-256 digest, including entries inside `versions`.
 The standalone GUI catalog and RAD Studio search action use the same index
 service as the CLI.
+
+HTTP metadata is cached with its `ETag` and `Last-Modified` validators. Online
+requests send `If-None-Match` and `If-Modified-Since`; a `304 Not Modified`
+reuses the cached bytes. Network failures fall back to the last valid cache,
+while `--offline` performs no HTTP request and fails clearly when no cached
+copy exists.

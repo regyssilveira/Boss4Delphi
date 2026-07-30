@@ -25,6 +25,20 @@ set BOSS4D_PUBLISH_TOKEN=seu-token
 boss4d publish --registry https://registry.example/api
 ```
 
+O mesmo comando está disponível no Linux/FPC. Ele cria localmente o `.b4dpkg`
+determinístico e sua proveniência in-toto, inclui ambos no payload do protocolo
+e exige evidências do lock v3. Dependências Git precisam de revisão e checksum;
+artefatos verificados do registro usam seu checksum imutável como evidência.
+
+A CLI Linux lê o token de `BOSS4D_PUBLISH_TOKEN` por padrão ou da variável
+indicada por `--token-env`. Se nenhuma estiver definida, consulta a credencial
+`registry` no Secret Service. O token é enviado somente no cabeçalho de
+autorização HTTP e nunca é gravado no payload.
+
+Identidades publicadas `(nome, versão)` são imutáveis. Uma resposta HTTP 409 é
+informada como conflito de versão; a CLI nunca tenta sobrescrever a release
+existente. Publique uma nova versão ou uma revogação explícita.
+
 Use `--token-env NOME` para escolher outra variável de ambiente. As opções
 `--allow-dirty` e `--skip-tests` ignoram explicitamente os respectivos bloqueios
 e devem ficar restritas a fluxos controlados de recuperação.

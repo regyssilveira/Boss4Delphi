@@ -5,7 +5,7 @@ unit Boss4D.Posix.Registry;
 interface
 
 uses
-  Classes, SysUtils, Contnrs;
+  Classes, SysUtils, Contnrs, fpjson;
 
 type
   TBoss4DArtifactVariant = class
@@ -16,6 +16,7 @@ type
     FArtifactDigest: string;
     FSignatureUrl: string;
     FProvenanceUrl: string;
+    FArtifactMirrors: string;
   public
     property Platform: string read FPlatform write FPlatform;
     property Compiler: string read FCompiler write FCompiler;
@@ -23,9 +24,21 @@ type
     property ArtifactDigest: string read FArtifactDigest write FArtifactDigest;
     property SignatureUrl: string read FSignatureUrl write FSignatureUrl;
     property ProvenanceUrl: string read FProvenanceUrl write FProvenanceUrl;
+    property ArtifactMirrors: string read FArtifactMirrors
+      write FArtifactMirrors;
   end;
 
   TBoss4DRegistryFetcher = function(const ASource: string): string of object;
+
+  TBoss4DRegistryHttpResponse = record
+    StatusCode: Integer;
+    Content: string;
+    ETag: string;
+    LastModified: string;
+  end;
+
+  TBoss4DRegistryConditionalFetcher = function(const ASource, AETag,
+    ALastModified: string): TBoss4DRegistryHttpResponse of object;
 
   TBoss4DRegistryEntry = class
   private
@@ -38,7 +51,10 @@ type
     FArtifactDigest: string;
     FSignatureUrl: string;
     FProvenanceUrl: string;
+    FArtifactMirrors: string;
     FSource: string;
+    FRevoked: Boolean;
+    FRevocationReason: string;
     FVariants: TFPObjectList;
   public
     constructor Create;
@@ -54,7 +70,12 @@ type
     property ArtifactDigest: string read FArtifactDigest write FArtifactDigest;
     property SignatureUrl: string read FSignatureUrl write FSignatureUrl;
     property ProvenanceUrl: string read FProvenanceUrl write FProvenanceUrl;
+    property ArtifactMirrors: string read FArtifactMirrors
+      write FArtifactMirrors;
     property Source: string read FSource write FSource;
+    property Revoked: Boolean read FRevoked write FRevoked;
+    property RevocationReason: string read FRevocationReason
+      write FRevocationReason;
     property Variants: TFPObjectList read FVariants;
   end;
 
@@ -73,8 +94,11 @@ type
   private
     FCacheDirectory: string;
     FFetcher: TBoss4DRegistryFetcher;
+    FConditionalFetcher: TBoss4DRegistryConditionalFetcher;
     FOffline: Boolean;
     function ReadSource(const ASource: string): string;
+    procedure LoadSparse(const ASource: string; const ARoot: TJSONObject;
+      const AEntries: TBoss4DRegistryEntries; const AVisited: TStringList);
     procedure LoadInternal(const ASource: string;
       const AEntries: TBoss4DRegistryEntries; const AVisited: TStringList);
   public
@@ -82,15 +106,19 @@ type
       const AFetcher: TBoss4DRegistryFetcher = nil);
     function Load(const ASource: string;
       const AOffline: Boolean = False): TBoss4DRegistryEntries;
+    property ConditionalFetcher: TBoss4DRegistryConditionalFetcher
+      read FConditionalFetcher write FConditionalFetcher;
   end;
 
 function PublicRegistryUrl: string;
 function ResolveRegistryReference(const ASource, AReference: string): string;
+function ResolveRegistryReferences(const ASource,
+  AReferences: string): string;
 
 implementation
 
 uses
-  fpjson, jsonparser, fphttpclient, opensslsockets,
+  jsonparser, fphttpclient, opensslsockets,
   Boss4D.Posix.Operations;
 
 function PublicRegistryUrl: string;
@@ -125,6 +153,35 @@ begin
   try
     LClient.AllowRedirect := True;
     Result := LClient.Get(ASource);
+  finally
+    LClient.Free;
+  end;
+end;
+
+function NativeConditionalFetch(const ASource, AETag,
+  ALastModified: string): TBoss4DRegistryHttpResponse;
+var
+  LClient: TFPHTTPClient;
+begin
+  Result.StatusCode := 0;
+  Result.Content := '';
+  Result.ETag := '';
+  Result.LastModified := '';
+  LClient := TFPHTTPClient.Create(nil);
+  try
+    LClient.AllowRedirect := True;
+    if AETag <> '' then LClient.AddHeader('If-None-Match', AETag);
+    if ALastModified <> '' then
+      LClient.AddHeader('If-Modified-Since', ALastModified);
+    try
+      Result.Content := LClient.Get(ASource);
+    except
+      on E: EHTTPClient do
+        if LClient.ResponseStatusCode <> 304 then raise;
+    end;
+    Result.StatusCode := LClient.ResponseStatusCode;
+    Result.ETag := LClient.ResponseHeaders.Values['ETag'];
+    Result.LastModified := LClient.ResponseHeaders.Values['Last-Modified'];
   finally
     LClient.Free;
   end;
@@ -165,12 +222,16 @@ end;
 
 function TBoss4DRegistryService.ReadSource(const ASource: string): string;
 var
-  LCachePath: string;
+  LCachePath, LMetadataPath, LETag, LLastModified: string;
   LContent: TStringList;
+  LMetadataData: TJSONData;
+  LMetadata, LNewMetadata: TJSONObject;
+  LResponse: TBoss4DRegistryHttpResponse;
 begin
   if not IsHttp(ASource) then Exit(NativeReadSource(ASource));
   LCachePath := IncludeTrailingPathDelimiter(FCacheDirectory) +
     RegistryCacheName(ASource);
+  LMetadataPath := LCachePath + '.meta.json';
   if FOffline then
   begin
     if not FileExists(LCachePath) then
@@ -178,8 +239,43 @@ begin
     Exit(NativeReadSource(LCachePath));
   end;
   try
-    if Assigned(FFetcher) then Result := FFetcher(ASource)
-    else Result := NativeReadSource(ASource);
+    LETag := '';
+    LLastModified := '';
+    if FileExists(LMetadataPath) then
+    begin
+      LMetadataData := GetJSON(NativeReadSource(LMetadataPath));
+      try
+        if LMetadataData is TJSONObject then
+        begin
+          LMetadata := TJSONObject(LMetadataData);
+          LETag := LMetadata.Get('etag', '');
+          LLastModified := LMetadata.Get('lastModified', '');
+        end;
+      finally
+        LMetadataData.Free;
+      end;
+    end;
+    if Assigned(FConditionalFetcher) then
+      LResponse := FConditionalFetcher(ASource, LETag, LLastModified)
+    else if not Assigned(FFetcher) then
+      LResponse := NativeConditionalFetch(ASource, LETag, LLastModified)
+    else
+    begin
+      LResponse.StatusCode := 200;
+      LResponse.Content := FFetcher(ASource);
+      LResponse.ETag := '';
+      LResponse.LastModified := '';
+    end;
+    if LResponse.StatusCode = 304 then
+    begin
+      if not FileExists(LCachePath) then
+        raise Exception.Create('registry returned 304 without cache: ' + ASource);
+      Exit(NativeReadSource(LCachePath));
+    end;
+    if (LResponse.StatusCode < 200) or (LResponse.StatusCode >= 300) then
+      raise Exception.CreateFmt('registry HTTP status %d: %s',
+        [LResponse.StatusCode, ASource]);
+    Result := LResponse.Content;
     ForceDirectories(FCacheDirectory);
     LContent := TStringList.Create;
     try
@@ -187,6 +283,20 @@ begin
       LContent.SaveToFile(LCachePath);
     finally
       LContent.Free;
+    end;
+    LNewMetadata := TJSONObject.Create;
+    try
+      LNewMetadata.Add('etag', LResponse.ETag);
+      LNewMetadata.Add('lastModified', LResponse.LastModified);
+      LContent := TStringList.Create;
+      try
+        LContent.Text := LNewMetadata.AsJSON;
+        LContent.SaveToFile(LMetadataPath);
+      finally
+        LContent.Free;
+      end;
+    finally
+      LNewMetadata.Free;
     end;
   except
     if FileExists(LCachePath) then Result := NativeReadSource(LCachePath)
@@ -221,10 +331,43 @@ begin
   if LData is TJSONArray then Result := TJSONArray(LData);
 end;
 
+function ArrayAsLines(const AObject: TJSONObject; const AName: string): string;
+var
+  LArray: TJSONArray;
+  I: Integer;
+begin
+  Result := '';
+  LArray := FindArray(AObject, AName);
+  if not Assigned(LArray) then Exit;
+  for I := 0 to LArray.Count - 1 do
+    if LArray.Items[I].JSONType = jtString then
+      Result := Result + LArray.Strings[I] + LineEnding;
+end;
+
 function ResolveRegistryReference(const ASource, AReference: string): string;
 begin
   if AReference = '' then Exit('');
   Result := ResolveReference(ASource, AReference);
+end;
+
+function ResolveRegistryReferences(const ASource,
+  AReferences: string): string;
+var
+  LInput, LOutput: TStringList;
+  I: Integer;
+begin
+  LInput := TStringList.Create;
+  LOutput := TStringList.Create;
+  try
+    LInput.Text := AReferences;
+    for I := 0 to LInput.Count - 1 do
+      if Trim(LInput[I]) <> '' then
+        LOutput.Add(ResolveRegistryReference(ASource, Trim(LInput[I])));
+    Result := LOutput.Text;
+  finally
+    LOutput.Free;
+    LInput.Free;
+  end;
 end;
 
 constructor TBoss4DRegistryEntry.Create;
@@ -316,7 +459,10 @@ begin
     LCopy.ArtifactDigest := LEntry.ArtifactDigest;
     LCopy.SignatureUrl := LEntry.SignatureUrl;
     LCopy.ProvenanceUrl := LEntry.ProvenanceUrl;
+    LCopy.ArtifactMirrors := LEntry.ArtifactMirrors;
     LCopy.Source := LEntry.Source;
+    LCopy.Revoked := LEntry.Revoked;
+    LCopy.RevocationReason := LEntry.RevocationReason;
     for J := 0 to LEntry.Variants.Count - 1 do
     begin
       LVariant := TBoss4DArtifactVariant(LEntry.Variants[J]);
@@ -327,10 +473,58 @@ begin
       LVariantCopy.ArtifactDigest := LVariant.ArtifactDigest;
       LVariantCopy.SignatureUrl := LVariant.SignatureUrl;
       LVariantCopy.ProvenanceUrl := LVariant.ProvenanceUrl;
+      LVariantCopy.ArtifactMirrors := LVariant.ArtifactMirrors;
       LCopy.Variants.Add(LVariantCopy);
     end;
     Result.Add(LCopy);
   end;
+end;
+
+procedure TBoss4DRegistryService.LoadSparse(const ASource: string;
+  const ARoot: TJSONObject; const AEntries: TBoss4DRegistryEntries;
+  const AVisited: TStringList);
+var
+  LSparse, LSparseMirrors: TJSONArray;
+  LSparseObject: TJSONObject;
+  I, J: Integer;
+  LLoaded: Boolean;
+begin
+  LSparse := FindArray(ARoot, 'sparse');
+  if not Assigned(LSparse) then Exit;
+  for I := 0 to LSparse.Count - 1 do
+    if LSparse.Items[I].JSONType = jtString then
+      LoadInternal(ResolveReference(ASource, LSparse.Strings[I]),
+        AEntries, AVisited)
+    else if LSparse.Items[I] is TJSONObject then
+    begin
+      LSparseObject := TJSONObject(LSparse.Items[I]);
+      LLoaded := False;
+      try
+        LoadInternal(ResolveReference(ASource,
+          LSparseObject.Get('path', '')), AEntries, AVisited);
+        LLoaded := True;
+      except
+        on E: Exception do
+          if SameText(E.Message, 'operation cancelled') then raise;
+      end;
+      LSparseMirrors := FindArray(LSparseObject, 'mirrors');
+      if Assigned(LSparseMirrors) then
+        for J := 0 to LSparseMirrors.Count - 1 do
+        begin
+          if LLoaded then Break;
+          try
+            LoadInternal(ResolveReference(ASource,
+              LSparseMirrors.Strings[J]), AEntries, AVisited);
+            LLoaded := True;
+          except
+            on E: Exception do
+              if SameText(E.Message, 'operation cancelled') then raise;
+          end;
+        end;
+      if not LLoaded then
+        raise Exception.Create('all sparse metadata sources failed: ' +
+          LSparseObject.Get('path', ''));
+    end;
 end;
 
 procedure TBoss4DRegistryService.LoadInternal(const ASource: string;
@@ -338,11 +532,12 @@ procedure TBoss4DRegistryService.LoadInternal(const ASource: string;
 var
   LData: TJSONData;
   LRoot, LObject, LLatest, LVariantOwner, LVariantObject: TJSONObject;
-  LIncludes, LPackages, LVersions, LVariants: TJSONArray;
+  LIncludes, LPackages, LVersions, LVariants, LRevocations: TJSONArray;
   LEntry: TBoss4DRegistryEntry;
   LVariant: TBoss4DArtifactVariant;
-  I, J: Integer;
+  I, J, K: Integer;
   LKey: string;
+  LRevocation: TJSONObject;
 begin
   CheckCancelled;
   LKey := LowerCase(ASource);
@@ -360,6 +555,7 @@ begin
       for I := 0 to LIncludes.Count - 1 do
         LoadInternal(ResolveReference(ASource, LIncludes.Strings[I]),
           AEntries, AVisited);
+    LoadSparse(ASource, LRoot, AEntries, AVisited);
     LPackages := FindArray(LRoot, 'packages');
     if not Assigned(LPackages) then Exit;
     for I := 0 to LPackages.Count - 1 do
@@ -376,14 +572,30 @@ begin
         LEntry.ArtifactDigest := LObject.Get('sha256', '');
         LEntry.SignatureUrl := LObject.Get('signature', '');
         LEntry.ProvenanceUrl := LObject.Get('provenance', '');
+        LEntry.ArtifactMirrors := ArrayAsLines(LObject, 'mirrors');
         LVariantOwner := LObject;
         LVersions := FindArray(LObject, 'versions');
-        if Assigned(LVersions) and (LVersions.Count > 0) and
-           (LVersions.Items[0] is TJSONObject) then
+        if Assigned(LVersions) and (LVersions.Count > 0) then
         begin
-          LLatest := TJSONObject(LVersions.Items[0]);
+          LLatest := nil;
+          for K := 0 to LVersions.Count - 1 do
+            if (LVersions.Items[K] is TJSONObject) and
+               not TJSONObject(LVersions.Items[K]).Get('revoked', False) then
+            begin
+              LLatest := TJSONObject(LVersions.Items[K]);
+              Break;
+            end;
+          if not Assigned(LLatest) and (LVersions.Items[0] is TJSONObject) then
+            LLatest := TJSONObject(LVersions.Items[0]);
+          if not Assigned(LLatest) then
+          begin
+            LEntry.Free;
+            Continue;
+          end;
           LVariantOwner := LLatest;
           LEntry.Version := LLatest.Get('version', LEntry.Version);
+          LEntry.Revoked := LLatest.Get('revoked', False);
+          LEntry.RevocationReason := LLatest.Get('revocationReason', '');
           LEntry.ArtifactUrl := LLatest.Get('artifact', LEntry.ArtifactUrl);
           LEntry.ArtifactDigest := LLatest.Get('sha256',
             LEntry.ArtifactDigest);
@@ -391,6 +603,7 @@ begin
             LEntry.SignatureUrl);
           LEntry.ProvenanceUrl := LLatest.Get('provenance',
             LEntry.ProvenanceUrl);
+          LEntry.ArtifactMirrors := ArrayAsLines(LLatest, 'mirrors');
         end;
         LVariants := FindArray(LVariantOwner, 'variants');
         if Assigned(LVariants) then
@@ -405,6 +618,8 @@ begin
               LVariant.ArtifactDigest := LVariantObject.Get('sha256', '');
               LVariant.SignatureUrl := LVariantObject.Get('signature', '');
               LVariant.ProvenanceUrl := LVariantObject.Get('provenance', '');
+              LVariant.ArtifactMirrors := ArrayAsLines(LVariantObject,
+                'mirrors');
               if (LVariant.ArtifactUrl <> '') and
                  (LVariant.ArtifactDigest <> '') then
                 LEntry.Variants.Add(LVariant)
@@ -418,6 +633,21 @@ begin
         else
           LEntry.Free;
       end;
+    LRevocations := FindArray(LRoot, 'revocations');
+    if Assigned(LRevocations) then
+      for I := 0 to LRevocations.Count - 1 do
+        if LRevocations.Items[I] is TJSONObject then
+        begin
+          LRevocation := TJSONObject(LRevocations.Items[I]);
+          LEntry := AEntries.Find(LRevocation.Get('name', ''));
+          if Assigned(LEntry) and
+             ((LRevocation.Get('version', '') = '') or
+              SameText(LEntry.Version, LRevocation.Get('version', ''))) then
+          begin
+            LEntry.Revoked := True;
+            LEntry.RevocationReason := LRevocation.Get('reason', '');
+          end;
+        end;
   finally
     LData.Free;
   end;

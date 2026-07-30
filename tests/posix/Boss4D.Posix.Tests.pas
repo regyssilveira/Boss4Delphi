@@ -5,7 +5,8 @@ unit Boss4D.Posix.Tests;
 interface
 
 uses
-  Classes, SysUtils, fpcunit, testregistry;
+  Classes, SysUtils, fpcunit, testregistry, Boss4D.Posix.Registry,
+  Boss4D.Posix.Publish;
 
 type
   TRegistryFetcherMock = class
@@ -18,6 +19,19 @@ type
     property Calls: Integer read FCalls;
     property Content: string read FContent write FContent;
     property Fail: Boolean read FFail write FFail;
+  end;
+
+  TRegistryConditionalFetcherMock = class
+  private
+    FCalls: Integer;
+    FETag: string;
+    FLastModified: string;
+  public
+    function Fetch(const ASource, AETag,
+      ALastModified: string): TBoss4DRegistryHttpResponse;
+    property Calls: Integer read FCalls;
+    property ETag: string read FETag;
+    property LastModified: string read FLastModified;
   end;
 
   TSignatureVerifierMock = class
@@ -81,6 +95,23 @@ type
     property Calls: Integer read FCalls;
   end;
 
+  TPublishPosterMock = class
+  private
+    FCalls: Integer;
+    FStatus: Integer;
+    FToken: string;
+    FPayload: string;
+    FUrl: string;
+  public
+    function Post(const AUrl, APayload, AToken: string;
+      out AResponse: string): Integer;
+    property Calls: Integer read FCalls;
+    property Status: Integer read FStatus write FStatus;
+    property Token: string read FToken;
+    property Payload: string read FPayload;
+    property Url: string read FUrl;
+  end;
+
   TPosixCoreTests = class(TTestCase)
   published
     procedure TestPlatform;
@@ -105,8 +136,11 @@ type
     procedure TestRegistryConfigurationPreservesExistingFields;
     procedure TestRegistryOfflineUsesCache;
     procedure TestRegistryOnlineFallsBackToCache;
+    procedure TestRegistryConditionalHttpCache;
     procedure TestRegistrySelectsArtifactVariant;
+    procedure TestRegistrySparseMetadataAndRevocation;
     procedure TestVerifiedPackageInstall;
+    procedure TestPackageUsesVerifiedArtifactMirror;
     procedure TestPackageRejectsArtifactDigestMismatch;
     procedure TestPackageRejectsFileDigestMismatch;
     procedure TestPackageRejectsUnsafePath;
@@ -136,12 +170,14 @@ type
     procedure TestSecureSelfUpdate;
     procedure TestSelfUpdateSkipsCurrentVersion;
     procedure TestGlobalToolLifecycle;
+    procedure TestPublishDryRunAndImmutableConflict;
+    procedure TestPublishRequiresLockEvidence;
   end;
 
 implementation
 
 uses
-  fpjson, DateUtils, Boss4D.Posix.Core, Boss4D.Posix.Registry,
+  fpjson, DateUtils, Boss4D.Posix.Core,
   Boss4D.Posix.Config,
   Boss4D.Posix.Package,
   Boss4D.Posix.Operations, Boss4D.Posix.Compliance, Boss4D.Posix.Audit,
@@ -154,6 +190,29 @@ begin
   Inc(FCalls);
   if FFail then raise Exception.Create('network unavailable');
   Result := FContent;
+end;
+
+function TRegistryConditionalFetcherMock.Fetch(const ASource, AETag,
+  ALastModified: string): TBoss4DRegistryHttpResponse;
+begin
+  Inc(FCalls);
+  FETag := AETag;
+  FLastModified := ALastModified;
+  if FCalls = 1 then
+  begin
+    Result.StatusCode := 200;
+    Result.Content := '{"schemaVersion":2,"packages":[{"name":"Cached",' +
+      '"repository":"example.test/cached"}]}';
+    Result.ETag := '"registry-v1"';
+    Result.LastModified := 'Wed, 30 Jul 2026 12:00:00 GMT';
+  end
+  else
+  begin
+    Result.StatusCode := 304;
+    Result.Content := '';
+    Result.ETag := '';
+    Result.LastModified := '';
+  end;
 end;
 
 function TSignatureVerifierMock.Verify(const AArtifactPath,
@@ -223,6 +282,46 @@ begin
       LEntries := LService.Load('https://registry.example/index.json');
       try
         AssertEquals('Fallback', LEntries[0].Name);
+        AssertEquals(2, LFetcher.Calls);
+      finally
+        LEntries.Free;
+      end;
+    finally
+      LService.Free;
+    end;
+  finally
+    LFetcher.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestRegistryConditionalHttpCache;
+var
+  LDir: string;
+  LFetcher: TRegistryConditionalFetcherMock;
+  LService: TBoss4DRegistryService;
+  LEntries: TBoss4DRegistryEntries;
+begin
+  LDir := NewTempDirectory;
+  LFetcher := TRegistryConditionalFetcherMock.Create;
+  try
+    LService := TBoss4DRegistryService.Create(LDir);
+    try
+      LService.ConditionalFetcher := @LFetcher.Fetch;
+      LEntries := LService.Load('https://registry.example/index.json');
+      LEntries.Free;
+      LEntries := LService.Load('https://registry.example/index.json');
+      try
+        AssertEquals(1, LEntries.Count);
+        AssertEquals('"registry-v1"', LFetcher.ETag);
+        AssertEquals('Wed, 30 Jul 2026 12:00:00 GMT',
+          LFetcher.LastModified);
+        AssertEquals(2, LFetcher.Calls);
+      finally
+        LEntries.Free;
+      end;
+      LEntries := LService.Load('https://registry.example/index.json', True);
+      try
+        AssertEquals(1, LEntries.Count);
         AssertEquals(2, LFetcher.Calls);
       finally
         LEntries.Free;
@@ -356,6 +455,7 @@ procedure InitPackageRequest(var ARequest: TBoss4DPackageRequest;
   const AArtifact, ATarget: string);
 begin
   ARequest.ArtifactUrl := AArtifact;
+  ARequest.ArtifactMirrors := '';
   ARequest.Sha256 := Sha256File(AArtifact);
   ARequest.SignatureUrl := '';
   ARequest.ProvenanceUrl := '';
@@ -646,6 +746,70 @@ begin
       finally
         LMatches.Free;
       end;
+    finally
+      LEntries.Free;
+    end;
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestPackageUsesVerifiedArtifactMirror;
+var
+  LDir, LContent, LPrimary, LMirror, LTarget: string;
+  LRequest: TBoss4DPackageRequest;
+  LResult: TBoss4DPackageResult;
+  LService: TBoss4DPackageService;
+begin
+  LDir := NewTempDirectory;
+  LContent := IncludeTrailingPathDelimiter(LDir) + 'content.tmp';
+  SaveFixture(LContent, 'unit verified;');
+  LMirror := CreatePackageFixture(LDir, 'src/mirror.pas',
+    Sha256File(LContent));
+  LPrimary := IncludeTrailingPathDelimiter(LDir) + 'corrupt.b4dpkg';
+  SaveFixture(LPrimary, 'corrupt');
+  LTarget := IncludeTrailingPathDelimiter(LDir) + 'modules/mirror';
+  InitPackageRequest(LRequest, LMirror, LTarget);
+  LRequest.ArtifactUrl := LPrimary;
+  LRequest.ArtifactMirrors := LMirror + LineEnding;
+  LService := TBoss4DPackageService.Create;
+  try
+    LResult := LService.Install(LRequest);
+    AssertTrue(LResult.Installed);
+    AssertTrue(FileExists(IncludeTrailingPathDelimiter(LTarget) +
+      'src/mirror.pas'));
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestRegistrySparseMetadataAndRevocation;
+var
+  LDir, LRoot, LPackage: string;
+  LService: TBoss4DRegistryService;
+  LEntries: TBoss4DRegistryEntries;
+  LEntry: TBoss4DRegistryEntry;
+begin
+  LDir := NewTempDirectory;
+  LRoot := IncludeTrailingPathDelimiter(LDir) + 'index.json';
+  LPackage := IncludeTrailingPathDelimiter(LDir) + 'horse.json';
+  SaveFixture(LPackage, '{"schemaVersion":2,"packages":[{"name":"Horse",' +
+    '"repository":"github.com/hashload/horse","versions":[' +
+    '{"version":"3.2.0","revoked":true,"revocationReason":"compromised"},' +
+    '{"version":"3.1.0","artifact":"horse.b4dpkg","sha256":"abc"}]}]}');
+  SaveFixture(LRoot, '{"schemaVersion":2,"sparse":[{"path":"missing.json",' +
+    '"mirrors":["horse.json"]}],' +
+    '"revocations":[{"name":"Horse","version":"3.1.0",' +
+    '"reason":"publisher request"}],"packages":[]}');
+  LService := TBoss4DRegistryService.Create;
+  try
+    LEntries := LService.Load(LRoot);
+    try
+      AssertEquals(1, LEntries.Count);
+      LEntry := LEntries.Find('Horse');
+      AssertEquals('3.1.0', LEntry.Version);
+      AssertTrue(LEntry.Revoked);
+      AssertEquals('publisher request', LEntry.RevocationReason);
     finally
       LEntries.Free;
     end;
@@ -1083,6 +1247,17 @@ begin
   Inc(FCalls);
   SaveFixture(AOutputPath, 'tool build ' + IntToStr(FCalls));
   Result := True;
+end;
+
+function TPublishPosterMock.Post(const AUrl, APayload, AToken: string;
+  out AResponse: string): Integer;
+begin
+  Inc(FCalls);
+  FUrl := AUrl;
+  FPayload := APayload;
+  FToken := AToken;
+  AResponse := '{"accepted":true}';
+  Result := FStatus;
 end;
 
 function CreateComplianceLock(const ADirectory: string): string;
@@ -1583,6 +1758,104 @@ begin
     end;
   finally
     LCompiler.Free;
+  end;
+end;
+
+procedure CreatePublishFixture(const ADirectory, AChecksum: string);
+begin
+  ForceDirectories(ADirectory);
+  SaveFixture(IncludeTrailingPathDelimiter(ADirectory) + 'boss.json',
+    '{"name":"publish-test","version":"1.0.0","description":"demo",' +
+    '"license":"MIT","dependencies":{"example.test/runtime":"1.2.3"}}');
+  SaveFixture(IncludeTrailingPathDelimiter(ADirectory) + 'boss-lock.json',
+    '{"lockVersion":3,"root":{"name":"publish-test","version":"1.0.0"},' +
+    '"installedModules":{"example.test/runtime":{"version":"1.2.3",' +
+    '"repository":"example.test/runtime","revision":"' +
+    StringOfChar('a', 40) + '","checksum":"' + AChecksum +
+    '","scope":"runtime"}}}');
+  SaveFixture(IncludeTrailingPathDelimiter(ADirectory) + 'publish.pas',
+    'unit publish;');
+end;
+
+procedure TPosixCoreTests.TestPublishDryRunAndImmutableConflict;
+var
+  LDir, LFirst, LSecond: string;
+  LPoster: TPublishPosterMock;
+  LService: TBoss4DPosixPublishService;
+  LOptions: TBoss4DPublishOptions;
+begin
+  LDir := NewTempDirectory;
+  CreatePublishFixture(LDir, 'sha256:' + StringOfChar('b', 64));
+  LPoster := TPublishPosterMock.Create;
+  try
+    LPoster.Status := 201;
+    LService := TBoss4DPosixPublishService.Create(@LPoster.Post);
+    try
+      LOptions.RegistryUrl := '';
+      LOptions.Token := '';
+      LOptions.DryRun := True;
+      LOptions.RequireCleanGit := False;
+      LOptions.RunTests := False;
+      LFirst := LService.Execute(LDir, LOptions);
+      LSecond := LService.Execute(LDir, LOptions);
+      AssertEquals('payload must be reproducible', LFirst, LSecond);
+      AssertTrue('payload name', (Pos('"name"', LFirst) > 0) and
+        (Pos('publish-test', LFirst) > 0));
+      AssertTrue('embedded artifact', Pos('"content"', LFirst) > 0);
+      AssertEquals('dry-run posts', 0, LPoster.Calls);
+
+      LOptions.DryRun := False;
+      LOptions.RegistryUrl := 'https://registry.example/';
+      LOptions.Token := 'publish-secret';
+      LService.Execute(LDir, LOptions);
+      AssertEquals('online posts', 1, LPoster.Calls);
+      AssertEquals('post URL', 'https://registry.example/packages',
+        LPoster.Url);
+      AssertEquals('auth token', 'publish-secret', LPoster.Token);
+      AssertTrue('token leaked into payload',
+        Pos('publish-secret', LPoster.Payload) = 0);
+
+      LPoster.Status := 409;
+      try
+        LService.Execute(LDir, LOptions);
+        Fail('Immutable version conflict should fail');
+      except
+        on E: Exception do
+          AssertTrue('immutable conflict message',
+            Pos('already exists', E.Message) > 0);
+      end;
+    finally
+      LService.Free;
+    end;
+  finally
+    LPoster.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestPublishRequiresLockEvidence;
+var
+  LDir: string;
+  LService: TBoss4DPosixPublishService;
+  LOptions: TBoss4DPublishOptions;
+begin
+  LDir := NewTempDirectory;
+  CreatePublishFixture(LDir, '');
+  LOptions.RegistryUrl := '';
+  LOptions.Token := '';
+  LOptions.DryRun := True;
+  LOptions.RequireCleanGit := False;
+  LOptions.RunTests := False;
+  LService := TBoss4DPosixPublishService.Create;
+  try
+    try
+      LService.Execute(LDir, LOptions);
+      Fail('Missing checksum should block publish');
+    except
+      on E: Exception do
+        AssertTrue(Pos('revision and checksum', E.Message) > 0);
+    end;
+  finally
+    LService.Free;
   end;
 end;
 
