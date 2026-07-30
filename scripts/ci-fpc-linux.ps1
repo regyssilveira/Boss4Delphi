@@ -12,6 +12,8 @@ fpc -B -Fu./src/Posix -Fu./tests/posix -FE./.fpc-build -FU./.fpc-build ./tests/p
 ./.fpc-build/Boss4DPosixTests --all --format=plain
 ./.fpc-build/boss4d version
 ./.fpc-build/boss4d platform | grep -qx linux
+./.fpc-build/boss4d search Dext --registry=./registry/index-v2.json | grep -q Dext
+./.fpc-build/boss4d info Horse --registry=./registry/index-v2.json | grep -q 'name: Horse'
 '@
 $linuxScript = $linuxScript.Replace("`r`n", "`n")
 docker run --rm -v "${root}:/work" -w /work $Image sh -lc $linuxScript

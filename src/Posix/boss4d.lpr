@@ -3,15 +3,16 @@ program boss4d;
 {$mode objfpc}{$H+}
 
 uses
-  Classes, SysUtils, Boss4D.Posix.Core;
+  Classes, SysUtils, Boss4D.Posix.Core, Boss4D.Posix.Registry;
 
 procedure Help;
 begin
   WriteLn('Boss4D portable CLI');
-  WriteLn('Commands: version, platform, init, install, ci, add, remove, list');
+  WriteLn('Commands: version, platform, init, install, ci, add, remove, list, search, info');
   WriteLn('Install options: --locked --frozen-lockfile --offline --production');
   WriteLn('                 --resolution=highest|minimal');
   WriteLn('Add options: boss4d add <repository> [version] [--dev]');
+  WriteLn('Registry options: --registry=<index-v1-or-v2-path-or-url>');
 end;
 
 function OptionValue(const APrefix, ADefault: string): string;
@@ -37,6 +38,10 @@ var
   LCommand, LVersion: string;
   LOptions: TBoss4DInstallOptions;
   LItems: TStringList;
+  LRegistry: TBoss4DRegistryService;
+  LEntries, LMatches: TBoss4DRegistryEntries;
+  LEntry: TBoss4DRegistryEntry;
+  LSource: string;
   I: Integer;
 begin
   try
@@ -88,6 +93,47 @@ begin
         for I := 0 to LItems.Count - 1 do WriteLn(LItems[I]);
       finally
         LItems.Free;
+      end;
+    end
+    else if (LCommand = 'search') or (LCommand = 'info') then
+    begin
+      if ParamCount < 2 then
+        raise Exception.Create('usage: boss4d ' + LCommand + ' <query>');
+      LSource := OptionValue('--registry', GetEnvironmentVariable(
+        'BOSS4D_REGISTRY'));
+      if LSource = '' then LSource := PublicRegistryUrl;
+      LRegistry := TBoss4DRegistryService.Create;
+      try
+        LEntries := LRegistry.Load(LSource);
+        try
+          if LCommand = 'search' then
+          begin
+            LMatches := LEntries.Search(ParamStr(2));
+            try
+              for I := 0 to LMatches.Count - 1 do
+                WriteLn(LMatches[I].Name + #9 + LMatches[I].Version + #9 +
+                  LMatches[I].Repository);
+            finally
+              LMatches.Free;
+            end;
+          end
+          else
+          begin
+            LEntry := LEntries.Find(ParamStr(2));
+            if not Assigned(LEntry) then
+              raise Exception.Create('package not found: ' + ParamStr(2));
+            WriteLn('name: ' + LEntry.Name);
+            WriteLn('version: ' + LEntry.Version);
+            WriteLn('repository: ' + LEntry.Repository);
+            WriteLn('license: ' + LEntry.LicenseName);
+            WriteLn('description: ' + LEntry.Description);
+            WriteLn('source: ' + LEntry.Source);
+          end;
+        finally
+          LEntries.Free;
+        end;
+      finally
+        LRegistry.Free;
       end;
     end
     else if (LCommand = 'help') or (LCommand = '--help') then

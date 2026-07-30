@@ -25,18 +25,124 @@ type
     procedure TestTildeDoesNotCrossMinor;
     procedure TestOfflineRejectsMissingModule;
     procedure TestLockedRequiresLock;
+    procedure TestRegistryV2IncludesLegacyV1;
+    procedure TestRegistrySearchAndInfo;
+    procedure TestRegistryCycleLoadsOnce;
   end;
 
 implementation
 
 uses
-  fpjson, Boss4D.Posix.Core;
+  fpjson, Boss4D.Posix.Core, Boss4D.Posix.Registry;
 
 function NewTempDirectory: string;
 begin
   Result := IncludeTrailingPathDelimiter(GetTempDir(False)) +
     'boss4d-posix-' + IntToHex(Random(MaxInt), 8);
   ForceDirectories(Result);
+end;
+
+procedure SaveFixture(const APath, AContent: string);
+var
+  LContent: TStringList;
+begin
+  LContent := TStringList.Create;
+  try
+    LContent.Text := AContent;
+    LContent.SaveToFile(APath);
+  finally
+    LContent.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestRegistryV2IncludesLegacyV1;
+var
+  LDir, LRoot, LLegacy: string;
+  LService: TBoss4DRegistryService;
+  LEntries: TBoss4DRegistryEntries;
+begin
+  LDir := NewTempDirectory;
+  LRoot := IncludeTrailingPathDelimiter(LDir) + 'index-v2.json';
+  LLegacy := IncludeTrailingPathDelimiter(LDir) + 'legacy-v1.json';
+  SaveFixture(LLegacy, '{"schemaVersion":1,"packages":[{"name":"Legacy",' +
+    '"repository":"example.test/legacy","version":"1.0.0"}]}');
+  SaveFixture(LRoot, '{"schemaVersion":2,"includes":["legacy-v1.json"],' +
+    '"packages":[{"name":"Modern","repository":"example.test/modern",' +
+    '"versions":[{"version":"2.0.0","artifact":"modern.b4dpkg",' +
+    '"sha256":"abc"}]}]}');
+  LService := TBoss4DRegistryService.Create;
+  try
+    LEntries := LService.Load(LRoot);
+    try
+      AssertEquals(2, LEntries.Count);
+      AssertEquals('1.0.0', LEntries.Find('Legacy').Version);
+      AssertEquals('2.0.0', LEntries.Find('Modern').Version);
+      AssertEquals('modern.b4dpkg', LEntries.Find('Modern').ArtifactUrl);
+    finally
+      LEntries.Free;
+    end;
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestRegistrySearchAndInfo;
+var
+  LDir, LRoot: string;
+  LService: TBoss4DRegistryService;
+  LEntries, LMatches: TBoss4DRegistryEntries;
+begin
+  LDir := NewTempDirectory;
+  LRoot := IncludeTrailingPathDelimiter(LDir) + 'index.json';
+  SaveFixture(LRoot, '{"schemaVersion":1,"packages":[' +
+    '{"name":"Horse","repository":"github.com/hashload/horse",' +
+    '"description":"Web framework"},{"name":"Dext",' +
+    '"repository":"github.com/regyssilveira/dext"}]}');
+  LService := TBoss4DRegistryService.Create;
+  try
+    LEntries := LService.Load(LRoot);
+    try
+      AssertEquals('Horse', LEntries.Find(
+        'github.com/hashload/horse').Name);
+      LMatches := LEntries.Search('framework');
+      try
+        AssertEquals(1, LMatches.Count);
+        AssertEquals('Horse', LMatches[0].Name);
+      finally
+        LMatches.Free;
+      end;
+    finally
+      LEntries.Free;
+    end;
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestRegistryCycleLoadsOnce;
+var
+  LDir, LRoot, LChild: string;
+  LService: TBoss4DRegistryService;
+  LEntries: TBoss4DRegistryEntries;
+begin
+  LDir := NewTempDirectory;
+  LRoot := IncludeTrailingPathDelimiter(LDir) + 'root.json';
+  LChild := IncludeTrailingPathDelimiter(LDir) + 'child.json';
+  SaveFixture(LRoot, '{"schemaVersion":2,"includes":["child.json"],' +
+    '"packages":[{"name":"Root","repository":"example.test/root"}]}');
+  SaveFixture(LChild, '{"schemaVersion":2,"includes":["root.json"],' +
+    '"packages":[{"name":"Child","repository":"example.test/child"}]}');
+  LService := TBoss4DRegistryService.Create;
+  try
+    LEntries := LService.Load(LRoot);
+    try
+      AssertEquals(2, LEntries.Count);
+    finally
+      LEntries.Free;
+    end;
+  finally
+    LService.Free;
+  end;
 end;
 
 function Versions(const AValues: array of string): TStringList;
