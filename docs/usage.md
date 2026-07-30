@@ -50,6 +50,12 @@ This command creates a **`boss.json`** file in your directory:
 
 ## 📥 2. Installing Dependencies (`install`)
 
+The explicit lifecycle aliases are `add`, `remove`, `update`, `list`, and
+`why`. Mutating operations are transactional and restore the manifest, lock,
+and modules when any step fails. See the
+[dependency lifecycle guide](dependency-lifecycle.md) for commands and
+guarantees.
+
 Boss4D downloads dependencies, checks out the correct version from Git, places them in a local `modules/` folder, and updates compilation paths.
 
 ### Installing a New Package

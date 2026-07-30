@@ -209,6 +209,10 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 📄 Épico 20: Governança, Documentação e Ciclo de Vida
 *Objetivo: Melhorar a consistência de builds em produção e gerar referências de API navegáveis de forma automatizada.*
 
+- [x] **[Story] Ciclo de Vida Transacional de Dependências**
+  - Adicionar `add`, `remove`, `update`, `list` e `why`, com remoção de órfãos
+    baseada no grafo e rollback de manifesto, lock e módulos.
+
 - [ ] **[Story] Geração Automatizada de Documentação (`boss4d doc`)**
   - Varrer os comentários em PascalDoc/XML Doc de todas as dependências e compilar um site local com a documentação estática de referência das APIs.
 - [ ] **[Story] Divisão de Dependências de Desenvolvimento (`devDependencies`)**

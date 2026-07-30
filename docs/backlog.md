@@ -209,6 +209,10 @@ This document details the future planning, new features (backlog), and architect
 ## 📄 Epic 20: Governance, Documentation, and Lifecycle
 *Objective: Improve production build consistency and automatically generate browsable API references.*
 
+- [x] **[Story] Transactional Dependency Lifecycle**
+  - Add `add`, `remove`, `update`, `list`, and `why`, with graph-aware orphan
+    pruning and rollback of manifest, lock, and modules.
+
 - [ ] **[Story] Automated Documentation Generation (`boss4d doc`)**
   - Parse PascalDoc/XML Doc comments across all dependencies and compile a local static website of API references.
 - [ ] **[Story] Split Development Dependencies (`devDependencies`)**

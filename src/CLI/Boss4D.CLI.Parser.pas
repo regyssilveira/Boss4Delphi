@@ -40,6 +40,11 @@ type
     procedure ShowVersion;
     procedure HandleInit(const AArgs: TArray<string>);
     procedure HandleInstall(const AArgs: TArray<string>);
+    procedure HandleAdd(const AArgs: TArray<string>);
+    procedure HandleRemove(const AArgs: TArray<string>);
+    procedure HandleUpdate(const AArgs: TArray<string>);
+    procedure HandleList;
+    procedure HandleWhy(const AArgs: TArray<string>);
     procedure HandleConfig(const AArgs: TArray<string>);
     procedure HandleCache(const AArgs: TArray<string>);
     procedure HandleRun(const AArgs: TArray<string>);
@@ -81,10 +86,12 @@ uses
   Boss4D.Adapters.Sbom.Spdx,
   Boss4D.Adapters.Sbom.Security,
   Boss4D.Core.Domain.Dependency,
+  Boss4D.Core.Domain.Package,
   Boss4D.Core.Domain.Lock,
   Boss4D.Core.Domain.Sbom,
   Boss4D.Core.Domain.Env,
-  Boss4D.Core.Domain.Consts;
+  Boss4D.Core.Domain.Consts,
+  Boss4D.Core.Services.Dependencies;
 
 { TBoss4DCommandLineParser }
 
@@ -120,6 +127,11 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -p, --platform <plataforma> (Win32, Win64, Linux64, etc.).');
   FLogger.Log(TBoss4DLogLevel.Info, '  install <dep>        Instala uma dependencia especifica.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Exemplo: boss4d install github.com/hashload/horse@^3.0.0');
+  FLogger.Log(TBoss4DLogLevel.Info, '  add <dep>            Adiciona e instala uma dependencia de forma transacional.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  remove <dep>         Remove uma dependencia e locks orfaos.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  update [dep]         Atualiza uma ou todas as dependencias.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  list                 Lista dependencias diretas e transitivas.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  why <dep>            Explica por que uma dependencia foi instalada.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config delphi use <caminho>  Configura o caminho global do compilador Delphi.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config git shallow <true/false> Configura uso de shallow clones globais.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config auth <github/gitlab> <token> Configura tokens de autenticacao global.');
@@ -164,6 +176,16 @@ begin
     HandleInit(AArgs)
   else if (LCommand = 'install') or (LCommand = 'i') then
     HandleInstall(AArgs)
+  else if LCommand = 'add' then
+    HandleAdd(AArgs)
+  else if (LCommand = 'remove') or (LCommand = 'rm') then
+    HandleRemove(AArgs)
+  else if (LCommand = 'update') or (LCommand = 'up') then
+    HandleUpdate(AArgs)
+  else if (LCommand = 'list') or (LCommand = 'ls') then
+    HandleList
+  else if LCommand = 'why' then
+    HandleWhy(AArgs)
   else if LCommand = 'config' then
     HandleConfig(AArgs)
   else if LCommand = 'cache' then
@@ -190,6 +212,109 @@ begin
     HandleNew(AArgs)
   else if LCommand = 'sbom' then
     HandleSbom(AArgs);
+end;
+
+procedure TBoss4DCommandLineParser.HandleAdd(const AArgs: TArray<string>);
+begin
+  if Length(AArgs) <> 2 then
+    raise EArgumentException.Create('Uso: boss4d add <repositorio>@<versao>');
+  FInstallService.Execute(AArgs[1]);
+end;
+
+procedure TBoss4DCommandLineParser.HandleRemove(const AArgs: TArray<string>);
+var
+  LService: TBoss4DDependencyService;
+  LLockRepo: IBoss4DLockRepository;
+begin
+  if Length(AArgs) <> 2 then
+    raise EArgumentException.Create('Uso: boss4d remove <dependencia>');
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LService := TBoss4DDependencyService.Create(FPackageRepo, LLockRepo, FLogger);
+  try
+    LService.Remove(AArgs[1]);
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleUpdate(const AArgs: TArray<string>);
+var
+  LPkg: TBoss4DPackage;
+  LRequested, LKey, LVersion: string;
+begin
+  if Length(AArgs) = 1 then
+  begin
+    FInstallService.Execute;
+    Exit;
+  end;
+  if Length(AArgs) <> 2 then
+    raise EArgumentException.Create('Uso: boss4d update [dependencia[@versao]]');
+  LRequested := AArgs[1];
+  if LRequested.Contains('@') then
+  begin
+    FInstallService.Execute(LRequested);
+    Exit;
+  end;
+  LPkg := FPackageRepo.Load(GetBossFile);
+  try
+    LKey := '';
+    for var LPair in LPkg.Dependencies do
+      if SameText(LPair.Key, LRequested) or
+         SameText(TPath.GetFileName(LPair.Key), LRequested) then
+      begin
+        LKey := LPair.Key;
+        LVersion := LPair.Value;
+        Break;
+      end;
+    if LKey.IsEmpty then
+      raise EArgumentException.Create('Dependencia nao declarada: ' + LRequested);
+    FInstallService.Execute(LKey + '@' + LVersion);
+  finally
+    LPkg.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleList;
+var
+  LService: TBoss4DDependencyService;
+  LLockRepo: IBoss4DLockRepository;
+  LInfo: TBoss4DDependencyInfo;
+  LScope: string;
+begin
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LService := TBoss4DDependencyService.Create(FPackageRepo, LLockRepo, FLogger);
+  try
+    for LInfo in LService.List do
+    begin
+      if LInfo.Direct then LScope := 'direct' else LScope := 'transitive';
+      FLogger.Log(TBoss4DLogLevel.Info, '%s@%s (%s)',
+        [LInfo.Key, LInfo.Version, LScope]);
+    end;
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleWhy(const AArgs: TArray<string>);
+var
+  LService: TBoss4DDependencyService;
+  LLockRepo: IBoss4DLockRepository;
+  LPath: TArray<string>;
+begin
+  if Length(AArgs) <> 2 then
+    raise EArgumentException.Create('Uso: boss4d why <dependencia>');
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LService := TBoss4DDependencyService.Create(FPackageRepo, LLockRepo, FLogger);
+  try
+    LPath := LService.Why(AArgs[1]);
+    if Length(LPath) = 0 then
+      FLogger.Log(TBoss4DLogLevel.Warning,
+        'Dependencia nao encontrada no grafo: ' + AArgs[1])
+    else
+      FLogger.Log(TBoss4DLogLevel.Info, string.Join(' -> ', LPath));
+  finally
+    LService.Free;
+  end;
 end;
 
 procedure TBoss4DCommandLineParser.HandleInit(const AArgs: TArray<string>);

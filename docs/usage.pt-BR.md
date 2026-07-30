@@ -50,6 +50,11 @@ Este comando gera um arquivo **`boss.json`** na pasta raiz:
 
 ## 📥 2. Instalando Dependências (`install`)
 
+Os comandos explícitos do ciclo de vida são `add`, `remove`, `update`, `list` e
+`why`. As operações de escrita são transacionais e restauram manifesto, lock e
+módulos se qualquer etapa falhar. Consulte o
+[guia do ciclo de vida](dependency-lifecycle.pt-BR.md).
+
 O Boss4D faz o download das dependências do Git, realiza o checkout na versão correta, posiciona os fontes na pasta local `modules/` do seu projeto e atualiza as diretivas de caminhos de busca do compilador.
 
 ### Instalando um Novo Pacote

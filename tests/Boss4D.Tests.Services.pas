@@ -42,6 +42,12 @@ type
     procedure TestInstallBranchDependency;
 
     [Test]
+    procedure TestDependencyLifecycleCommands;
+
+    [Test]
+    procedure TestInstallTransactionRollback;
+
+    [Test]
     procedure TestCLICommandLineParser;
 
     [Test]
@@ -151,6 +157,7 @@ uses
   Boss4D.Core.Services.IDEIntegration, Boss4D.Core.Services.Tool, Boss4D.Core.Services.Workspace, Boss4D.Core.Services.GetIt,
   Boss4D.Core.Services.Clean, Boss4D.Core.Services.Scaffold,
   Boss4D.Core.Services.SourceNormalizer,
+  Boss4D.Core.Services.Dependencies,
   Boss4D.Core.Services.PackageManifest, Boss4D.IDE.Wizard;
 
 { TTestLogger }
@@ -378,6 +385,159 @@ begin
   finally
     LInstall.Free;
   end;
+end;
+
+procedure TTestsServices.TestDependencyLifecycleCommands;
+var
+  LInit: TBoss4DInitService;
+  LInstall: TBoss4DInstallService;
+  LConfig: TBoss4DConfigService;
+  LParser: TBoss4DCommandLineParser;
+  LLogger: TTestLogger;
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LGitMock: TGitClientMock;
+  LLock: TBoss4DLock;
+  LRootLocked: TBoss4DLockedDependency;
+  LTransitive: TBoss4DDependency;
+  LPkg: TBoss4DPackage;
+  LRootKey, LTransitiveKey: string;
+  LRootModulePath: string;
+begin
+  LLogger := TTestLogger.Create;
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LGitMock := TGitClientMock.Create;
+  LInit := TBoss4DInitService.Create(LPackageRepo, LLogger);
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo, LGitMock,
+    THttpClientMock.Create, TCompilerMock.Create, LLogger);
+  LConfig := TBoss4DConfigService.Create(LLogger);
+  LParser := TBoss4DCommandLineParser.Create(LLogger, LInit, LInstall,
+    LConfig, LPackageRepo, TRegistryMock.Create);
+  try
+    LInit.Execute(True);
+    LParser.ParseAndExecute(TArray<string>.Create('add',
+      'github.com/hashload/horse@^3.0.0'));
+
+    LPkg := LPackageRepo.Load(GetBossFile);
+    try
+      Assert.AreEqual<Integer>(1, LPkg.Dependencies.Count);
+    finally
+      LPkg.Free;
+    end;
+
+    LLock := LLockRepo.Load(TPath.Combine(FTempDir, FILE_PACKAGE_LOCK));
+    LTransitive := TBoss4DDependency.Create(
+      'github.com/example/transitive', '1.0.0');
+    try
+      LTransitiveKey := LTransitive.GetKey;
+      LLock.AddDependency(LTransitive, '1.0.0', 'transitive-hash');
+      Assert.IsTrue(LLock.RootDependencies.Count > 0,
+        'O add deve registrar a raiz no lock.');
+      LRootKey := LLock.RootDependencies[0];
+      Assert.IsTrue(LLock.Installed.TryGetValue(LRootKey, LRootLocked),
+        'A dependencia raiz deve existir no lock: ' + LRootKey);
+      LRootLocked.Dependencies.Add(LTransitive.GetKey);
+      LLockRepo.Save(LLock, TPath.Combine(FTempDir, FILE_PACKAGE_LOCK));
+    finally
+      LTransitive.Free;
+      LLock.Free;
+    end;
+
+    LLogger.LastLogMessage := '';
+    LParser.ParseAndExecute(TArray<string>.Create('list'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('(direct)'),
+      'list nao classificou dependencia direta: ' + LLogger.LastLogMessage);
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('(transitive)'),
+      'list nao classificou dependencia transitiva: ' + LLogger.LastLogMessage);
+
+    LLogger.LastLogMessage := '';
+    LParser.ParseAndExecute(TArray<string>.Create('why', 'transitive'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains(
+      LRootKey + ' -> ' + LTransitiveKey),
+      'why nao retornou o caminho esperado: ' + LLogger.LastLogMessage);
+
+    LParser.ParseAndExecute(TArray<string>.Create('update', 'horse'));
+    var LRootDep := TBoss4DDependency.Create(
+      'github.com/hashload/horse', '');
+    try
+      LRootModulePath := TPath.Combine(GetModulesDir, LRootDep.StorageName);
+    finally
+      LRootDep.Free;
+    end;
+    Assert.IsTrue(TDirectory.Exists(LRootModulePath));
+    LParser.ParseAndExecute(TArray<string>.Create('remove', 'horse'));
+    Assert.IsFalse(TDirectory.Exists(LRootModulePath),
+      'remove deve excluir o modulo que deixou de ser alcancavel.');
+    LPkg := LPackageRepo.Load(GetBossFile);
+    try
+      Assert.AreEqual<Integer>(0, LPkg.Dependencies.Count);
+    finally
+      LPkg.Free;
+    end;
+    LLock := LLockRepo.Load(TPath.Combine(FTempDir, FILE_PACKAGE_LOCK));
+    try
+      Assert.AreEqual<Integer>(0, LLock.Installed.Count,
+        'A remocao deve podar dependencias transitivas orfas.');
+    finally
+      LLock.Free;
+    end;
+  finally
+    LParser.Free;
+    LConfig.Free;
+    LInstall.Free;
+    LInit.Free;
+  end;
+end;
+
+procedure TTestsServices.TestInstallTransactionRollback;
+var
+  LInit: TBoss4DInitService;
+  LInstall: TBoss4DInstallService;
+  LLogger: IBoss4DLogger;
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LGitMock: TGitClientMock;
+  LOriginalManifest: string;
+  LMarkerPath: string;
+  LRaised: Boolean;
+begin
+  LLogger := TTestLogger.Create;
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LInit := TBoss4DInitService.Create(LPackageRepo, LLogger);
+  try
+    LInit.Execute(True);
+  finally
+    LInit.Free;
+  end;
+  LOriginalManifest := TFile.ReadAllText(GetBossFile, TEncoding.UTF8);
+  TDirectory.CreateDirectory(GetModulesDir);
+  LMarkerPath := TPath.Combine(GetModulesDir, 'existing.txt');
+  TFile.WriteAllText(LMarkerPath, 'preserve');
+
+  LGitMock := TGitClientMock.Create;
+  LGitMock.FailCheckout := True;
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo, LGitMock,
+    THttpClientMock.Create, TCompilerMock.Create, LLogger);
+  LRaised := False;
+  try
+    try
+      LInstall.Execute('github.com/example/failing@1.0.0');
+    except
+      on E: Exception do
+        LRaised := True;
+    end;
+  finally
+    LInstall.Free;
+  end;
+
+  Assert.IsTrue(LRaised);
+  Assert.AreEqual(LOriginalManifest,
+    TFile.ReadAllText(GetBossFile, TEncoding.UTF8));
+  Assert.IsFalse(TFile.Exists(TPath.Combine(FTempDir, FILE_PACKAGE_LOCK)));
+  Assert.IsTrue(TFile.Exists(LMarkerPath));
+  Assert.AreEqual('preserve', TFile.ReadAllText(LMarkerPath));
 end;
 
 procedure TTestsServices.TestCLICommandLineParser;

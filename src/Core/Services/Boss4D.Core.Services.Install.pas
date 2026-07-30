@@ -35,6 +35,8 @@ type
     function ResolveSemVerRange(const ARangeStr, ACacheDir: string): string;
     function ResolveDependencyVersion(const ADep: TBoss4DDependency; const ACacheDir: string): string;
     function CalculateDirectoryChecksum(const ADirPath: string): string;
+    procedure ExecuteCore(const AInstallSingle: string;
+      const APlatform: string);
   public
     constructor Create(
       const APackageRepo: IBoss4DPackageRepository;
@@ -60,7 +62,8 @@ uses
   Boss4D.Adapters.Registry,
   Boss4D.Core.Services.IDEIntegration, Boss4D.Core.Services.Workspace,
   Boss4D.Core.Services.SourceNormalizer,
-  Boss4D.Core.Services.LazarusProject;
+  Boss4D.Core.Services.LazarusProject,
+  Boss4D.Core.Services.Transaction;
 
 { TBoss4DInstallService }
 
@@ -234,7 +237,9 @@ begin
     var LExistingLocked: TBoss4DLockedDependency;
     if ALock.GetInstalled(ADep, LExistingLocked) then
     begin
-      if not LExistingLocked.Checksum.IsEmpty and (LExistingLocked.Checksum <> LChecksum) then
+      if SameText(LExistingLocked.Revision, LResolvedRevision) and
+         not LExistingLocked.Checksum.IsEmpty and
+         (LExistingLocked.Checksum <> LChecksum) then
       begin
         raise Exception.CreateFmt(
           'ERRO DE SEGURANCA: O checksum da dependencia "%s" (%s) nao confere com o esperado!' + sLineBreak +
@@ -422,7 +427,22 @@ begin
   end;
 end;
 
-procedure TBoss4DInstallService.Execute(const AInstallSingle: string = ''; const APlatform: string = '');
+procedure TBoss4DInstallService.Execute(const AInstallSingle: string;
+  const APlatform: string);
+var
+  LTransaction: TBoss4DProjectTransaction;
+begin
+  LTransaction := TBoss4DProjectTransaction.Create(GetCurrentDir);
+  try
+    ExecuteCore(AInstallSingle, APlatform);
+    LTransaction.Commit;
+  finally
+    LTransaction.Free;
+  end;
+end;
+
+procedure TBoss4DInstallService.ExecuteCore(const AInstallSingle: string;
+  const APlatform: string);
 var
   LPkgPath: string;
   LLockPath: string;

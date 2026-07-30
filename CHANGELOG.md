@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Transactional `add`, `remove`, `update`, `list`, and `why` dependency
+  lifecycle commands, including orphan lock pruning and automatic rollback of
+  manifest, lock, and modules.
+- Bilingual dependency lifecycle documentation and unit coverage for graph
+  inspection and transaction failures.
+
 ## 1.3.0 - 2026-07-29
 
 ### Added

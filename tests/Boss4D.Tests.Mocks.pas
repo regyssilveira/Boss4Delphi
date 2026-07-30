@@ -12,6 +12,7 @@ type
   private
     FTags: TDictionary<string, TArray<string>>;
     FCacheMap: TDictionary<string, string>;
+    FFailCheckout: Boolean;
   public
     constructor Create;
     destructor Destroy; override;
@@ -23,6 +24,7 @@ type
     function GetVersions(const ACacheDir: string): TArray<string>;
     function ResolveRevision(const ACacheDir: string; const AVersion: string): string;
     procedure Checkout(const ACacheDir: string; const AVersion: string; const ATargetDir: string);
+    property FailCheckout: Boolean read FFailCheckout write FFailCheckout;
   end;
 
   { Mock para simulacao do cliente HTTP }
@@ -142,6 +144,8 @@ end;
 
 procedure TGitClientMock.Checkout(const ACacheDir: string; const AVersion: string; const ATargetDir: string);
 begin
+  if FFailCheckout then
+    raise Exception.Create('Falha de checkout simulada');
   // Simula a criacao do diretorio destino do modulo
   if not TDirectory.Exists(ATargetDir) then
     TDirectory.CreateDirectory(ATargetDir);

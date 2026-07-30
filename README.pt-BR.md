@@ -86,6 +86,10 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d install <url>@<versao>`
   Adiciona e instala uma dependência específica ao projeto.
   * *Exemplo*: `boss4d install github.com/hashload/horse@^3.1.0`
+* `boss4d add|remove|update|list|why`
+  Gerencia e consulta todo o ciclo de vida das dependências, com rollback
+  automático de `boss.json`, `boss-lock.json` e `modules/` em caso de falha.
+  Consulte o [guia do ciclo de vida](docs/dependency-lifecycle.pt-BR.md).
 * `boss4d config delphi use <caminho_ou_versao>`
   Configura o caminho global do Delphi ou a versão de release (ex: "23.0", "22.0") para a compilação do MSBuild. Se não configurado, o resolvedor autodetecta dinamicamente a versão mais recente instalada.
 * `boss4d config git shallow <true/false>`
@@ -113,6 +117,7 @@ cd /d d:\Projetos\BossDelphi
 ## 📖 Documentação Adicional
 * **[Guia da Feature SBOM](docs/sbom.pt-BR.md)**: Motivação, modelo de evidências, cobertura, VEX, atestações, limites e fluxo recomendado de release.
 * **[Melhorias de Build Determinístico](docs/build-improvements.pt-BR.md)**: Paths sem colisão, toolchains, projetos declarados, Lazarus, scaffolding e normalização.
+* **[Ciclo de Vida de Dependências](docs/dependency-lifecycle.pt-BR.md)**: Add, update e remove transacionais, além de list e why baseados no grafo.
 * **[Manual de Uso da CLI](docs/usage.pt-BR.md)**: Guia completo detalhado de todos os parâmetros e opções de instalação de dependências.
 * **[Guia de Contribuição](CONTRIBUTING.pt-BR.md)**: Padrões de código e fluxo de desenvolvimento para contribuir com o projeto.
 * **[Guia de Lançamento de Release](RELEASE_GUIDE.md)**: Passos e instruções para compilar com Delphi 13 (37.0) e publicar releases no GitHub.

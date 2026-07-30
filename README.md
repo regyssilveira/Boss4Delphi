@@ -92,6 +92,10 @@ cd /d d:\Projetos\BossDelphi
   Adds and installs a specific package dependency.
   * *Example*: `boss4d install github.com/hashload/horse@^3.1.0`
   * *Git references*: Supports tags, branches (e.g. `@master`), or commit hashes.
+* `boss4d add|remove|update|list|why`
+  Manages and inspects the complete dependency lifecycle with automatic rollback
+  of `boss.json`, `boss-lock.json`, and `modules/` on failure. See the
+  [dependency lifecycle guide](docs/dependency-lifecycle.md).
 * `boss4d config delphi use <path_or_release_version>`
   Sets the global path or the release version (e.g. "23.0", "22.0") of the Delphi installation directory for MSBuild. If not specified, the compiler adapter will automatically detect the latest installed Delphi version.
 * `boss4d config git shallow <true/false>`
@@ -118,6 +122,7 @@ cd /d d:\Projetos\BossDelphi
 ## 📖 Additional Documentation
 * **[SBOM Feature Guide](docs/sbom.md)**: Motivation, evidence model, coverage, VEX, attestations, limitations, and recommended release workflow.
 * **[Deterministic Build Improvements](docs/build-improvements.md)**: Collision-free paths, toolchains, declared projects, Lazarus, scaffolding, and normalization.
+* **[Dependency Lifecycle](docs/dependency-lifecycle.md)**: Transactional add, update, and remove plus graph-aware list and why commands.
 * **[CLI Usage Manual](docs/usage.md)**: Detailed step-by-step guide covering all command options and dependency configurations.
 * **[Contribution Guide](CONTRIBUTING.md)**: Coding standards and guidelines for contribution.
 * **[Release Guide](RELEASE_GUIDE.md)**: Steps and instructions to compile with Delphi 13 (37.0) and publish releases on GitHub.

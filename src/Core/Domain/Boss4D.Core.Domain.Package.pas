@@ -80,6 +80,7 @@ type
     destructor Destroy; override;
 
     procedure AddDependency(const ADep: string; const AVer: string);
+    function RemoveDependency(const ADep: string): Boolean;
     procedure AddProject(const AProject: string);
 
     // Retorna uma lista de dependencias prontas e parseadas. O chamador e responsavel por liberar os objetos do array.
@@ -163,6 +164,22 @@ begin
     FDependencies.AddOrSetValue(LFoundKey, AVer)
   else
     FDependencies.Add(ADep, AVer);
+end;
+
+function TBoss4DPackage.RemoveDependency(const ADep: string): Boolean;
+var
+  LKey, LFoundKey: string;
+begin
+  LFoundKey := '';
+  for LKey in FDependencies.Keys do
+    if SameText(LKey, ADep) then
+    begin
+      LFoundKey := LKey;
+      Break;
+    end;
+  Result := not LFoundKey.IsEmpty;
+  if Result then
+    FDependencies.Remove(LFoundKey);
 end;
 
 procedure TBoss4DPackage.AddProject(const AProject: string);
