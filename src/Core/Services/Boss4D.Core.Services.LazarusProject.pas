@@ -113,7 +113,8 @@ begin
     end;
 
     if Result then
-      LOtherUnitFiles.Attributes['Value'] := String.Join(';', LExistingPaths.ToStringArray);
+      LOtherUnitFiles.Attributes['Value'] := string.Join(';',
+        LExistingPaths.ToStringArray);
   finally
     LExistingPaths.Free;
   end;
