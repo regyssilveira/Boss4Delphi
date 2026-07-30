@@ -28,6 +28,10 @@ type
     function DiscoverBuildProjects(const ARootDirectory: string): TArray<string>;
     function ResolveEffectivePlatform(const APackage: TBoss4DPackage;
       const ACliPlatform: string): string;
+    function ResolveRootLazarusProjects(
+      const APackage: TBoss4DPackage): TArray<string>;
+    procedure IntegrateLazarusProjectPaths(const APackage: TBoss4DPackage;
+      const APlatform: string);
     function ResolveSemVerRange(const ARangeStr, ACacheDir: string): string;
     function ResolveDependencyVersion(const ADep: TBoss4DDependency; const ACacheDir: string): string;
     function CalculateDirectoryChecksum(const ADirPath: string): string;
@@ -55,7 +59,8 @@ uses
   Boss4D.Core.Domain.Env,
   Boss4D.Adapters.Registry,
   Boss4D.Core.Services.IDEIntegration, Boss4D.Core.Services.Workspace,
-  Boss4D.Core.Services.SourceNormalizer;
+  Boss4D.Core.Services.SourceNormalizer,
+  Boss4D.Core.Services.LazarusProject;
 
 { TBoss4DInstallService }
 
@@ -84,6 +89,83 @@ begin
   FGlobalProcessedDeps.Free;
   FGitCriticalSection.Free;
   inherited Destroy;
+end;
+
+function TBoss4DInstallService.ResolveRootLazarusProjects(
+  const APackage: TBoss4DPackage): TArray<string>;
+var
+  LProjects: TList<string>;
+  LRootPath: string;
+begin
+  LProjects := TList<string>.Create;
+  try
+    LRootPath := IncludeTrailingPathDelimiter(TPath.GetFullPath(GetCurrentDir));
+    if APackage.Projects.Count > 0 then
+    begin
+      for var LDeclaredProject in APackage.Projects do
+      begin
+        var LProjectPath := TPath.GetFullPath(
+          TPath.Combine(GetCurrentDir, LDeclaredProject));
+        if not LProjectPath.StartsWith(LRootPath, True) then
+          raise EArgumentException.CreateFmt(
+            'Projeto declarado fora da raiz: %s', [LDeclaredProject]);
+
+        var LExtension := TPath.GetExtension(LProjectPath);
+        if SameText(LExtension, EXT_LPI) or SameText(LExtension, EXT_LPK) then
+          LProjects.Add(LProjectPath);
+      end;
+    end
+    else
+    begin
+      LProjects.AddRange(TDirectory.GetFiles(GetCurrentDir, '*' + EXT_LPI,
+        TSearchOption.soTopDirectoryOnly));
+      LProjects.AddRange(TDirectory.GetFiles(GetCurrentDir, '*' + EXT_LPK,
+        TSearchOption.soTopDirectoryOnly));
+      LProjects.Sort;
+    end;
+    Result := LProjects.ToArray;
+  finally
+    LProjects.Free;
+  end;
+end;
+
+procedure TBoss4DInstallService.IntegrateLazarusProjectPaths(
+  const APackage: TBoss4DPackage; const APlatform: string);
+var
+  LUnitPaths: TList<string>;
+begin
+  var LProjects := ResolveRootLazarusProjects(APackage);
+  if Length(LProjects) = 0 then
+    Exit;
+
+  LUnitPaths := TList<string>.Create;
+  try
+    var LDependencies := APackage.GetParsedDependencies;
+    try
+      for var LDependency in LDependencies do
+      begin
+        var LSearchPath := FCompiler.BuildSearchPath(LDependency, APlatform);
+        for var LPath in LSearchPath.Split([';']) do
+          if not LPath.Trim.IsEmpty then
+            LUnitPaths.Add(LPath.Trim);
+      end;
+    finally
+      for var LDependency in LDependencies do
+        LDependency.Free;
+    end;
+
+    if LUnitPaths.Count = 0 then
+      Exit;
+
+    for var LProjectPath in LProjects do
+      if TBoss4DLazarusProjectService.UpdateUnitPaths(
+        LProjectPath, LUnitPaths.ToArray) then
+        FLogger.Log(TBoss4DLogLevel.Info,
+          'Paths de dependencias integrados ao projeto Lazarus: %s',
+          [TPath.GetFileName(LProjectPath)]);
+  finally
+    LUnitPaths.Free;
+  end;
 end;
 
 procedure TBoss4DInstallService.ProcessDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock;
@@ -516,6 +598,8 @@ begin
     // Atualiza metadados do lock e salva
     LLock.Updated := FormatDateTime('yyyy-mm-dd"T"hh:nn:ss"Z"', Now);
     FLockRepo.Save(LLock, LLockPath);
+
+    IntegrateLazarusProjectPaths(LPkg, LEffectivePlatform);
 
     FLogger.Log(TBoss4DLogLevel.Info, 'Instalacao concluida com sucesso!');
 
