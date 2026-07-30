@@ -21,6 +21,8 @@ type
     [Test]
     procedure TestPackageSerialization;
     [Test]
+    procedure TestLegacyPackageContractRemainsStringBased;
+    [Test]
     procedure TestLockSerialization;
     [Test]
     procedure TestLockV1BackwardCompatibility;
@@ -39,7 +41,7 @@ type
 implementation
 
 uses
-  System.SysUtils, System.IOUtils, Boss4D.Core.Domain.Package,
+  System.SysUtils, System.IOUtils, System.JSON, Boss4D.Core.Domain.Package,
   Boss4D.Core.Domain.Lock, Boss4D.Core.Domain.Dependency;
 
 { TTestsJson }
@@ -124,6 +126,72 @@ begin
     end;
   finally
     LPkg.Free;
+  end;
+end;
+
+procedure TTestsJson.TestLegacyPackageContractRemainsStringBased;
+var
+  LFilePath: string;
+  LPackage: TBoss4DPackage;
+  LRoot: TJSONObject;
+  LProjects: TJSONArray;
+  LDependencies: TJSONObject;
+  LScripts: TJSONObject;
+begin
+  LFilePath := TPath.Combine(FTempDir, 'legacy-boss.json');
+  TFile.WriteAllText(LFilePath,
+    '{' +
+      '"name":"legacy-component",' +
+      '"version":"1.0.0",' +
+      '"projects":["packages/runtime.dproj","packages/design.dproj"],' +
+      '"scripts":{"build":"msbuild legacy.groupproj"},' +
+      '"dependencies":{"github.com/example/runtime":"^1.2.0"},' +
+      '"devDependencies":{"github.com/example/tests":"1.0.0"},' +
+      '"engines":{"compiler":"34.0","platforms":["Win32","Win64"]},' +
+      '"toolchain":{"compiler":"34.0","platform":"Win64","path":"C:\\Delphi","strict":true}' +
+    '}', TEncoding.UTF8);
+
+  LPackage := FPackageRepo.Load(LFilePath);
+  try
+    Assert.AreEqual<Integer>(2, LPackage.Projects.Count);
+    Assert.AreEqual('packages/runtime.dproj', LPackage.Projects[0]);
+    Assert.AreEqual('packages/design.dproj', LPackage.Projects[1]);
+    Assert.AreEqual('msbuild legacy.groupproj', LPackage.Scripts['build']);
+    Assert.AreEqual('^1.2.0',
+      LPackage.Dependencies['github.com/example/runtime']);
+    Assert.AreEqual('1.0.0',
+      LPackage.DevDependencies['github.com/example/tests']);
+    Assert.AreEqual('34.0', LPackage.Engines.Compiler);
+    Assert.AreEqual<Integer>(2, LPackage.Engines.Platforms.Count);
+    Assert.AreEqual('34.0', LPackage.Toolchain.Compiler);
+    Assert.AreEqual('Win64', LPackage.Toolchain.Platform);
+    Assert.IsTrue(LPackage.Toolchain.Strict);
+
+    FPackageRepo.Save(LPackage, LFilePath);
+  finally
+    LPackage.Free;
+  end;
+
+  LRoot := TJSONObject.ParseJSONValue(
+    TFile.ReadAllText(LFilePath, TEncoding.UTF8)) as TJSONObject;
+  try
+    LProjects := LRoot.GetValue<TJSONArray>('projects');
+    Assert.IsNotNull(LProjects);
+    Assert.IsTrue(LProjects[0] is TJSONString,
+      'Entradas legadas de projects devem continuar sendo strings.');
+
+    LScripts := LRoot.GetValue<TJSONObject>('scripts');
+    Assert.IsNotNull(LScripts);
+    Assert.IsTrue(LScripts.GetValue('build') is TJSONString,
+      'Valores legados de scripts devem continuar sendo strings.');
+
+    LDependencies := LRoot.GetValue<TJSONObject>('dependencies');
+    Assert.IsNotNull(LDependencies);
+    Assert.IsTrue(
+      LDependencies.GetValue('github.com/example/runtime') is TJSONString,
+      'Versoes legadas de dependencies devem continuar sendo strings.');
+  finally
+    LRoot.Free;
   end;
 end;
 
