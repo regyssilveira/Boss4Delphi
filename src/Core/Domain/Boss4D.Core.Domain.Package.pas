@@ -3,7 +3,8 @@ unit Boss4D.Core.Domain.Package;
 interface
 
 uses
-  System.Generics.Collections, Boss4D.Core.Domain.Dependency;
+  System.Generics.Collections, Boss4D.Core.Domain.Dependency,
+  Boss4D.Core.Domain.BuildMatrix;
 
 type
   TBoss4DManualComponent = class
@@ -90,6 +91,7 @@ type
     FTrust: TBoss4DPackageTrust;
     FWorkspaces: TList<string>;
     FSbomComponents: TObjectList<TBoss4DManualComponent>;
+    FBuildMatrix: TBoss4DBuildMatrix;
   public
     constructor Create;
     destructor Destroy; override;
@@ -119,6 +121,7 @@ type
     property Trust: TBoss4DPackageTrust read FTrust;
     property Workspaces: TList<string> read FWorkspaces;
     property SbomComponents: TObjectList<TBoss4DManualComponent> read FSbomComponents;
+    property BuildMatrix: TBoss4DBuildMatrix read FBuildMatrix;
   end;
 
 implementation
@@ -166,10 +169,12 @@ begin
   FTrust := TBoss4DPackageTrust.Create;
   FWorkspaces := TList<string>.Create;
   FSbomComponents := TObjectList<TBoss4DManualComponent>.Create(True);
+  FBuildMatrix := TBoss4DBuildMatrix.Create;
 end;
 
 destructor TBoss4DPackage.Destroy;
 begin
+  FBuildMatrix.Free;
   FSbomComponents.Free;
   FWorkspaces.Free;
   FTrust.Free;

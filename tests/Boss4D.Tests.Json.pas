@@ -23,6 +23,8 @@ type
     [Test]
     procedure TestLegacyPackageContractRemainsStringBased;
     [Test]
+    procedure TestBuildMatrixSerialization;
+    [Test]
     procedure TestLockSerialization;
     [Test]
     procedure TestLockV1BackwardCompatibility;
@@ -42,7 +44,8 @@ implementation
 
 uses
   System.SysUtils, System.IOUtils, System.JSON, Boss4D.Core.Domain.Package,
-  Boss4D.Core.Domain.Lock, Boss4D.Core.Domain.Dependency;
+  Boss4D.Core.Domain.Lock, Boss4D.Core.Domain.Dependency,
+  Boss4D.Core.Domain.BuildMatrix;
 
 { TTestsJson }
 
@@ -129,6 +132,71 @@ begin
   end;
 end;
 
+procedure TTestsJson.TestBuildMatrixSerialization;
+var
+  LFilePath: string;
+  LPackage: TBoss4DPackage;
+  LLoaded: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+begin
+  LFilePath := TPath.Combine(FTempDir, 'matrix-boss.json');
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'matrix-component';
+    LPackage.Version := '2.0.0';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Compilers.Add('22.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Platforms.Add('Win64');
+    LPackage.BuildMatrix.Configurations.Add('Debug');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LPackage.BuildMatrix.DefaultCompiler := '37.0';
+    LPackage.BuildMatrix.DefaultPlatform := 'Win64';
+    LPackage.BuildMatrix.DefaultConfiguration := 'Release';
+
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'packages/runtime.dproj';
+    LProject.Kind := 'runtime';
+    LProject.Platforms.Add('Win32');
+    LProject.Platforms.Add('Win64');
+    LPackage.BuildMatrix.Projects.Add(LProject);
+
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'packages/design.dproj';
+    LProject.Kind := 'design';
+    LProject.DependsOn.Add('packages/runtime.dproj');
+    LProject.Compilers.Add('37.0');
+    LProject.Configurations.Add('Release');
+    LPackage.BuildMatrix.Projects.Add(LProject);
+
+    FPackageRepo.Save(LPackage, LFilePath);
+  finally
+    LPackage.Free;
+  end;
+
+  LLoaded := FPackageRepo.Load(LFilePath);
+  try
+    Assert.IsTrue(LLoaded.BuildMatrix.IsDeclared);
+    Assert.AreEqual<Integer>(2, LLoaded.BuildMatrix.Compilers.Count);
+    Assert.AreEqual('22.0', LLoaded.BuildMatrix.Compilers[0]);
+    Assert.AreEqual('37.0', LLoaded.BuildMatrix.DefaultCompiler);
+    Assert.AreEqual('Win64', LLoaded.BuildMatrix.DefaultPlatform);
+    Assert.AreEqual('Release', LLoaded.BuildMatrix.DefaultConfiguration);
+    Assert.AreEqual<Integer>(2, LLoaded.BuildMatrix.Projects.Count);
+    Assert.AreEqual('packages/design.dproj',
+      LLoaded.BuildMatrix.Projects[0].Path);
+    Assert.AreEqual('design', LLoaded.BuildMatrix.Projects[0].Kind);
+    Assert.AreEqual<Integer>(1,
+      LLoaded.BuildMatrix.Projects[0].DependsOn.Count);
+    Assert.AreEqual('packages/runtime.dproj',
+      LLoaded.BuildMatrix.Projects[0].DependsOn[0]);
+    Assert.AreEqual('37.0',
+      LLoaded.BuildMatrix.Projects[0].Compilers[0]);
+  finally
+    LLoaded.Free;
+  end;
+end;
+
 procedure TTestsJson.TestLegacyPackageContractRemainsStringBased;
 var
   LFilePath: string;
@@ -190,6 +258,8 @@ begin
     Assert.IsTrue(
       LDependencies.GetValue('github.com/example/runtime') is TJSONString,
       'Versoes legadas de dependencies devem continuar sendo strings.');
+    Assert.IsNull(LRoot.GetValue('buildMatrix'),
+      'Salvar um manifesto legado nao deve adicionar buildMatrix.');
   finally
     LRoot.Free;
   end;
