@@ -5,17 +5,21 @@
 - [x] **[Story] Platform abstraction foundation**
   - Isolate process execution, host environment, writable files, and workspace
     directory links behind tested contracts with Windows implementations.
-- [ ] **[Story] Structured terminal progress**
+- [x] **[Story] Structured terminal progress**
   - Provide interactive, plain, JSON Lines, and quiet renderers over portable
     lifecycle events.
-- [ ] **[Story] Secure self-update**
-  - Add signed update manifests, channels, staging, atomic promotion, and
-    rollback.
-- [ ] **[Story] Compiler compatibility matrix**
-  - Validate Delphi 10.4 through Delphi 13 before advertising each compiler.
-- [ ] **[Story] POSIX CLI**
-  - Implement Linux64 and macOS adapters while capability-gating Windows-only
-    RAD Studio and GetIt features.
+- [x] **[Story] Secure self-update**
+  - Verify official release assets and checksums, then use staging, atomic
+    promotion, backup, and rollback on Windows and Linux.
+- [x] **[Story] Compiler compatibility matrix**
+  - Require real plugin builds for Delphi 10.1, 11, 12 and 13 in the release
+    workflow.
+- [x] **[Story] Native Linux CLI**
+  - Provide dependency, Registry, compliance, publishing, update, workspace,
+    cache, credential, and global-tool workflows on Linux x86_64/FPC.
+- [ ] **[Story] Native macOS distribution**
+  - Add a tested macOS host and release artifact while keeping RAD Studio and
+    GetIt features capability-gated to Windows.
 
 
 This document details the future planning, new features (backlog), and architectural evolution of **Boss4D**, based on community feedback and best practices in the Delphi ecosystem (inspired by tools such as *TMS Smart Setup*).

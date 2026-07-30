@@ -6,16 +6,21 @@
   - Isolar execução de processos, ambiente do host, arquivos somente leitura e
     links de diretório de workspaces atrás de contratos testados e
     implementações Windows.
-- [ ] **[Story] Progresso estruturado no terminal**
+- [x] **[Story] Progresso estruturado no terminal**
   - Oferecer renderizadores interativo, plain, JSON Lines e quiet sobre eventos
     portáveis do ciclo de vida.
-- [ ] **[Story] Autoatualização segura**
-  - Adicionar manifestos assinados, canais, staging, promoção atômica e rollback.
-- [ ] **[Story] Matriz de compatibilidade de compiladores**
-  - Validar Delphi 10.4 até Delphi 13 antes de anunciar cada compilador.
-- [ ] **[Story] CLI POSIX**
-  - Implementar adaptadores Linux64 e macOS, limitando por capacidade os
-    recursos exclusivos do RAD Studio e GetIt no Windows.
+- [x] **[Story] Autoatualização segura**
+  - Verificar assets e checksums da release oficial e usar staging, promoção
+    atômica, backup e rollback no Windows e Linux.
+- [x] **[Story] Matriz de compatibilidade de compiladores**
+  - Exigir builds reais do plugin para Delphi 10.1, 11, 12 e 13 no workflow de
+    release.
+- [x] **[Story] CLI Linux nativa**
+  - Oferecer dependências, Registry, conformidade, publicação, atualização,
+    workspaces, cache, credenciais e ferramentas globais em Linux x86_64/FPC.
+- [ ] **[Story] Distribuição macOS nativa**
+  - Adicionar host e artefato macOS testados, mantendo RAD Studio e GetIt
+    limitados por capacidade ao Windows.
 
 
 Este documento detalha o planejamento futuro, as novas funcionalidades (backlog) e a evolução arquitetônica do **Boss4D**, com base no feedback da comunidade e nas melhores práticas do ecossistema Delphi (inspirado nas ferramentas como o *TMS Smart Setup*).
