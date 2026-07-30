@@ -1,19 +1,25 @@
 [CmdletBinding()]
 param(
-  [string]$OutputRoot = (Join-Path $PSScriptRoot '..\.codex-build\plugin-matrix')
+  [string]$OutputRoot = (Join-Path $PSScriptRoot '..\.codex-build\plugin-matrix'),
+  [string[]]$Versions = @('10', '10.1', '11', '12', '13')
 )
 
 $ErrorActionPreference = 'Stop'
-$versions = [ordered]@{
+$versionMap = [ordered]@{
+  '10'   = @{ Bds = '17.0'; Legacy = $true }
   '10.1' = @{ Bds = '18.0'; Legacy = $true }
   '11'   = @{ Bds = '22.0'; Legacy = $false }
   '12'   = @{ Bds = '23.0'; Legacy = $false }
   '13'   = @{ Bds = '37.0'; Legacy = $false }
 }
 $ideRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\src\IDE')).Path
+$OutputRoot = [IO.Path]::GetFullPath($OutputRoot)
 
-foreach ($version in $versions.Keys) {
-  $bds = $versions[$version].Bds
+foreach ($version in $Versions) {
+  if (-not $versionMap.Contains($version)) {
+    throw "Unsupported Delphi plugin version: $version."
+  }
+  $bds = $versionMap[$version].Bds
   $root = (Get-ItemProperty -Path "HKCU:\Software\Embarcadero\BDS\$bds" `
     -Name RootDir -ErrorAction SilentlyContinue).RootDir
   if ([string]::IsNullOrWhiteSpace($root)) {
@@ -21,7 +27,7 @@ foreach ($version in $versions.Keys) {
   }
   $output = Join-Path $OutputRoot $version
   New-Item -ItemType Directory -Force $output | Out-Null
-  $defines = if ($versions[$version].Legacy) {
+  $defines = if ($versionMap[$version].Legacy) {
     '-DIDE_PLUGIN -DLEGACY_IDE'
   } else {
     '-DIDE_PLUGIN'
@@ -46,4 +52,4 @@ foreach ($version in $versions.Keys) {
   }
 }
 
-Write-Output 'Delphi plugin matrix 10.1/11/12/13: OK'
+Write-Output "Delphi plugin matrix $($Versions -join '/'): OK"
