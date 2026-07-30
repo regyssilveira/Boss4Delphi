@@ -132,7 +132,9 @@ var
   LResult: TBoss4DBuildDoctorResult;
   LRegistry: TRegistryMock;
 begin
-  TFile.WriteAllText(TPath.Combine(FRoot, 'Runtime.dproj'),
+  TDirectory.CreateDirectory(TPath.Combine(FRoot, 'packages\d13'));
+  TFile.WriteAllText(TPath.Combine(FRoot,
+    'packages\d13\Runtime370.dproj'),
     '<Project/>', TEncoding.UTF8);
   LPackage := TBoss4DPackage.Create;
   try
@@ -141,7 +143,7 @@ begin
     LPackage.BuildMatrix.Platforms.Add('Win64');
     LPackage.BuildMatrix.Configurations.Add('Release');
     LProject := TBoss4DBuildProject.Create;
-    LProject.Path := 'Runtime.dproj';
+    LProject.Path := 'packages/{alias}/Runtime{libsuffix}.dproj';
     LPackage.BuildMatrix.Projects.Add(LProject);
     LRegistry := TRegistryMock.Create;
     LRegistry.Path37 := FRoot;

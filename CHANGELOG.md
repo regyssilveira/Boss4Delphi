@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Added
+
+- Declarative, backward-compatible build matrix for Delphi 10.1 (`18.0`), 11
+  (`22.0`), 12 (`23.0`), and 13 (`37.0`) across Win32/Win64 and Debug/Release.
+- `spec --detect`, matrix-aware `build`, independent axis filters, `--jobs`,
+  `--force`, `--full`, `--explain`, and exact `--register`.
+- Stable project graph, incremental fingerprints, complete target cache,
+  isolated `bin`/`bpl`/`dcp`/`dcu` trees, and resource-safe parallel scheduling.
+- Transactional IDE inventory, exact unregister, drift repair, rollback, and
+  `ide unregister` / `ide repair` commands.
+- Project-aware doctor diagnostics for toolchains, paths, matrix/graph,
+  missing or escaping projects, output/unit collisions, and registry drift.
+
+### Changed
+
+- Delphi aliases (`d101`, `d11`, `d12`, `d13`), package suffixes
+  (`240`, `280`, `290`, `370`), and path tokens are normalized through one
+  tested convention table.
+- Sonar Quality Gate is clean with zero new violations.
+
 ## 1.6.0 - 2026-07-30
 
 ### Added
@@ -30,7 +50,8 @@
 - Automated tag releases for Windows x86/x86-64 and Linux x86-64, combined
   SHA-256 manifests, machine-readable artifact matrix, and GitHub OIDC build
   provenance.
-- Real release-gate builds of the IDE plugin with Delphi 10.1, 11, 12, and 13.
+- Release-gate plugin matrix targeting Delphi 10.1/BDS 18.0 and validated
+  locally with Delphi 11, 12, and 13.
 - Final parity and competitive audits covering implementation evidence and the
   remaining ecosystem investments.
 

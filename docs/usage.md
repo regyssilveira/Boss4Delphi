@@ -678,3 +678,43 @@ boss4d publish --registry https://registry.example/api
 
 See the [package publishing guide](publish.md) for all gates, options, and the
 registry endpoint contract.
+
+---
+
+## 19. Multi-Delphi matrix builds
+
+Generate a deterministic starting matrix from local projects:
+
+```console
+boss4d spec --detect
+boss4d spec --detect --compiler d13
+```
+
+Build commands:
+
+```console
+boss4d build
+boss4d build --compiler d13 --platform Win64 --configuration Release
+boss4d build --compiler all --platform Win32 --configuration Release --jobs 4
+boss4d build --full
+boss4d build --compiler d13 --platform Win32 --configuration Release --explain
+boss4d build --compiler d13 --platform Win32 --configuration Release --register
+```
+
+`--compiler`, `--platform`, and `--configuration` can each be one value or
+`all`. `--force` rebuilds the current selection; `--full` selects all axes and
+forces a rebuild. `--explain` reports why each target was built, restored, or
+skipped. `--register` registers only design-time BPLs for the exact selected
+compiler/platform.
+
+IDE lifecycle:
+
+```console
+boss4d ide unregister ComponentDesign370 --compiler d13 --platform Win32
+boss4d ide repair
+```
+
+`doctor` now also checks matrix/graph validity, installed toolchains, project
+paths, output/unit collisions, and IDE registry drift. See the
+[complete build matrix guide](build-matrix-contract.md) and the
+[copyable example](../examples/build-matrix/README.md).

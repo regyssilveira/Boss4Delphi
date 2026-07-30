@@ -20,6 +20,8 @@ type
     [Test]
     procedure TestDelphiConventionsExpandTargetPath;
     [Test]
+    procedure TestMatrixExpandsTokensInProjectsAndDependencies;
+    [Test]
     procedure TestLegacyManifestExpandsSingleCompatibleTarget;
     [Test]
     procedure TestInvalidSelectionFailsBeforeBuild;
@@ -100,6 +102,49 @@ begin
     TBoss4DBuildConventions.ExpandPath(
       'packages\{alias}\{compiler}\{platform}\{configuration}' +
       '\Component{libsuffix}.dproj', '37.0', 'Win64', 'Release'));
+end;
+
+procedure TTestsBuildMatrix.TestMatrixExpandsTokensInProjectsAndDependencies;
+var
+  LPackage: TBoss4DPackage;
+  LRuntime: TBoss4DBuildProject;
+  LDesign: TBoss4DBuildProject;
+  LTargets: TBoss4DBuildTargetList;
+begin
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'tokenized';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LRuntime := TBoss4DBuildProject.Create;
+    LRuntime.Path := 'packages/{alias}/Runtime{libsuffix}.dproj';
+    LPackage.BuildMatrix.Projects.Add(LRuntime);
+    LDesign := TBoss4DBuildProject.Create;
+    LDesign.Path := 'packages/{alias}/Design{libsuffix}.dproj';
+    LDesign.Kind := 'design';
+    LDesign.DependsOn.Add(
+      'packages/{alias}/Runtime{libsuffix}.dproj');
+    LPackage.BuildMatrix.Projects.Add(LDesign);
+
+    LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+      TBoss4DBuildSelection.All);
+    try
+      Assert.AreEqual<Integer>(2, LTargets.Count);
+      Assert.AreEqual('packages/d13/Design370.dproj',
+        LTargets[0].ProjectPath);
+      Assert.AreEqual<Integer>(1, LTargets[0].DependsOn.Count);
+      Assert.AreEqual('packages/d13/Runtime370.dproj',
+        LTargets[0].DependsOn[0]);
+      TBoss4DBuildGraph.Sort(LTargets);
+      Assert.AreEqual('packages/d13/Runtime370.dproj',
+        LTargets[0].ProjectPath);
+    finally
+      LTargets.Free;
+    end;
+  finally
+    LPackage.Free;
+  end;
 end;
 
 procedure TTestsBuildMatrix.TestArtifactCacheKeyIncludesCompleteTarget;

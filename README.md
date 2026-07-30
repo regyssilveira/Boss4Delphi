@@ -7,9 +7,9 @@
 [Read in English](README.md) | [Leia em Português](README.pt-BR.md)
 
 **Boss4D** is a modern native dependency manager for Delphi and Lazarus
-projects. The Windows CLI is built with Delphi 13, the IDE plugin is validated
-with Delphi 10.1, 11, 12, and 13, and the Linux x86-64 CLI is built natively
-with FPC 3.2.2.
+projects. The Windows CLI is built with Delphi 13, the IDE plugin targets
+Delphi 10.1 and is validated locally with Delphi 11, 12, and 13, and the Linux
+x86-64 CLI is built natively with FPC 3.2.2.
 
 ---
 
@@ -28,6 +28,10 @@ with FPC 3.2.2.
 9. **Delphi and Lazarus Projects**: Builds declared `.dproj`, `.lpi`, and `.lpk`
    projects through MSBuild or `lazbuild`, automatically integrating resolved
    dependency unit paths into Lazarus projects and build modes.
+10. **Multi-Delphi Build Matrix**: Declares Delphi 10.1/11/12/13,
+    Win32/Win64, Debug/Release, runtime/design projects, dependency ordering,
+    isolated artifacts, incremental state, safe parallelism, and transactional
+    IDE registration without breaking legacy manifests.
 
 ---
 
@@ -123,6 +127,17 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d doctor`, `cache`, `tool`, `plugin`, `getit`, and `license report`
   Covers diagnostics, cache maintenance, global tools, Windows integrations,
   and license reports.
+* `boss4d spec --detect [--compiler <version>]`
+  Detects `.dproj`/`.dpk` files, runtime/design directives, and local package
+  dependencies, then persists a deterministic `buildMatrix`.
+* `boss4d build [--compiler <version>|all] [--platform Win32|Win64|all]`
+  `[--configuration Debug|Release|all] [--jobs <n>] [--force] [--full]`
+  `[--explain] [--register]`
+  Executes the selected matrix with isolated outputs, incremental rebuild,
+  graph-safe parallelism, explanations, and optional exact IDE registration.
+* `boss4d ide unregister <package> --compiler <version> --platform <platform>`
+  and `boss4d ide repair`
+  Remove one exact registration or reconcile registry drift transactionally.
 * `boss4d config delphi use <path_or_release_version>`
   Sets the global path or the release version (e.g. "23.0", "22.0") of the Delphi installation directory for MSBuild. If not specified, the compiler adapter will automatically detect the latest installed Delphi version.
 * `boss4d config git shallow <true/false>`
@@ -153,7 +168,7 @@ cd /d d:\Projetos\BossDelphi
 ## 📖 Additional Documentation
 * **[SBOM Feature Guide](docs/sbom.md)**: Motivation, evidence model, coverage, VEX, attestations, limitations, and recommended release workflow.
 * **[Deterministic Build Improvements](docs/build-improvements.md)**: Collision-free paths, toolchains, declared projects, Lazarus, scaffolding, and normalization.
-* **[Build Matrix Contract](docs/build-matrix-contract.md)**: Compatibility, target identity, precedence, and acceptance rules for multi-version Delphi builds.
+* **[Build Matrix Guide and Contract](docs/build-matrix-contract.md)**: Schema, CLI workflow, compiler conventions, migration, diagnostics, troubleshooting, and acceptance rules for multi-version Delphi builds.
 * **[Dependency Lifecycle](docs/dependency-lifecycle.md)**: Transactional add, update, and remove plus graph-aware list and why commands.
 * **[Reproducible Installation](docs/reproducible-install.md)**: Frozen locks, offline cache behavior, CI clean installs, and rollback guarantees.
 * **[Dependency Scopes](docs/dependency-scopes.md)**: `devDependencies`, production installs, lock v3, and SBOM scope evidence.

@@ -22,7 +22,7 @@ real-compiler test; it does not mean the ecosystem has reached npm-scale.
 | Auto-update | Complete | release selection, SHA-256, extraction, transactional promotion and rollback tests |
 | Compliance/audit | Complete | CycloneDX, SPDX, VEX, OSV, strict lock evidence and external validators |
 | Release distribution | Complete | tag workflow, Windows/Linux archives, checksums, OIDC provenance and final tarball execution |
-| Quality | Under validation | Delphi 13 Win32/Win64 and FPC/Linux validated; BDS 18.0 and the final Sonar gate are still pending |
+| Quality | Partial | Delphi 13 Win32/Win64, FPC/Linux, and the Sonar Quality Gate validated; BDS 18.0 still requires a runner |
 
 ## Required invariants
 

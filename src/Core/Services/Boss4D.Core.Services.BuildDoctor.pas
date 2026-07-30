@@ -135,6 +135,8 @@ var
   LInstalled: TArray<string>;
   LOutputs: TDictionary<string, string>;
   LUnits: TDictionary<string, string>;
+  LInspectionTargets: TBoss4DBuildTargetList;
+  LInspectedPaths: TDictionary<string, Boolean>;
 begin
   Result := TBoss4DBuildDoctorResult.Create;
   if not Assigned(APackage) then
@@ -178,42 +180,60 @@ begin
   end;
 
   LOutputs := TDictionary<string, string>.Create;
+  LInspectedPaths := TDictionary<string, Boolean>.Create;
   try
-    for var LProject in APackage.BuildMatrix.Projects do
-    begin
-      var LRoot := IncludeTrailingPathDelimiter(
-        TPath.GetFullPath(ARootDirectory));
-      var LFullPath := TPath.GetFullPath(TPath.Combine(
-        ARootDirectory, LProject.Path));
-      if not LFullPath.StartsWith(LRoot, True) then
+    LInspectionTargets := nil;
+    try
+      LInspectionTargets := TBoss4DBuildMatrixExpander.Expand(APackage,
+        TBoss4DBuildSelection.All);
+      for var LTarget in LInspectionTargets do
       begin
-        AddIssue(Result, 'PROJECT_OUTSIDE_ROOT',
-          TBoss4DDoctorSeverity.Error,
-          'Projeto declarado fora da raiz: ' + LProject.Path,
-          'Use apenas paths relativos contidos no diretorio do pacote.');
-        Continue;
+        var LPathKey := LTarget.ProjectPath.ToLower;
+        if LInspectedPaths.ContainsKey(LPathKey) then
+          Continue;
+        LInspectedPaths.Add(LPathKey, True);
+        var LRoot := IncludeTrailingPathDelimiter(
+          TPath.GetFullPath(ARootDirectory));
+        var LFullPath := TPath.GetFullPath(TPath.Combine(
+          ARootDirectory, LTarget.ProjectPath));
+        if not LFullPath.StartsWith(LRoot, True) then
+        begin
+          AddIssue(Result, 'PROJECT_OUTSIDE_ROOT',
+            TBoss4DDoctorSeverity.Error,
+            'Projeto declarado fora da raiz: ' + LTarget.ProjectPath,
+            'Use apenas paths relativos contidos no diretorio do pacote.');
+          Continue;
+        end;
+        if not TFile.Exists(LFullPath) then
+        begin
+          AddIssue(Result, 'PROJECT_MISSING', TBoss4DDoctorSeverity.Error,
+            'Projeto declarado nao encontrado: ' + LTarget.ProjectPath,
+            'Corrija o path ou execute boss4d spec --detect.');
+          Continue;
+        end;
+        var LOutputName :=
+          ChangeFileExt(ExtractFileName(StringReplace(LTarget.ProjectPath,
+            '/', '\', [rfReplaceAll])), '').ToLower;
+        var LPrevious := '';
+        if LOutputs.TryGetValue(LOutputName, LPrevious) and
+           not SameText(LPrevious, LTarget.ProjectPath) then
+          AddIssue(Result, 'OUTPUT_COLLISION', TBoss4DDoctorSeverity.Error,
+            'Projetos podem gerar o mesmo output "' + LOutputName +
+            '": ' + LPrevious + ' e ' + LTarget.ProjectPath + '.',
+            'Use nomes de package distintos ou configure sufixos por Delphi.')
+        else
+          LOutputs.AddOrSetValue(LOutputName, LTarget.ProjectPath);
       end;
-      if not TFile.Exists(LFullPath) then
-      begin
-        AddIssue(Result, 'PROJECT_MISSING', TBoss4DDoctorSeverity.Error,
-          'Projeto declarado nao encontrado: ' + LProject.Path,
-          'Corrija o path ou execute boss4d spec --detect.');
-        Continue;
-      end;
-      var LOutputName :=
-        ChangeFileExt(ExtractFileName(StringReplace(LProject.Path, '/',
-          '\', [rfReplaceAll])), '').ToLower;
-      var LPrevious := '';
-      if LOutputs.TryGetValue(LOutputName, LPrevious) and
-         not SameText(LPrevious, LProject.Path) then
-        AddIssue(Result, 'OUTPUT_COLLISION', TBoss4DDoctorSeverity.Error,
-          'Projetos podem gerar o mesmo output "' + LOutputName +
-          '": ' + LPrevious + ' e ' + LProject.Path + '.',
-          'Use nomes de package distintos ou configure sufixos por Delphi.')
-      else
-        LOutputs.AddOrSetValue(LOutputName, LProject.Path);
+    except
+      on E: Exception do
+        AddIssue(Result, 'PROJECT_INSPECTION_SKIPPED',
+          TBoss4DDoctorSeverity.Warning,
+          'Inspecao de paths ignorada: ' + E.Message,
+          'Corrija MATRIX_GRAPH_INVALID antes de validar os projetos.');
     end;
+    LInspectionTargets.Free;
   finally
+    LInspectedPaths.Free;
     LOutputs.Free;
   end;
 

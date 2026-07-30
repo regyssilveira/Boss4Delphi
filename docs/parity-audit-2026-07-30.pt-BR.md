@@ -22,7 +22,7 @@ contrato, integração ou compilador real; não significa possuir escala de npm.
 | Autoatualização | Completo | seleção da release, SHA-256, extração, promoção e rollback |
 | Conformidade/auditoria | Completo | CycloneDX, SPDX, VEX, OSV, lock estrito e validadores externos |
 | Distribuição da release | Completo | workflow de tag, arquivos Windows/Linux, checksums, OIDC e execução do tarball |
-| Qualidade | Em validação | Delphi 13 Win32/Win64 e FPC/Linux validados; BDS 18.0 e Sonar ainda precisam do gate final |
+| Qualidade | Parcial | Delphi 13 Win32/Win64, FPC/Linux e Sonar Quality Gate validados; BDS 18.0 ainda requer runner |
 
 ## Invariantes obrigatórios
 

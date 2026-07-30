@@ -18,7 +18,8 @@ implementation
 uses
   System.SysUtils,
   System.Generics.Collections,
-  System.Generics.Defaults;
+  System.Generics.Defaults,
+  Boss4D.Core.Services.BuildConventions;
 
 function ContainsText(const AValues: TList<string>;
   const AValue: string): Boolean;
@@ -259,12 +260,18 @@ begin
                       begin
                         var LTarget := TBoss4DBuildTarget.Create;
                         LTarget.PackageName := APackage.Name;
-                        LTarget.ProjectPath := LProject.Path;
+                        LTarget.ProjectPath :=
+                          TBoss4DBuildConventions.ExpandPath(LProject.Path,
+                            LCompiler, LPlatform, LConfiguration);
                         LTarget.ProjectKind := LProject.Kind;
                         LTarget.Compiler := LCompiler;
                         LTarget.Platform := LPlatform;
                         LTarget.Configuration := LConfiguration;
-                        LTarget.DependsOn.AddRange(LProject.DependsOn);
+                        for var LDependencyPath in LProject.DependsOn do
+                          LTarget.DependsOn.Add(
+                            TBoss4DBuildConventions.ExpandPath(
+                              LDependencyPath, LCompiler, LPlatform,
+                              LConfiguration));
                         Result.Add(LTarget);
                       end;
         finally
