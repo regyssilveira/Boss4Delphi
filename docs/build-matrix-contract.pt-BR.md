@@ -147,6 +147,30 @@ primeira falha impede novos trabalhos, aguarda com segurança as tarefas já em
 execução e informa o projeto que falhou. Assim, nenhum nível consumidor começa
 depois da falha de uma dependência.
 
+## Registro transacional na IDE
+
+Pacotes design-time são registrados apenas na toolchain e plataforma Delphi que
+os produziu. O Boss4D deixa de considerar que um mesmo BPL seja compatível com
+todas as IDEs instaladas.
+
+Para cada target, a transação administra:
+
+- `Known Packages` e a limpeza da entrada correspondente em
+  `Known IDE Packages`;
+- `Search Path`;
+- `Browsing Path`;
+- `Debug DCU Path`.
+
+Cada valor do Registro é fotografado antes da alteração. Uma falha de escrita
+ou de atualização do inventário restaura os valores na ordem inversa e não
+persiste registro parcial. O estado desejado fica em
+`%BOSS_HOME%\ide-registrations.json`.
+
+O desregistro remove somente os paths e o BPL pertencentes ao
+pacote/compilador/plataforma selecionado, preservando paths do usuário. Registrar
+novamente o mesmo target substitui seus paths e pacote anteriores. O reparo
+compara inventário e Registro e reaplica apenas as entradas com divergência.
+
 ## Precedência esperada
 
 A seleção segue esta ordem:

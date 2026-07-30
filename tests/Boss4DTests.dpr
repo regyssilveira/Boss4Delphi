@@ -70,6 +70,7 @@ uses
   Boss4D.Core.Services.Tree in '..\src\Core\Services\Boss4D.Core.Services.Tree.pas',
   Boss4D.Core.Services.Outdated in '..\src\Core\Services\Boss4D.Core.Services.Outdated.pas',
   Boss4D.Core.Services.IDEIntegration in '..\src\Core\Services\Boss4D.Core.Services.IDEIntegration.pas',
+  Boss4D.Core.Services.IDERegistration in '..\src\Core\Services\Boss4D.Core.Services.IDERegistration.pas',
   Boss4D.Core.Services.Tool in '..\src\Core\Services\Boss4D.Core.Services.Tool.pas',
   Boss4D.Core.Services.Workspace in '..\src\Core\Services\Boss4D.Core.Services.Workspace.pas',
   Boss4D.Core.Services.GetIt in '..\src\Core\Services\Boss4D.Core.Services.GetIt.pas',

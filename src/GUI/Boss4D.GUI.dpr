@@ -53,6 +53,7 @@ uses
   Boss4D.Core.Services.Tree in '..\Core\Services\Boss4D.Core.Services.Tree.pas',
   Boss4D.Core.Services.Outdated in '..\Core\Services\Boss4D.Core.Services.Outdated.pas',
   Boss4D.Core.Services.IDEIntegration in '..\Core\Services\Boss4D.Core.Services.IDEIntegration.pas',
+  Boss4D.Core.Services.IDERegistration in '..\Core\Services\Boss4D.Core.Services.IDERegistration.pas',
   Boss4D.Core.Services.Tool in '..\Core\Services\Boss4D.Core.Services.Tool.pas',
   Boss4D.Core.Services.Workspace in '..\Core\Services\Boss4D.Core.Services.Workspace.pas',
   Boss4D.Core.Services.GetIt in '..\Core\Services\Boss4D.Core.Services.GetIt.pas',
