@@ -5,7 +5,8 @@ unit Boss4D.Posix.Tests;
 interface
 
 uses
-  Classes, SysUtils, fpcunit, testregistry, Boss4D.Posix.Registry;
+  Classes, SysUtils, fpcunit, testregistry, Boss4D.Posix.Registry,
+  Boss4D.Posix.Publish;
 
 type
   TRegistryFetcherMock = class
@@ -94,6 +95,23 @@ type
     property Calls: Integer read FCalls;
   end;
 
+  TPublishPosterMock = class
+  private
+    FCalls: Integer;
+    FStatus: Integer;
+    FToken: string;
+    FPayload: string;
+    FUrl: string;
+  public
+    function Post(const AUrl, APayload, AToken: string;
+      out AResponse: string): Integer;
+    property Calls: Integer read FCalls;
+    property Status: Integer read FStatus write FStatus;
+    property Token: string read FToken;
+    property Payload: string read FPayload;
+    property Url: string read FUrl;
+  end;
+
   TPosixCoreTests = class(TTestCase)
   published
     procedure TestPlatform;
@@ -152,6 +170,8 @@ type
     procedure TestSecureSelfUpdate;
     procedure TestSelfUpdateSkipsCurrentVersion;
     procedure TestGlobalToolLifecycle;
+    procedure TestPublishDryRunAndImmutableConflict;
+    procedure TestPublishRequiresLockEvidence;
   end;
 
 implementation
@@ -1229,6 +1249,17 @@ begin
   Result := True;
 end;
 
+function TPublishPosterMock.Post(const AUrl, APayload, AToken: string;
+  out AResponse: string): Integer;
+begin
+  Inc(FCalls);
+  FUrl := AUrl;
+  FPayload := APayload;
+  FToken := AToken;
+  AResponse := '{"accepted":true}';
+  Result := FStatus;
+end;
+
 function CreateComplianceLock(const ADirectory: string): string;
 begin
   Result := IncludeTrailingPathDelimiter(ADirectory) + 'boss-lock.json';
@@ -1727,6 +1758,104 @@ begin
     end;
   finally
     LCompiler.Free;
+  end;
+end;
+
+procedure CreatePublishFixture(const ADirectory, AChecksum: string);
+begin
+  ForceDirectories(ADirectory);
+  SaveFixture(IncludeTrailingPathDelimiter(ADirectory) + 'boss.json',
+    '{"name":"publish-test","version":"1.0.0","description":"demo",' +
+    '"license":"MIT","dependencies":{"example.test/runtime":"1.2.3"}}');
+  SaveFixture(IncludeTrailingPathDelimiter(ADirectory) + 'boss-lock.json',
+    '{"lockVersion":3,"root":{"name":"publish-test","version":"1.0.0"},' +
+    '"installedModules":{"example.test/runtime":{"version":"1.2.3",' +
+    '"repository":"example.test/runtime","revision":"' +
+    StringOfChar('a', 40) + '","checksum":"' + AChecksum +
+    '","scope":"runtime"}}}');
+  SaveFixture(IncludeTrailingPathDelimiter(ADirectory) + 'publish.pas',
+    'unit publish;');
+end;
+
+procedure TPosixCoreTests.TestPublishDryRunAndImmutableConflict;
+var
+  LDir, LFirst, LSecond: string;
+  LPoster: TPublishPosterMock;
+  LService: TBoss4DPosixPublishService;
+  LOptions: TBoss4DPublishOptions;
+begin
+  LDir := NewTempDirectory;
+  CreatePublishFixture(LDir, 'sha256:' + StringOfChar('b', 64));
+  LPoster := TPublishPosterMock.Create;
+  try
+    LPoster.Status := 201;
+    LService := TBoss4DPosixPublishService.Create(@LPoster.Post);
+    try
+      LOptions.RegistryUrl := '';
+      LOptions.Token := '';
+      LOptions.DryRun := True;
+      LOptions.RequireCleanGit := False;
+      LOptions.RunTests := False;
+      LFirst := LService.Execute(LDir, LOptions);
+      LSecond := LService.Execute(LDir, LOptions);
+      AssertEquals('payload must be reproducible', LFirst, LSecond);
+      AssertTrue('payload name', (Pos('"name"', LFirst) > 0) and
+        (Pos('publish-test', LFirst) > 0));
+      AssertTrue('embedded artifact', Pos('"content"', LFirst) > 0);
+      AssertEquals('dry-run posts', 0, LPoster.Calls);
+
+      LOptions.DryRun := False;
+      LOptions.RegistryUrl := 'https://registry.example/';
+      LOptions.Token := 'publish-secret';
+      LService.Execute(LDir, LOptions);
+      AssertEquals('online posts', 1, LPoster.Calls);
+      AssertEquals('post URL', 'https://registry.example/packages',
+        LPoster.Url);
+      AssertEquals('auth token', 'publish-secret', LPoster.Token);
+      AssertTrue('token leaked into payload',
+        Pos('publish-secret', LPoster.Payload) = 0);
+
+      LPoster.Status := 409;
+      try
+        LService.Execute(LDir, LOptions);
+        Fail('Immutable version conflict should fail');
+      except
+        on E: Exception do
+          AssertTrue('immutable conflict message',
+            Pos('already exists', E.Message) > 0);
+      end;
+    finally
+      LService.Free;
+    end;
+  finally
+    LPoster.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestPublishRequiresLockEvidence;
+var
+  LDir: string;
+  LService: TBoss4DPosixPublishService;
+  LOptions: TBoss4DPublishOptions;
+begin
+  LDir := NewTempDirectory;
+  CreatePublishFixture(LDir, '');
+  LOptions.RegistryUrl := '';
+  LOptions.Token := '';
+  LOptions.DryRun := True;
+  LOptions.RequireCleanGit := False;
+  LOptions.RunTests := False;
+  LService := TBoss4DPosixPublishService.Create;
+  try
+    try
+      LService.Execute(LDir, LOptions);
+      Fail('Missing checksum should block publish');
+    except
+      on E: Exception do
+        AssertTrue(Pos('revision and checksum', E.Message) > 0);
+    end;
+  finally
+    LService.Free;
   end;
 end;
 

@@ -6,14 +6,14 @@ uses
   Classes, SysUtils, DateUtils, Boss4D.Posix.Core, Boss4D.Posix.Registry,
   Boss4D.Posix.Config, Boss4D.Posix.Package, Boss4D.Posix.Operations,
   Boss4D.Posix.Compliance, Boss4D.Posix.Audit, Boss4D.Posix.Workflows,
-  Boss4D.Posix.Update, Boss4D.Posix.Tools;
+  Boss4D.Posix.Update, Boss4D.Posix.Tools, Boss4D.Posix.Publish;
 
 procedure Help;
 begin
   WriteLn('Boss4D portable CLI');
   WriteLn('Commands: version, platform, init, install, ci, add, remove, list,');
   WriteLn('          search, info, registry, package, doctor, sbom, audit,');
-  WriteLn('          config, cache, self-update, tool');
+  WriteLn('          config, cache, self-update, tool, publish');
   WriteLn('Install options: --locked --frozen-lockfile --offline --production');
   WriteLn('                 --resolution=highest|minimal');
   WriteLn('                 --progress plain|interactive --json --quiet');
@@ -31,6 +31,8 @@ begin
   WriteLn('Update: boss4d self-update');
   WriteLn('Tools: boss4d tool install -g <source> [--name <name>]');
   WriteLn('       boss4d tool update <name> <source>|uninstall <name>|list');
+  WriteLn('Publish: boss4d publish --dry-run [--output <file>]');
+  WriteLn('         boss4d publish --registry <url> [--allow-dirty]');
 end;
 
 function OptionValue(const APrefix, ADefault: string): string;
@@ -113,6 +115,9 @@ var
   LToolService: TBoss4DPosixToolService;
   LToolPath, LToolName, LToolSource: string;
   LTools: TStringList;
+  LPublishService: TBoss4DPosixPublishService;
+  LPublishOptions: TBoss4DPublishOptions;
+  LPublishPayload, LPublishOutput, LTokenEnvironment: string;
   LFoundFlag: Boolean;
   I: Integer;
 begin
@@ -601,6 +606,52 @@ begin
             'usage: boss4d tool install|update|uninstall|list');
       finally
         LToolService.Free;
+      end;
+    end
+    else if LCommand = 'publish' then
+    begin
+      LPublishOptions.RegistryUrl := OptionValue('--registry', '');
+      LPublishOptions.DryRun := HasOption('--dry-run');
+      LPublishOptions.RequireCleanGit := not HasOption('--allow-dirty');
+      LPublishOptions.RunTests := not HasOption('--skip-tests');
+      LTokenEnvironment := OptionValue('--token-env',
+        'BOSS4D_PUBLISH_TOKEN');
+      LPublishOptions.Token := GetEnvironmentVariable(LTokenEnvironment);
+      if (not LPublishOptions.DryRun) and
+         (LPublishOptions.Token = '') then
+      begin
+        LCredentialStore := TBoss4DPosixCredentialStore.Create;
+        try
+          try
+            LPublishOptions.Token := LCredentialStore.Retrieve('registry');
+          except
+            LPublishOptions.Token := '';
+          end;
+        finally
+          LCredentialStore.Free;
+        end;
+      end;
+      LPublishOutput := OptionValue('--output', '');
+      LPublishService := TBoss4DPosixPublishService.Create;
+      try
+        LPublishPayload := LPublishService.Execute(GetCurrentDir,
+          LPublishOptions);
+        if LPublishOutput <> '' then
+        begin
+          LItems := TStringList.Create;
+          try
+            LItems.Text := LPublishPayload;
+            LItems.SaveToFile(ExpandFileName(LPublishOutput));
+          finally
+            LItems.Free;
+          end;
+        end
+        else if LPublishOptions.DryRun then
+          WriteLn(LPublishPayload)
+        else
+          WriteLn('package published');
+      finally
+        LPublishService.Free;
       end;
     end
     else if (LCommand = 'help') or (LCommand = '--help') then
