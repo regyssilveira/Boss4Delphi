@@ -8,7 +8,7 @@ scale are kept separate from CLI feature count.
 | Delphi dependency workflow | Full CLI, GUI and IDE | Full CLI and IDE complement | Full package workflow and IDE | Catalog installation | Not Delphi-specific |
 | Lazarus/FPC/Linux | Native FPC 3.2.2 CLI and release | Established Delphi/Lazarus workflow | Delphi-focused; Windows | No | Native per ecosystem |
 | Daily CLI | Install, update, tree, why, outdated, run, global tools | Install, update, dependencies, run, global install | NuGet-style create/push/install/restore | IDE-driven | Broad and mature |
-| Public discovery | Git Registry v2 with 55 legacy entries and sparse packages | Repository/name shortcuts | Hosted `delphi.dev` source | Vendor catalog | Large hosted registries |
+| Public discovery | Git Registry v2 with 55 legacy entries; `.b4dpkg` catalog still needs population | Repository/name shortcuts and historical adoption | Operational hosted `delphi.dev` source | Vendor catalog | Large hosted registries |
 | Registry protocol | v1/v2 composition, sparse metadata, HTTP validators, mirrors, revocation | Git-oriented resolution | Multiple hosted/local sources | Vendor-controlled | Sparse/index APIs and CDNs |
 | Reproducibility | Lock v3, frozen/locked/offline CI | SemVer and cache | Package/version restore | IDE installation state | Mature locks and offline/vendor modes |
 | Immutable distribution | `.b4dpkg`, SHA-256, OpenPGP, in-toto, transactional install | Primarily Git checkout | Signed hosted packages | Hosted packages | Immutable archives and checksums |
@@ -20,11 +20,11 @@ scale are kept separate from CLI feature count.
 
 ## Conclusion
 
-For the criteria targeted by this project, Boss4D now reaches technical parity
-with BOSS and exceeds it in reproducibility, immutable artifacts, Registry
-policy, compliance evidence, structured automation, and verified releases.
-BOSS remains a relevant baseline for a compact dependency CLI and has greater
-historical adoption.
+For the implemented and tested criteria, Boss4D reaches technical parity with
+BOSS and offers a broader surface in reproducibility, immutable artifacts,
+Registry policy, compliance evidence, structured automation, and verified
+releases. BOSS remains ahead in adoption, recognition, production history, and
+the number of existing projects.
 
 DPM remains stronger in two ecosystem dimensions: a running hosted central
 service and support reaching back to Delphi XE2. It also provides package
@@ -33,7 +33,10 @@ unique to Boss4D. Boss4D differentiates through VEX/OSV auditing, dual SBOM
 formats, in-toto provenance, reviewed signer scopes, Git-compatible Registry
 governance, and a native Linux CLI.
 
-GetIt retains first-party RAD Studio placement. Cargo, npm and Composer remain
+TMS Smart Setup remains the component installation/build reference, especially
+for compiler breadth, parallel download/build, incremental rebuilds, and its
+established commercial operation. GetIt retains first-party RAD Studio
+placement. Cargo, npm and Composer remain
 far ahead in package population, CDN scale, resolver history, third-party
 tooling, and operational registry infrastructure.
 

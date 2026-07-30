@@ -6,7 +6,7 @@ real-compiler test; it does not mean the ecosystem has reached npm-scale.
 
 | Criterion | Status | Authoritative evidence |
 |---|---|---|
-| Consolidated public Registry | Complete | `registry/index-v2.json`, legacy composition, sparse package files, publisher registry |
+| Public Registry protocol | Complete | `registry/index-v2.json`, legacy composition, sparse-package support, and publisher registry; catalog population is ecosystem work |
 | Search and package information | Complete | Windows DUnitX plus FPCUnit Registry search/info tests |
 | Compiler/platform packages | Complete | deterministic Registry v2 variant selection and `release/artifact-matrix.json` |
 | Sparse metadata and HTTP cache | Complete | ETag/Last-Modified/304 tests and offline cache tests |

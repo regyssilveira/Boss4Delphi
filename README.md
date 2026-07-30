@@ -6,13 +6,18 @@
 
 [Read in English](README.md) | [Leia em Português](README.pt-BR.md)
 
-**Boss4D** is a native, modern dependency manager for Delphi projects, built from scratch with a primary focus on **Delphi 13 and newer**. It is a direct and optimized migration of the original [HashLoad BOSS](https://github.com/HashLoad/boss) (originally written in Go), bringing dependency management natively to the Delphi ecosystem.
+**Boss4D** is a modern native dependency manager for Delphi and Lazarus
+projects. The Windows CLI is built with Delphi 13, the IDE plugin is validated
+with Delphi 10.1, 11, 12, and 13, and the Linux x86-64 CLI is built natively
+with FPC 3.2.2.
 
 ---
 
 ## ⚡ Key Features
 
-1. **Native & Lightweight**: Single executable compiled natively in Delphi, with zero external dependencies or Go runtime requirements.
+1. **Native & Lightweight**: Executables compiled natively with Delphi or FPC,
+   without a Go runtime. Individual operations use host tools such as Git,
+   MSBuild, `lazbuild`, GnuPG, or Secret Service.
 2. **Hexagonal Architecture (Ports & Adapters)**: Rigorous separation between core domain logic (package rules), use case services, and infrastructure adapters (Git, HTTP, and Compiler).
 3. **Concurrent Downloads**: Employs Delphi's **Parallel Programming Library (PPL)** (`TTask` and `TParallel`) to download and clone multiple package dependencies concurrently during the installation phase.
 4. **Command Buffer Overflow Prevention**: Implements the `@boss.cfg` configuration file technique to pass search paths directly to MSBuild, avoiding the Windows command-line 8191-character limit (Issue #205).
@@ -26,12 +31,16 @@
 
 ---
 
-## 🤝 Drop-in Compatibility with Original BOSS
+## 🤝 Compatibility with BOSS projects
 
-**Boss4D** is designed to be a direct drop-in replacement for the classic HashLoad BOSS dependency manager. This means:
-* **Same File Formats**: Boss4D reads, edits, and writes the exact same `boss.json` and `boss-lock.json` manifests used by the community.
+**Boss4D** accepts legacy manifests as a migration path without requiring a
+project restructure:
+* **Compatible Manifest**: Boss4D reads and preserves legacy string/string maps
+  in `boss.json`.
 * **Identical Directory Structure**: All project dependencies continue to be resolved locally under the `modules/` folder.
-* **Backward Compatibility**: Delphi projects originally managed with the Go-based BOSS can transition to Boss4D instantly, with no structural or code changes required.
+* **Evolving Lock**: Older locks remain readable, while `boss-lock.json` v3 adds
+  scopes, checksums, graph, and Boss4D-specific evidence; this extension does
+  not imply bidirectional compatibility with other tools.
 
 ---
 
@@ -96,12 +105,30 @@ cd /d d:\Projetos\BossDelphi
   Manages and inspects the complete dependency lifecycle with automatic rollback
   of `boss.json`, `boss-lock.json`, and `modules/` on failure. See the
   [dependency lifecycle guide](docs/dependency-lifecycle.md).
+* `boss4d ci` / `boss4d install --locked|--frozen-lockfile|--offline|--production`
+  Runs reproducible installs with clean CI, offline cache, and production-only
+  dependency support.
+* `boss4d dependencies|tree|why|outdated` and `boss4d run <script>`
+  Inspects the graph, explains dependencies, discovers updates, and runs
+  manifest scripts.
+* `boss4d registry add|remove|list`, `search`, and `info`
+  Manages public/private Registry v1/v2 sources and package discovery.
+* `boss4d package install <name>@<version>` and `boss4d pack`
+  Installs or creates deterministic `.b4dpkg` files with compiler/platform
+  selection, SHA-256, OpenPGP, and in-toto provenance.
+* `boss4d publish [--dry-run]` and `boss4d conformance registry|package <file>`
+  Publishes immutable versions and validates public Registry/package contracts.
+* `boss4d audit [--fail-on <severity>]`
+  Queries OSV for locked revisions, with offline cache and VEX support.
+* `boss4d doctor`, `cache`, `tool`, `plugin`, `getit`, and `license report`
+  Covers diagnostics, cache maintenance, global tools, Windows integrations,
+  and license reports.
 * `boss4d config delphi use <path_or_release_version>`
   Sets the global path or the release version (e.g. "23.0", "22.0") of the Delphi installation directory for MSBuild. If not specified, the compiler adapter will automatically detect the latest installed Delphi version.
 * `boss4d config git shallow <true/false>`
   Enables or disables shallow clones for faster Git download processes.
 * `boss4d version`
-  Prints the CLI version (`v1.5.0-delphi-native`).
+  Prints the CLI version (`v1.6.0-delphi-native`).
 * `boss4d self-update`
   Downloads the official installer, verifies it against `SHA256SUMS.txt`, and
   starts the update only after a successful SHA-256 check.
@@ -135,8 +162,8 @@ cd /d d:\Projetos\BossDelphi
 * **[GitHub Dependency Submission](docs/github-dependency-submission.md)**: Publish lock v3 snapshots to the GitHub Dependency Graph.
 * **[Cache Strategy](docs/cache-strategy.md)**: Safe Git object reuse and platform/compiler-isolated executable artifacts.
 * **[Project Templates](docs/templates.md)**: Delphi, VCL, FMX, Horse+Dext API, DUnitX, Lazarus, and workspace presets.
-* **[Package Publishing](docs/publish.md)**: Dry-run, validation gates, token handling, and the private registry contract.
-* **[Platform Portability](docs/platform-portability.md)**: Portable process, environment, and workspace-link contracts plus the POSIX roadmap.
+* **[Package Publishing](docs/publish.md)**: Dry-run, validation gates, token handling, and public/private registry contracts.
+* **[Platform Portability](docs/platform-portability.md)**: Portable contracts, current Linux parity, and the next POSIX targets.
 * **[Terminal Progress](docs/terminal-progress.md)**: Interactive, plain, JSON Lines, and quiet progress output for installs and CI.
 * **[Secure Self-update](docs/self-update.md)**: Release discovery, SHA-256 verification, staging, and installer handoff.
 * **[Release Artifact Matrix](docs/release-artifact-matrix.md)**: Windows/Linux builders, checksums, OIDC provenance, and tag promotion gates.
@@ -151,7 +178,7 @@ cd /d d:\Projetos\BossDelphi
 * **[CLI Usage Manual](docs/usage.md)**: Detailed step-by-step guide covering all command options and dependency configurations.
 * **[Contribution Guide](CONTRIBUTING.md)**: Coding standards and guidelines for contribution.
 * **[Release Guide](RELEASE_GUIDE.md)**: Steps and instructions to compile with Delphi 13 (37.0) and publish releases on GitHub.
-* **[Project Backlog](docs/backlog.md)**: Future features, CLI diagnostics (`boss4d doctor`), visual interface (GUI), and RAD Studio integration roadmap.
+* **[Project Backlog](docs/backlog.md)**: Consolidated delivery status and next investments in macOS, documentation, performance, and ecosystem growth.
 * **[Backlog Prioritization](docs/matriz_priorizacao.pt-BR.md)**: Technical ROI analysis prioritizing the project epics (Portuguese).
 
 ---

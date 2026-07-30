@@ -1,8 +1,9 @@
 # Publicação de pacotes
 
 `boss4d publish` cria um registro determinístico a partir de `boss.json` e
-`boss-lock.json`, valida seu conteúdo e, opcionalmente, envia-o a um registro
-privado. Assim, o manifesto revisado e as evidências travadas da cadeia de
+`boss-lock.json`, valida seu conteúdo e, opcionalmente, envia-o ao Registry
+público oficial ou a um registro privado compatível. Assim, o manifesto
+revisado e as evidências travadas da cadeia de
 suprimentos são a origem dos metadados publicados.
 
 ## Bloqueios de segurança

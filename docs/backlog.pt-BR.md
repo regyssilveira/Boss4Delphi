@@ -23,7 +23,9 @@
     limitados por capacidade ao Windows.
 
 
-Este documento detalha o planejamento futuro, as novas funcionalidades (backlog) e a evolução arquitetônica do **Boss4D**, com base no feedback da comunidade e nas melhores práticas do ecossistema Delphi (inspirado nas ferramentas como o *TMS Smart Setup*).
+Este documento registra tanto as entregas concluídas quanto o backlog futuro do
+**Boss4D**. Caixas marcadas são evidências históricas de escopo já entregue; os
+itens ainda abertos formam o backlog ativo.
 
 ---
 
@@ -254,7 +256,10 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 
 ---
 
-## 📊 Matriz de Priorização (Backlog v1.5.0 e Futuros)
+## 📊 Matriz histórica de priorização
+
+Esta matriz explica a ordem em que as capacidades foram implementadas. O
+backlog ativo é composto somente pelos itens ainda desmarcados acima.
 
 | Funcionalidade / Story | Épico | Complexidade | Valor de Negócio | Prioridade (MoSCoW) |
 | :--- | :--- | :--- | :--- | :--- |

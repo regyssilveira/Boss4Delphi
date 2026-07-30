@@ -73,13 +73,11 @@ Sempre execute e garanta que 100% dos testes unitários estejam passando antes d
 ---
 
 ## 🏷️ 4. Procedimento para Atualizar ou Criar Tags no Git
-Para criar e apontar uma tag física (por exemplo, `v1.5.0`) para o commit atualizado:
-```bash
-# Cria a nova tag local no commit atual
-git tag v1.5.0
-
-# Envia a tag para o repositório remoto do GitHub
-git push origin v1.5.0
+Defina uma versão SemVer nova e aponte a tag para o commit validado:
+```powershell
+$releaseVersion = "vX.Y.Z"
+git tag $releaseVersion
+git push origin $releaseVersion
 ```
 
 ---
@@ -97,7 +95,7 @@ Execute o seguinte comando no terminal do Windows para criar a release e fazer o
 $env:GITHUB_TOKEN = $null
 
 # 2. Cria a release e anexa binários, manifesto, SBOMs e atestações
-gh release create v1.5.0 `
+gh release create $releaseVersion `
   installer\Output\Boss4D_Setup.exe `
   installer\Output\boss4d-linux-x86_64.tar.gz `
   installer\Output\SHA256SUMS.txt `
@@ -105,6 +103,6 @@ gh release create v1.5.0 `
   dist\sbom\boss4d.spdx.json `
   dist\sbom\boss4d.cdx.intoto.json `
   dist\sbom\boss4d.spdx.intoto.json `
-  --title "Boss4D v1.5.0" `
+  --title "Boss4D $releaseVersion" `
   --notes "Sua descrição detalhada da release aqui"
 ```

@@ -44,8 +44,9 @@ plugins da IDE. Esses limites são explícitos.
 
 ## Próximas etapas de portabilidade
 
-1. Adicionar adaptadores POSIX de credenciais, links de workspace e cache de
-   artefatos.
-2. Adicionar builds macOS após os contratos Linux atingirem paridade funcional.
+1. Adicionar um host e artefato nativos para macOS.
+2. Avaliar Linux ARM64 e publicar uma matriz de suporte por arquitetura.
+3. Manter benchmarks recorrentes de cache e instalação nas plataformas
+   distribuídas.
 
 Cada nova capacidade portátil exige testes unitários e build no sistema alvo.

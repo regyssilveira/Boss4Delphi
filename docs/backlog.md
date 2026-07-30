@@ -22,7 +22,9 @@
     GetIt features capability-gated to Windows.
 
 
-This document details the future planning, new features (backlog), and architectural evolution of **Boss4D**, based on community feedback and best practices in the Delphi ecosystem (inspired by tools such as *TMS Smart Setup*).
+This document records both completed deliveries and the future **Boss4D**
+backlog. Checked boxes are historical evidence of delivered scope; unchecked
+items form the active backlog.
 
 ---
 
@@ -256,7 +258,10 @@ This document details the future planning, new features (backlog), and architect
 
 ---
 
-## 📊 Prioritization Matrix (Backlog v1.5.0 & Futures)
+## 📊 Historical prioritization matrix
+
+This matrix explains the order in which capabilities were implemented. The
+active backlog consists only of the unchecked items above.
 
 | Feature / Story | Epic | Complexity | Business Value | Priority (MoSCoW) |
 | :--- | :--- | :--- | :--- | :--- |
