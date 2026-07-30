@@ -137,7 +137,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -q, --quiet (modo silencioso).');
   FLogger.Log(TBoss4DLogLevel.Info, '  install              Instala todas as dependencias declaradas no boss.json.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -p, --platform <plataforma> (Win32, Win64, Linux64, etc.).');
-  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --locked, --frozen-lockfile, --offline, --production.');
+  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --locked, --frozen-lockfile, --offline, --production, --progress plain|interactive, --json, --quiet.');
   FLogger.Log(TBoss4DLogLevel.Info, '  install <dep>        Instala uma dependencia especifica.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Exemplo: boss4d install github.com/hashload/horse@^3.0.0');
   FLogger.Log(TBoss4DLogLevel.Info, '  add <dep> [--dev]    Adiciona dependencia de runtime ou desenvolvimento.');
@@ -151,7 +151,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  info <pacote>        Exibe metadados de um pacote indexado.');
   FLogger.Log(TBoss4DLogLevel.Info, '  dependency submit    Envia snapshot ao GitHub Dependency Graph.');
   FLogger.Log(TBoss4DLogLevel.Info, '  publish              Publica pacote com validacoes; use --dry-run para inspecionar.');
-  FLogger.Log(TBoss4DLogLevel.Info, '  ci [--offline]       Reinstala limpo usando o lock sem altera-lo.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  ci [--offline]       Reinstala limpo usando o lock sem altera-lo; aceita --progress, --json e --quiet.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config delphi use <caminho>  Configura o caminho global do compilador Delphi.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config git shallow <true/false> Configura uso de shallow clones globais.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config auth <github/gitlab> <token> Configura tokens de autenticacao global.');
@@ -651,9 +651,11 @@ var
   LDepToInstall: string;
   LOptions: TBoss4DInstallOptions;
   I: Integer;
+  LProgressMode: string;
 begin
   LDepToInstall := '';
   LOptions := Default(TBoss4DInstallOptions);
+  LProgressMode := 'plain';
 
   I := 1;
   while I < Length(AArgs) do
@@ -684,6 +686,26 @@ begin
       LOptions.Production := True;
       Inc(I);
     end
+    else if SameText(AArgs[I], '--json') then
+    begin
+      LProgressMode := 'json';
+      Inc(I);
+    end
+    else if SameText(AArgs[I], '--quiet') or SameText(AArgs[I], '-q') then
+    begin
+      LProgressMode := 'quiet';
+      Inc(I);
+    end
+    else if SameText(AArgs[I], '--progress') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create('Informe o modo de progresso.');
+      LProgressMode := LowerCase(AArgs[I + 1]);
+      if (LProgressMode <> 'plain') and (LProgressMode <> 'interactive') then
+        raise EArgumentException.Create('Modo de progresso invalido: ' +
+          LProgressMode);
+      Inc(I, 2);
+    end
     else
     begin
       if not AArgs[I].StartsWith('-') then
@@ -695,6 +717,7 @@ begin
   if LOptions.Locked and not LDepToInstall.IsEmpty then
     raise EArgumentException.Create(
       '--locked instala somente o grafo completo declarado no lock.');
+  FInstallService.SetProgressMode(LProgressMode);
   if LDepToInstall.IsEmpty and
      (LOptions.Locked or LOptions.Offline or LOptions.Production) then
     FInstallService.Execute(LOptions)
@@ -706,10 +729,12 @@ procedure TBoss4DCommandLineParser.HandleCI(const AArgs: TArray<string>);
 var
   LOptions: TBoss4DInstallOptions;
   I: Integer;
+  LProgressMode: string;
 begin
   LOptions := Default(TBoss4DInstallOptions);
   LOptions.Locked := True;
   LOptions.CleanModules := True;
+  LProgressMode := 'plain';
   I := 1;
   while I < Length(AArgs) do
   begin
@@ -725,10 +750,25 @@ begin
       Inc(I);
       LOptions.Platform := AArgs[I];
     end
+    else if SameText(AArgs[I], '--json') then
+      LProgressMode := 'json'
+    else if SameText(AArgs[I], '--quiet') or SameText(AArgs[I], '-q') then
+      LProgressMode := 'quiet'
+    else if SameText(AArgs[I], '--progress') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create('Informe o modo de progresso.');
+      Inc(I);
+      LProgressMode := LowerCase(AArgs[I]);
+      if (LProgressMode <> 'plain') and (LProgressMode <> 'interactive') then
+        raise EArgumentException.Create('Modo de progresso invalido: ' +
+          LProgressMode);
+    end
     else
       raise EArgumentException.Create('Opcao desconhecida para ci: ' + AArgs[I]);
     Inc(I);
   end;
+  FInstallService.SetProgressMode(LProgressMode);
   FInstallService.Execute(LOptions);
 end;
 

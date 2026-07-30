@@ -239,6 +239,9 @@ This document details the future planning, new features (backlog), and architect
 - [x] **[Story] Frozen and Offline Installation**
   - Provide `--locked`, `--frozen-lockfile`, `--offline`, and a clean `ci`
     workflow without rewriting the lock.
+- [x] **[Story] Structured Terminal Progress**
+  - Provide thread-safe interactive, plain, JSON Lines, and quiet progress
+    modes for installation and CI automation.
 
 - [ ] **[Story] Automated Documentation Generation (`boss4d doc`)**
   - Parse PascalDoc/XML Doc comments across all dependencies and compile a local static website of API references.
