@@ -14,6 +14,7 @@ $required = @(
   'boss4d-linux-x86_64.tar.gz',
   'boss4d-windows.zip',
   'SHA256SUMS.txt',
+  'artifact-matrix.json',
   'actions/attest-build-provenance@v2',
   'id-token: write',
   'needs: [linux, windows]',

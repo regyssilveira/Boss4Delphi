@@ -3,6 +3,10 @@
 Cada tag `v*` somente é promovida depois que os jobs Windows e Linux terminam
 com sucesso no mesmo commit.
 
+O contrato legível por máquina é publicado em
+`release/artifact-matrix.json`. Atualmente ele garante Delphi 13/37.0 para
+Windows x86 e x86_64 e FPC 3.2.2 para Linux x86_64.
+
 | Artefato | Builder | Validação obrigatória |
 |---|---|---|
 | `boss4d-windows.zip` | Runner próprio com Delphi 13 | Build Win32/Win64, geração dos SBOMs e promoção transacional de `dist` |
@@ -22,7 +26,8 @@ Valide o workflow localmente com:
 
 ```powershell
 ./scripts/test-release-workflow.ps1
+./scripts/test-release-artifact-matrix.ps1
+./scripts/test-linux-release-artifact.ps1
 docker run --rm -v "${PWD}:/repo" -w /repo rhysd/actionlint:latest `
   -config-file .github/actionlint.yaml .github/workflows/release.yml
 ```
-

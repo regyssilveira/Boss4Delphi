@@ -49,6 +49,7 @@ scratch_*
 .sonar/
 .scannerwork/
 .fpc-build/
+.release-test/
 
 # Local scratch directories (credentials and temporary scripts)
 scratch/

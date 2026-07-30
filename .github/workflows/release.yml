@@ -32,12 +32,14 @@ jobs:
           tar -C .release/linux -czf .release/boss4d-linux-x86_64.tar.gz boss4d
           cd .release
           sha256sum boss4d-linux-x86_64.tar.gz > SHA256SUMS-linux.txt
+          cp ../release/artifact-matrix.json artifact-matrix.json
       - uses: actions/upload-artifact@v4
         with:
           name: release-linux-x86_64
           path: |
             .release/boss4d-linux-x86_64.tar.gz
             .release/SHA256SUMS-linux.txt
+            .release/artifact-matrix.json
           if-no-files-found: error
 
   windows:
@@ -98,5 +100,5 @@ jobs:
             release/boss4d-linux-x86_64.tar.gz
             release/boss4d-windows.zip
             release/SHA256SUMS.txt
+            release/artifact-matrix.json
             release/*.json
-
