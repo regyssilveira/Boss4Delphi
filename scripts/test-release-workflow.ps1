@@ -17,6 +17,8 @@ $required = @(
   'test-delphi-plugin-matrix.ps1',
   'boss4d-linux-x86_64.tar.gz',
   'boss4d-windows.zip',
+  'Boss4D_Setup.exe',
+  'Inno Setup 6\ISCC.exe',
   'SHA256SUMS.txt',
   'artifact-matrix.json',
   'actions/attest-build-provenance@v2',
