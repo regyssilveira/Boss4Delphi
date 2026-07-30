@@ -15,16 +15,224 @@ type
     procedure TestManifest;
     procedure TestDependencyTarget;
     procedure TestCloneArguments;
+    procedure TestLegacyManifestCompatibility;
+    procedure TestAddAndRemoveDependency;
+    procedure TestListHonorsProduction;
+    procedure TestInstallWritesV3Lock;
+    procedure TestFrozenRejectsManifestDrift;
+    procedure TestHighestVersionResolution;
+    procedure TestMinimalVersionResolution;
+    procedure TestTildeDoesNotCrossMinor;
+    procedure TestOfflineRejectsMissingModule;
+    procedure TestLockedRequiresLock;
   end;
 
 implementation
 
 uses
-  Boss4D.Posix.Core;
+  fpjson, Boss4D.Posix.Core;
+
+function NewTempDirectory: string;
+begin
+  Result := IncludeTrailingPathDelimiter(GetTempDir(False)) +
+    'boss4d-posix-' + IntToHex(Random(MaxInt), 8);
+  ForceDirectories(Result);
+end;
+
+function Versions(const AValues: array of string): TStringList;
+var
+  I: Integer;
+begin
+  Result := TStringList.Create;
+  for I := Low(AValues) to High(AValues) do Result.Add(AValues[I]);
+end;
+
+procedure TPosixCoreTests.TestHighestVersionResolution;
+var
+  LVersions: TStringList;
+begin
+  LVersions := Versions(['v1.2.0', 'v2.0.0', 'v1.9.1']);
+  try
+    AssertEquals('v1.9.1', SelectVersion('^1.1.0', LVersions, 'highest'));
+  finally
+    LVersions.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestMinimalVersionResolution;
+var
+  LVersions: TStringList;
+begin
+  LVersions := Versions(['1.4.0', '1.2.1', '1.8.0']);
+  try
+    AssertEquals('1.2.1', SelectVersion('^1.2.0', LVersions, 'minimal'));
+  finally
+    LVersions.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestTildeDoesNotCrossMinor;
+var
+  LVersions: TStringList;
+begin
+  LVersions := Versions(['1.2.3', '1.2.9', '1.3.0']);
+  try
+    AssertEquals('1.2.9', SelectVersion('~1.2.0', LVersions, 'highest'));
+  finally
+    LVersions.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestOfflineRejectsMissingModule;
+var
+  LDir: string;
+  LOptions: TBoss4DInstallOptions;
+begin
+  LDir := NewTempDirectory;
+  InitProject(LDir);
+  AddDependency(LDir, 'offline.test/package', '*', False);
+  FillChar(LOptions, SizeOf(LOptions), 0);
+  LOptions.Offline := True;
+  try
+    InstallProject(LDir, LOptions);
+    Fail('Offline install should reject a cache miss');
+  except
+    on E: Exception do AssertTrue(Pos('offline cache miss', E.Message) > 0);
+  end;
+end;
+
+procedure TPosixCoreTests.TestLockedRequiresLock;
+var
+  LDir: string;
+  LOptions: TBoss4DInstallOptions;
+begin
+  LDir := NewTempDirectory;
+  InitProject(LDir);
+  FillChar(LOptions, SizeOf(LOptions), 0);
+  LOptions.Locked := True;
+  try
+    InstallProject(LDir, LOptions);
+    Fail('Locked install should require a lock');
+  except
+    on E: Exception do AssertTrue(Pos('requires boss-lock.json', E.Message) > 0);
+  end;
+end;
 
 procedure TPosixCoreTests.TestPlatform;
 begin
   AssertEquals('linux', PlatformName);
+end;
+
+procedure TPosixCoreTests.TestLegacyManifestCompatibility;
+var
+  LDir: string;
+  LItems: TStringList;
+  LFixture: TStringList;
+begin
+  LDir := NewTempDirectory;
+  LFixture := TStringList.Create;
+  try
+    LFixture.Text := '{"name":"legacy","version":"1.0.0","dependencies":' +
+      '{"github.com/hashload/horse":"^3.0.0"}}';
+    LFixture.SaveToFile(IncludeTrailingPathDelimiter(LDir) + 'boss.json');
+  finally
+    LFixture.Free;
+  end;
+  LItems := ListProject(LDir, False);
+  try
+    AssertEquals(1, LItems.Count);
+    AssertTrue(Pos('github.com/hashload/horse ^3.0.0', LItems[0]) = 1);
+  finally
+    LItems.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestAddAndRemoveDependency;
+var
+  LDir: string;
+  LManifest, LDependencies: TJSONObject;
+begin
+  LDir := NewTempDirectory;
+  InitProject(LDir);
+  AddDependency(LDir, 'github.com/test/pkg', 'v1.0.0', False);
+  LManifest := LoadJsonObject(IncludeTrailingPathDelimiter(LDir) + 'boss.json');
+  try
+    LDependencies := TJSONObject(LManifest.Find('dependencies'));
+    AssertEquals('v1.0.0', LDependencies.Get('github.com/test/pkg', ''));
+  finally
+    LManifest.Free;
+  end;
+  RemoveDependency(LDir, 'github.com/test/pkg');
+  LManifest := LoadJsonObject(IncludeTrailingPathDelimiter(LDir) + 'boss.json');
+  try
+    LDependencies := TJSONObject(LManifest.Find('dependencies'));
+    AssertFalse(Assigned(LDependencies.Find('github.com/test/pkg')));
+  finally
+    LManifest.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestListHonorsProduction;
+var
+  LDir: string;
+  LItems, LFixture: TStringList;
+begin
+  LDir := NewTempDirectory;
+  LFixture := TStringList.Create;
+  try
+    LFixture.Text :=
+      '{"name":"app","version":"1.0.0","dependencies":{"runtime":"*"},' +
+      '"devDependencies":{"test":"*"}}';
+    LFixture.SaveToFile(IncludeTrailingPathDelimiter(LDir) + 'boss.json');
+  finally
+    LFixture.Free;
+  end;
+  LItems := ListProject(LDir, True);
+  try
+    AssertEquals(1, LItems.Count);
+    AssertTrue(Pos('runtime', LItems[0]) = 1);
+  finally
+    LItems.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestInstallWritesV3Lock;
+var
+  LDir: string;
+  LLock: TJSONObject;
+begin
+  LDir := NewTempDirectory;
+  InitProject(LDir);
+  InstallProject(LDir);
+  AssertTrue(FileExists(IncludeTrailingPathDelimiter(LDir) + 'boss-lock.json'));
+  LLock := LoadJsonObject(IncludeTrailingPathDelimiter(LDir) + 'boss-lock.json');
+  try
+    AssertEquals(3, LLock.Get('lockVersion', 0));
+    AssertTrue(Assigned(LLock.Find('root')));
+    AssertTrue(Assigned(LLock.Find('installedModules')));
+  finally
+    LLock.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestFrozenRejectsManifestDrift;
+var
+  LDir: string;
+  LOptions: TBoss4DInstallOptions;
+begin
+  LDir := NewTempDirectory;
+  InitProject(LDir);
+  InstallProject(LDir);
+  AddDependency(LDir, 'offline.test/package', '*', False);
+  FillChar(LOptions, SizeOf(LOptions), 0);
+  LOptions.FrozenLockfile := True;
+  try
+    InstallProject(LDir, LOptions);
+    Fail('Frozen install should reject manifest drift');
+  except
+    on E: Exception do
+      AssertTrue(Pos('out of sync', E.Message) > 0);
+  end;
 end;
 
 procedure TPosixCoreTests.TestVersion;
