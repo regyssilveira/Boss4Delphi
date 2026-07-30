@@ -135,7 +135,8 @@ end;
 class procedure TBoss4DBuildSpecDetector.Detect(
   const APackage: TBoss4DPackage; const ARootDirectory: string);
 begin
-  Detect(APackage, ARootDirectory, ['18.0', '22.0', '23.0', '37.0']);
+  Detect(APackage, ARootDirectory,
+    ['17.0', '18.0', '22.0', '23.0', '37.0']);
 end;
 
 class procedure TBoss4DBuildSpecDetector.Detect(

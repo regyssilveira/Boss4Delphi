@@ -40,6 +40,9 @@ var
   LValue: string;
 begin
   LValue := AValue.Trim;
+  if SameText(LValue, '17.0') or SameText(LValue, 'd10') or
+     SameText(LValue, '30.0') or SameText(LValue, 'VER300') then
+    Exit(Convention('17.0', 'd10', '230', '30.0', 'VER300'));
   if SameText(LValue, '18.0') or SameText(LValue, 'd101') or
      SameText(LValue, '31.0') or SameText(LValue, 'VER310') then
     Exit(Convention('18.0', 'd101', '240', '31.0', 'VER310'));
