@@ -50,6 +50,7 @@ type
     procedure HandleRegistry(const AArgs: TArray<string>);
     procedure HandleSearch(const AArgs: TArray<string>);
     procedure HandleInfo(const AArgs: TArray<string>);
+    procedure HandlePackage(const AArgs: TArray<string>);
     procedure HandleDependency(const AArgs: TArray<string>);
     procedure HandlePublish(const AArgs: TArray<string>);
     procedure HandleConfig(const AArgs: TArray<string>);
@@ -113,7 +114,8 @@ uses
   Boss4D.Core.Services.Pack,
   Boss4D.Core.Services.Resolver,
   Boss4D.Core.Services.Conformance,
-  Boss4D.Core.Services.RegistryPortal;
+  Boss4D.Core.Services.RegistryPortal,
+  Boss4D.Core.Services.PackageInstall;
 
 { TBoss4DCommandLineParser }
 
@@ -159,6 +161,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  registry add|remove|list Gerencia indices publicos e privados.');
   FLogger.Log(TBoss4DLogLevel.Info, '  search <termo>       Pesquisa pacotes nos indices configurados.');
   FLogger.Log(TBoss4DLogLevel.Info, '  info <pacote>        Exibe metadados de um pacote indexado.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  package install <pacote> Instala .b4dpkg verificado, com fallback para Git.');
   FLogger.Log(TBoss4DLogLevel.Info, '  dependency submit    Envia snapshot ao GitHub Dependency Graph.');
   FLogger.Log(TBoss4DLogLevel.Info, '  publish              Publica pacote com validacoes; use --dry-run para inspecionar.');
   FLogger.Log(TBoss4DLogLevel.Info, '  ci [--offline]       Reinstala limpo usando o lock sem altera-lo; aceita --progress, --json e --quiet.');
@@ -229,6 +232,8 @@ begin
     HandleSearch(AArgs)
   else if LCommand = 'info' then
     HandleInfo(AArgs)
+  else if LCommand = 'package' then
+    HandlePackage(AArgs)
   else if LCommand = 'dependency' then
     HandleDependency(AArgs)
   else if LCommand = 'publish' then
@@ -716,6 +721,80 @@ begin
     end;
   finally
     LService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandlePackage(const AArgs: TArray<string>);
+var
+  LIndex: TBoss4DPackageIndexService;
+  LEntry: TBoss4DPackageIndexEntry;
+  LInstaller: TBoss4DPackageInstallService;
+  LRequest: TBoss4DPackageInstallRequest;
+  LDependency: TBoss4DDependency;
+  LAllowFallback: Boolean;
+begin
+  if (Length(AArgs) < 3) or not SameText(AArgs[1], 'install') then
+    raise EArgumentException.Create(
+      'Uso: boss4d package install <pacote> [--no-source-fallback].');
+  LAllowFallback := True;
+  for var LArg in AArgs do
+    if SameText(LArg, '--no-source-fallback') then LAllowFallback := False;
+  LIndex := TBoss4DPackageIndexService.Create(FConfigService,
+    TBoss4DHttpNativeAdapter.Create, FLogger);
+  try
+    LEntry := LIndex.Info(AArgs[2]);
+    try
+      if not Assigned(LEntry) then
+        raise EArgumentException.Create('Pacote nao encontrado: ' + AArgs[2]);
+      if not LEntry.ArtifactUrl.IsEmpty and
+         not LEntry.ArtifactDigest.IsEmpty then
+      begin
+        LDependency := TBoss4DDependency.Create(LEntry.Repository,
+          LEntry.LatestVersion);
+        try
+          LRequest := Default(TBoss4DPackageInstallRequest);
+          LRequest.ArtifactUrl := LEntry.ArtifactUrl;
+          LRequest.Sha256 := LEntry.ArtifactDigest;
+          LRequest.SignatureUrl := LEntry.SignatureUrl;
+          LRequest.ProvenanceUrl := LEntry.ProvenanceUrl;
+          LRequest.TargetDirectory := TPath.Combine(GetModulesDir,
+            LDependency.StorageName);
+          LInstaller := TBoss4DPackageInstallService.Create(
+            TBoss4DHttpNativeAdapter.Create,
+            TBoss4DGpgPackageSigner.Create(Boss4DProcessRunner));
+          try
+            try
+              var LResult := LInstaller.Execute(LRequest);
+              FLogger.Log(TBoss4DLogLevel.Info,
+                'Pacote verificado instalado: %s (%d arquivos, sha256:%s)',
+                [LEntry.Name, LResult.FileCount, LResult.Digest]);
+              Exit;
+            except
+              on E: Exception do
+              begin
+                if not LAllowFallback then raise;
+                FLogger.Log(TBoss4DLogLevel.Warning,
+                  'Artefato recusado; usando fontes Git: ' + E.Message);
+              end;
+            end;
+          finally
+            LInstaller.Free;
+          end;
+        finally
+          LDependency.Free;
+        end;
+      end
+      else if not LAllowFallback then
+        raise Exception.Create('Pacote nao possui artefato imutavel publicado.');
+      var LSource := LEntry.Repository;
+      if not LEntry.LatestVersion.IsEmpty then
+        LSource := LSource + '@' + LEntry.LatestVersion;
+      FInstallService.Execute(LSource);
+    finally
+      LEntry.Free;
+    end;
+  finally
+    LIndex.Free;
   end;
 end;
 
