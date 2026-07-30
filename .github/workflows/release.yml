@@ -1,0 +1,102 @@
+name: Release artifacts
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Linux x86_64 / FPC
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Free Pascal
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes fp-compiler
+      - name: Compile and test
+        run: |
+          mkdir -p .release/linux
+          fpc -B -Fu./src/Posix -FE./.release/linux -oboss4d ./src/Posix/boss4d.lpr
+          fpc -B -Fu./src/Posix -Fu./tests/posix -FE./.release/linux ./tests/posix/Boss4DPosixTests.lpr
+          ./.release/linux/Boss4DPosixTests --all --format=plain
+      - name: Package Linux CLI
+        run: |
+          chmod 755 .release/linux/boss4d
+          tar -C .release/linux -czf .release/boss4d-linux-x86_64.tar.gz boss4d
+          cd .release
+          sha256sum boss4d-linux-x86_64.tar.gz > SHA256SUMS-linux.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-linux-x86_64
+          path: |
+            .release/boss4d-linux-x86_64.tar.gz
+            .release/SHA256SUMS-linux.txt
+          if-no-files-found: error
+
+  windows:
+    name: Delphi 13 / Win32 + Win64
+    runs-on: [self-hosted, windows, delphi-13]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and validate release
+        shell: cmd
+        run: build_release.bat
+      - name: Archive Windows distribution
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force .release | Out-Null
+          Compress-Archive -Path dist\* -DestinationPath .release\boss4d-windows.zip
+          $hash = (Get-FileHash .release\boss4d-windows.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  boss4d-windows.zip" | Set-Content -Encoding ascii .release\SHA256SUMS-windows.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: |
+            .release/boss4d-windows.zip
+            .release/SHA256SUMS-windows.txt
+            dist/sbom/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish immutable release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [linux, windows]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: release
+      - name: Create combined checksums
+        working-directory: release
+        run: |
+          sha256sum boss4d-linux-x86_64.tar.gz boss4d-windows.zip > SHA256SUMS.txt
+      - name: Attest release archives
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            release/boss4d-linux-x86_64.tar.gz
+            release/boss4d-windows.zip
+      - name: Publish GitHub release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          fail_on_unmatched_files: true
+          files: |
+            release/boss4d-linux-x86_64.tar.gz
+            release/boss4d-windows.zip
+            release/SHA256SUMS.txt
+            release/*.json
+

@@ -139,6 +139,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Platform Portability](docs/platform-portability.md)**: Portable process, environment, and workspace-link contracts plus the POSIX roadmap.
 * **[Terminal Progress](docs/terminal-progress.md)**: Interactive, plain, JSON Lines, and quiet progress output for installs and CI.
 * **[Secure Self-update](docs/self-update.md)**: Release discovery, SHA-256 verification, staging, and installer handoff.
+* **[Release Artifact Matrix](docs/release-artifact-matrix.md)**: Windows/Linux builders, checksums, OIDC provenance, and tag promotion gates.
 * **[Immutable Package Format](docs/package-format.md)**: Deterministic `.b4dpkg`, verified installation, OpenPGP/in-toto evidence, source fallback, and compiler/platform variants.
 * **[Legacy Delphi Compatibility](docs/legacy-delphi.md)**: Full modern wizard plus a BDS 17.0-tested Delphi 10.1 integration profile.
 * **[FPC/Linux CLI](docs/posix-cli.md)**: Native Linux build, dependency lifecycle, lock v3, frozen/offline CI, SemVer resolution, and FPCUnit tests.
