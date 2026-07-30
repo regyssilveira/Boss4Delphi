@@ -90,6 +90,11 @@ boss4d sbom --format cyclonedx --lock-only --strict --validate \
 or root evidence. Environmental collectors cannot be combined with `--lock-only`
 because they would make the result depend on the build machine.
 
+The native Linux/FPC CLI supports deterministic lock-only CycloneDX 1.7 and
+SPDX 2.3 generation. CycloneDX can import the same offline VEX format. Both
+formats are exercised on Linux and validated with the official CycloneDX CLI
+and SPDX tools-java validators.
+
 ## Understanding coverage
 
 Boss-managed dependencies are known from the manifest and lock. Other components

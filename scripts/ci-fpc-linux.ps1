@@ -26,6 +26,13 @@ grep -q completion .fpc-build/package-smoke/project/progress.json
 ./.fpc-build/boss4d doctor > .fpc-build/doctor.txt 2>&1 || true
 grep -q git .fpc-build/doctor.txt
 grep -q sha256sum .fpc-build/doctor.txt
+(cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d sbom --format cyclonedx --lock-only --strict --validate --reproducible --vex /work/tests/fixtures/package-posix/vex.json --output sbom.cdx.json)
+(cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d sbom --format spdx --lock-only --strict --validate --reproducible --output sbom.spdx.json)
+grep -q CycloneDX .fpc-build/package-smoke/project/sbom.cdx.json
+grep -q CVE-2099-0001 .fpc-build/package-smoke/project/sbom.cdx.json
+grep -q SPDX-2.3 .fpc-build/package-smoke/project/sbom.spdx.json
+(cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d audit --offline > audit.txt)
+grep -q 'audited packages' .fpc-build/package-smoke/project/audit.txt
 '@
 $linuxScript = $linuxScript.Replace("`r`n", "`n")
 docker run --rm -v "${root}:/work" -w /work $Image sh -lc $linuxScript

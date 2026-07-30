@@ -37,15 +37,14 @@ The host also provides structured progress, stable automation exit codes,
 cooperative Ctrl+C cancellation, and `doctor` checks for Git, SHA-256, GPG,
 FPC, and a writable Boss home.
 
-The Windows host remains required for SBOM/audit commands, credential storage,
-RAD Studio/GetIt integration, GUI, IDE plugins, and self-update. These
+The Windows host remains required for credential storage, RAD Studio/GetIt
+integration, GUI, IDE plugins, and self-update. These
 boundaries are intentional and documented, not silently emulated.
 
 ## Next portability steps
 
-1. Port SBOM lock-only generation, OSV audit, and structured progress output.
-2. Add POSIX credential, workspace-link, and artifact-cache adapters.
-3. Add macOS builds after the Linux contracts reach feature parity.
+1. Add POSIX credential, workspace-link, and artifact-cache adapters.
+2. Add macOS builds after the Linux contracts reach feature parity.
 
 Every new portable capability requires unit tests and an actual target-host
 build. Linux is currently supported for the dependency workflow listed above;

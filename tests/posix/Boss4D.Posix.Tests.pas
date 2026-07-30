@@ -30,6 +30,20 @@ type
     property Calls: Integer read FCalls;
   end;
 
+  TAuditFetcherMock = class
+  private
+    FCalls: Integer;
+    FResponse: string;
+    FNextResponse: string;
+    FFail: Boolean;
+  public
+    function Fetch(const ARevision, APageToken: string): string;
+    property Calls: Integer read FCalls;
+    property Response: string read FResponse write FResponse;
+    property NextResponse: string read FNextResponse write FNextResponse;
+    property Fail: Boolean read FFail write FFail;
+  end;
+
   TPosixCoreTests = class(TTestCase)
   published
     procedure TestPlatform;
@@ -68,6 +82,16 @@ type
     procedure TestCancellation;
     procedure TestInstallHonorsCancellation;
     procedure TestLinuxDoctor;
+    procedure TestCycloneDxLockOnlySbom;
+    procedure TestSpdxLockOnlySbom;
+    procedure TestCycloneDxVex;
+    procedure TestSbomReproducibleAndRejectsSpdxVex;
+    procedure TestAuditPolicyAndVex;
+    procedure TestAuditOfflineCache;
+    procedure TestAuditOfflineCacheMiss;
+    procedure TestDirectoryDigestIsDeterministicAndExcludesGit;
+    procedure TestStrictSbomEvidenceAndValidation;
+    procedure TestGitLockEvidence;
   end;
 
 implementation
@@ -75,7 +99,7 @@ implementation
 uses
   fpjson, Boss4D.Posix.Core, Boss4D.Posix.Registry, Boss4D.Posix.Config,
   Boss4D.Posix.Package,
-  Boss4D.Posix.Operations;
+  Boss4D.Posix.Operations, Boss4D.Posix.Compliance, Boss4D.Posix.Audit;
 
 procedure SaveFixture(const APath, AContent: string); forward;
 
@@ -886,6 +910,7 @@ begin
   AssertEquals(3, ClassifyExitCode('package not found: demo'));
   AssertEquals(4, ClassifyExitCode('artifact SHA-256 mismatch'));
   AssertEquals(5, ClassifyExitCode('offline registry cache miss'));
+  AssertEquals(6, ClassifyExitCode('audit policy violation: 1'));
   AssertEquals(130, ClassifyExitCode('operation cancelled'));
   AssertEquals(1, ClassifyExitCode('unexpected failure'));
 end;
@@ -938,6 +963,320 @@ begin
       LResults.IndexOf('ERROR git: not found') < 0, DoctorPassed(LResults));
   finally
     LResults.Free;
+  end;
+end;
+
+function TAuditFetcherMock.Fetch(const ARevision, APageToken: string): string;
+begin
+  Inc(FCalls);
+  if FFail then raise Exception.Create('network unavailable');
+  if APageToken = '' then Result := FResponse
+  else Result := FNextResponse;
+end;
+
+function CreateComplianceLock(const ADirectory: string): string;
+begin
+  Result := IncludeTrailingPathDelimiter(ADirectory) + 'boss-lock.json';
+  SaveFixture(Result, '{"lockVersion":3,"hash":"fixture-hash",' +
+    '"updated":"2026-07-30T12:00:00Z","root":{"name":"app",' +
+    '"version":"1.0.0"},"installedModules":{"example.test/demo":{' +
+    '"name":"demo","version":"2.0.0","repository":"example.test/demo",' +
+    '"scope":"development","revision":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",' +
+    '"checksum":"sha256:' + StringOfChar('b', 64) +
+    '","dependencies":[]}}}');
+end;
+
+procedure TPosixCoreTests.TestCycloneDxLockOnlySbom;
+var
+  LDir, LLock, LOutput: string;
+  LRoot: TJSONObject;
+  LComponents: TJSONArray;
+  LComponent: TJSONObject;
+  LOptions: TBoss4DSbomOptions;
+begin
+  LDir := NewTempDirectory;
+  LLock := CreateComplianceLock(LDir);
+  LOutput := IncludeTrailingPathDelimiter(LDir) + 'sbom.cdx.json';
+  LOptions := DefaultSbomOptions(sfCycloneDX);
+  GenerateLockSbom(LLock, LOutput, LOptions);
+  LRoot := LoadJsonObject(LOutput);
+  try
+    AssertEquals('CycloneDX', LRoot.Get('bomFormat', ''));
+    AssertEquals('1.7', LRoot.Get('specVersion', ''));
+    LComponents := TJSONArray(LRoot.Find('components'));
+    AssertEquals(1, LComponents.Count);
+    LComponent := TJSONObject(LComponents.Items[0]);
+    AssertEquals('demo', LComponent.Get('name', ''));
+    AssertTrue(Assigned(LComponent.Find('hashes')));
+    AssertTrue(Pos('development', LComponent.AsJSON) > 0);
+  finally
+    LRoot.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestSpdxLockOnlySbom;
+var
+  LDir, LLock, LOutput: string;
+  LRoot: TJSONObject;
+  LPackages: TJSONArray;
+  LPackage: TJSONObject;
+  LOptions: TBoss4DSbomOptions;
+begin
+  LDir := NewTempDirectory;
+  LLock := CreateComplianceLock(LDir);
+  LOutput := IncludeTrailingPathDelimiter(LDir) + 'sbom.spdx.json';
+  LOptions := DefaultSbomOptions(sfSpdx);
+  GenerateLockSbom(LLock, LOutput, LOptions);
+  LRoot := LoadJsonObject(LOutput);
+  try
+    AssertEquals('SPDX-2.3', LRoot.Get('spdxVersion', ''));
+    LPackages := TJSONArray(LRoot.Find('packages'));
+    AssertEquals(1, LPackages.Count);
+    LPackage := TJSONObject(LPackages.Items[0]);
+    AssertEquals('demo', LPackage.Get('name', ''));
+    AssertEquals('boss4d:scope=development', LPackage.Get('comment', ''));
+    AssertTrue(Assigned(LRoot.Find('relationships')));
+  finally
+    LRoot.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestCycloneDxVex;
+var
+  LDir, LLock, LOutput, LVex: string;
+  LRoot: TJSONObject;
+  LVulnerabilities: TJSONArray;
+  LOptions: TBoss4DSbomOptions;
+begin
+  LDir := NewTempDirectory;
+  LLock := CreateComplianceLock(LDir);
+  LVex := IncludeTrailingPathDelimiter(LDir) + 'security.vex.json';
+  SaveFixture(LVex, '{"vulnerabilities":[{"id":"CVE-2099-0001",' +
+    '"component":"boss4d:demo@2.0.0","state":"not_affected",' +
+    '"detail":"code path excluded"}]}');
+  LOutput := IncludeTrailingPathDelimiter(LDir) + 'sbom.vex.cdx.json';
+  LOptions := DefaultSbomOptions(sfCycloneDX);
+  LOptions.VexPath := LVex;
+  GenerateLockSbom(LLock, LOutput, LOptions);
+  LRoot := LoadJsonObject(LOutput);
+  try
+    LVulnerabilities := TJSONArray(LRoot.Find('vulnerabilities'));
+    AssertEquals(1, LVulnerabilities.Count);
+    AssertTrue(Pos('"state" : "not_affected"',
+      LVulnerabilities.Items[0].FormatJSON) > 0);
+  finally
+    LRoot.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestSbomReproducibleAndRejectsSpdxVex;
+var
+  LDir, LLock, LFirst, LSecond, LVex: string;
+  LOne, LTwo: TStringList;
+  LOptions: TBoss4DSbomOptions;
+begin
+  LDir := NewTempDirectory;
+  LLock := CreateComplianceLock(LDir);
+  LFirst := IncludeTrailingPathDelimiter(LDir) + 'one.json';
+  LSecond := IncludeTrailingPathDelimiter(LDir) + 'two.json';
+  LOptions := DefaultSbomOptions(sfCycloneDX);
+  LOptions.Reproducible := True;
+  GenerateLockSbom(LLock, LFirst, LOptions);
+  GenerateLockSbom(LLock, LSecond, LOptions);
+  LOne := TStringList.Create;
+  LTwo := TStringList.Create;
+  try
+    LOne.LoadFromFile(LFirst);
+    LTwo.LoadFromFile(LSecond);
+    AssertEquals(LOne.Text, LTwo.Text);
+  finally
+    LOne.Free;
+    LTwo.Free;
+  end;
+  LVex := IncludeTrailingPathDelimiter(LDir) + 'vex.json';
+  SaveFixture(LVex, '{"vulnerabilities":[]}');
+  try
+    LOptions := DefaultSbomOptions(sfSpdx);
+    LOptions.VexPath := LVex;
+    GenerateLockSbom(LLock, LFirst, LOptions);
+    Fail('SPDX 2.3 VEX should be rejected');
+  except
+    on E: Exception do AssertTrue(Pos('VEX requires CycloneDX', E.Message) > 0);
+  end;
+end;
+
+procedure TPosixCoreTests.TestAuditPolicyAndVex;
+var
+  LDir, LLock, LVex: string;
+  LFetcher: TAuditFetcherMock;
+  LService: TBoss4DAuditService;
+  LOptions: TBoss4DAuditOptions;
+  LSummary: TBoss4DAuditSummary;
+begin
+  LDir := NewTempDirectory;
+  LLock := CreateComplianceLock(LDir);
+  LFetcher := TAuditFetcherMock.Create;
+  try
+    LFetcher.Response := '{"vulns":[{"id":"OSV-TEST-1",' +
+      '"database_specific":{"severity":"HIGH"}}],' +
+      '"next_page_token":"page-2"}';
+    LFetcher.NextResponse := '{"vulns":[{"id":"OSV-TEST-2",' +
+      '"database_specific":{"severity":"LOW"}}]}';
+    LService := TBoss4DAuditService.Create(@LFetcher.Fetch);
+    try
+      LOptions := DefaultAuditOptions;
+      LOptions.CacheDirectory := IncludeTrailingPathDelimiter(LDir) + 'cache';
+      LOptions.FailOn := 'high';
+      LSummary := LService.Execute(LLock, LOptions);
+      AssertEquals(1, LSummary.Packages);
+      AssertEquals(2, LSummary.Vulnerabilities);
+      AssertEquals(1, LSummary.PolicyViolations);
+      AssertEquals(2, LFetcher.Calls);
+      AssertTrue(Pos('HIGH OSV-TEST-1', LService.Findings[0]) = 1);
+      LVex := IncludeTrailingPathDelimiter(LDir) + 'audit.vex.json';
+      SaveFixture(LVex, '{"vulnerabilities":[{"id":"OSV-TEST-1",' +
+        '"state":"not_affected"}]}');
+      LOptions.VexPath := LVex;
+      LSummary := LService.Execute(LLock, LOptions);
+      AssertEquals(1, LSummary.Suppressed);
+      AssertEquals(0, LSummary.PolicyViolations);
+    finally
+      LService.Free;
+    end;
+  finally
+    LFetcher.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestAuditOfflineCache;
+var
+  LDir, LLock: string;
+  LFetcher: TAuditFetcherMock;
+  LService: TBoss4DAuditService;
+  LOptions: TBoss4DAuditOptions;
+  LSummary: TBoss4DAuditSummary;
+begin
+  LDir := NewTempDirectory;
+  LLock := CreateComplianceLock(LDir);
+  LFetcher := TAuditFetcherMock.Create;
+  try
+    LFetcher.Response := '{"vulns":[]}';
+    LService := TBoss4DAuditService.Create(@LFetcher.Fetch);
+    try
+      LOptions := DefaultAuditOptions;
+      LOptions.CacheDirectory := IncludeTrailingPathDelimiter(LDir) + 'cache';
+      LSummary := LService.Execute(LLock, LOptions);
+      AssertEquals(1, LSummary.Packages);
+      AssertEquals(1, LFetcher.Calls);
+      LFetcher.Fail := True;
+      LOptions.Offline := True;
+      LSummary := LService.Execute(LLock, LOptions);
+      AssertEquals(0, LSummary.Vulnerabilities);
+      AssertEquals(1, LFetcher.Calls);
+    finally
+      LService.Free;
+    end;
+  finally
+    LFetcher.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestAuditOfflineCacheMiss;
+var
+  LDir, LLock: string;
+  LOptions: TBoss4DAuditOptions;
+  LService: TBoss4DAuditService;
+begin
+  LDir := NewTempDirectory;
+  LLock := CreateComplianceLock(LDir);
+  LOptions := DefaultAuditOptions;
+  LOptions.CacheDirectory := IncludeTrailingPathDelimiter(LDir) + 'empty-cache';
+  LOptions.Offline := True;
+  LService := TBoss4DAuditService.Create;
+  try
+    try
+      LService.Execute(LLock, LOptions);
+      Fail('Offline audit cache miss should fail');
+    except
+      on E: Exception do AssertTrue(Pos('offline audit cache miss',
+        E.Message) > 0);
+    end;
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestDirectoryDigestIsDeterministicAndExcludesGit;
+var
+  LDir, LFirst, LSecond: string;
+begin
+  LDir := NewTempDirectory;
+  ForceDirectories(IncludeTrailingPathDelimiter(LDir) + 'src');
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'src/a.pas', 'a');
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'b.pas', 'b');
+  LFirst := DirectorySha256(LDir);
+  AssertEquals(LFirst, DirectorySha256(LDir));
+  ForceDirectories(IncludeTrailingPathDelimiter(LDir) + '.git');
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + '.git/index', 'ignored');
+  AssertEquals(LFirst, DirectorySha256(LDir));
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'b.pas', 'changed');
+  LSecond := DirectorySha256(LDir);
+  AssertTrue(LFirst <> LSecond);
+end;
+
+procedure TPosixCoreTests.TestStrictSbomEvidenceAndValidation;
+var
+  LDir, LLock, LOutput, LInvalid: string;
+  LOptions: TBoss4DSbomOptions;
+begin
+  LDir := NewTempDirectory;
+  LLock := CreateComplianceLock(LDir);
+  LOutput := IncludeTrailingPathDelimiter(LDir) + 'strict.cdx.json';
+  LOptions := DefaultSbomOptions(sfCycloneDX);
+  LOptions.Reproducible := True;
+  LOptions.Strict := True;
+  LOptions.Validate := True;
+  GenerateLockSbom(LLock, LOutput, LOptions);
+  ValidateGeneratedSbom(LOutput, sfCycloneDX);
+  LInvalid := IncludeTrailingPathDelimiter(LDir) + 'invalid.json';
+  SaveFixture(LInvalid, '{"bomFormat":"CycloneDX"}');
+  try
+    ValidateGeneratedSbom(LInvalid, sfCycloneDX);
+    Fail('Invalid generated SBOM should fail validation');
+  except
+    on E: Exception do AssertTrue(Pos('CycloneDX document is invalid',
+      E.Message) > 0);
+  end;
+  SaveFixture(LLock, '{"lockVersion":3,"root":{"name":"app",' +
+    '"version":"1.0.0"},"installedModules":{"repo":{"name":"demo",' +
+    '"version":"1.0.0","repository":"repo","resolvedFrom":"git",' +
+    '"checksum":"sha256:' + StringOfChar('a', 64) +
+    '","dependencies":[]}}}');
+  try
+    GenerateLockSbom(LLock, LOutput, LOptions);
+    Fail('Strict Git dependency without revision should fail');
+  except
+    on E: Exception do AssertTrue(Pos('requires Git revision', E.Message) > 0);
+  end;
+end;
+
+procedure TPosixCoreTests.TestGitLockEvidence;
+var
+  LDir: string;
+  LEvidence: TJSONObject;
+begin
+  LDir := NewTempDirectory;
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'unit.pas', 'content');
+  LEvidence := CreateGitLockEvidence('example.test/demo', 'v1.0.0',
+    LDir, 'runtime', 'abc123');
+  try
+    AssertEquals('git', LEvidence.Get('resolvedFrom', ''));
+    AssertEquals('abc123', LEvidence.Get('revision', ''));
+    AssertEquals('modules/demo', LEvidence.Get('target', ''));
+    AssertTrue(Pos('sha256:', LEvidence.Get('checksum', '')) = 1);
+    AssertTrue(LEvidence.Find('dependencies') is TJSONArray);
+  finally
+    LEvidence.Free;
   end;
 end;
 

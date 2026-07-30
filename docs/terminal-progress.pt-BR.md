@@ -35,6 +35,7 @@ para em um limite seguro e retorna 130.
 | 3 | Pacote não encontrado |
 | 4 | Rejeição de integridade, assinatura, proveniência ou caminho inseguro |
 | 5 | Falha de rede ou cache offline |
+| 6 | Violação da política de auditoria de vulnerabilidades |
 | 130 | Cancelamento pelo usuário |
 
 Saída redirecionada sempre usa linhas completas. Eventos concorrentes não podem

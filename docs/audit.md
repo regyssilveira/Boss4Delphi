@@ -22,3 +22,8 @@ visible and subject to policy.
 The audit identifies source revisions, not Delphi package names. Findings are
 therefore only as complete as OSV's commit coverage, and an empty report must
 not be interpreted as proof that a dependency is vulnerability-free.
+
+The native Linux/FPC CLI implements the same revision-based OSV workflow,
+freshness-controlled cache, offline mode, VEX suppression, and severity policy.
+Exit code 6 identifies an audit policy violation; cache/network errors retain
+the operational exit code 5.

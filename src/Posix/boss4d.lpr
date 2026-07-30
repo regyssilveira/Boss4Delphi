@@ -4,13 +4,14 @@ program boss4d;
 
 uses
   Classes, SysUtils, Boss4D.Posix.Core, Boss4D.Posix.Registry,
-  Boss4D.Posix.Config, Boss4D.Posix.Package, Boss4D.Posix.Operations;
+  Boss4D.Posix.Config, Boss4D.Posix.Package, Boss4D.Posix.Operations,
+  Boss4D.Posix.Compliance, Boss4D.Posix.Audit;
 
 procedure Help;
 begin
   WriteLn('Boss4D portable CLI');
   WriteLn('Commands: version, platform, init, install, ci, add, remove, list,');
-  WriteLn('          search, info, registry, package, doctor');
+  WriteLn('          search, info, registry, package, doctor, sbom, audit');
   WriteLn('Install options: --locked --frozen-lockfile --offline --production');
   WriteLn('                 --resolution=highest|minimal');
   WriteLn('                 --progress plain|interactive --json --quiet');
@@ -18,6 +19,10 @@ begin
   WriteLn('Registry options: --registry=<index-v1-or-v2-path-or-url>');
   WriteLn('Package: boss4d package install <name> [--platform <name>]');
   WriteLn('         [--compiler <version>] [--no-source-fallback]');
+  WriteLn('SBOM: boss4d sbom --format cyclonedx|spdx --lock-only');
+  WriteLn('      [--output <file>] [--reproducible] [--vex <file>]');
+  WriteLn('Audit: boss4d audit [--fail-on low|medium|high|critical]');
+  WriteLn('       [--offline] [--cache-hours <hours>] [--vex <file>]');
 end;
 
 function OptionValue(const APrefix, ADefault: string): string;
@@ -65,6 +70,13 @@ var
   LOperationId: string;
   LDoctorResults: TStringList;
   LDoctorOk: Boolean;
+  LSbomFormat: TBoss4DSbomFormat;
+  LSbomOptions: TBoss4DSbomOptions;
+  LSbomFormatName, LSbomOutput, LVexPath: string;
+  LAuditOptions: TBoss4DAuditOptions;
+  LAuditService: TBoss4DAuditService;
+  LAuditSummary: TBoss4DAuditSummary;
+  LCacheHoursText: string;
   LFoundFlag: Boolean;
   I: Integer;
 begin
@@ -382,6 +394,60 @@ begin
       end;
       if not LDoctorOk then
         raise Exception.Create('doctor found required tools missing');
+    end
+    else if LCommand = 'sbom' then
+    begin
+      LSbomFormatName := LowerCase(OptionValue('--format',
+        OptionValue('--type', 'cyclonedx')));
+      if LSbomFormatName = 'cyclonedx' then
+      begin
+        LSbomFormat := sfCycloneDX;
+        LSbomOutput := OptionValue('--output', 'sbom.cdx.json');
+      end
+      else if LSbomFormatName = 'spdx' then
+      begin
+        LSbomFormat := sfSpdx;
+        LSbomOutput := OptionValue('--output', 'sbom.spdx.json');
+      end
+      else
+        raise Exception.Create('usage: --format must be cyclonedx or spdx');
+      LVexPath := OptionValue('--vex', '');
+      LSbomOptions := DefaultSbomOptions(LSbomFormat);
+      LSbomOptions.VexPath := LVexPath;
+      LSbomOptions.Reproducible := HasOption('--reproducible');
+      LSbomOptions.Strict := HasOption('--strict');
+      LSbomOptions.Validate := HasOption('--validate');
+      GenerateLockSbom(IncludeTrailingPathDelimiter(GetCurrentDir) +
+        'boss-lock.json', LSbomOutput, LSbomOptions);
+      WriteLn('SBOM generated: ' + ExpandFileName(LSbomOutput));
+    end
+    else if LCommand = 'audit' then
+    begin
+      LAuditOptions := DefaultAuditOptions;
+      LAuditOptions.Offline := HasOption('--offline');
+      LAuditOptions.FailOn := LowerCase(OptionValue('--fail-on', 'high'));
+      LAuditOptions.VexPath := OptionValue('--vex', '');
+      LCacheHoursText := OptionValue('--cache-hours', '24');
+      if not TryStrToInt(LCacheHoursText, LAuditOptions.CacheHours) or
+         (LAuditOptions.CacheHours < 0) then
+        raise Exception.Create('usage: --cache-hours requires a non-negative integer');
+      LAuditService := TBoss4DAuditService.Create;
+      try
+        LAuditSummary := LAuditService.Execute(
+          IncludeTrailingPathDelimiter(GetCurrentDir) + 'boss-lock.json',
+          LAuditOptions);
+        for I := 0 to LAuditService.Findings.Count - 1 do
+          WriteLn(LAuditService.Findings[I]);
+      finally
+        LAuditService.Free;
+      end;
+      WriteLn('audited packages: ' + IntToStr(LAuditSummary.Packages));
+      WriteLn('vulnerabilities: ' +
+        IntToStr(LAuditSummary.Vulnerabilities));
+      WriteLn('suppressed: ' + IntToStr(LAuditSummary.Suppressed));
+      if LAuditSummary.PolicyViolations > 0 then
+        raise Exception.Create('audit policy violation: ' +
+          IntToStr(LAuditSummary.PolicyViolations));
     end
     else if (LCommand = 'help') or (LCommand = '--help') then
       Help
