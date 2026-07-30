@@ -32,6 +32,474 @@
       "license": "MIT",
       "artifact": "",
       "sha256": ""
+    },
+    {
+      "name": "Dext",
+      "repository": "github.com/regyssilveira/dext",
+      "description": "Modern full-stack framework for Delphi",
+      "version": "",
+      "license": "Apache-2.0",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-provider-crosssocket",
+      "repository": "github.com/freitasjca/horse-provider-crosssocket",
+      "description": "CrossSocket transport provider for Horse",
+      "version": "",
+      "license": "",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-provider-ics",
+      "repository": "github.com/freitasjca/horse-provider-ics",
+      "description": "OverbyteICS transport provider for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-provider-mormot",
+      "repository": "github.com/freitasjca/horse-provider-mormot",
+      "description": "mORMot transport provider for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "jhonson",
+      "repository": "github.com/HashLoad/jhonson",
+      "description": "Official JSON parser middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-basic-auth",
+      "repository": "github.com/HashLoad/horse-basic-auth",
+      "description": "Official Basic Authentication middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-cors",
+      "repository": "github.com/HashLoad/horse-cors",
+      "description": "Official CORS middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-octet-stream",
+      "repository": "github.com/HashLoad/horse-octet-stream",
+      "description": "Official octet-stream middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-jwt",
+      "repository": "github.com/HashLoad/horse-jwt",
+      "description": "Official JWT middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "handle-exception",
+      "repository": "github.com/HashLoad/handle-exception",
+      "description": "Official exception handling middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-logger",
+      "repository": "github.com/HashLoad/horse-logger",
+      "description": "Official access logging middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-compression",
+      "repository": "github.com/HashLoad/horse-compression",
+      "description": "Official compression middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "Horse-ETag",
+      "repository": "github.com/academiadocodigo/Horse-ETag",
+      "description": "ETag middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "Horse-Paginate",
+      "repository": "github.com/academiadocodigo/Horse-Paginate",
+      "description": "JSON pagination middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-cachecontrol",
+      "repository": "github.com/academiadocodigo/horse-cachecontrol",
+      "description": "Cache-Control middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "gbswagger",
+      "repository": "github.com/gabrielbaltazar/gbswagger",
+      "description": "Swagger integration for Horse",
+      "version": "",
+      "license": "",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "Horse-SocketIO",
+      "repository": "github.com/WillHubner/Horse-SocketIO",
+      "description": "Socket.IO middleware for Horse",
+      "version": "",
+      "license": "",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-ratelimit",
+      "repository": "github.com/dliocode/horse-ratelimit",
+      "description": "Rate limiting middleware for Horse",
+      "version": "",
+      "license": "",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-slowdown",
+      "repository": "github.com/dliocode/horse-slowdown",
+      "description": "Request slowdown middleware for Horse",
+      "version": "",
+      "license": "",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-upload",
+      "repository": "github.com/giorgiobazzo/horse-upload",
+      "description": "File upload middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-query",
+      "repository": "github.com/dliocode/horse-query",
+      "description": "Dataset query and JSON middleware for Horse",
+      "version": "",
+      "license": "",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-healthcheck",
+      "repository": "github.com/CarlosHe/horse-healthcheck",
+      "description": "Health check middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-staticfiles",
+      "repository": "github.com/CarlosHe/horse-staticfiles",
+      "description": "Static files middleware for Horse",
+      "version": "",
+      "license": "",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-server-static",
+      "repository": "github.com/cachopaweb/horse-server-static",
+      "description": "Static content server middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-exception-logger",
+      "repository": "github.com/arvanus/horse-exception-logger",
+      "description": "Exception logging middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "Horse-CSResponsePagination",
+      "repository": "github.com/organizacao-gpt/Horse-CSResponsePagination",
+      "description": "Response pagination middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "Horse-XSuperObjects",
+      "repository": "github.com/organizacao-gpt/Horse-XSuperObjects",
+      "description": "JSON object utilities for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-bearer-auth",
+      "repository": "github.com/andre-djsystem/horse-bearer-auth",
+      "description": "Bearer authentication middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-manipulate-request",
+      "repository": "github.com/andre-djsystem/horse-manipulate-request",
+      "description": "Request manipulation middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-manipulate-response",
+      "repository": "github.com/andre-djsystem/horse-manipulate-response",
+      "description": "Response manipulation middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "Horse-IPGeoLocation",
+      "repository": "github.com/antoniojmsjr/Horse-IPGeoLocation",
+      "description": "IP geolocation middleware for Horse",
+      "version": "",
+      "license": "Apache-2.0",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "Horse-XMLDoc",
+      "repository": "github.com/antoniojmsjr/Horse-XMLDoc",
+      "description": "XML document middleware for Horse",
+      "version": "",
+      "license": "Apache-2.0",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "jsonbr",
+      "repository": "github.com/HashLoad/jsonbr",
+      "description": "JSONBr integration used by Horse middleware",
+      "version": "",
+      "license": "",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "Horse-JsonInterceptor",
+      "repository": "github.com/IagooCesaar/Horse-JsonInterceptor",
+      "description": "JSON serialization interceptor for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-datalogger",
+      "repository": "github.com/dliocode/horse-datalogger",
+      "description": "HTTP request data logger middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-documentation",
+      "repository": "github.com/weslleycapelari/horse-documentation",
+      "description": "OpenAPI documentation middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-validator",
+      "repository": "github.com/weslleycapelari/horse-validator",
+      "description": "Request validation middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-rate-limit",
+      "repository": "github.com/regyssilveira/horse-rate-limit",
+      "description": "Rate limiting middleware for Horse with memory and Redis stores",
+      "version": "",
+      "license": "Apache-2.0",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-compression-v2",
+      "repository": "github.com/regyssilveira/horse-compression-v2",
+      "description": "Gzip, Deflate and Brotli compression middleware for Horse",
+      "version": "",
+      "license": "Apache-2.0",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-static",
+      "repository": "github.com/regyssilveira/horse-static",
+      "description": "Static files and streaming middleware for Horse",
+      "version": "",
+      "license": "Apache-2.0",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-dto",
+      "repository": "github.com/regyssilveira/horse-dto",
+      "description": "DTO binding and declarative validation middleware for Horse",
+      "version": "",
+      "license": "Apache-2.0",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-rbac",
+      "repository": "github.com/regyssilveira/horse-rbac",
+      "description": "Role and scope based access control middleware for Horse",
+      "version": "",
+      "license": "Apache-2.0",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-schema-validation",
+      "repository": "github.com/regyssilveira/horse-schema-validation",
+      "description": "JSON Schema validation middleware for Horse",
+      "version": "",
+      "license": "Apache-2.0",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-multipart",
+      "repository": "github.com/regyssilveira/horse-multipart",
+      "description": "Multipart form-data and file upload middleware for Horse",
+      "version": "",
+      "license": "Apache-2.0",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-helmet",
+      "repository": "github.com/regyssilveira/horse-helmet",
+      "description": "HTTP security headers middleware for Horse",
+      "version": "",
+      "license": "Apache-2.0",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-ssl-redirect",
+      "repository": "github.com/regyssilveira/horse-ssl-redirect",
+      "description": "HTTP to HTTPS redirect middleware for Horse",
+      "version": "",
+      "license": "Apache-2.0",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-crud",
+      "repository": "github.com/regyssilveira/horse-crud",
+      "description": "Automatic CRUD routes middleware for Horse",
+      "version": "",
+      "license": "Apache-2.0",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-request-id",
+      "repository": "github.com/regyssilveira/horse-request-id",
+      "description": "Request and correlation ID middleware for Horse",
+      "version": "",
+      "license": "Apache-2.0",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-sanitize",
+      "repository": "github.com/regyssilveira/horse-sanitize",
+      "description": "Input sanitization middleware for Horse",
+      "version": "",
+      "license": "Apache-2.0",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-prometheus-metrics",
+      "repository": "github.com/marcobreveglieri/horse-prometheus-metrics",
+      "description": "Prometheus metrics middleware for Horse",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-opentelemetry",
+      "repository": "github.com/regyssilveira/horse-opentelemetry",
+      "description": "OpenTelemetry tracing and metrics middleware for Horse",
+      "version": "",
+      "license": "Apache-2.0",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "horse-prometheus",
+      "repository": "github.com/regyssilveira/horse-prometheus",
+      "description": "Prometheus metrics middleware for Horse and Lazarus",
+      "version": "",
+      "license": "Apache-2.0",
+      "artifact": "",
+      "sha256": ""
     }
   ]
 }
