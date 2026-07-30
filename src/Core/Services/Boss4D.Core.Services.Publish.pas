@@ -37,8 +37,10 @@ implementation
 
 uses
   System.IOUtils, System.JSON, System.Generics.Collections,
+  System.NetEncoding,
   Boss4D.Core.Domain.Package, Boss4D.Core.Domain.Lock,
-  Boss4D.Core.Domain.Dependency, Boss4D.Core.Domain.Env;
+  Boss4D.Core.Domain.Dependency, Boss4D.Core.Domain.Env,
+  Boss4D.Core.Services.Pack;
 
 constructor TBoss4DPublishService.Create(
   const APackageRepo: IBoss4DPackageRepository;
@@ -106,6 +108,9 @@ var
   LPackage: TBoss4DPackage;
   LLock: TBoss4DLock;
   LRoot, LDependencies: TJSONObject;
+  LPackService: TBoss4DPackService;
+  LPackResult: TBoss4DPackResult;
+  LPackPath: string;
 begin
   LPackage := FPackageRepo.Load(APackagePath);
   LLock := FLockRepo.Load(ALockPath);
@@ -118,6 +123,24 @@ begin
     LRoot.AddPair('license', LPackage.License);
     LRoot.AddPair('homepage', LPackage.Homepage);
     LRoot.AddPair('lockVersion', TJSONNumber.Create(LLock.LockVersion));
+    LPackPath := TPath.Combine(TPath.GetTempPath,
+      TPath.GetRandomFileName + '.b4dpkg');
+    LPackService := TBoss4DPackService.Create;
+    try
+      LPackResult := LPackService.Execute(
+        TPath.GetDirectoryName(TPath.GetFullPath(APackagePath)), LPackPath);
+      var LArtifact := TJSONObject.Create;
+      LArtifact.AddPair('format', 'boss4d-package-v1');
+      LArtifact.AddPair('sha256', LPackResult.Digest);
+      LArtifact.AddPair('content',
+        TNetEncoding.Base64.EncodeBytesToString(
+          TFile.ReadAllBytes(LPackResult.OutputPath)));
+      LRoot.AddPair('artifact', LArtifact);
+    finally
+      LPackService.Free;
+      if TFile.Exists(LPackPath) then
+        TFile.Delete(LPackPath);
+    end;
     LDependencies := TJSONObject.Create;
     var LKeys := TList<string>.Create;
     try

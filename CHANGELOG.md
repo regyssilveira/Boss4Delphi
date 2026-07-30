@@ -12,6 +12,9 @@
 - Bilingual terminal-progress usage and event-schema documentation.
 - Secure `self-update` using the official installer and published SHA-256
   manifest, with tamper rejection and unit coverage.
+- Deterministic `boss4d pack` artifacts with per-file and package SHA-256
+  evidence, embedded into versioned registry publication payloads.
+- Versioned public registry index schema with immutable artifact metadata.
 
 ## 1.4.0 - 2026-07-30
 

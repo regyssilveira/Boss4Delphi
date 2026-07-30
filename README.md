@@ -139,6 +139,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Platform Portability](docs/platform-portability.md)**: Portable process, environment, and workspace-link contracts plus the POSIX roadmap.
 * **[Terminal Progress](docs/terminal-progress.md)**: Interactive, plain, JSON Lines, and quiet progress output for installs and CI.
 * **[Secure Self-update](docs/self-update.md)**: Release discovery, SHA-256 verification, staging, and installer handoff.
+* **[Immutable Package Format](docs/package-format.md)**: Deterministic `.b4dpkg` artifacts and digest-bound publication.
 * **[CLI Usage Manual](docs/usage.md)**: Detailed step-by-step guide covering all command options and dependency configurations.
 * **[Contribution Guide](CONTRIBUTING.md)**: Coding standards and guidelines for contribution.
 * **[Release Guide](RELEASE_GUIDE.md)**: Steps and instructions to compile with Delphi 13 (37.0) and publish releases on GitHub.

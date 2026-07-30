@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "registry": {
+    "name": "Boss4D Public Registry",
+    "protocol": "boss4d-registry",
+    "url": "https://github.com/regyssilveira/Boss4Delphi/tree/main/registry"
+  },
+  "packages": [
+    {
+      "name": "Horse",
+      "repository": "github.com/hashload/horse",
+      "description": "Fast and minimalist web framework for Delphi",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "RESTRequest4Delphi",
+      "repository": "github.com/viniciussanchez/RESTRequest4Delphi",
+      "description": "REST client helpers for Delphi",
+      "version": "",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    },
+    {
+      "name": "Boss4Delphi",
+      "repository": "github.com/regyssilveira/Boss4Delphi",
+      "description": "Native dependency management for Delphi and Lazarus",
+      "version": "1.4.0",
+      "license": "MIT",
+      "artifact": "",
+      "sha256": ""
+    }
+  ]
+}
