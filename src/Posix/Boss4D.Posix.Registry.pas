@@ -16,6 +16,7 @@ type
     FArtifactDigest: string;
     FSignatureUrl: string;
     FProvenanceUrl: string;
+    FArtifactMirrors: string;
   public
     property Platform: string read FPlatform write FPlatform;
     property Compiler: string read FCompiler write FCompiler;
@@ -23,6 +24,8 @@ type
     property ArtifactDigest: string read FArtifactDigest write FArtifactDigest;
     property SignatureUrl: string read FSignatureUrl write FSignatureUrl;
     property ProvenanceUrl: string read FProvenanceUrl write FProvenanceUrl;
+    property ArtifactMirrors: string read FArtifactMirrors
+      write FArtifactMirrors;
   end;
 
   TBoss4DRegistryFetcher = function(const ASource: string): string of object;
@@ -48,6 +51,7 @@ type
     FArtifactDigest: string;
     FSignatureUrl: string;
     FProvenanceUrl: string;
+    FArtifactMirrors: string;
     FSource: string;
     FRevoked: Boolean;
     FRevocationReason: string;
@@ -66,6 +70,8 @@ type
     property ArtifactDigest: string read FArtifactDigest write FArtifactDigest;
     property SignatureUrl: string read FSignatureUrl write FSignatureUrl;
     property ProvenanceUrl: string read FProvenanceUrl write FProvenanceUrl;
+    property ArtifactMirrors: string read FArtifactMirrors
+      write FArtifactMirrors;
     property Source: string read FSource write FSource;
     property Revoked: Boolean read FRevoked write FRevoked;
     property RevocationReason: string read FRevocationReason
@@ -104,6 +110,8 @@ type
 
 function PublicRegistryUrl: string;
 function ResolveRegistryReference(const ASource, AReference: string): string;
+function ResolveRegistryReferences(const ASource,
+  AReferences: string): string;
 
 implementation
 
@@ -321,10 +329,43 @@ begin
   if LData is TJSONArray then Result := TJSONArray(LData);
 end;
 
+function ArrayAsLines(const AObject: TJSONObject; const AName: string): string;
+var
+  LArray: TJSONArray;
+  I: Integer;
+begin
+  Result := '';
+  LArray := FindArray(AObject, AName);
+  if not Assigned(LArray) then Exit;
+  for I := 0 to LArray.Count - 1 do
+    if LArray.Items[I].JSONType = jtString then
+      Result := Result + LArray.Strings[I] + LineEnding;
+end;
+
 function ResolveRegistryReference(const ASource, AReference: string): string;
 begin
   if AReference = '' then Exit('');
   Result := ResolveReference(ASource, AReference);
+end;
+
+function ResolveRegistryReferences(const ASource,
+  AReferences: string): string;
+var
+  LInput, LOutput: TStringList;
+  I: Integer;
+begin
+  LInput := TStringList.Create;
+  LOutput := TStringList.Create;
+  try
+    LInput.Text := AReferences;
+    for I := 0 to LInput.Count - 1 do
+      if Trim(LInput[I]) <> '' then
+        LOutput.Add(ResolveRegistryReference(ASource, Trim(LInput[I])));
+    Result := LOutput.Text;
+  finally
+    LOutput.Free;
+    LInput.Free;
+  end;
 end;
 
 constructor TBoss4DRegistryEntry.Create;
@@ -416,6 +457,7 @@ begin
     LCopy.ArtifactDigest := LEntry.ArtifactDigest;
     LCopy.SignatureUrl := LEntry.SignatureUrl;
     LCopy.ProvenanceUrl := LEntry.ProvenanceUrl;
+    LCopy.ArtifactMirrors := LEntry.ArtifactMirrors;
     LCopy.Source := LEntry.Source;
     LCopy.Revoked := LEntry.Revoked;
     LCopy.RevocationReason := LEntry.RevocationReason;
@@ -429,6 +471,7 @@ begin
       LVariantCopy.ArtifactDigest := LVariant.ArtifactDigest;
       LVariantCopy.SignatureUrl := LVariant.SignatureUrl;
       LVariantCopy.ProvenanceUrl := LVariant.ProvenanceUrl;
+      LVariantCopy.ArtifactMirrors := LVariant.ArtifactMirrors;
       LCopy.Variants.Add(LVariantCopy);
     end;
     Result.Add(LCopy);
@@ -439,13 +482,16 @@ procedure TBoss4DRegistryService.LoadInternal(const ASource: string;
   const AEntries: TBoss4DRegistryEntries; const AVisited: TStringList);
 var
   LData: TJSONData;
-  LRoot, LObject, LLatest, LVariantOwner, LVariantObject: TJSONObject;
-  LIncludes, LSparse, LPackages, LVersions, LVariants, LRevocations: TJSONArray;
+  LRoot, LObject, LLatest, LVariantOwner, LVariantObject,
+    LSparseObject: TJSONObject;
+  LIncludes, LSparse, LSparseMirrors, LPackages, LVersions, LVariants,
+    LRevocations: TJSONArray;
   LEntry: TBoss4DRegistryEntry;
   LVariant: TBoss4DArtifactVariant;
   I, J, K: Integer;
   LKey: string;
   LRevocation: TJSONObject;
+  LLoaded: Boolean;
 begin
   CheckCancelled;
   LKey := LowerCase(ASource);
@@ -466,8 +512,39 @@ begin
     LSparse := FindArray(LRoot, 'sparse');
     if Assigned(LSparse) then
       for I := 0 to LSparse.Count - 1 do
-        LoadInternal(ResolveReference(ASource, LSparse.Strings[I]),
-          AEntries, AVisited);
+        if LSparse.Items[I].JSONType = jtString then
+          LoadInternal(ResolveReference(ASource, LSparse.Strings[I]),
+            AEntries, AVisited)
+        else if LSparse.Items[I] is TJSONObject then
+        begin
+          LSparseObject := TJSONObject(LSparse.Items[I]);
+          LLoaded := False;
+          try
+            LoadInternal(ResolveReference(ASource,
+              LSparseObject.Get('path', '')), AEntries, AVisited);
+            LLoaded := True;
+          except
+            on E: Exception do
+              if SameText(E.Message, 'operation cancelled') then raise;
+          end;
+          LSparseMirrors := FindArray(LSparseObject, 'mirrors');
+          if Assigned(LSparseMirrors) then
+            for J := 0 to LSparseMirrors.Count - 1 do
+            begin
+              if LLoaded then Break;
+              try
+                LoadInternal(ResolveReference(ASource,
+                  LSparseMirrors.Strings[J]), AEntries, AVisited);
+                LLoaded := True;
+              except
+                on E: Exception do
+                  if SameText(E.Message, 'operation cancelled') then raise;
+              end;
+            end;
+          if not LLoaded then
+            raise Exception.Create('all sparse metadata sources failed: ' +
+              LSparseObject.Get('path', ''));
+        end;
     LPackages := FindArray(LRoot, 'packages');
     if not Assigned(LPackages) then Exit;
     for I := 0 to LPackages.Count - 1 do
@@ -484,6 +561,7 @@ begin
         LEntry.ArtifactDigest := LObject.Get('sha256', '');
         LEntry.SignatureUrl := LObject.Get('signature', '');
         LEntry.ProvenanceUrl := LObject.Get('provenance', '');
+        LEntry.ArtifactMirrors := ArrayAsLines(LObject, 'mirrors');
         LVariantOwner := LObject;
         LVersions := FindArray(LObject, 'versions');
         if Assigned(LVersions) and (LVersions.Count > 0) then
@@ -514,6 +592,7 @@ begin
             LEntry.SignatureUrl);
           LEntry.ProvenanceUrl := LLatest.Get('provenance',
             LEntry.ProvenanceUrl);
+          LEntry.ArtifactMirrors := ArrayAsLines(LLatest, 'mirrors');
         end;
         LVariants := FindArray(LVariantOwner, 'variants');
         if Assigned(LVariants) then
@@ -528,6 +607,8 @@ begin
               LVariant.ArtifactDigest := LVariantObject.Get('sha256', '');
               LVariant.SignatureUrl := LVariantObject.Get('signature', '');
               LVariant.ProvenanceUrl := LVariantObject.Get('provenance', '');
+              LVariant.ArtifactMirrors := ArrayAsLines(LVariantObject,
+                'mirrors');
               if (LVariant.ArtifactUrl <> '') and
                  (LVariant.ArtifactDigest <> '') then
                 LEntry.Variants.Add(LVariant)

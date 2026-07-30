@@ -70,7 +70,13 @@ segue o contrato normal de `packages`:
 ```json
 {
   "schemaVersion": 2,
-  "sparse": ["packages/horse.json", "packages/dext.json"],
+  "sparse": [
+    "packages/horse.json",
+    {
+      "path": "packages/dext.json",
+      "mirrors": ["https://mirror.example/packages/dext.json"]
+    }
+  ],
   "revocations": [{
     "name": "InternalLib",
     "version": "2.4.0",
@@ -85,6 +91,12 @@ resolução escolhe a primeira versão não revogada. Uma revogação no índice
 prevalece sobre metadados incluídos ou esparsos, e a instalação recusa a versão
 selecionada quando revogada. O histórico permanece disponível para preservar
 as evidências de lockfiles e auditorias.
+
+Objetos de metadados esparsos tentam primeiro `path` e depois cada item de
+`mirrors` na ordem declarada. Versões e variantes de plataforma/compilador
+também podem declarar `mirrors` com URLs alternativas do artefato. Todo
+candidato precisa corresponder ao mesmo SHA-256 imutável; um mirror acessível,
+mas alterado, é rejeitado e a resolução continua na próxima origem.
 
 As variantes de artefato são opcionais e não alteram o `boss.json`. Para
 selecioná-las:

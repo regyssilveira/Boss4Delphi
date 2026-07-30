@@ -353,6 +353,7 @@ begin
               LFound.ArtifactDigest := LVariant.ArtifactDigest;
               LFound.SignatureUrl := LVariant.SignatureUrl;
               LFound.ProvenanceUrl := LVariant.ProvenanceUrl;
+              LFound.ArtifactMirrors := LVariant.ArtifactMirrors;
             end
             else if LFound.Variants.Count > 0 then
             begin
@@ -364,6 +365,8 @@ begin
             begin
               LPackageRequest.ArtifactUrl := ResolveRegistryReference(
                 LFound.Source, LFound.ArtifactUrl);
+              LPackageRequest.ArtifactMirrors := ResolveRegistryReferences(
+                LFound.Source, LFound.ArtifactMirrors);
               LPackageRequest.Sha256 := LFound.ArtifactDigest;
               LPackageRequest.SignatureUrl := ResolveRegistryReference(
                 LFound.Source, LFound.SignatureUrl);

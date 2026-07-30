@@ -69,7 +69,13 @@ entry point lists those documents in `sparse`; each uses the normal schema-v2
 ```json
 {
   "schemaVersion": 2,
-  "sparse": ["packages/horse.json", "packages/dext.json"],
+  "sparse": [
+    "packages/horse.json",
+    {
+      "path": "packages/dext.json",
+      "mirrors": ["https://mirror.example/packages/dext.json"]
+    }
+  ],
   "revocations": [{
     "name": "InternalLib",
     "version": "2.4.0",
@@ -84,6 +90,12 @@ selects the first non-revoked version. A root-level revocation overrides
 included or sparse metadata, and installation refuses a revoked selected
 version. Historical metadata remains available to preserve lockfile and audit
 evidence.
+
+Sparse metadata objects try `path` first and then each `mirrors` entry in the
+declared order. Package versions and platform/compiler variants can likewise
+declare an ordered `mirrors` array containing alternate artifact URLs. Every
+candidate must match the same immutable SHA-256; a reachable but altered mirror
+is rejected and resolution continues to the next source.
 
 Artifact variants are optional and do not change `boss.json`. Select them with:
 

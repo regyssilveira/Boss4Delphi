@@ -13,6 +13,7 @@ type
 
   TBoss4DPackageRequest = record
     ArtifactUrl: string;
+    ArtifactMirrors: string;
     Sha256: string;
     SignatureUrl: string;
     ProvenanceUrl: string;
@@ -212,7 +213,8 @@ var
   LDecoded: RawByteString;
   LStream, LJsonStream: TFileStream;
   I: Integer;
-  LTarget: string;
+  LTarget, LCandidate, LLastError: string;
+  LCandidates: TStringList;
 begin
   Result.Installed := False;
   Result.FileCount := 0;
@@ -232,11 +234,34 @@ begin
   DeleteDirectoryTree(LStage);
   DeleteDirectoryTree(LBackup);
   try
-    CheckCancelled;
-    Download(ARequest.ArtifactUrl, LArtifact);
-    Result.Digest := Sha256File(LArtifact);
-    if not SameText(Result.Digest, ARequest.Sha256) then
-      raise Exception.Create('artifact SHA-256 mismatch');
+    LCandidates := TStringList.Create;
+    try
+      LCandidates.Add(ARequest.ArtifactUrl);
+      LCandidates.Text := LCandidates.Text + ARequest.ArtifactMirrors;
+      LLastError := '';
+      for I := 0 to LCandidates.Count - 1 do
+      begin
+        LCandidate := Trim(LCandidates[I]);
+        if LCandidate = '' then Continue;
+        CheckCancelled;
+        try
+          Download(LCandidate, LArtifact);
+          Result.Digest := Sha256File(LArtifact);
+          if not SameText(Result.Digest, ARequest.Sha256) then
+            raise Exception.Create('artifact SHA-256 mismatch');
+          LLastError := '';
+          Break;
+        except
+          on E: Exception do LLastError := E.Message;
+        end;
+      end;
+      if LLastError <> '' then
+        raise Exception.Create('all artifact sources failed: ' + LLastError);
+      if Result.Digest = '' then
+        raise Exception.Create('all artifact sources failed');
+    finally
+      LCandidates.Free;
+    end;
     if ARequest.SignatureUrl <> '' then
     begin
       CheckCancelled;

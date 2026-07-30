@@ -122,6 +122,7 @@ type
     procedure TestRegistrySelectsArtifactVariant;
     procedure TestRegistrySparseMetadataAndRevocation;
     procedure TestVerifiedPackageInstall;
+    procedure TestPackageUsesVerifiedArtifactMirror;
     procedure TestPackageRejectsArtifactDigestMismatch;
     procedure TestPackageRejectsFileDigestMismatch;
     procedure TestPackageRejectsUnsafePath;
@@ -434,6 +435,7 @@ procedure InitPackageRequest(var ARequest: TBoss4DPackageRequest;
   const AArtifact, ATarget: string);
 begin
   ARequest.ArtifactUrl := AArtifact;
+  ARequest.ArtifactMirrors := '';
   ARequest.Sha256 := Sha256File(AArtifact);
   ARequest.SignatureUrl := '';
   ARequest.ProvenanceUrl := '';
@@ -732,6 +734,35 @@ begin
   end;
 end;
 
+procedure TPosixCoreTests.TestPackageUsesVerifiedArtifactMirror;
+var
+  LDir, LContent, LPrimary, LMirror, LTarget: string;
+  LRequest: TBoss4DPackageRequest;
+  LResult: TBoss4DPackageResult;
+  LService: TBoss4DPackageService;
+begin
+  LDir := NewTempDirectory;
+  LContent := IncludeTrailingPathDelimiter(LDir) + 'content.tmp';
+  SaveFixture(LContent, 'unit verified;');
+  LMirror := CreatePackageFixture(LDir, 'src/mirror.pas',
+    Sha256File(LContent));
+  LPrimary := IncludeTrailingPathDelimiter(LDir) + 'corrupt.b4dpkg';
+  SaveFixture(LPrimary, 'corrupt');
+  LTarget := IncludeTrailingPathDelimiter(LDir) + 'modules/mirror';
+  InitPackageRequest(LRequest, LMirror, LTarget);
+  LRequest.ArtifactUrl := LPrimary;
+  LRequest.ArtifactMirrors := LMirror + LineEnding;
+  LService := TBoss4DPackageService.Create;
+  try
+    LResult := LService.Install(LRequest);
+    AssertTrue(LResult.Installed);
+    AssertTrue(FileExists(IncludeTrailingPathDelimiter(LTarget) +
+      'src/mirror.pas'));
+  finally
+    LService.Free;
+  end;
+end;
+
 procedure TPosixCoreTests.TestRegistrySparseMetadataAndRevocation;
 var
   LDir, LRoot, LPackage: string;
@@ -746,7 +777,8 @@ begin
     '"repository":"github.com/hashload/horse","versions":[' +
     '{"version":"3.2.0","revoked":true,"revocationReason":"compromised"},' +
     '{"version":"3.1.0","artifact":"horse.b4dpkg","sha256":"abc"}]}]}');
-  SaveFixture(LRoot, '{"schemaVersion":2,"sparse":["horse.json"],' +
+  SaveFixture(LRoot, '{"schemaVersion":2,"sparse":[{"path":"missing.json",' +
+    '"mirrors":["horse.json"]}],' +
     '"revocations":[{"name":"Horse","version":"3.1.0",' +
     '"reason":"publisher request"}],"packages":[]}');
   LService := TBoss4DRegistryService.Create;
