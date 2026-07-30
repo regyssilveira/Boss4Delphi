@@ -22,6 +22,37 @@ verifies it before reporting success.
 publication payloads, allowing a registry to store content by digest rather
 than mutable repository state.
 
+## Verified installation
+
+A registry v2 release may publish the artifact evidence together:
+
+```json
+{
+  "version": "1.0.0",
+  "artifact": "https://packages.example/my-library-1.0.0.b4dpkg",
+  "sha256": "...",
+  "signature": "https://packages.example/my-library-1.0.0.b4dpkg.asc",
+  "provenance": "https://packages.example/my-library-1.0.0.b4dpkg.intoto.json"
+}
+```
+
+Install an indexed package with:
+
+```text
+boss4d package install my-library
+boss4d package install my-library --no-source-fallback
+```
+
+Boss4D downloads into an isolated staging area, checks the package SHA-256,
+validates every embedded path and file digest, verifies a declared OpenPGP
+signature and in-toto subject digest, and only then replaces the module
+directory. A failed verification leaves the previous target unchanged.
+
+By default, an unavailable or rejected artifact falls back to the indexed Git
+repository. `--no-source-fallback` makes the immutable artifact mandatory.
+Signature and provenance are mandatory whenever their URLs are declared by the
+registry.
+
 The format favors auditability and deterministic behavior. Future schema
 versions may introduce compression, but consumers must reject unknown versions
 instead of guessing their semantics.

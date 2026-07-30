@@ -33,7 +33,9 @@ package families in separate files or repositories:
     "versions": [{
       "version": "2.4.0",
       "artifact": "https://packages.example.com/InternalLib-2.4.0.b4dpkg",
-      "sha256": "..."
+      "sha256": "...",
+      "signature": "https://packages.example.com/InternalLib-2.4.0.b4dpkg.asc",
+      "provenance": "https://packages.example.com/InternalLib-2.4.0.b4dpkg.intoto.json"
     }]
   }]
 }
