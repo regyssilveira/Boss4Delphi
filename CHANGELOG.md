@@ -19,6 +19,10 @@
   the full Delphi 11/12/13 wizard builds.
 - Native FPC 3.2.2 Linux CLI host with FPCUnit coverage for platform detection,
   manifest initialization, dependency naming, and Git installation arguments.
+- Explicit highest/minimal compatible SemVer resolution with deterministic,
+  input-order-independent selection.
+- Windows Credential Manager storage for GitHub/GitLab tokens; secrets are no
+  longer serialized to `boss.cfg.json`.
 
 ## 1.4.0 - 2026-07-30
 

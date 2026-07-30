@@ -108,7 +108,8 @@ uses
   Boss4D.Core.Services.DependencySubmission,
   Boss4D.Core.Services.Publish,
   Boss4D.Core.Services.SelfUpdate,
-  Boss4D.Core.Services.Pack;
+  Boss4D.Core.Services.Pack,
+  Boss4D.Core.Services.Resolver;
 
 { TBoss4DCommandLineParser }
 
@@ -741,6 +742,18 @@ begin
     begin
       LOptions.Production := True;
       Inc(I);
+    end
+    else if SameText(AArgs[I], '--resolution') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create('Informe highest ou minimal.');
+      if SameText(AArgs[I + 1], 'minimal') then
+        LOptions.ResolutionStrategy := MinimalCompatible
+      else if SameText(AArgs[I + 1], 'highest') then
+        LOptions.ResolutionStrategy := HighestCompatible
+      else
+        raise EArgumentException.Create('Estrategia de resolucao invalida.');
+      Inc(I, 2);
     end
     else if SameText(AArgs[I], '--json') then
     begin

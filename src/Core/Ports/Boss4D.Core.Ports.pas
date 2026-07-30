@@ -126,6 +126,13 @@ type
     procedure LaunchVerifiedInstaller(const AInstallerPath: string);
   end;
 
+  IBoss4DCredentialStore = interface
+    ['{69527D56-F14E-43D4-A746-2D7227D60013}']
+    procedure SetSecret(const AName, AValue: string);
+    function GetSecret(const AName: string): string;
+    procedure DeleteSecret(const AName: string);
+  end;
+
   { Contrato para compilacao de dependencias Delphi e search paths }
   IBoss4DCompiler = interface
     ['{69527D56-F14E-43D4-A746-2D7227D60006}']

@@ -3,9 +3,20 @@ unit Boss4D.Tests.Services;
 interface
 
 uses
-  DUnitX.TestFramework, Boss4D.Core.Ports;
+  DUnitX.TestFramework, System.Generics.Collections, Boss4D.Core.Ports;
 
 type
+  TCredentialStoreMock = class(TInterfacedObject, IBoss4DCredentialStore)
+  private
+    FSecrets: TDictionary<string, string>;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure SetSecret(const AName, AValue: string);
+    function GetSecret(const AName: string): string;
+    procedure DeleteSecret(const AName: string);
+  end;
+
   { MockLogger simples para nao poluir o console de testes e capturar saidas }
   TTestLogger = class(TInterfacedObject, IBoss4DLogger)
   private
@@ -175,7 +186,7 @@ implementation
 
 uses
   Winapi.Windows, System.SysUtils, System.Classes, System.IOUtils,
-  System.Generics.Collections, System.RegularExpressions,
+  System.RegularExpressions,
   System.Win.Registry,
   Boss4D.Core.Domain.Package, Boss4D.Core.Domain.Lock, Boss4D.Core.Domain.Dependency,
   Boss4D.Core.Domain.Consts, Boss4D.Core.Domain.Env, Boss4D.Core.Services.Init,
@@ -196,6 +207,34 @@ uses
   Boss4D.Core.Services.PackageManifest, Boss4D.IDE.Wizard;
 
 { TTestLogger }
+
+constructor TCredentialStoreMock.Create;
+begin
+  inherited Create;
+  FSecrets := TDictionary<string, string>.Create;
+end;
+
+destructor TCredentialStoreMock.Destroy;
+begin
+  FSecrets.Free;
+  inherited Destroy;
+end;
+
+procedure TCredentialStoreMock.SetSecret(const AName, AValue: string);
+begin
+  FSecrets.AddOrSetValue(AName, AValue);
+end;
+
+function TCredentialStoreMock.GetSecret(const AName: string): string;
+begin
+  if not FSecrets.TryGetValue(AName, Result) then
+    Result := '';
+end;
+
+procedure TCredentialStoreMock.DeleteSecret(const AName: string);
+begin
+  FSecrets.Remove(AName);
+end;
 
 procedure TTestLogger.Log(const ALevel: TBoss4DLogLevel; const AMessage: string);
 begin
@@ -1564,8 +1603,11 @@ var
   LConfigService: TBoss4DConfigService;
   LConfig: TBoss4DGlobalConfig;
   LDep: TBoss4DDependency;
+  LCredentialStore: IBoss4DCredentialStore;
 begin
-  LConfigService := TBoss4DConfigService.Create(TTestLogger.Create);
+  LCredentialStore := TCredentialStoreMock.Create;
+  LConfigService := TBoss4DConfigService.Create(TTestLogger.Create,
+    LCredentialStore);
   try
     // 1. Salva as credenciais mockadas
     LConfig := TBoss4DGlobalConfig.Create;
@@ -1576,6 +1618,10 @@ begin
     finally
       LConfig.Free;
     end;
+    Assert.IsFalse(TFile.ReadAllText(GetGlobalConfigPath).Contains(
+      'my_github_secret_pat'));
+    Assert.IsFalse(TFile.ReadAllText(GetGlobalConfigPath).Contains(
+      'my_gitlab_secret_pat'));
 
     // 2. Carrega e valida os tokens salvos
     LConfig := LConfigService.Load;

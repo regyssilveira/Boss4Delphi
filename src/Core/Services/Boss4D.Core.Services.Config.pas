@@ -28,8 +28,10 @@ type
   TBoss4DConfigService = class
   private
     FLogger: IBoss4DLogger;
+    FCredentialStore: IBoss4DCredentialStore;
   public
-    constructor Create(const ALogger: IBoss4DLogger);
+    constructor Create(const ALogger: IBoss4DLogger;
+      const ACredentialStore: IBoss4DCredentialStore = nil);
 
     function Load: TBoss4DGlobalConfig;
     procedure Save(const AConfig: TBoss4DGlobalConfig);
@@ -54,10 +56,12 @@ begin
   inherited Destroy;
 end;
 
-constructor TBoss4DConfigService.Create(const ALogger: IBoss4DLogger);
+constructor TBoss4DConfigService.Create(const ALogger: IBoss4DLogger;
+  const ACredentialStore: IBoss4DCredentialStore);
 begin
   inherited Create;
   FLogger := ALogger;
+  FCredentialStore := ACredentialStore;
 end;
 
 function TBoss4DConfigService.Load: TBoss4DGlobalConfig;
@@ -86,8 +90,16 @@ begin
       try
         Result.DelphiPath := LJSONObj.GetValue<string>('delphiPath', '');
         Result.GitShallow := LJSONObj.GetValue<Boolean>('gitShallow', False);
-        Result.GitHubToken := LJSONObj.GetValue<string>('githubToken', '');
-        Result.GitLabToken := LJSONObj.GetValue<string>('gitlabToken', '');
+        if Assigned(FCredentialStore) then
+        begin
+          Result.GitHubToken := FCredentialStore.GetSecret('github');
+          Result.GitLabToken := FCredentialStore.GetSecret('gitlab');
+        end
+        else
+        begin
+          Result.GitHubToken := LJSONObj.GetValue<string>('githubToken', '');
+          Result.GitLabToken := LJSONObj.GetValue<string>('gitlabToken', '');
+        end;
         var LRegistries := LJSONObj.GetValue<TJSONArray>('registries');
         if Assigned(LRegistries) then
           for var I := 0 to LRegistries.Count - 1 do
@@ -125,8 +137,17 @@ begin
   try
     LJSONObj.AddPair('delphiPath', AConfig.DelphiPath);
     LJSONObj.AddPair('gitShallow', AConfig.GitShallow);
-    LJSONObj.AddPair('githubToken', AConfig.GitHubToken);
-    LJSONObj.AddPair('gitlabToken', AConfig.GitLabToken);
+    if Assigned(FCredentialStore) then
+    begin
+      if AConfig.GitHubToken.IsEmpty then
+        FCredentialStore.DeleteSecret('github')
+      else
+        FCredentialStore.SetSecret('github', AConfig.GitHubToken);
+      if AConfig.GitLabToken.IsEmpty then
+        FCredentialStore.DeleteSecret('gitlab')
+      else
+        FCredentialStore.SetSecret('gitlab', AConfig.GitLabToken);
+    end;
     var LRegistries := TJSONArray.Create;
     for var LRegistry in AConfig.Registries do
       LRegistries.Add(LRegistry);

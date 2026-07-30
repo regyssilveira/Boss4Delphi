@@ -5,7 +5,8 @@ interface
 uses
   System.Generics.Collections, System.Threading, System.SyncObjs, Boss4D.Core.Ports,
   Boss4D.Core.Domain.Dependency, Boss4D.Core.Domain.Lock,
-  Boss4D.Core.Domain.Package, Boss4D.Core.Domain.Progress;
+  Boss4D.Core.Domain.Package, Boss4D.Core.Domain.Progress,
+  Boss4D.Core.Services.Resolver;
 
 type
   TBoss4DInstallOptions = record
@@ -16,6 +17,7 @@ type
     Production: Boolean;
     Development: Boolean;
     InstallSingle: string;
+    ResolutionStrategy: TBoss4DResolutionStrategy;
   end;
 
   { Servico de caso de uso para instalacao e atualizacao de dependencias (boss install) }
@@ -997,29 +999,16 @@ end;
 function TBoss4DInstallService.ResolveSemVerRange(const ARangeStr, ACacheDir: string): string;
 var
   LVersions: TArray<string>;
-  LRange: TBoss4DSemVerRange;
-  LBestSemVer: TBoss4DSemVer;
+  LResolver: TBoss4DVersionResolver;
 begin
-  Result := '';
   LVersions := FGitClient.GetVersions(ACacheDir);
-  if Length(LVersions) = 0 then
-    Exit;
-
-  LRange := TBoss4DSemVerRange.Create(ARangeStr);
-  LBestSemVer := Default(TBoss4DSemVer);
-
-  for var LTag in LVersions do
-  begin
-    var LVer := TBoss4DSemVer.Create(LTag);
-    if LVer.IsValid and LRange.IsSatisfiedBy(LVer) then
-    begin
-      if LBestSemVer.RawVersion.IsEmpty or (LVer > LBestSemVer) then
-        LBestSemVer := LVer;
-    end;
+  LResolver := TBoss4DVersionResolver.Create;
+  try
+    Result := LResolver.Resolve(ARangeStr, LVersions,
+      FOptions.ResolutionStrategy);
+  finally
+    LResolver.Free;
   end;
-
-  if LBestSemVer.IsValid then
-    Result := LBestSemVer.ToString;
 end;
 
 function TBoss4DInstallService.ResolveDependencyVersion(const ADep: TBoss4DDependency; const ACacheDir: string): string;

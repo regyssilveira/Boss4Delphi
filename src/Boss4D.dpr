@@ -21,6 +21,7 @@ uses
   Boss4D.Core.Domain.Progress in 'Core/Domain/Boss4D.Core.Domain.Progress.pas',
   Boss4D.Adapters.Json in 'Adapters/Json/Boss4D.Adapters.Json.pas',
   Boss4D.Adapters.Logger in 'Adapters/Logger/Boss4D.Adapters.Logger.pas',
+  Boss4D.Adapters.Security.Windows in 'Adapters/Security/Boss4D.Adapters.Security.Windows.pas',
   Boss4D.Adapters.Http in 'Adapters/Http/Boss4D.Adapters.Http.pas',
   Boss4D.Adapters.Git in 'Adapters/Git/Boss4D.Adapters.Git.pas',
   Boss4D.Adapters.Registry in 'Adapters/Registry/Boss4D.Adapters.Registry.pas',
@@ -34,6 +35,7 @@ uses
   Boss4D.Core.Services.Install in 'Core/Services/Boss4D.Core.Services.Install.pas',
   Boss4D.Core.Services.SelfUpdate in 'Core/Services/Boss4D.Core.Services.SelfUpdate.pas',
   Boss4D.Core.Services.Pack in 'Core/Services/Boss4D.Core.Services.Pack.pas',
+  Boss4D.Core.Services.Resolver in 'Core/Services/Boss4D.Core.Services.Resolver.pas',
   Boss4D.Core.Services.Progress in 'Core/Services/Boss4D.Core.Services.Progress.pas',
   Boss4D.Core.Services.Transaction in 'Core/Services/Boss4D.Core.Services.Transaction.pas',
   Boss4D.Core.Services.Dependencies in 'Core/Services/Boss4D.Core.Services.Dependencies.pas',
@@ -72,6 +74,7 @@ var
   LHttpClient: IBoss4DHttpClient;
   LRegistry: IBoss4DRegistryService;
   LCompiler: IBoss4DCompiler;
+  LCredentialStore: IBoss4DCredentialStore;
 
   // Servicos
   LInitService: TBoss4DInitService;
@@ -96,13 +99,15 @@ begin
     LLockRepo := TBoss4DLockJsonRepository.Create;
     LHttpClient := TBoss4DHttpNativeAdapter.Create;
     LRegistry := TBoss4DWindowsRegistryAdapter.Create;
+    LCredentialStore := TBoss4DWindowsCredentialStore.Create;
     LCompiler := TBoss4DDelphiCompilerAdapter.Create(LRegistry, LLogger);
 
     // Carrega configuracoes globais para instanciar o Git Client
-    LConfigService := TBoss4DConfigService.Create(LLogger);
+    LConfigService := TBoss4DConfigService.Create(LLogger, LCredentialStore);
     var LGlobalConfig := LConfigService.Load;
     try
-      LGitClient := TBoss4DGitCliAdapter.Create(LGlobalConfig.GitShallow);
+      LGitClient := TBoss4DGitCliAdapter.Create(LGlobalConfig.GitShallow,
+        LCredentialStore);
     finally
       LGlobalConfig.Free;
     end;

@@ -10,10 +10,12 @@ type
   TBoss4DGitCliAdapter = class(TInterfacedObject, IBoss4DGitClient)
   private
     FGitShallow: Boolean;
+    FCredentialStore: IBoss4DCredentialStore;
 
     function ExecuteGit(const AArgs: string; const AWorkingDir: string; out AOutput: string): Boolean;
   public
-    constructor Create(const AGitShallow: Boolean = False);
+    constructor Create(const AGitShallow: Boolean = False;
+      const ACredentialStore: IBoss4DCredentialStore = nil);
 
     procedure CloneCache(const ADep: TBoss4DDependency; const ATargetDir: string);
     procedure UpdateCache(const ADep: TBoss4DDependency; const ACacheDir: string);
@@ -39,10 +41,12 @@ uses
 
 { TBoss4DGitCliAdapter }
 
-constructor TBoss4DGitCliAdapter.Create(const AGitShallow: Boolean = False);
+constructor TBoss4DGitCliAdapter.Create(const AGitShallow: Boolean;
+  const ACredentialStore: IBoss4DCredentialStore);
 begin
   inherited Create;
   FGitShallow := AGitShallow;
+  FCredentialStore := ACredentialStore;
 end;
 
 function TBoss4DGitCliAdapter.ExecuteGit(const AArgs: string; const AWorkingDir: string; out AOutput: string): Boolean;
@@ -93,7 +97,8 @@ begin
     TDirectory.CreateDirectory(LParentDir);
 
   LURL := ADep.GetURL;
-  LConfigService := TBoss4DConfigService.Create(TBoss4DConsoleLoggerAdapter.Create);
+  LConfigService := TBoss4DConfigService.Create(
+    TBoss4DConsoleLoggerAdapter.Create, FCredentialStore);
   try
     LConfig := LConfigService.Load;
     try
@@ -127,7 +132,8 @@ begin
   if not ExecuteGit(LArgs, '', LOutput) then
   begin
     LMaskedOutput := LOutput;
-    LConfigService := TBoss4DConfigService.Create(TBoss4DConsoleLoggerAdapter.Create);
+    LConfigService := TBoss4DConfigService.Create(
+      TBoss4DConsoleLoggerAdapter.Create, FCredentialStore);
     try
       LConfig := LConfigService.Load;
       try
