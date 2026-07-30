@@ -15,6 +15,7 @@ Source: "..\dist\bin\boss4d.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "..\dist\bin\boss4d_x64.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "..\dist\bin\Boss4D.GUI.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "..\dist\bin\Boss4D.GUI_x64.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
+Source: "..\dist\plugins\10\Boss4D.IDE.Plugin.bpl"; DestDir: "{commondocs}\Embarcadero\Studio\17.0\Bpl"; Flags: ignoreversion; Check: IsDelphi10Installed
 Source: "..\dist\plugins\10.1\Boss4D.IDE.Plugin.bpl"; DestDir: "{commondocs}\Embarcadero\Studio\18.0\Bpl"; Flags: ignoreversion; Check: IsDelphi101Installed
 Source: "..\dist\plugins\11\Boss4D.IDE.Plugin.bpl"; DestDir: "{commondocs}\Embarcadero\Studio\22.0\Bpl"; Flags: ignoreversion; Check: IsDelphi11Installed
 Source: "..\dist\plugins\12\Boss4D.IDE.Plugin.bpl"; DestDir: "{commondocs}\Embarcadero\Studio\23.0\Bpl"; Flags: ignoreversion; Check: IsDelphi12Installed
@@ -32,7 +33,12 @@ Name: "{userdesktop}\Boss4D GUI"; Filename: "{app}\bin\Boss4D.GUI.exe"; Tasks: d
 [Code]
 var
   IDEOptionPage: TInputOptionWizardPage;
-  Delphi101Idx, Delphi11Idx, Delphi12Idx, Delphi13Idx: Integer;
+  Delphi10Idx, Delphi101Idx, Delphi11Idx, Delphi12Idx, Delphi13Idx: Integer;
+
+function IsDelphi10Installed: Boolean;
+begin
+  Result := RegKeyExists(HKCU, 'Software\Embarcadero\BDS\17.0');
+end;
 
 function IsDelphi101Installed: Boolean;
 begin
@@ -56,6 +62,7 @@ end;
 
 procedure InitializeWizard;
 begin
+  Delphi10Idx := -1;
   Delphi101Idx := -1;
   Delphi11Idx := -1;
   Delphi12Idx := -1;
@@ -65,9 +72,14 @@ begin
   IDEOptionPage := CreateInputOptionPage(wpSelectDir,
     'Integracao com a IDE do Delphi', 
     'Selecione em quais IDEs deseja registrar o plugin de integracao do Boss4D.',
-    'Nota: Delphi 10.1 Berlin, Delphi 11 (Alexandria), Delphi 12 (Athens) e Delphi 13 (Florence) sao compativeis.' + #13#10 + #13#10 +
+    'Nota: Delphi 10 Seattle, Delphi 10.1 Berlin, Delphi 11 (Alexandria), Delphi 12 (Athens) e Delphi 13 (Florence) sao compativeis.' + #13#10 + #13#10 +
     'Abaixo sao mostradas apenas as instalacoes suportadas que foram identificadas na sua maquina:',
     False, False);
+
+  if IsDelphi10Installed then
+    Delphi10Idx := IDEOptionPage.Add('Delphi 10 (Seattle)')
+  else
+    Log('Delphi 10 nao detectado.');
 
   if IsDelphi101Installed then
     Delphi101Idx := IDEOptionPage.Add('Delphi 10.1 (Berlin)')
@@ -89,7 +101,8 @@ begin
   else
     Log('Delphi 13 nao detectado.');
 
-  if (not IsDelphi101Installed) and (not IsDelphi11Installed) and
+  if (not IsDelphi10Installed) and (not IsDelphi101Installed) and
+    (not IsDelphi11Installed) and
     (not IsDelphi12Installed) and (not IsDelphi13Installed) then
   begin
     IDEOptionPage.Add('(Nenhuma versao compativel do Delphi foi identificada no seu sistema)');
@@ -229,10 +242,20 @@ begin
   if CurStep = ssPostInstall then
   begin
     // Limpa registros obsoletos de instalacoes anteriores para evitar conflito de units na IDE
+    CleanObsoleteRegistry('17.0', 'Boss4D.IDE.Plugin_10.bpl');
     CleanObsoleteRegistry('18.0', 'Boss4D.IDE.Plugin_10_1.bpl');
     CleanObsoleteRegistry('22.0', 'Boss4D.IDE.Plugin_11.bpl');
     CleanObsoleteRegistry('23.0', 'Boss4D.IDE.Plugin_12.bpl');
     CleanObsoleteRegistry('37.0', 'Boss4D.IDE.Plugin_13.bpl');
+
+    // Delphi 10 (Seattle)
+    if Delphi10Idx <> -1 then
+    begin
+      if IDEOptionPage.Values[Delphi10Idx] then
+        RegisterPlugin('17.0', '10')
+      else
+        UnregisterPlugin('17.0', '10');
+    end;
 
     // Delphi 10.1 (Berlin)
     if Delphi101Idx <> -1 then
@@ -280,6 +303,7 @@ begin
   if CurUninstallStep = usPostUninstall then
   begin
     // Limpa registros de todas as IDEs
+    UnregisterPlugin('17.0', '10');
     UnregisterPlugin('18.0', '10.1');
     UnregisterPlugin('22.0', '11');
     UnregisterPlugin('23.0', '12');

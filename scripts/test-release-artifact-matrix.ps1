@@ -40,12 +40,13 @@ $windows = @($matrix.artifacts | Where-Object name -eq 'boss4d-windows.zip')[0]
 $pluginVersions = @($windows.components |
   Where-Object kind -eq 'ide-plugin' |
   ForEach-Object delphi)
-foreach ($required in @('10.1', '11', '12', '13')) {
+foreach ($required in @('10', '10.1', '11', '12', '13')) {
   if ($pluginVersions -notcontains $required) {
     throw "Release matrix is missing Delphi plugin: $required"
   }
 }
 $expectedBds = @{
+  '10' = '17.0'
   '10.1' = '18.0'
   '11' = '22.0'
   '12' = '23.0'
@@ -55,6 +56,26 @@ foreach ($component in @($windows.components |
   Where-Object kind -eq 'ide-plugin')) {
   if ($expectedBds[$component.delphi] -ne $component.bds) {
     throw "Invalid BDS mapping for Delphi $($component.delphi): $($component.bds)"
+  }
+}
+
+$releaseScript = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\build_release.bat') -Raw
+foreach ($requiredText in @(
+  'HKCU\Software\Embarcadero\BDS\17.0',
+  'plugins\10'
+)) {
+  if (-not $releaseScript.Contains($requiredText)) {
+    throw "Windows release script is missing Delphi 10 contract: $requiredText"
+  }
+}
+
+$installerScript = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\installer\Boss4D.iss') -Raw
+foreach ($requiredText in @(
+  'dist\plugins\10\Boss4D.IDE.Plugin.bpl',
+  'Software\Embarcadero\BDS\17.0'
+)) {
+  if (-not $installerScript.Contains($requiredText)) {
+    throw "Windows installer is missing Delphi 10 contract: $requiredText"
   }
 }
 

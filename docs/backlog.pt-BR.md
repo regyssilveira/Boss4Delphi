@@ -13,7 +13,7 @@
   - Verificar assets e checksums da release oficial e usar staging, promoção
     atômica, backup e rollback no Windows e Linux.
 - [x] **[Story] Matriz de compatibilidade de compiladores**
-  - Exigir builds reais do plugin para Delphi 10.1, 11, 12 e 13 no workflow de
+  - Exigir builds reais do plugin para Delphi 10, 10.1, 11, 12 e 13 no workflow de
     release.
 - [x] **[Story] CLI Linux nativa**
   - Oferecer dependências, Registry, conformidade, publicação, atualização,

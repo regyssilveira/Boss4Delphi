@@ -63,8 +63,8 @@ begin
       LPackage.Name := 'component';
       TBoss4DBuildSpecDetector.Detect(LPackage, LRoot);
 
-      Assert.AreEqual<Integer>(4, LPackage.BuildMatrix.Compilers.Count);
-      Assert.AreEqual('18.0', LPackage.BuildMatrix.Compilers[0]);
+      Assert.AreEqual<Integer>(5, LPackage.BuildMatrix.Compilers.Count);
+      Assert.AreEqual('17.0', LPackage.BuildMatrix.Compilers[0]);
       Assert.AreEqual('37.0', LPackage.BuildMatrix.DefaultCompiler);
       Assert.AreEqual<Integer>(2, LPackage.BuildMatrix.Platforms.Count);
       Assert.AreEqual<Integer>(2, LPackage.BuildMatrix.Projects.Count);
@@ -134,7 +134,7 @@ begin
     Assert.WillRaise(
       procedure
       begin
-        TBoss4DBuildSpecDetector.Detect(LPackage, LRoot, ['d10']);
+        TBoss4DBuildSpecDetector.Detect(LPackage, LRoot, ['d14']);
       end,
       EArgumentException);
   finally

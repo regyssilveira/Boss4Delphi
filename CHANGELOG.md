@@ -4,8 +4,9 @@
 
 ### Added
 
-- Declarative, backward-compatible build matrix for Delphi 10.1 (`18.0`), 11
-  (`22.0`), 12 (`23.0`), and 13 (`37.0`) across Win32/Win64 and Debug/Release.
+- Declarative, backward-compatible build matrix for Delphi 10 (`17.0`), 10.1
+  (`18.0`), 11 (`22.0`), 12 (`23.0`), and 13 (`37.0`) across Win32/Win64 and
+  Debug/Release.
 - `spec --detect`, matrix-aware `build`, independent axis filters, `--jobs`,
   `--force`, `--full`, `--explain`, and exact `--register`.
 - Stable project graph, incremental fingerprints, complete target cache,
@@ -17,9 +18,11 @@
 
 ### Changed
 
-- Delphi aliases (`d101`, `d11`, `d12`, `d13`), package suffixes
-  (`240`, `280`, `290`, `370`), and path tokens are normalized through one
+- Delphi aliases (`d10`, `d101`, `d11`, `d12`, `d13`), package suffixes
+  (`230`, `240`, `280`, `290`, `370`), and path tokens are normalized through one
   tested convention table.
+- The release artifact and installer include the Delphi 10 Seattle/BDS 17.0
+  legacy IDE plugin alongside the existing supported IDE targets.
 - Sonar Quality Gate is clean with zero new violations.
 
 ## 1.6.0 - 2026-07-30

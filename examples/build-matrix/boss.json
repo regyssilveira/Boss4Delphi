@@ -5,6 +5,7 @@
   "homepage": "https://example.test/multi-delphi-component",
   "buildMatrix": {
     "compilers": [
+      "17.0",
       "18.0",
       "22.0",
       "23.0",

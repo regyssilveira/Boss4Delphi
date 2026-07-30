@@ -239,7 +239,8 @@ begin
     raise EArgumentNilException.Create('ARegistration');
   if ARegistration.PackageName.Trim.IsEmpty then
     raise EArgumentException.Create('PackageName nao pode ser vazio.');
-  if (ARegistration.Compiler <> '18.0') and
+  if (ARegistration.Compiler <> '17.0') and
+     (ARegistration.Compiler <> '18.0') and
      (ARegistration.Compiler <> '22.0') and
      (ARegistration.Compiler <> '23.0') and
      (ARegistration.Compiler <> '37.0') then

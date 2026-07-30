@@ -6,7 +6,7 @@
 
 O **Boss4D** é um gerenciador de dependências nativo e moderno para projetos
 Delphi e Lazarus. A CLI Windows é compilada com Delphi 13, o plugin da IDE tem
-como alvo o Delphi 10.1 e é validado localmente com Delphi 11, 12 e 13, e a
+como alvo os Delphi 10/10.1 e é validado localmente com Delphi 10, 11, 12 e 13, e a
 CLI Linux x86-64 é compilada nativamente com FPC 3.2.2.
 
 ---
@@ -25,7 +25,7 @@ CLI Linux x86-64 é compilada nativamente com FPC 3.2.2.
 8. **Projetos Delphi e Lazarus**: Compila `.dproj`, `.lpi` e `.lpk` declarados
    usando MSBuild ou `lazbuild` e integra automaticamente os paths das
    dependências nos projetos e modos de build do Lazarus.
-9. **Matriz Multi-Delphi**: Declara Delphi 10.1/11/12/13, Win32/Win64,
+9. **Matriz Multi-Delphi**: Declara Delphi 10/10.1/11/12/13, Win32/Win64,
    Debug/Release, projetos runtime/design, dependências, artefatos isolados,
    rebuild incremental, paralelismo seguro e registro transacional na IDE sem
    quebrar manifests legados.
@@ -180,7 +180,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Onboarding de Publishers](docs/publisher-onboarding.pt-BR.md)**: Identidade, signatários e metadados imutáveis do Registry público.
 * **[Auditoria Final de Paridade](docs/parity-audit-2026-07-30.pt-BR.md)**: Evidência de implementação e verificação para cada requisito.
 * **[Formato de Pacote Imutável](docs/package-format.pt-BR.md)**: `.b4dpkg` determinístico, instalação verificada, evidências OpenPGP/in-toto, fallback para fontes e variantes por compilador/plataforma.
-* **[Compatibilidade com Delphi Legado](docs/legacy-delphi.pt-BR.md)**: Wizard moderno completo e perfil Delphi 10.1 direcionado ao BDS 18.0.
+* **[Compatibilidade com Delphi Legado](docs/legacy-delphi.pt-BR.md)**: Wizard moderno completo e perfis legados para Delphi 10 Seattle/BDS 17.0 e Delphi 10.1 Berlin/BDS 18.0.
 * **[CLI FPC/Linux](docs/posix-cli.pt-BR.md)**: Build Linux nativo, ciclo de dependências, lock v3, CI frozen/offline, resolução SemVer e testes FPCUnit.
 * **[Posicionamento competitivo](docs/competitive-positioning.pt-BR.md)**: Comparação baseada em evidências com BOSS, DPM, GetIt, OPM do Lazarus e ecossistemas maduros.
 * **[Resolução e Credenciais Seguras](docs/resolution-and-credentials.pt-BR.md)**: Políticas SemVer highest/minimal e armazenamento nativo de segredos.

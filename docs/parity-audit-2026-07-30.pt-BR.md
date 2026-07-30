@@ -13,7 +13,7 @@ contrato, integração ou compilador real; não significa possuir escala de npm.
 | Mirrors e revogação | Completo | testes de mirrors ordenados, rejeição por digest e revogação |
 | Publicação imutável | Completo | teste determinístico, gates do lock, token fora do payload e conflito HTTP 409 |
 | Onboarding de publishers | Completo | validador de escopo/fingerprint/assinatura/proveniência e testes negativos |
-| Compiladores Delphi antigos | Parcial | compilação real do plugin com Delphi 11, 12 e 13; Delphi 10.1 requer um runner com BDS 18.0 |
+| Compiladores Delphi antigos | Parcial | compilação real do plugin com Delphi 10, 11, 12 e 13; Delphi 10.1 requer um runner com BDS 18.0 |
 | CLI Linux nativa | Completo | build FPC 3.2.2 x86_64, FPCUnit e smoke tests reais |
 | Manutenção cotidiana | Completo | testes install/update/tree/why/outdated/run e rollback transacional |
 | Ferramentas globais/workspaces/cache | Completo | testes de ciclo de vida, links, prune e ferramenta FPC real |
@@ -22,7 +22,7 @@ contrato, integração ou compilador real; não significa possuir escala de npm.
 | Autoatualização | Completo | seleção da release, SHA-256, extração, promoção e rollback |
 | Conformidade/auditoria | Completo | CycloneDX, SPDX, VEX, OSV, lock estrito e validadores externos |
 | Distribuição da release | Completo | workflow de tag, arquivos Windows/Linux, checksums, OIDC e execução do tarball |
-| Qualidade | Parcial | Delphi 13 Win32/Win64, FPC/Linux e Sonar Quality Gate validados; BDS 18.0 ainda requer runner |
+| Qualidade | Parcial | builds do plugin Delphi 10/11/12/13, testes Delphi 13 Win32/Win64, FPC/Linux e Sonar Quality Gate validados; BDS 18.0 ainda requer runner |
 
 ## Invariantes obrigatórios
 

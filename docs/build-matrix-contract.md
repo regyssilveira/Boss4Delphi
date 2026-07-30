@@ -7,7 +7,7 @@ Boss4D to describe builds across multiple Delphi versions.
 
 The first advanced matrix covers:
 
-- Delphi 10.1 (`BDS 18.0`), Delphi 11 (`BDS 22.0`), Delphi 12 (`BDS 23.0`),
+- Delphi 10 (`BDS 17.0`), Delphi 10.1 (`BDS 18.0`), Delphi 11 (`BDS 22.0`), Delphi 12 (`BDS 23.0`),
   and Delphi 13 (`BDS 37.0`);
 - `Win32` and `Win64`;
 - `Debug` and `Release`;
@@ -38,7 +38,7 @@ serialization, or effective result of a legacy manifest.
 ```json
 {
   "buildMatrix": {
-    "compilers": ["18.0", "22.0", "23.0", "37.0"],
+    "compilers": ["17.0", "18.0", "22.0", "23.0", "37.0"],
     "platforms": ["Win32", "Win64"],
     "configurations": ["Debug", "Release"],
     "defaults": {
@@ -174,6 +174,7 @@ The CLI accepts either BDS versions or short aliases:
 
 | Delphi | BDS/compiler selector | Alias | Package suffix | Symbol |
 |---|---:|---|---:|---|
+| 10 Seattle | `17.0` | `d10` | `230` | `VER300` |
 | 10.1 Berlin | `18.0` | `d101` | `240` | `VER310` |
 | 11 Alexandria | `22.0` | `d11` | `280` | `VER350` |
 | 12 Athens | `23.0` | `d12` | `290` | `VER360` |
@@ -278,18 +279,17 @@ performing a partial installation.
 
 The current branch is validated with:
 
-- 183 DUnitX tests on Delphi 13 Win32 and Win64;
+- 184 DUnitX tests on Delphi 13 Win32 and Win64;
 - production CLI builds on Delphi 13 Win32 and Win64;
-- real IDE plugin builds with Delphi 11/BDS 22.0, Delphi 12/BDS 23.0, and
+- real IDE plugin builds with Delphi 10/BDS 17.0, Delphi 11/BDS 22.0, Delphi 12/BDS 23.0, and
   Delphi 13/BDS 37.0;
 - 61 FPCUnit tests plus CLI and release-artifact smoke tests on Linux/FPC
   3.2.2 through Docker;
 - Sonar Quality Gate `OK` with zero new violations.
 
-Delphi 10.1 requires BDS 18.0. That toolchain is not installed on the current
-machine, so its plugin build remains a release-runner gate rather than a local
-claim. BDS 17.0 is Delphi 10 Seattle and is not accepted as evidence for
-Delphi 10.1.
+Delphi 10 Seattle is validated with BDS 17.0. Delphi 10.1 remains a distinct
+target and requires BDS 18.0; a Seattle build must not be reported as Berlin
+evidence.
 
 ## Acceptance criteria
 

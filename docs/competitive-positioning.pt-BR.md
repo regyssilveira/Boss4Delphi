@@ -14,7 +14,7 @@ registro são avaliadas separadamente da quantidade de comandos.
 | Distribuição imutável | `.b4dpkg`, SHA-256, OpenPGP, in-toto e instalação transacional | Principalmente checkout Git | Pacotes hospedados e assinados | Pacotes hospedados | Arquivos imutáveis e checksums |
 | Política de publicação | Dry-run, gates, token seguro, versões imutáveis e publishers revisados | Sem fluxo público equivalente documentado | Fonte central e push de pacotes | Submissão ao fornecedor | Publicação autenticada madura |
 | Evidência de supply chain | CycloneDX, SPDX, VEX, OSV, in-toto e OpenPGP | Sem fluxo SBOM/audit documentado | SBOM e assinatura de autor/repositório | Controlado pelo fornecedor | Varia, geralmente maduro |
-| Matriz compilador/plataforma | Plugins Delphi 10.1/11/12/13; Win32/Win64; Linux x86_64/FPC | Seleção de compilador/plataforma | Delphi XE2–13 e targets suportados | Releases atuais | Mecanismos ricos de target |
+| Matriz compilador/plataforma | Plugins Delphi 10/10.1/11/12/13; Win32/Win64; Linux x86_64/FPC | Seleção de compilador/plataforma | Delphi XE2–13 e targets suportados | Releases atuais | Mecanismos ricos de target |
 | Autoatualização | Atualização verificada e transacional no Windows/Linux | `upgrade`, inclusive pré-release | Entrega por instalador/pacote | Entrega pelo RAD Studio | Madura por toolchain |
 | Progresso/automação | Plain, interativo, JSON, quiet, cancelamento e exit codes estáveis | Progresso interativo por dependência | Saída CLI convencional | UI da IDE | Automação madura e legível por máquina |
 
@@ -44,7 +44,7 @@ ferramental de terceiros e operação de infraestrutura.
 
 - DUnitX Delphi 13: 143 testes em Win32 e 143 em Win64.
 - FPC 3.2.2/Linux x86_64: 61 testes FPCUnit e smoke tests reais da CLI.
-- Builds reais do plugin: Delphi 10.1, 11, 12 e 13.
+- Builds reais do plugin: Delphi 10, 10.1, 11, 12 e 13.
 - Arquivos de release Windows/Linux com SHA-256 e proveniência OIDC do GitHub.
 - Checks de submissão: escopo do publisher, fingerprint OpenPGP, versões
   imutáveis, assinatura e proveniência.

@@ -8,7 +8,7 @@
 
 **Boss4D** is a modern native dependency manager for Delphi and Lazarus
 projects. The Windows CLI is built with Delphi 13, the IDE plugin targets
-Delphi 10.1 and is validated locally with Delphi 11, 12, and 13, and the Linux
+Delphi 10/10.1 and is validated locally with Delphi 10, 11, 12, and 13, and the Linux
 x86-64 CLI is built natively with FPC 3.2.2.
 
 ---
@@ -28,7 +28,7 @@ x86-64 CLI is built natively with FPC 3.2.2.
 9. **Delphi and Lazarus Projects**: Builds declared `.dproj`, `.lpi`, and `.lpk`
    projects through MSBuild or `lazbuild`, automatically integrating resolved
    dependency unit paths into Lazarus projects and build modes.
-10. **Multi-Delphi Build Matrix**: Declares Delphi 10.1/11/12/13,
+10. **Multi-Delphi Build Matrix**: Declares Delphi 10/10.1/11/12/13,
     Win32/Win64, Debug/Release, runtime/design projects, dependency ordering,
     isolated artifacts, incremental state, safe parallelism, and transactional
     IDE registration without breaking legacy manifests.
@@ -186,7 +186,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Publisher Onboarding](docs/publisher-onboarding.md)**: Public Registry identity, signer, immutable metadata, and review workflow.
 * **[Parity Completion Audit](docs/parity-audit-2026-07-30.md)**: Requirement-by-requirement implementation and verification evidence.
 * **[Immutable Package Format](docs/package-format.md)**: Deterministic `.b4dpkg`, verified installation, OpenPGP/in-toto evidence, source fallback, and compiler/platform variants.
-* **[Legacy Delphi Compatibility](docs/legacy-delphi.md)**: Full modern wizard plus a Delphi 10.1 integration profile targeting BDS 18.0.
+* **[Legacy Delphi Compatibility](docs/legacy-delphi.md)**: Full modern wizard plus legacy integration profiles for Delphi 10 Seattle/BDS 17.0 and Delphi 10.1 Berlin/BDS 18.0.
 * **[FPC/Linux CLI](docs/posix-cli.md)**: Native Linux build, dependency lifecycle, lock v3, frozen/offline CI, SemVer resolution, and FPCUnit tests.
 * **[Competitive Positioning](docs/competitive-positioning.md)**: Evidence-based comparison with BOSS, DPM, GetIt, Lazarus OPM, and mature package ecosystems.
 * **[Resolution and Secure Credentials](docs/resolution-and-credentials.md)**: Highest/minimal SemVer policies and native credential storage.

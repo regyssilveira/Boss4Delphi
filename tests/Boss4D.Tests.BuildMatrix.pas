@@ -66,6 +66,12 @@ procedure TTestsBuildMatrix.TestDelphiConventionsCoverSupportedCompilers;
 var
   LConvention: TBoss4DDelphiConvention;
 begin
+  LConvention := TBoss4DBuildConventions.ResolveCompiler('d10');
+  Assert.AreEqual('17.0', LConvention.BDSVersion);
+  Assert.AreEqual('230', LConvention.PackageSuffix);
+  Assert.AreEqual('30.0', LConvention.CompilerVersion);
+  Assert.AreEqual('VER300', LConvention.CompilerSymbol);
+
   LConvention := TBoss4DBuildConventions.ResolveCompiler('d101');
   Assert.AreEqual('18.0', LConvention.BDSVersion);
   Assert.AreEqual('240', LConvention.PackageSuffix);
@@ -90,7 +96,7 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      TBoss4DBuildConventions.ResolveCompiler('d10');
+      TBoss4DBuildConventions.ResolveCompiler('d14');
     end,
     EArgumentException);
 end;

@@ -12,7 +12,7 @@
   - Verify official release assets and checksums, then use staging, atomic
     promotion, backup, and rollback on Windows and Linux.
 - [x] **[Story] Compiler compatibility matrix**
-  - Require real plugin builds for Delphi 10.1, 11, 12 and 13 in the release
+  - Require real plugin builds for Delphi 10, 10.1, 11, 12 and 13 in the release
     workflow.
 - [x] **[Story] Native Linux CLI**
   - Provide dependency, Registry, compliance, publishing, update, workspace,

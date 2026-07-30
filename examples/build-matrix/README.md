@@ -1,7 +1,7 @@
 # Multi-Delphi build matrix example
 
 The adjacent `boss.json` declares runtime and design-time packages across
-Delphi 10.1, 11, 12, and 13. It expands to 19 compatible targets after the
+Delphi 10, 10.1, 11, 12, and 13. It expands to 23 compatible targets after the
 design package restrictions are applied.
 
 From a real component repository, adapt the project paths and run:
