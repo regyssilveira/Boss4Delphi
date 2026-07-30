@@ -133,7 +133,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Autoatualização Segura](docs/self-update.pt-BR.md)**: Descoberta de release, verificação SHA-256, staging e início do instalador.
 * **[Formato de Pacote Imutável](docs/package-format.pt-BR.md)**: Artefatos `.b4dpkg` determinísticos e publicação vinculada ao digest.
 * **[Compatibilidade com Delphi Legado](docs/legacy-delphi.pt-BR.md)**: Wizard moderno completo e perfil Delphi 10.1 validado com BDS 17.0.
-* **[CLI FPC/Linux](docs/posix-cli.pt-BR.md)**: Build Linux nativo, testes FPCUnit, init e instalação Git portáveis.
+* **[CLI FPC/Linux](docs/posix-cli.pt-BR.md)**: Build Linux nativo, ciclo de dependências, lock v3, CI frozen/offline, resolução SemVer e testes FPCUnit.
 * **[Resolução e Credenciais Seguras](docs/resolution-and-credentials.pt-BR.md)**: Políticas SemVer highest/minimal e armazenamento nativo de segredos.
 * **[Conformidade e Ecossistema](docs/conformance-and-ecosystem.pt-BR.md)**: Validação pública do protocolo, portal estático e benchmarks determinísticos.
 * **[Manual de Uso da CLI](docs/usage.pt-BR.md)**: Guia completo detalhado de todos os parâmetros e opções de instalação de dependências.

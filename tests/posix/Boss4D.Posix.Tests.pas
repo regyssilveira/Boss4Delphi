@@ -23,6 +23,8 @@ type
     procedure TestHighestVersionResolution;
     procedure TestMinimalVersionResolution;
     procedure TestTildeDoesNotCrossMinor;
+    procedure TestOfflineRejectsMissingModule;
+    procedure TestLockedRequiresLock;
   end;
 
 implementation
@@ -78,6 +80,41 @@ begin
     AssertEquals('1.2.9', SelectVersion('~1.2.0', LVersions, 'highest'));
   finally
     LVersions.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestOfflineRejectsMissingModule;
+var
+  LDir: string;
+  LOptions: TBoss4DInstallOptions;
+begin
+  LDir := NewTempDirectory;
+  InitProject(LDir);
+  AddDependency(LDir, 'offline.test/package', '*', False);
+  FillChar(LOptions, SizeOf(LOptions), 0);
+  LOptions.Offline := True;
+  try
+    InstallProject(LDir, LOptions);
+    Fail('Offline install should reject a cache miss');
+  except
+    on E: Exception do AssertTrue(Pos('offline cache miss', E.Message) > 0);
+  end;
+end;
+
+procedure TPosixCoreTests.TestLockedRequiresLock;
+var
+  LDir: string;
+  LOptions: TBoss4DInstallOptions;
+begin
+  LDir := NewTempDirectory;
+  InitProject(LDir);
+  FillChar(LOptions, SizeOf(LOptions), 0);
+  LOptions.Locked := True;
+  try
+    InstallProject(LDir, LOptions);
+    Fail('Locked install should require a lock');
+  except
+    on E: Exception do AssertTrue(Pos('requires boss-lock.json', E.Message) > 0);
   end;
 end;
 
