@@ -3,15 +3,17 @@ program boss4d;
 {$mode objfpc}{$H+}
 
 uses
-  Classes, SysUtils, Boss4D.Posix.Core, Boss4D.Posix.Registry,
+  Classes, SysUtils, DateUtils, Boss4D.Posix.Core, Boss4D.Posix.Registry,
   Boss4D.Posix.Config, Boss4D.Posix.Package, Boss4D.Posix.Operations,
-  Boss4D.Posix.Compliance, Boss4D.Posix.Audit;
+  Boss4D.Posix.Compliance, Boss4D.Posix.Audit, Boss4D.Posix.Workflows,
+  Boss4D.Posix.Update, Boss4D.Posix.Tools;
 
 procedure Help;
 begin
   WriteLn('Boss4D portable CLI');
   WriteLn('Commands: version, platform, init, install, ci, add, remove, list,');
-  WriteLn('          search, info, registry, package, doctor, sbom, audit');
+  WriteLn('          search, info, registry, package, doctor, sbom, audit,');
+  WriteLn('          config, cache, self-update, tool');
   WriteLn('Install options: --locked --frozen-lockfile --offline --production');
   WriteLn('                 --resolution=highest|minimal');
   WriteLn('                 --progress plain|interactive --json --quiet');
@@ -23,6 +25,12 @@ begin
   WriteLn('      [--output <file>] [--reproducible] [--vex <file>]');
   WriteLn('Audit: boss4d audit [--fail-on low|medium|high|critical]');
   WriteLn('       [--offline] [--cache-hours <hours>] [--vex <file>]');
+  WriteLn('Credentials: boss4d config auth <provider> <token>');
+  WriteLn('             boss4d config auth remove <provider>');
+  WriteLn('Cache: boss4d cache size|clean|prune');
+  WriteLn('Update: boss4d self-update');
+  WriteLn('Tools: boss4d tool install -g <source> [--name <name>]');
+  WriteLn('       boss4d tool update <name> <source>|uninstall <name>|list');
 end;
 
 function OptionValue(const APrefix, ADefault: string): string;
@@ -46,6 +54,26 @@ begin
   Result := False;
   for I := 2 to ParamCount do
     if SameText(ParamStr(I), AName) then Exit(True);
+end;
+
+function BossHome: string;
+begin
+  Result := GetEnvironmentVariable('BOSS_HOME');
+  if Result = '' then
+    Result := IncludeTrailingPathDelimiter(GetEnvironmentVariable('HOME')) +
+      '.boss';
+end;
+
+function FormatBytes(const AValue: Int64): string;
+begin
+  if AValue >= Int64(1024) * 1024 * 1024 then
+    Result := FormatFloat('0.00 GB', AValue / (1024 * 1024 * 1024))
+  else if AValue >= 1024 * 1024 then
+    Result := FormatFloat('0.00 MB', AValue / (1024 * 1024))
+  else if AValue >= 1024 then
+    Result := FormatFloat('0.00 KB', AValue / 1024)
+  else
+    Result := IntToStr(AValue) + ' B';
 end;
 
 var
@@ -77,6 +105,14 @@ var
   LAuditService: TBoss4DAuditService;
   LAuditSummary: TBoss4DAuditSummary;
   LCacheHoursText: string;
+  LCredentialStore: TBoss4DPosixCredentialStore;
+  LCacheDirectory: string;
+  LRemoved: Integer;
+  LUpdateService: TBoss4DPosixUpdateService;
+  LUpdateResult: TBoss4DUpdateResult;
+  LToolService: TBoss4DPosixToolService;
+  LToolPath, LToolName, LToolSource: string;
+  LTools: TStringList;
   LFoundFlag: Boolean;
   I: Integer;
 begin
@@ -448,6 +484,115 @@ begin
       if LAuditSummary.PolicyViolations > 0 then
         raise Exception.Create('audit policy violation: ' +
           IntToStr(LAuditSummary.PolicyViolations));
+    end
+    else if LCommand = 'config' then
+    begin
+      if (ParamCount < 3) or not SameText(ParamStr(2), 'auth') then
+        raise Exception.Create(
+          'usage: boss4d config auth <provider> <token>');
+      LCredentialStore := TBoss4DPosixCredentialStore.Create;
+      try
+        if SameText(ParamStr(3), 'remove') then
+        begin
+          if ParamCount < 4 then
+            raise Exception.Create(
+              'usage: boss4d config auth remove <provider>');
+          LCredentialStore.Remove(ParamStr(4));
+          WriteLn('credential removed: ' + LowerCase(ParamStr(4)));
+        end
+        else
+        begin
+          if ParamCount < 4 then
+            raise Exception.Create(
+              'usage: boss4d config auth <provider> <token>');
+          LCredentialStore.Store(ParamStr(3), ParamStr(4));
+          WriteLn('credential stored in Secret Service: ' +
+            LowerCase(ParamStr(3)));
+        end;
+      finally
+        LCredentialStore.Free;
+      end;
+    end
+    else if LCommand = 'cache' then
+    begin
+      if ParamCount < 2 then
+        raise Exception.Create('usage: boss4d cache size|clean|prune');
+      LCacheDirectory := IncludeTrailingPathDelimiter(BossHome) + 'cache';
+      if SameText(ParamStr(2), 'size') then
+        WriteLn(FormatBytes(DirectorySize(LCacheDirectory)))
+      else if SameText(ParamStr(2), 'clean') then
+      begin
+        LRemoved := CleanCacheDirectory(LCacheDirectory);
+        WriteLn('cache entries removed: ' + IntToStr(LRemoved));
+      end
+      else if SameText(ParamStr(2), 'prune') then
+      begin
+        LRemoved := PruneCacheDirectory(LCacheDirectory, IncDay(Now, -30));
+        WriteLn('stale cache entries removed: ' + IntToStr(LRemoved));
+      end
+      else
+        raise Exception.Create('usage: boss4d cache size|clean|prune');
+    end
+    else if LCommand = 'self-update' then
+    begin
+      LUpdateService := TBoss4DPosixUpdateService.Create;
+      try
+        LUpdateResult := LUpdateService.Execute(Boss4DVersion,
+          ExpandFileName(ParamStr(0)));
+      finally
+        LUpdateService.Free;
+      end;
+      if LUpdateResult.Updated then
+        WriteLn('Boss4D updated to ' + LUpdateResult.Version)
+      else
+        WriteLn('Boss4D is current: ' + LUpdateResult.Version);
+    end
+    else if LCommand = 'tool' then
+    begin
+      if ParamCount < 2 then
+        raise Exception.Create('usage: boss4d tool install|update|uninstall|list');
+      LToolService := TBoss4DPosixToolService.Create;
+      try
+        if SameText(ParamStr(2), 'install') then
+        begin
+          if (ParamCount < 4) or not SameText(ParamStr(3), '-g') then
+            raise Exception.Create(
+              'usage: boss4d tool install -g <source> [--name <name>]');
+          LToolSource := ParamStr(4);
+          LToolName := OptionValue('--name', '');
+          LToolPath := LToolService.Install(LToolSource, LToolName);
+          WriteLn('global tool installed: ' + LToolPath);
+        end
+        else if SameText(ParamStr(2), 'update') then
+        begin
+          if ParamCount < 4 then
+            raise Exception.Create(
+              'usage: boss4d tool update <name> <source>');
+          LToolPath := LToolService.Install(ParamStr(4), ParamStr(3));
+          WriteLn('global tool updated: ' + LToolPath);
+        end
+        else if SameText(ParamStr(2), 'uninstall') then
+        begin
+          if ParamCount < 3 then
+            raise Exception.Create('usage: boss4d tool uninstall <name>');
+          LToolService.Uninstall(ParamStr(3));
+          WriteLn('global tool uninstalled: ' + ParamStr(3));
+        end
+        else if SameText(ParamStr(2), 'list') then
+        begin
+          LTools := LToolService.List;
+          try
+            for I := 0 to LTools.Count - 1 do WriteLn(LTools[I]);
+          finally
+            LTools.Free;
+          end;
+        end
+        else
+          raise Exception.Create(
+            'usage: boss4d tool install|update|uninstall|list');
+      finally
+        LToolService.Free;
+      end;
     end
     else if (LCommand = 'help') or (LCommand = '--help') then
       Help

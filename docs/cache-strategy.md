@@ -5,6 +5,11 @@ Git cache with `--reference-if-able --no-hardlinks`, uses shared objects only
 during checkout, and removes `.git` afterward. Project files therefore never
 depend on hardlinks or on the later lifetime of the global object cache.
 
+The Linux/FPC host keeps bare Git mirrors under `~/.boss/cache/git`, updates
+them before online installs, and clones with `--reference-if-able
+--no-hardlinks`. `boss4d cache size|prune|clean` inspects or manages that cache;
+prune removes entries older than 30 days.
+
 Compiled executable artifacts are cached by:
 
 - normalized source checksum;

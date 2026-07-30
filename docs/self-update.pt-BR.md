@@ -22,3 +22,11 @@ Somente artefatos retornados pela API da release oficial mais recente são
 aceitos. A verificação de integridade detecta corrupção ou substituição após a
 publicação; o pipeline de release continua responsável por proteger e publicar
 o manifesto de checksums.
+
+## Linux
+
+A CLI nativa Linux/FPC seleciona `boss4d-linux-x86_64.tar.gz` na mesma release
+oficial, verifica o arquivo com `SHA256SUMS.txt`, extrai em staging e substitui
+o executável de forma transacional. O executável anterior só é removido após o
+sucesso e é restaurado em caso de falha. Quando a versão semântica instalada já
+é a mais recente, nenhum artefato é baixado.

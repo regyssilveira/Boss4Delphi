@@ -23,3 +23,8 @@ Segredos são injetados somente ao preparar URLs Git autenticadas e são
 mascarados nas falhas. Não versione exportações do cofre nem passe tokens
 diretamente como argumentos em CI; prefira o cofre da plataforma ou credenciais
 temporárias de ambiente.
+
+Na CLI nativa Linux/FPC, os tokens ficam no Secret Service via `secret-tool` e
+são enviados ao cofre por stdin. `BOSS4D_GITHUB_TOKEN`, `GITHUB_TOKEN`,
+`BOSS4D_GITLAB_TOKEN` e `GITLAB_TOKEN` têm precedência em CI. A autenticação Git
+é configurada no ambiente do processo, sem incluir o token na URL.

@@ -201,6 +201,10 @@ begin
   LValue := CommandVersion('gpg', ['--version']);
   if LValue = '' then Result.Add('WARN gpg: not found; signed packages unavailable')
   else Result.Add('OK gpg: available');
+  if FindExecutable('secret-tool') = '' then
+    Result.Add('WARN secret-tool: not found; credential vault unavailable')
+  else
+    Result.Add('OK secret-tool: available');
   LValue := CommandVersion('fpc', ['-iV']);
   if LValue = '' then Result.Add('WARN fpc: not found; source compilation unavailable')
   else Result.Add('OK fpc: ' + LValue);

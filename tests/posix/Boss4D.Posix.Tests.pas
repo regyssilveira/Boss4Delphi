@@ -44,6 +44,43 @@ type
     property Fail: Boolean read FFail write FFail;
   end;
 
+  TSecretToolRunnerMock = class
+  private
+    FInput: string;
+    FCommand: string;
+    FOutput: string;
+    FSuccess: Boolean;
+  public
+    function Run(const AArguments: TStrings; const AInput: string;
+      out AOutput: string): Boolean;
+    property Input: string read FInput;
+    property Command: string read FCommand;
+    property Output: string read FOutput write FOutput;
+    property Success: Boolean read FSuccess write FSuccess;
+  end;
+
+  TUpdateMock = class
+  private
+    FDirectory: string;
+    FRelease: string;
+    FDownloads: Integer;
+  public
+    function Fetch: string;
+    function Download(const AUrl, ATarget: string): Boolean;
+    function Extract(const AArchive, ATargetDirectory: string): Boolean;
+    property Directory: string read FDirectory write FDirectory;
+    property Release: string read FRelease write FRelease;
+    property Downloads: Integer read FDownloads;
+  end;
+
+  TToolCompilerMock = class
+  private
+    FCalls: Integer;
+  public
+    function Compile(const ASourceDirectory, AOutputPath: string): Boolean;
+    property Calls: Integer read FCalls;
+  end;
+
   TPosixCoreTests = class(TTestCase)
   published
     procedure TestPlatform;
@@ -92,14 +129,23 @@ type
     procedure TestDirectoryDigestIsDeterministicAndExcludesGit;
     procedure TestStrictSbomEvidenceAndValidation;
     procedure TestGitLockEvidence;
+    procedure TestSecretServiceCredentialStore;
+    procedure TestSecretMasking;
+    procedure TestCacheManagement;
+    procedure TestWorkspaceLinks;
+    procedure TestSecureSelfUpdate;
+    procedure TestSelfUpdateSkipsCurrentVersion;
+    procedure TestGlobalToolLifecycle;
   end;
 
 implementation
 
 uses
-  fpjson, Boss4D.Posix.Core, Boss4D.Posix.Registry, Boss4D.Posix.Config,
+  fpjson, DateUtils, Boss4D.Posix.Core, Boss4D.Posix.Registry,
+  Boss4D.Posix.Config,
   Boss4D.Posix.Package,
-  Boss4D.Posix.Operations, Boss4D.Posix.Compliance, Boss4D.Posix.Audit;
+  Boss4D.Posix.Operations, Boss4D.Posix.Compliance, Boss4D.Posix.Audit,
+  Boss4D.Posix.Workflows, Boss4D.Posix.Update, Boss4D.Posix.Tools;
 
 procedure SaveFixture(const APath, AContent: string); forward;
 
@@ -859,6 +905,15 @@ begin
   finally
     LArguments.Free;
   end;
+  LArguments := BuildCachedCloneArguments('https://example.test/repo.git',
+    'v1.0.0', '/tmp/repo', '/tmp/cache.git');
+  try
+    AssertEquals('--reference-if-able', LArguments[1]);
+    AssertEquals('/tmp/cache.git', LArguments[2]);
+    AssertEquals('--no-hardlinks', LArguments[3]);
+  finally
+    LArguments.Free;
+  end;
 end;
 
 procedure TPosixCoreTests.TestStructuredProgressFormats;
@@ -972,6 +1027,62 @@ begin
   if FFail then raise Exception.Create('network unavailable');
   if APageToken = '' then Result := FResponse
   else Result := FNextResponse;
+end;
+
+function TSecretToolRunnerMock.Run(const AArguments: TStrings;
+  const AInput: string; out AOutput: string): Boolean;
+begin
+  FCommand := AArguments.DelimitedText;
+  FInput := AInput;
+  AOutput := FOutput;
+  Result := FSuccess;
+end;
+
+function TUpdateMock.Fetch: string;
+begin
+  Result := FRelease;
+end;
+
+function TUpdateMock.Download(const AUrl, ATarget: string): Boolean;
+var
+  LSource: string;
+  LInput, LOutput: TFileStream;
+begin
+  Inc(FDownloads);
+  if Pos('SHA256SUMS', AUrl) > 0 then
+    LSource := IncludeTrailingPathDelimiter(FDirectory) + 'SHA256SUMS.txt'
+  else
+    LSource := IncludeTrailingPathDelimiter(FDirectory) +
+      'boss4d-linux-x86_64.tar.gz';
+  LInput := TFileStream.Create(LSource, fmOpenRead);
+  try
+    LOutput := TFileStream.Create(ATarget, fmCreate);
+    try
+      LOutput.CopyFrom(LInput, 0);
+    finally
+      LOutput.Free;
+    end;
+  finally
+    LInput.Free;
+  end;
+  Result := True;
+end;
+
+function TUpdateMock.Extract(const AArchive,
+  ATargetDirectory: string): Boolean;
+begin
+  ForceDirectories(ATargetDirectory);
+  SaveFixture(IncludeTrailingPathDelimiter(ATargetDirectory) + 'boss4d',
+    'new executable');
+  Result := True;
+end;
+
+function TToolCompilerMock.Compile(const ASourceDirectory,
+  AOutputPath: string): Boolean;
+begin
+  Inc(FCalls);
+  SaveFixture(AOutputPath, 'tool build ' + IntToStr(FCalls));
+  Result := True;
 end;
 
 function CreateComplianceLock(const ADirectory: string): string;
@@ -1277,6 +1388,201 @@ begin
     AssertTrue(LEvidence.Find('dependencies') is TJSONArray);
   finally
     LEvidence.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestSecretServiceCredentialStore;
+var
+  LRunner: TSecretToolRunnerMock;
+  LStore: TBoss4DPosixCredentialStore;
+begin
+  LRunner := TSecretToolRunnerMock.Create;
+  try
+    LRunner.Success := True;
+    LStore := TBoss4DPosixCredentialStore.Create(@LRunner.Run);
+    try
+      LStore.Store('GitHub', 'secret-token');
+      AssertTrue(Pos('store', LRunner.Command) > 0);
+      AssertTrue(Pos('secret-token', LRunner.Command) = 0);
+      AssertEquals('secret-token', LRunner.Input);
+      LRunner.Output := 'retrieved-token';
+      AssertEquals('retrieved-token', LStore.Retrieve('github'));
+      LStore.Remove('github');
+      AssertTrue(Pos('clear', LRunner.Command) > 0);
+    finally
+      LStore.Free;
+    end;
+  finally
+    LRunner.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestSecretMasking;
+begin
+  AssertEquals('request token=*** failed',
+    MaskSecret('request token=abc123 failed', 'abc123'));
+  AssertEquals('unchanged', MaskSecret('unchanged', ''));
+  AssertEquals('https://github.com/example/private',
+    NormalizeRepositoryUrl('github.com/example/private'));
+  AssertEquals('ssh://git@example.test/repo',
+    NormalizeRepositoryUrl('ssh://git@example.test/repo'));
+end;
+
+procedure TPosixCoreTests.TestCacheManagement;
+var
+  LDir: string;
+begin
+  LDir := NewTempDirectory;
+  ForceDirectories(IncludeTrailingPathDelimiter(LDir) + 'old');
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'old/data.bin', '1234');
+  AssertTrue(DirectorySize(LDir) >= 4);
+  AssertEquals(1, PruneCacheDirectory(LDir, IncDay(Now, 1)));
+  AssertEquals(Int64(0), DirectorySize(LDir));
+  ForceDirectories(IncludeTrailingPathDelimiter(LDir) + 'one');
+  ForceDirectories(IncludeTrailingPathDelimiter(LDir) + 'two');
+  AssertEquals(2, CleanCacheDirectory(LDir));
+  AssertTrue(DirectoryExists(LDir));
+end;
+
+procedure TPosixCoreTests.TestWorkspaceLinks;
+var
+  LDir: string;
+begin
+  LDir := NewTempDirectory;
+  ForceDirectories(IncludeTrailingPathDelimiter(LDir) + 'packages/one');
+  ForceDirectories(IncludeTrailingPathDelimiter(LDir) + 'packages/two');
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'boss.json',
+    '{"name":"workspace","version":"1.0.0","dependencies":{},' +
+    '"workspaces":["packages/*"]}');
+  AssertEquals(2, LinkDeclaredWorkspaces(LDir));
+  AssertTrue(DirectoryExists(IncludeTrailingPathDelimiter(LDir) +
+    'packages/one/modules'));
+  AssertTrue(DirectoryExists(IncludeTrailingPathDelimiter(LDir) +
+    'packages/two/modules'));
+  AssertEquals(0, LinkDeclaredWorkspaces(LDir));
+end;
+
+procedure TPosixCoreTests.TestSecureSelfUpdate;
+var
+  LDir, LArchive, LTarget, LHash: string;
+  LMock: TUpdateMock;
+  LService: TBoss4DPosixUpdateService;
+  LResult: TBoss4DUpdateResult;
+  LContent: TStringList;
+begin
+  LDir := NewTempDirectory;
+  LArchive := IncludeTrailingPathDelimiter(LDir) +
+    'boss4d-linux-x86_64.tar.gz';
+  SaveFixture(LArchive, 'archive fixture');
+  LHash := Sha256File(LArchive);
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'SHA256SUMS.txt',
+    LHash + '  boss4d-linux-x86_64.tar.gz');
+  LTarget := IncludeTrailingPathDelimiter(LDir) + 'installed/boss4d';
+  ForceDirectories(ExtractFileDir(LTarget));
+  SaveFixture(LTarget, 'old executable');
+  LMock := TUpdateMock.Create;
+  try
+    LMock.Directory := LDir;
+    LMock.Release := '{"tag_name":"v1.6.0","assets":[' +
+      '{"name":"boss4d-linux-x86_64.tar.gz",' +
+      '"browser_download_url":"https://release/archive"},' +
+      '{"name":"SHA256SUMS.txt",' +
+      '"browser_download_url":"https://release/SHA256SUMS.txt"}]}';
+    LService := TBoss4DPosixUpdateService.Create(@LMock.Fetch,
+      @LMock.Download, @LMock.Extract);
+    try
+      LResult := LService.Execute('1.5.0', LTarget);
+      AssertTrue(LResult.Updated);
+      AssertEquals('v1.6.0', LResult.Version);
+      AssertEquals(2, LMock.Downloads);
+      LContent := TStringList.Create;
+      try
+        LContent.LoadFromFile(LTarget);
+        AssertTrue(Pos('new executable', LContent.Text) > 0);
+      finally
+        LContent.Free;
+      end;
+      AssertFalse(FileExists(LTarget + '.previous'));
+    finally
+      LService.Free;
+    end;
+  finally
+    LMock.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestSelfUpdateSkipsCurrentVersion;
+var
+  LMock: TUpdateMock;
+  LService: TBoss4DPosixUpdateService;
+  LResult: TBoss4DUpdateResult;
+begin
+  AssertTrue(CompareVersions('1.5.0', 'v1.6.0') < 0);
+  AssertEquals(0, CompareVersions('v1.5.0', '1.5.0'));
+  LMock := TUpdateMock.Create;
+  try
+    LMock.Release := '{"tag_name":"v1.5.0","assets":[]}';
+    LService := TBoss4DPosixUpdateService.Create(@LMock.Fetch,
+      @LMock.Download, @LMock.Extract);
+    try
+      LResult := LService.Execute('1.5.0', '/not/used');
+      AssertFalse(LResult.Updated);
+      AssertEquals(0, LMock.Downloads);
+    finally
+      LService.Free;
+    end;
+  finally
+    LMock.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestGlobalToolLifecycle;
+var
+  LDir, LSource, LTarget: string;
+  LCompiler: TToolCompilerMock;
+  LService: TBoss4DPosixToolService;
+  LTools, LContent: TStringList;
+begin
+  LDir := NewTempDirectory;
+  LSource := IncludeTrailingPathDelimiter(LDir) + 'source';
+  ForceDirectories(LSource);
+  LCompiler := TToolCompilerMock.Create;
+  try
+    LService := TBoss4DPosixToolService.Create(
+      IncludeTrailingPathDelimiter(LDir) + 'home', @LCompiler.Compile);
+    try
+      LTarget := LService.Install(LSource, 'demo-tool');
+      AssertTrue(FileExists(LTarget));
+      LTools := LService.List;
+      try
+        AssertEquals(1, LTools.Count);
+        AssertEquals('demo-tool', LTools[0]);
+      finally
+        LTools.Free;
+      end;
+      LService.Install(LSource, 'demo-tool');
+      AssertEquals(2, LCompiler.Calls);
+      LContent := TStringList.Create;
+      try
+        LContent.LoadFromFile(LTarget);
+        AssertTrue(Pos('tool build 2', LContent.Text) > 0);
+      finally
+        LContent.Free;
+      end;
+      AssertFalse(FileExists(LTarget + '.previous'));
+      LService.Uninstall('demo-tool');
+      AssertFalse(FileExists(LTarget));
+      LTools := LService.List;
+      try
+        AssertEquals(0, LTools.Count);
+      finally
+        LTools.Free;
+      end;
+    finally
+      LService.Free;
+    end;
+  finally
+    LCompiler.Free;
   end;
 end;
 
