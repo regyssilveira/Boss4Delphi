@@ -51,6 +51,7 @@ type
     procedure HandleSearch(const AArgs: TArray<string>);
     procedure HandleInfo(const AArgs: TArray<string>);
     procedure HandleDependency(const AArgs: TArray<string>);
+    procedure HandlePublish(const AArgs: TArray<string>);
     procedure HandleConfig(const AArgs: TArray<string>);
     procedure HandleCache(const AArgs: TArray<string>);
     procedure HandleRun(const AArgs: TArray<string>);
@@ -101,7 +102,8 @@ uses
   Boss4D.Core.Services.Dependencies,
   Boss4D.Core.Services.Audit,
   Boss4D.Core.Services.PackageIndex,
-  Boss4D.Core.Services.DependencySubmission;
+  Boss4D.Core.Services.DependencySubmission,
+  Boss4D.Core.Services.Publish;
 
 { TBoss4DCommandLineParser }
 
@@ -148,6 +150,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  search <termo>       Pesquisa pacotes nos indices configurados.');
   FLogger.Log(TBoss4DLogLevel.Info, '  info <pacote>        Exibe metadados de um pacote indexado.');
   FLogger.Log(TBoss4DLogLevel.Info, '  dependency submit    Envia snapshot ao GitHub Dependency Graph.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  publish              Publica pacote com validacoes; use --dry-run para inspecionar.');
   FLogger.Log(TBoss4DLogLevel.Info, '  ci [--offline]       Reinstala limpo usando o lock sem altera-lo.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config delphi use <caminho>  Configura o caminho global do compilador Delphi.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config git shallow <true/false> Configura uso de shallow clones globais.');
@@ -215,6 +218,8 @@ begin
     HandleInfo(AArgs)
   else if LCommand = 'dependency' then
     HandleDependency(AArgs)
+  else if LCommand = 'publish' then
+    HandlePublish(AArgs)
   else if LCommand = 'config' then
     HandleConfig(AArgs)
   else if LCommand = 'cache' then
@@ -241,6 +246,79 @@ begin
     HandleNew(AArgs)
   else if LCommand = 'sbom' then
     HandleSbom(AArgs);
+end;
+
+procedure TBoss4DCommandLineParser.HandlePublish(
+  const AArgs: TArray<string>);
+var
+  LOptions: TBoss4DPublishOptions;
+  LService: TBoss4DPublishService;
+  LLockRepo: IBoss4DLockRepository;
+  LHttp: IBoss4DHttpClient;
+  LPayload, LOutputPath, LTokenEnvironment: string;
+  I: Integer;
+  LEncoding: TEncoding;
+begin
+  LOptions := Default(TBoss4DPublishOptions);
+  LOptions.RequireCleanGit := True;
+  LOptions.RunTests := True;
+  LTokenEnvironment := 'BOSS4D_PUBLISH_TOKEN';
+  I := 1;
+  while I < Length(AArgs) do
+  begin
+    if SameText(AArgs[I], '--dry-run') then
+      LOptions.DryRun := True
+    else if SameText(AArgs[I], '--allow-dirty') then
+      LOptions.RequireCleanGit := False
+    else if SameText(AArgs[I], '--skip-tests') then
+      LOptions.RunTests := False
+    else if SameText(AArgs[I], '--registry') or
+            SameText(AArgs[I], '--token-env') or
+            SameText(AArgs[I], '--output') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create('Informe um valor para ' + AArgs[I]);
+      Inc(I);
+      if SameText(AArgs[I - 1], '--registry') then
+        LOptions.RegistryUrl := AArgs[I]
+      else if SameText(AArgs[I - 1], '--token-env') then
+        LTokenEnvironment := AArgs[I]
+      else
+        LOutputPath := AArgs[I];
+    end
+    else
+      raise EArgumentException.Create(
+        'Opcao desconhecida para publish: ' + AArgs[I]);
+    Inc(I);
+  end;
+  LOptions.Token := GetEnvironmentVariable(LTokenEnvironment);
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LHttp := TBoss4DHttpNativeAdapter.Create;
+  LService := TBoss4DPublishService.Create(
+    FPackageRepo, LLockRepo, LHttp, FLogger);
+  try
+    LPayload := LService.Execute(GetBossFile,
+      TPath.Combine(GetCurrentDir, FILE_PACKAGE_LOCK), LOptions);
+    if LOutputPath.IsEmpty then
+    begin
+      if LOptions.DryRun then
+        System.Write(LPayload);
+    end
+    else
+    begin
+      LOutputPath := TPath.GetFullPath(LOutputPath);
+      if not TPath.GetDirectoryName(LOutputPath).IsEmpty then
+        TDirectory.CreateDirectory(TPath.GetDirectoryName(LOutputPath));
+      LEncoding := TUTF8Encoding.Create(False);
+      try
+        TFile.WriteAllText(LOutputPath, LPayload, LEncoding);
+      finally
+        LEncoding.Free;
+      end;
+    end;
+  finally
+    LService.Free;
+  end;
 end;
 
 procedure TBoss4DCommandLineParser.HandleAdd(const AArgs: TArray<string>);

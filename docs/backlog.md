@@ -195,8 +195,9 @@ This document details the future planning, new features (backlog), and architect
 
 - [x] **[Story] Multiple Registry Sources Configuration (`boss4d registry`)**
   - Support configuring and consuming multiple public and private package index servers in project settings.
-- [ ] **[Story] Direct Publication via CLI (`boss4d publish`)**
-  - Automate testing, tagging, and uploading Delphi packages to configured private registries directly from the CLI.
+- [x] **[Story] Direct Publication via CLI (`boss4d publish`)**
+  - Validate tests, Git state, and lock evidence and submit deterministic package
+    metadata to private registries, with an offline dry-run.
 
 ---
 

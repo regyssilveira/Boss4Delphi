@@ -46,6 +46,7 @@ type
   private
     FResponses: TDictionary<string, string>;
     FResponseCodes: TDictionary<string, Integer>;
+    FAuthorizedPostCount: Integer;
   public
     constructor Create;
     destructor Destroy; override;
@@ -57,6 +58,7 @@ type
       out AResponse: string): Integer;
     procedure AddResponse(const AURL, AResponse: string;
       const AStatusCode: Integer = 200);
+    property AuthorizedPostCount: Integer read FAuthorizedPostCount;
   end;
 
   { Mock para simulacao do Compilador Delphi }
@@ -260,6 +262,7 @@ end;
 function THttpClientMock.PostJsonAuthorized(const AURL, ABody,
   ABearerToken: string; out AResponse: string): Integer;
 begin
+  Inc(FAuthorizedPostCount);
   Result := Get(AURL, AResponse);
 end;
 

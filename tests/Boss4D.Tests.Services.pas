@@ -69,6 +69,9 @@ type
     procedure TestGitHubDependencySubmission;
 
     [Test]
+    procedure TestPublishDryRunAndGates;
+
+    [Test]
     procedure TestCompiledArtifactCacheIsolation;
 
     [Test]
@@ -188,6 +191,7 @@ uses
   Boss4D.Core.Services.Audit,
   Boss4D.Core.Services.PackageIndex,
   Boss4D.Core.Services.DependencySubmission,
+  Boss4D.Core.Services.Publish,
   Boss4D.Core.Services.ArtifactCache,
   Boss4D.Core.Services.PackageManifest, Boss4D.IDE.Wizard;
 
@@ -1003,6 +1007,80 @@ begin
     LChildDep.Free;
     LRootDep.Free;
     LLock.Free;
+  end;
+end;
+
+procedure TTestsServices.TestPublishDryRunAndGates;
+var
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LPackage: TBoss4DPackage;
+  LLock: TBoss4DLock;
+  LDep: TBoss4DDependency;
+  LLocked: TBoss4DLockedDependency;
+  LHttp: THttpClientMock;
+  LService: TBoss4DPublishService;
+  LOptions: TBoss4DPublishOptions;
+  LPackagePath, LLockPath, LPayload: string;
+begin
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LPackagePath := TPath.Combine(FTempDir, FILE_PACKAGE);
+  LLockPath := TPath.Combine(FTempDir, FILE_PACKAGE_LOCK);
+  LPackage := TBoss4DPackage.Create;
+  LLock := TBoss4DLock.Create;
+  LDep := TBoss4DDependency.Create('github.com/example/runtime', '1.2.3');
+  try
+    LPackage.Name := 'publish-test';
+    LPackage.Version := '1.0.0';
+    LPackage.Description := 'Pacote de teste';
+    LPackage.License := 'MIT';
+    LPackageRepo.Save(LPackage, LPackagePath);
+
+    LLock.HasRootMetadata := True;
+    LLock.RootName := LPackage.Name;
+    LLock.RootVersion := LPackage.Version;
+    LLock.RootDependencies.Add(LDep.GetKey);
+    LLock.AddDependency(LDep, '1.2.3', 'hash', 'sha256-value');
+    Assert.IsTrue(LLock.GetInstalled(LDep, LLocked));
+    LLocked.Revision := StringOfChar('a', 40);
+    LLockRepo.Save(LLock, LLockPath);
+
+    LHttp := THttpClientMock.Create;
+    LHttp.AddResponse('https://registry.example/packages', '{"accepted":true}', 201);
+    LService := TBoss4DPublishService.Create(
+      LPackageRepo, LLockRepo, LHttp, TTestLogger.Create);
+    try
+      LOptions := Default(TBoss4DPublishOptions);
+      LOptions.DryRun := True;
+      LPayload := LService.Execute(LPackagePath, LLockPath, LOptions);
+      Assert.IsTrue(LPayload.Contains('"name":"publish-test"'));
+      Assert.IsTrue(LPayload.Contains('"checksum":"sha256-value"'));
+      Assert.AreEqual(0, LHttp.AuthorizedPostCount,
+        'Dry-run nao pode realizar chamadas de publicacao.');
+
+      LOptions.DryRun := False;
+      LOptions.RegistryUrl := 'https://registry.example/';
+      LOptions.Token := 'secret';
+      LService.Execute(LPackagePath, LLockPath, LOptions);
+      Assert.AreEqual(1, LHttp.AuthorizedPostCount);
+
+      LLocked.Checksum := '';
+      LLockRepo.Save(LLock, LLockPath);
+      Assert.WillRaise(
+        procedure
+        begin
+          LOptions.DryRun := True;
+          LService.Execute(LPackagePath, LLockPath, LOptions);
+        end,
+        EBoss4DPublishGate);
+    finally
+      LService.Free;
+    end;
+  finally
+    LDep.Free;
+    LLock.Free;
+    LPackage.Free;
   end;
 end;
 

@@ -25,6 +25,9 @@
   caching isolated by source checksum, platform, and compiler version.
 - Protected VCL, FMX, Horse+Dext API, DUnitX, Lazarus application/package, and
   workspace project templates.
+- Gated `publish` workflow with deterministic registry metadata, offline
+  dry-run, clean-worktree and test checks, immutable lock evidence, and
+  environment-only bearer tokens.
 
 ## 1.3.0 - 2026-07-29
 

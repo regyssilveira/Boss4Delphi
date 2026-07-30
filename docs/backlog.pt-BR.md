@@ -195,8 +195,9 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 
 - [x] **[Story] Configuração de Múltiplas Fontes de Registro (`boss4d registry`)**
   - Permitir a configuração e consumo de múltiplos servidores de índice de pacotes públicos e privados nas configurações do projeto.
-- [ ] **[Story] Publicação Direta via CLI (`boss4d publish`)**
-  - Automatizar o teste, geração de tag e upload de pacotes Delphi para os registros privados configurados diretamente pela CLI.
+- [x] **[Story] Publicação Direta via CLI (`boss4d publish`)**
+  - Validar testes, estado do Git e evidências do lock e enviar metadados
+    determinísticos a registros privados, com dry-run sem rede.
 
 ---
 
