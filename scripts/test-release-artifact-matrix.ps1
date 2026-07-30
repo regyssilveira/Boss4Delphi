@@ -59,6 +59,26 @@ foreach ($component in @($windows.components |
   }
 }
 
+$releaseScript = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\build_release.bat') -Raw
+foreach ($requiredText in @(
+  'HKCU\Software\Embarcadero\BDS\17.0',
+  'plugins\10'
+)) {
+  if (-not $releaseScript.Contains($requiredText)) {
+    throw "Windows release script is missing Delphi 10 contract: $requiredText"
+  }
+}
+
+$installerScript = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\installer\Boss4D.iss') -Raw
+foreach ($requiredText in @(
+  'dist\plugins\10\Boss4D.IDE.Plugin.bpl',
+  'Software\Embarcadero\BDS\17.0'
+)) {
+  if (-not $installerScript.Contains($requiredText)) {
+    throw "Windows installer is missing Delphi 10 contract: $requiredText"
+  }
+}
+
 $updateSource = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\src\Posix\Boss4D.Posix.Update.pas') -Raw
 if (-not $updateSource.Contains('boss4d-linux-x86_64.tar.gz')) {
   throw 'Linux matrix artifact no longer matches the self-update contract.'
