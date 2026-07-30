@@ -78,6 +78,8 @@ uses
   Boss4D.Tests.SelfUpdate in 'Boss4D.Tests.SelfUpdate.pas',
   Boss4D.Tests.Pack in 'Boss4D.Tests.Pack.pas',
   Boss4D.IDE.Wizard in '..\src\IDE\Boss4D.IDE.Wizard.pas',
+  Boss4D.IDE.Legacy.Metadata in '..\src\IDE\Boss4D.IDE.Legacy.Metadata.pas',
+  Boss4D.Tests.LegacyIDE in 'Boss4D.Tests.LegacyIDE.pas',
   Boss4D.Tests.Services in 'Boss4D.Tests.Services.pas';
 
 var
