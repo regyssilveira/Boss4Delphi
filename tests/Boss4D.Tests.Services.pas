@@ -1306,12 +1306,13 @@ begin
     TFile.WriteAllText(LProjectPath, '<Project/>');
 
     LCount := LExecutor.Execute(LPackage, LDep, LLock, FTempDir,
-      TBoss4DBuildSelection.All, 'source-checksum');
+      TBoss4DBuildSelection.All, 'source-checksum', False, 2);
 
     Assert.AreEqual<Integer>(2, LCount);
     Assert.AreEqual<Integer>(2, LCompiler.CompiledProjects.Count);
     Assert.AreEqual('37.0', LCompiler.LastCompilerVersion);
-    Assert.AreEqual('Win64', LCompiler.LastPlatform);
+    Assert.IsTrue(SameText('Win32', LCompiler.LastPlatform) or
+      SameText('Win64', LCompiler.LastPlatform));
     Assert.AreEqual('Release', LCompiler.LastConfiguration);
     Assert.AreEqual<Integer>(2, LExecutor.BuiltCount);
 
@@ -1326,7 +1327,7 @@ begin
     end;
 
     LCount := LExecutor.Execute(LPackage, LDep, LLock, FTempDir,
-      TBoss4DBuildSelection.All, 'source-checksum');
+      TBoss4DBuildSelection.All, 'source-checksum', False, 2);
     Assert.AreEqual<Integer>(2, LCount);
     Assert.AreEqual<Integer>(2, LCompiler.CompiledProjects.Count,
       'Targets atualizados nao devem invocar o compilador novamente.');
@@ -1335,7 +1336,7 @@ begin
 
     TFile.WriteAllText(LProjectPath, '<Project><!-- changed --></Project>');
     LExecutor.Execute(LPackage, LDep, LLock, FTempDir,
-      TBoss4DBuildSelection.All, 'source-checksum');
+      TBoss4DBuildSelection.All, 'source-checksum', False, 2);
     Assert.AreEqual<Integer>(4, LCompiler.CompiledProjects.Count);
     Assert.AreEqual<Integer>(2, LExecutor.BuiltCount);
     Assert.IsTrue(LExecutor.LastExplanations[0].Contains('fontes'));

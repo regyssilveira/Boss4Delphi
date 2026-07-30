@@ -70,6 +70,7 @@ type
     FLastCompilerVersion: string;
     FLastConfiguration: string;
     FSearchPath: string;
+    FGuard: TObject;
   public
     constructor Create;
     destructor Destroy; override;
@@ -286,10 +287,12 @@ constructor TCompilerMock.Create;
 begin
   inherited Create;
   FCompiledProjects := TList<string>.Create;
+  FGuard := TObject.Create;
 end;
 
 destructor TCompilerMock.Destroy;
 begin
+  FGuard.Free;
   FCompiledProjects.Free;
   inherited Destroy;
 end;
@@ -299,10 +302,15 @@ function TCompilerMock.Compile(const AProjectPath: string; const ADep: TBoss4DDe
   const ACompilerVersion: string = '';
   const AConfiguration: string = ''): Boolean;
 begin
-  FCompiledProjects.Add(AProjectPath);
-  FLastPlatform := APlatform;
-  FLastCompilerVersion := ACompilerVersion;
-  FLastConfiguration := AConfiguration;
+  TMonitor.Enter(FGuard);
+  try
+    FCompiledProjects.Add(AProjectPath);
+    FLastPlatform := APlatform;
+    FLastCompilerVersion := ACompilerVersion;
+    FLastConfiguration := AConfiguration;
+  finally
+    TMonitor.Exit(FGuard);
+  end;
   Result := True;
 end;
 

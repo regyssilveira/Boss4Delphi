@@ -45,6 +45,7 @@ uses
   Boss4D.Core.Services.BuildExecutor in '..\Core\Services\Boss4D.Core.Services.BuildExecutor.pas',
   Boss4D.Core.Services.BuildGraph in '..\Core\Services\Boss4D.Core.Services.BuildGraph.pas',
   Boss4D.Core.Services.BuildState in '..\Core\Services\Boss4D.Core.Services.BuildState.pas',
+  Boss4D.Core.Services.BuildScheduler in '..\Core\Services\Boss4D.Core.Services.BuildScheduler.pas',
   Boss4D.Core.Services.Cache in '..\Core\Services\Boss4D.Core.Services.Cache.pas',
   Boss4D.Core.Services.Run in '..\Core\Services\Boss4D.Core.Services.Run.pas',
   Boss4D.Core.Services.Doctor in '..\Core\Services\Boss4D.Core.Services.Doctor.pas',

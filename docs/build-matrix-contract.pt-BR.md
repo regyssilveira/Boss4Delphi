@@ -133,6 +133,20 @@ outputs registrados continuam válidos. O executor diferencia e explica:
 Alterar um pacote runtime invalida seus consumidores design-time compatíveis
 mesmo quando os fontes deles não foram modificados.
 
+## Agendamento paralelo
+
+O scheduler executa um nível topológico por vez e nunca inicia um consumidor
+antes de todas as dependências diretas terminarem. Dentro de um nível, targets
+com diretórios de output diferentes podem executar em paralelo até o limite de
+jobs configurado. Projetos que compartilham o mesmo output de
+pacote/compilador/plataforma/configuração são agrupados e serializados para
+evitar corridas no compilador e no filesystem.
+
+O cancelamento é consultado antes do agendamento e antes de cada target. A
+primeira falha impede novos trabalhos, aguarda com segurança as tarefas já em
+execução e informa o projeto que falhou. Assim, nenhum nível consumidor começa
+depois da falha de uma dependência.
+
 ## Precedência esperada
 
 A seleção segue esta ordem:
