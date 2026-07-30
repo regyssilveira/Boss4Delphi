@@ -17,6 +17,8 @@ type
     FSource: string;
     FArtifactUrl: string;
     FArtifactDigest: string;
+    FSignatureUrl: string;
+    FProvenanceUrl: string;
   public
     property Name: string read FName write FName;
     property Repository: string read FRepository write FRepository;
@@ -26,6 +28,8 @@ type
     property Source: string read FSource write FSource;
     property ArtifactUrl: string read FArtifactUrl write FArtifactUrl;
     property ArtifactDigest: string read FArtifactDigest write FArtifactDigest;
+    property SignatureUrl: string read FSignatureUrl write FSignatureUrl;
+    property ProvenanceUrl: string read FProvenanceUrl write FProvenanceUrl;
   end;
 
   TBoss4DPackageIndexService = class
@@ -172,6 +176,8 @@ begin
         LEntry.License := LObject.GetValue<string>('license', '');
         LEntry.ArtifactUrl := LObject.GetValue<string>('artifact', '');
         LEntry.ArtifactDigest := LObject.GetValue<string>('sha256', '');
+        LEntry.SignatureUrl := LObject.GetValue<string>('signature', '');
+        LEntry.ProvenanceUrl := LObject.GetValue<string>('provenance', '');
         if LSchemaVersion = 2 then
         begin
           var LVersions: TJSONArray := nil;
@@ -187,6 +193,10 @@ begin
               LEntry.ArtifactUrl);
             LEntry.ArtifactDigest := LLatest.GetValue<string>('sha256',
               LEntry.ArtifactDigest);
+            LEntry.SignatureUrl := LLatest.GetValue<string>('signature',
+              LEntry.SignatureUrl);
+            LEntry.ProvenanceUrl := LLatest.GetValue<string>('provenance',
+              LEntry.ProvenanceUrl);
           end;
         end;
         LEntry.Source := ASource;
@@ -242,6 +252,8 @@ begin
         LCopy.Source := LEntry.Source;
         LCopy.ArtifactUrl := LEntry.ArtifactUrl;
         LCopy.ArtifactDigest := LEntry.ArtifactDigest;
+        LCopy.SignatureUrl := LEntry.SignatureUrl;
+        LCopy.ProvenanceUrl := LEntry.ProvenanceUrl;
         Result.Add(LCopy);
       end;
   finally
@@ -269,6 +281,8 @@ begin
         Result.Source := LEntry.Source;
         Result.ArtifactUrl := LEntry.ArtifactUrl;
         Result.ArtifactDigest := LEntry.ArtifactDigest;
+        Result.SignatureUrl := LEntry.SignatureUrl;
+        Result.ProvenanceUrl := LEntry.ProvenanceUrl;
         Exit;
       end;
   finally

@@ -1028,7 +1028,9 @@ begin
     '{"name":"ModernPackage","repository":"git.example.test/modern",' +
     '"license":"MIT","versions":[{"version":"2.1.0",' +
     '"artifact":"https://packages.example/modern.b4dpkg",' +
-    '"sha256":"def456"}]}]}', TEncoding.UTF8);
+    '"sha256":"def456","signature":"https://packages.example/modern.asc",' +
+    '"provenance":"https://packages.example/modern.intoto.json"}]}]}',
+    TEncoding.UTF8);
   LConfig := TBoss4DConfigService.Create(TTestLogger.Create);
   LService := TBoss4DPackageIndexService.Create(LConfig,
     THttpClientMock.Create, TTestLogger.Create);
@@ -1048,6 +1050,10 @@ begin
       Assert.AreEqual('https://packages.example/modern.b4dpkg',
         LModern.ArtifactUrl);
       Assert.AreEqual('def456', LModern.ArtifactDigest);
+      Assert.AreEqual('https://packages.example/modern.asc',
+        LModern.SignatureUrl);
+      Assert.AreEqual('https://packages.example/modern.intoto.json',
+        LModern.ProvenanceUrl);
     finally
       LModern.Free;
     end;
@@ -1279,6 +1285,8 @@ begin
     Assert.IsTrue(LLogger.LastLogMessage.Contains('Uso:'));
     Assert.IsTrue(LLogger.LastLogMessage.Contains(
       'conformance registry|package'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains(
+      'package install <pacote>'));
 
     // Gera um SBOM por meio do parser real, sem escrever JSON no fluxo de logs.
     LInit.Execute(True);
