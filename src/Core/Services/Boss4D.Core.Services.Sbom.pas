@@ -311,7 +311,7 @@ begin
   try
     try
       Result.ToolName := 'Boss4D';
-      Result.ToolVersion := '1.4.0';
+      Result.ToolVersion := '1.5.0';
       Result.Lifecycle := 'build';
       Result.Coverage := 'boss-managed-dependencies';
       Result.Completeness := Incomplete;

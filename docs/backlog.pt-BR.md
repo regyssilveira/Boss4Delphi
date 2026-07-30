@@ -249,7 +249,7 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 
 ---
 
-## 📊 Matriz de Priorização (Backlog v1.4.0 e Futuros)
+## 📊 Matriz de Priorização (Backlog v1.5.0 e Futuros)
 
 | Funcionalidade / Story | Épico | Complexidade | Valor de Negócio | Prioridade (MoSCoW) |
 | :--- | :--- | :--- | :--- | :--- |

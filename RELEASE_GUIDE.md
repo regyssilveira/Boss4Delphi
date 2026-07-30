@@ -33,6 +33,7 @@ Antes de qualquer release, compile todos os executáveis oficiais e os plugins d
    * `dist/bin/boss4d_x64.exe` (CLI Win64)
    * `dist/bin/Boss4D.GUI.exe` (GUI Win32)
    * `dist/bin/Boss4D.GUI_x64.exe` (GUI Win64)
+   * `dist/plugins/10.1/Boss4D.IDE.Plugin.bpl` (Delphi 10.1 Berlin)
    * `dist/plugins/11/Boss4D.IDE.Plugin.bpl` (Delphi 11)
    * `dist/plugins/12/Boss4D.IDE.Plugin.bpl` (Delphi 12)
    * `dist/plugins/13/Boss4D.IDE.Plugin.bpl` (Delphi 13)
@@ -52,6 +53,14 @@ Antes de qualquer release, compile todos os executáveis oficiais e os plugins d
 5. Valide que o instalador final foi gerado com sucesso em:
    * `installer/Output/Boss4D_Setup.exe`
 
+6. Empacote o CLI FPC compilado no contêiner Linux:
+   ```powershell
+   docker run --rm -v "${PWD}:/work" -w /work fpc-test:latest sh -lc "tar -czf installer/Output/boss4d-linux-x86_64.tar.gz -C .fpc-build boss4d"
+   ```
+
+7. Gere `installer/Output/SHA256SUMS.txt` cobrindo o instalador, o arquivo
+   Linux, os dois SBOMs e as duas atestações.
+
 ---
 
 ## 🧪 3. Execução de Testes
@@ -64,13 +73,13 @@ Sempre execute e garanta que 100% dos testes unitários estejam passando antes d
 ---
 
 ## 🏷️ 4. Procedimento para Atualizar ou Criar Tags no Git
-Para criar e apontar uma tag física (por exemplo, `v1.4.0`) para o commit atualizado:
+Para criar e apontar uma tag física (por exemplo, `v1.5.0`) para o commit atualizado:
 ```bash
 # Cria a nova tag local no commit atual
-git tag v1.4.0
+git tag v1.5.0
 
 # Envia a tag para o repositório remoto do GitHub
-git push origin v1.4.0
+git push origin v1.5.0
 ```
 
 ---
@@ -87,6 +96,15 @@ Execute o seguinte comando no terminal do Windows para criar a release e fazer o
 # 1. Limpa o token dummy da IA para ativar as credenciais reais do Windows
 $env:GITHUB_TOKEN = $null
 
-# 2. Cria a release e anexa o instalador de Setup
-gh release create v1.4.0 installer\Output\Boss4D_Setup.exe --title "v1.4.0" --notes "Sua descrição detalhada da release aqui"
+# 2. Cria a release e anexa binários, manifesto, SBOMs e atestações
+gh release create v1.5.0 `
+  installer\Output\Boss4D_Setup.exe `
+  installer\Output\boss4d-linux-x86_64.tar.gz `
+  installer\Output\SHA256SUMS.txt `
+  dist\sbom\boss4d.cdx.json `
+  dist\sbom\boss4d.spdx.json `
+  dist\sbom\boss4d.cdx.intoto.json `
+  dist\sbom\boss4d.spdx.intoto.json `
+  --title "Boss4D v1.5.0" `
+  --notes "Sua descrição detalhada da release aqui"
 ```

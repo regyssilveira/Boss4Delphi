@@ -29,7 +29,7 @@ end;
 
 procedure TPosixCoreTests.TestVersion;
 begin
-  AssertEquals('1.4.0', Boss4DVersion);
+  AssertEquals('1.5.0', Boss4DVersion);
 end;
 
 procedure TPosixCoreTests.TestManifest;
