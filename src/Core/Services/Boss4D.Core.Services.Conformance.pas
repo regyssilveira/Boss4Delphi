@@ -37,8 +37,9 @@ function TBoss4DConformanceService.ValidateRegistryContent(
   const AContent: string): TBoss4DConformanceResult;
 var
   LRoot: TJSONObject;
-  LPackages: TJSONArray;
+  LPackages, LIncludes, LVersions: TJSONArray;
   LNames, LRepositories: TDictionary<string, Byte>;
+  LSchemaVersion: Integer;
 begin
   Result := Default(TBoss4DConformanceResult);
   LRoot := TJSONObject.ParseJSONValue(AContent) as TJSONObject;
@@ -48,20 +49,36 @@ begin
     Exit;
   end;
   try
-    if LRoot.GetValue<Integer>('schemaVersion', 0) <> 1 then
+    LSchemaVersion := LRoot.GetValue<Integer>('schemaVersion', 0);
+    if not (LSchemaVersion in [1, 2]) then
     begin
       Result.ErrorMessage := 'Unsupported registry schema.';
       Exit;
     end;
-    LPackages := LRoot.GetValue<TJSONArray>('packages');
-    if not Assigned(LPackages) then
+    LPackages := nil;
+    if LRoot.GetValue('packages') is TJSONArray then
+      LPackages := TJSONArray(LRoot.GetValue('packages'));
+    LIncludes := nil;
+    if LRoot.GetValue('includes') is TJSONArray then
+      LIncludes := TJSONArray(LRoot.GetValue('includes'));
+    if not Assigned(LPackages) and
+       ((LSchemaVersion = 1) or not Assigned(LIncludes)) then
     begin
       Result.ErrorMessage := 'Registry packages array is required.';
       Exit;
     end;
+    if Assigned(LIncludes) then
+      for var LInclude in LIncludes do
+        if not (LInclude is TJSONString) or LInclude.Value.Trim.IsEmpty or
+           LInclude.Value.Replace('\', '/').Contains('../') then
+        begin
+          Result.ErrorMessage := 'Registry includes must use safe references.';
+          Exit;
+        end;
     LNames := TDictionary<string, Byte>.Create;
     LRepositories := TDictionary<string, Byte>.Create;
     try
+      if Assigned(LPackages) then
       for var LValue in LPackages do
       begin
         if not (LValue is TJSONObject) or
@@ -94,12 +111,37 @@ begin
           Result.ErrorMessage := 'Artifact and sha256 must be declared together.';
           Exit;
         end;
+        LVersions := nil;
+        if TJSONObject(LValue).GetValue('versions') is TJSONArray then
+          LVersions := TJSONArray(TJSONObject(LValue).GetValue('versions'));
+        if Assigned(LVersions) then
+          for var LVersionValue in LVersions do
+          begin
+            if not (LVersionValue is TJSONObject) or
+               TJSONObject(LVersionValue).GetValue<string>('version', '')
+                 .Trim.IsEmpty then
+            begin
+              Result.ErrorMessage := 'Every release needs a version.';
+              Exit;
+            end;
+            LArtifact := TJSONObject(LVersionValue).GetValue<string>(
+              'artifact', '');
+            LDigest := TJSONObject(LVersionValue).GetValue<string>(
+              'sha256', '');
+            if LArtifact.IsEmpty <> LDigest.IsEmpty then
+            begin
+              Result.ErrorMessage :=
+                'Release artifact and sha256 must be declared together.';
+              Exit;
+            end;
+          end;
       end;
     finally
       LRepositories.Free;
       LNames.Free;
     end;
-    Result.PackageCount := LPackages.Count;
+    if Assigned(LPackages) then
+      Result.PackageCount := LPackages.Count;
     Result.Passed := True;
   finally
     LRoot.Free;

@@ -4,7 +4,7 @@ Protocol implementers can validate public artifacts with the same rules used
 by Boss4D:
 
 ```text
-boss4d conformance registry registry/index-v1.json
+boss4d conformance registry registry/index-v2.json
 boss4d conformance package dist/library.b4dpkg
 ```
 

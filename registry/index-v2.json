@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 2,
+  "registry": {
+    "name": "Boss4D Public Registry",
+    "protocol": "boss4d-registry",
+    "url": "https://github.com/regyssilveira/Boss4Delphi/tree/main/registry"
+  },
+  "includes": [
+    "index-v1.json"
+  ],
+  "packages": []
+}
