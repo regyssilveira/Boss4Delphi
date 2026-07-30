@@ -31,6 +31,9 @@ dependências no `boss.json` possui cobertura FPCUnit.
 compilador, verifica hashes SHA-256 externos e internos, assinaturas OpenPGP
 opcionais e proveniência in-toto Statement v1. A extração é transacional e a
 instalação verificada é registrada no manifesto compatível e no lock v3.
+O host também oferece progresso estruturado, códigos de saída estáveis,
+cancelamento cooperativo por Ctrl+C e `doctor` para Git, SHA-256, GPG, FPC e
+diretório home gravável.
 
 O host Windows ainda é necessário para comandos SBOM/audit, armazenamento de
 credenciais, integração RAD Studio/GetIt, GUI, plugins da IDE e

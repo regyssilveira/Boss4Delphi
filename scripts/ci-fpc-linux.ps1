@@ -19,6 +19,13 @@ mkdir -p .fpc-build/package-smoke/project
 (cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d init && /work/.fpc-build/boss4d package install Demo --registry /work/tests/fixtures/package-posix/index.json --platform linux --no-source-fallback)
 test -f .fpc-build/package-smoke/project/modules/demo/src/verified.pas
 grep -q registry-artifact .fpc-build/package-smoke/project/boss-lock.json
+(cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d install --json > progress.json)
+grep -q operationId .fpc-build/package-smoke/project/progress.json
+grep -q completion .fpc-build/package-smoke/project/progress.json
+./.fpc-build/boss4d unknown-command >/dev/null 2>&1 || test $? -eq 2
+./.fpc-build/boss4d doctor > .fpc-build/doctor.txt 2>&1 || true
+grep -q git .fpc-build/doctor.txt
+grep -q sha256sum .fpc-build/doctor.txt
 '@
 $linuxScript = $linuxScript.Replace("`r`n", "`n")
 docker run --rm -v "${root}:/work" -w /work $Image sh -lc $linuxScript

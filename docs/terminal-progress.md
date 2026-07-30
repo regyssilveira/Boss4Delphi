@@ -33,3 +33,19 @@ still be emitted separately.
 Redirected output automatically falls back to complete lines even when
 `interactive` was requested. Concurrent dependency downloads share a
 thread-safe reporter, preventing interleaved or malformed events.
+
+The native Linux/FPC CLI implements the same modes for `install`, `ci`, and
+`package install`. `SIGINT`/Ctrl+C requests cooperative cancellation; commands
+stop at a safe operation boundary and return exit code 130.
+
+## Stable exit codes
+
+| Code | Meaning |
+|---:|---|
+| 0 | Success |
+| 1 | General or environment failure |
+| 2 | Invalid command, option, or usage |
+| 3 | Package not found |
+| 4 | Integrity, signature, provenance, or unsafe-path rejection |
+| 5 | Network or offline-cache failure |
+| 130 | Cancelled by the user |

@@ -90,7 +90,8 @@ function ResolveRegistryReference(const ASource, AReference: string): string;
 implementation
 
 uses
-  fpjson, jsonparser, fphttpclient, opensslsockets;
+  fpjson, jsonparser, fphttpclient, opensslsockets,
+  Boss4D.Posix.Operations;
 
 function PublicRegistryUrl: string;
 begin
@@ -343,6 +344,7 @@ var
   I, J: Integer;
   LKey: string;
 begin
+  CheckCancelled;
   LKey := LowerCase(ASource);
   if AVisited.IndexOf(LKey) >= 0 then Exit;
   AVisited.Add(LKey);

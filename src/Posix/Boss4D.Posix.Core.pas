@@ -40,7 +40,7 @@ procedure InstallProject(const ADirectory: string;
 implementation
 
 uses
-  jsonparser, process;
+  jsonparser, process, Boss4D.Posix.Operations;
 
 const
   MANIFEST_FILE = 'boss.json';
@@ -474,6 +474,7 @@ begin
   if not Assigned(ADependencies) then Exit;
   for I := 0 to ADependencies.Count - 1 do
   begin
+    CheckCancelled;
     LRepository := ADependencies.Names[I];
     LVersion := ADependencies.Items[I].AsString;
     LTarget := IncludeTrailingPathDelimiter(ADirectory) + MODULES_DIR +
@@ -535,6 +536,7 @@ var
   LManifestPath, LLockPath, LFingerprint: string;
   I: Integer;
 begin
+  CheckCancelled;
   LManifestPath := IncludeTrailingPathDelimiter(ADirectory) + MANIFEST_FILE;
   LLockPath := IncludeTrailingPathDelimiter(ADirectory) + LOCK_FILE;
   LManifest := LoadJsonObject(LManifestPath);

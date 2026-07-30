@@ -62,13 +62,20 @@ type
     procedure TestPackageRejectsInvalidSignature;
     procedure TestPackageRejectsInvalidProvenance;
     procedure TestArtifactInstallRecordsLegacyManifestAndLock;
+    procedure TestStructuredProgressFormats;
+    procedure TestProgressModePrecedence;
+    procedure TestExitCodeClassification;
+    procedure TestCancellation;
+    procedure TestInstallHonorsCancellation;
+    procedure TestLinuxDoctor;
   end;
 
 implementation
 
 uses
   fpjson, Boss4D.Posix.Core, Boss4D.Posix.Registry, Boss4D.Posix.Config,
-  Boss4D.Posix.Package;
+  Boss4D.Posix.Package,
+  Boss4D.Posix.Operations;
 
 procedure SaveFixture(const APath, AContent: string); forward;
 
@@ -827,6 +834,110 @@ begin
     AssertEquals('/tmp/repo', LArguments[6]);
   finally
     LArguments.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestStructuredProgressFormats;
+var
+  LEvent: TBoss4DProgressEvent;
+  LJson, LPlain: string;
+  LReporter: TBoss4DProgressReporter;
+begin
+  LEvent.OperationId := 'install-1';
+  LEvent.PackageName := 'Demo';
+  LEvent.Phase := 'verification';
+  LEvent.Current := 1;
+  LEvent.Total := 2;
+  LEvent.MessageText := 'checking "digest"';
+  LEvent.Timestamp := '2026-07-30T12:00:00.000Z';
+  LJson := FormatProgressEvent(LEvent, pmJson);
+  AssertTrue(Pos('"operationId":"install-1"', LJson) > 0);
+  AssertTrue(Pos('"message":"checking \"digest\""', LJson) > 0);
+  AssertTrue(Pos('"current":1,"total":2', LJson) > 0);
+  LPlain := FormatProgressEvent(LEvent, pmPlain);
+  AssertEquals('[verification] Demo 1/2 - checking "digest"', LPlain);
+  AssertEquals('', FormatProgressEvent(LEvent, pmQuiet));
+  LReporter := TBoss4DProgressReporter.Create(pmQuiet);
+  try
+    LReporter.Emit(LEvent);
+  finally
+    LReporter.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestProgressModePrecedence;
+begin
+  AssertEquals(Ord(pmPlain), Ord(ParseProgressMode('', False, False)));
+  AssertEquals(Ord(pmInteractive), Ord(ParseProgressMode(
+    'interactive', False, False)));
+  AssertEquals(Ord(pmJson), Ord(ParseProgressMode('plain', True, False)));
+  AssertEquals(Ord(pmQuiet), Ord(ParseProgressMode('json', True, True)));
+  try
+    ParseProgressMode('invalid', False, False);
+    Fail('Invalid progress mode should fail');
+  except
+    on E: Exception do AssertTrue(Pos('invalid progress mode', E.Message) > 0);
+  end;
+end;
+
+procedure TPosixCoreTests.TestExitCodeClassification;
+begin
+  AssertEquals(2, ClassifyExitCode('usage: boss4d package install'));
+  AssertEquals(3, ClassifyExitCode('package not found: demo'));
+  AssertEquals(4, ClassifyExitCode('artifact SHA-256 mismatch'));
+  AssertEquals(5, ClassifyExitCode('offline registry cache miss'));
+  AssertEquals(130, ClassifyExitCode('operation cancelled'));
+  AssertEquals(1, ClassifyExitCode('unexpected failure'));
+end;
+
+procedure TPosixCoreTests.TestCancellation;
+begin
+  ResetCancellation;
+  CheckCancelled;
+  RequestCancellation;
+  try
+    CheckCancelled;
+    Fail('Cancellation should stop the operation');
+  except
+    on E: Exception do AssertEquals('operation cancelled', E.Message);
+  end;
+  ResetCancellation;
+end;
+
+procedure TPosixCoreTests.TestInstallHonorsCancellation;
+var
+  LDir: string;
+begin
+  LDir := NewTempDirectory;
+  InitProject(LDir);
+  RequestCancellation;
+  try
+    try
+      InstallProject(LDir);
+      Fail('Install should honor cancellation');
+    except
+      on E: Exception do AssertEquals('operation cancelled', E.Message);
+    end;
+  finally
+    ResetCancellation;
+  end;
+end;
+
+procedure TPosixCoreTests.TestLinuxDoctor;
+var
+  LResults: TStringList;
+begin
+  AssertTrue(FindExecutable('sha256sum') <> '');
+  AssertEquals('', FindExecutable('boss4d-command-that-does-not-exist'));
+  LResults := RunDoctor;
+  try
+    AssertTrue(LResults.Text,
+      LResults.IndexOf('OK sha256sum: available') >= 0);
+    AssertTrue(LResults.Text, LResults.IndexOf('OK home: writable') >= 0);
+    AssertEquals(LResults.Text,
+      LResults.IndexOf('ERROR git: not found') < 0, DoctorPassed(LResults));
+  finally
+    LResults.Free;
   end;
 end;
 

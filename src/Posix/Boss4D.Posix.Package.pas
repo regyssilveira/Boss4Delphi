@@ -41,7 +41,8 @@ function Sha256File(const APath: string): string;
 implementation
 
 uses
-  fpjson, jsonparser, fphttpclient, opensslsockets, process, base64;
+  fpjson, jsonparser, fphttpclient, opensslsockets, process, base64,
+  Boss4D.Posix.Operations;
 
 function IsHttp(const AValue: string): Boolean;
 begin
@@ -231,18 +232,21 @@ begin
   DeleteDirectoryTree(LStage);
   DeleteDirectoryTree(LBackup);
   try
+    CheckCancelled;
     Download(ARequest.ArtifactUrl, LArtifact);
     Result.Digest := Sha256File(LArtifact);
     if not SameText(Result.Digest, ARequest.Sha256) then
       raise Exception.Create('artifact SHA-256 mismatch');
     if ARequest.SignatureUrl <> '' then
     begin
+      CheckCancelled;
       Download(ARequest.SignatureUrl, LSignature);
       if not VerifySignature(LArtifact, LSignature) then
         raise Exception.Create('package signature verification failed');
     end;
     if ARequest.ProvenanceUrl <> '' then
     begin
+      CheckCancelled;
       Download(ARequest.ProvenanceUrl, LProvenance);
       if not VerifyProvenance(LProvenance, Result.Digest) then
         raise Exception.Create('package provenance verification failed');
@@ -264,6 +268,7 @@ begin
         ForceDirectories(LStage);
         for I := 0 to LFiles.Count - 1 do
         begin
+          CheckCancelled;
           if not (LFiles.Items[I] is TJSONObject) then
             raise Exception.Create('package file entry must be an object');
           LFile := TJSONObject(LFiles.Items[I]);
