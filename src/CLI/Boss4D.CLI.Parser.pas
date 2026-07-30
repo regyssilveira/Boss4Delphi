@@ -64,6 +64,7 @@ type
     procedure HandleGetIt(const AArgs: TArray<string>);
     procedure HandleClean(const AArgs: TArray<string>);
     procedure HandleNew(const AArgs: TArray<string>);
+    procedure HandleSelfUpdate;
     function ParseSbomArguments(
       const AArgs: TArray<string>): TBoss4DSbomCommandOptions;
     procedure HandleSbom(const AArgs: TArray<string>);
@@ -99,11 +100,13 @@ uses
   Boss4D.Core.Domain.Sbom,
   Boss4D.Core.Domain.Env,
   Boss4D.Core.Domain.Consts,
+  Boss4D.Core.Platform,
   Boss4D.Core.Services.Dependencies,
   Boss4D.Core.Services.Audit,
   Boss4D.Core.Services.PackageIndex,
   Boss4D.Core.Services.DependencySubmission,
-  Boss4D.Core.Services.Publish;
+  Boss4D.Core.Services.Publish,
+  Boss4D.Core.Services.SelfUpdate;
 
 { TBoss4DCommandLineParser }
 
@@ -169,6 +172,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  clean                Apaga a pasta modules e o arquivo boss-lock.json.');
   FLogger.Log(TBoss4DLogLevel.Info, '  new <template> <nome> [--path <dir>] Cria app/package/VCL/FMX/API/DUnitX/Lazarus/workspace.');
   FLogger.Log(TBoss4DLogLevel.Info, '  version, -v, --version Exibe a versao atual do Boss4D.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  self-update          Baixa, verifica e inicia a atualizacao oficial.');
   FLogger.Log(TBoss4DLogLevel.Info, '  help, -h, --help     Exibe este menu de ajuda.');
   FLogger.Log(TBoss4DLogLevel.Info, '');
 end;
@@ -244,8 +248,30 @@ begin
     HandleClean(AArgs)
   else if LCommand = 'new' then
     HandleNew(AArgs)
+  else if LCommand = 'self-update' then
+    HandleSelfUpdate
   else if LCommand = 'sbom' then
     HandleSbom(AArgs);
+end;
+
+procedure TBoss4DCommandLineParser.HandleSelfUpdate;
+var
+  LService: TBoss4DSelfUpdateService;
+  LResult: TBoss4DSelfUpdateResult;
+begin
+  LService := TBoss4DSelfUpdateService.Create(TBoss4DHttpNativeAdapter.Create,
+    FLogger, Boss4DSelfUpdateApplier);
+  try
+    LResult := LService.CheckAndDownload('1.4.0',
+      TPath.Combine(TPath.GetTempPath, 'boss4d-update'));
+    if not LResult.Updated then
+      FLogger.Log(TBoss4DLogLevel.Info, 'Boss4D ja esta atualizado.')
+    else
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Instalador verificado iniciado. Versao: ' + LResult.Version);
+  finally
+    LService.Free;
+  end;
 end;
 
 procedure TBoss4DCommandLineParser.HandlePublish(

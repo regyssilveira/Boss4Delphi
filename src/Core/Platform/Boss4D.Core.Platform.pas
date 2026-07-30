@@ -7,11 +7,13 @@ uses
 
 procedure ConfigureBoss4DPlatform(const AProcessRunner: IBoss4DProcessRunner;
   const AEnvironment: IBoss4DPlatformEnvironment;
-  const AFileLinks: IBoss4DFileLinkService);
+  const AFileLinks: IBoss4DFileLinkService;
+  const ASelfUpdate: IBoss4DSelfUpdateApplier = nil);
 procedure ResetBoss4DPlatform;
 function Boss4DProcessRunner: IBoss4DProcessRunner;
 function Boss4DPlatformEnvironment: IBoss4DPlatformEnvironment;
 function Boss4DFileLinkService: IBoss4DFileLinkService;
+function Boss4DSelfUpdateApplier: IBoss4DSelfUpdateApplier;
 
 implementation
 
@@ -22,10 +24,12 @@ var
   GProcessRunner: IBoss4DProcessRunner;
   GEnvironment: IBoss4DPlatformEnvironment;
   GFileLinks: IBoss4DFileLinkService;
+  GSelfUpdate: IBoss4DSelfUpdateApplier;
 
 procedure ConfigureBoss4DPlatform(const AProcessRunner: IBoss4DProcessRunner;
   const AEnvironment: IBoss4DPlatformEnvironment;
-  const AFileLinks: IBoss4DFileLinkService);
+  const AFileLinks: IBoss4DFileLinkService;
+  const ASelfUpdate: IBoss4DSelfUpdateApplier);
 begin
   if not Assigned(AProcessRunner) then
     raise EArgumentNilException.Create('AProcessRunner');
@@ -36,13 +40,23 @@ begin
   GProcessRunner := AProcessRunner;
   GEnvironment := AEnvironment;
   GFileLinks := AFileLinks;
+  GSelfUpdate := ASelfUpdate;
 end;
 
 procedure ResetBoss4DPlatform;
 begin
+  GSelfUpdate := nil;
   GFileLinks := nil;
   GEnvironment := nil;
   GProcessRunner := nil;
+end;
+
+function Boss4DSelfUpdateApplier: IBoss4DSelfUpdateApplier;
+begin
+  if not Assigned(GSelfUpdate) then
+    raise EInvalidOpException.Create(
+      'Plataforma Boss4D nao oferece autoatualizacao.');
+  Result := GSelfUpdate;
 end;
 
 function Boss4DFileLinkService: IBoss4DFileLinkService;

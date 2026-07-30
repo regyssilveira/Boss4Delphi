@@ -32,6 +32,7 @@ uses
   Boss4D.Core.Services.Init in 'Core/Services/Boss4D.Core.Services.Init.pas',
   Boss4D.Core.Services.Config in 'Core/Services/Boss4D.Core.Services.Config.pas',
   Boss4D.Core.Services.Install in 'Core/Services/Boss4D.Core.Services.Install.pas',
+  Boss4D.Core.Services.SelfUpdate in 'Core/Services/Boss4D.Core.Services.SelfUpdate.pas',
   Boss4D.Core.Services.Progress in 'Core/Services/Boss4D.Core.Services.Progress.pas',
   Boss4D.Core.Services.Transaction in 'Core/Services/Boss4D.Core.Services.Transaction.pas',
   Boss4D.Core.Services.Dependencies in 'Core/Services/Boss4D.Core.Services.Dependencies.pas',

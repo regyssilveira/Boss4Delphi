@@ -102,6 +102,9 @@ cd /d d:\Projetos\BossDelphi
   Enables or disables shallow clones for faster Git download processes.
 * `boss4d version`
   Prints the CLI version (`v1.4.0-delphi-native`).
+* `boss4d self-update`
+  Downloads the official installer, verifies it against `SHA256SUMS.txt`, and
+  starts the update only after a successful SHA-256 check.
 * `boss4d new <template> <name> [--path <directory>]`
   Creates protected Delphi, VCL, FMX, API (Horse + Dext), DUnitX, Lazarus, or
   workspace projects without overwriting a non-empty directory.
@@ -135,6 +138,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Package Publishing](docs/publish.md)**: Dry-run, validation gates, token handling, and the private registry contract.
 * **[Platform Portability](docs/platform-portability.md)**: Portable process, environment, and workspace-link contracts plus the POSIX roadmap.
 * **[Terminal Progress](docs/terminal-progress.md)**: Interactive, plain, JSON Lines, and quiet progress output for installs and CI.
+* **[Secure Self-update](docs/self-update.md)**: Release discovery, SHA-256 verification, staging, and installer handoff.
 * **[CLI Usage Manual](docs/usage.md)**: Detailed step-by-step guide covering all command options and dependency configurations.
 * **[Contribution Guide](CONTRIBUTING.md)**: Coding standards and guidelines for contribution.
 * **[Release Guide](RELEASE_GUIDE.md)**: Steps and instructions to compile with Delphi 13 (37.0) and publish releases on GitHub.

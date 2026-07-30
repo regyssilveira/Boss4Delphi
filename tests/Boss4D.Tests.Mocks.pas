@@ -56,6 +56,7 @@ type
       out AResponse: string): Integer;
     function PostJsonAuthorized(const AURL, ABody, ABearerToken: string;
       out AResponse: string): Integer;
+    function DownloadToFile(const AURL, ATargetPath: string): Integer;
     procedure AddResponse(const AURL, AResponse: string;
       const AStatusCode: Integer = 200);
     property AuthorizedPostCount: Integer read FAuthorizedPostCount;
@@ -230,6 +231,16 @@ begin
     Exit(FResponseCodes[AURL.ToLower]);
   end;
   Result := 404; // Not Found padrao
+end;
+
+function THttpClientMock.DownloadToFile(const AURL,
+  ATargetPath: string): Integer;
+var
+  LResponse: string;
+begin
+  Result := Get(AURL, LResponse);
+  if (Result >= 200) and (Result < 300) then
+    TFile.WriteAllBytes(ATargetPath, TEncoding.UTF8.GetBytes(LResponse));
 end;
 
 function TGitClientMock.VerifyCommit(const ACacheDir, ARevision: string;

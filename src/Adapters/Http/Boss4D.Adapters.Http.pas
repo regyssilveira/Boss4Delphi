@@ -14,12 +14,39 @@ type
       out AResponse: string): Integer;
     function PostJsonAuthorized(const AURL, ABody, ABearerToken: string;
       out AResponse: string): Integer;
+    function DownloadToFile(const AURL, ATargetPath: string): Integer;
   end;
 
 implementation
 
 uses
   System.SysUtils, System.Net.HttpClient, System.Classes;
+
+function TBoss4DHttpNativeAdapter.DownloadToFile(const AURL,
+  ATargetPath: string): Integer;
+var
+  LClient: THTTPClient;
+  LResponse: IHTTPResponse;
+  LStream: TFileStream;
+begin
+  LClient := THTTPClient.Create;
+  LStream := TFileStream.Create(ATargetPath, fmCreate);
+  try
+    LClient.UserAgent := 'Boss4D/1.4';
+    LClient.ConnectionTimeout := 10000;
+    LClient.ResponseTimeout := 60000;
+    try
+      LResponse := LClient.Get(AURL, LStream);
+      Result := LResponse.StatusCode;
+    except
+      on E: Exception do
+        Result := 500;
+    end;
+  finally
+    LStream.Free;
+    LClient.Free;
+  end;
+end;
 
 { TBoss4DHttpNativeAdapter }
 

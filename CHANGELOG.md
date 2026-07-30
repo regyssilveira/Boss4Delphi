@@ -10,6 +10,8 @@
 - Thread-safe structured install/CI progress with interactive, plain, JSON
   Lines, and quiet output modes.
 - Bilingual terminal-progress usage and event-schema documentation.
+- Secure `self-update` using the official installer and published SHA-256
+  manifest, with tamper rejection and unit coverage.
 
 ## 1.4.0 - 2026-07-30
 
