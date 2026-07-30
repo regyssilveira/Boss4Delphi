@@ -18,7 +18,8 @@ implementation
 uses
   System.SysUtils,
   System.Generics.Collections,
-  System.Generics.Defaults;
+  System.Generics.Defaults,
+  Boss4D.Core.Services.BuildConventions;
 
 function ContainsText(const AValues: TList<string>;
   const AValue: string): Boolean;
@@ -238,15 +239,15 @@ begin
     ValidateMatrix(APackage.BuildMatrix);
     LCompilers := SelectValues(APackage.BuildMatrix.Compilers,
       ASelection.Compiler, APackage.BuildMatrix.DefaultCompiler, 'Compilador',
-      ASelection.AllTargets);
+      ASelection.CompilerAll);
     try
       LPlatforms := SelectValues(APackage.BuildMatrix.Platforms,
         ASelection.Platform, APackage.BuildMatrix.DefaultPlatform, 'Plataforma',
-        ASelection.AllTargets);
+        ASelection.PlatformAll);
       try
         LConfigurations := SelectValues(APackage.BuildMatrix.Configurations,
           ASelection.Configuration, APackage.BuildMatrix.DefaultConfiguration,
-          'Configuracao', ASelection.AllTargets);
+          'Configuracao', ASelection.ConfigurationAll);
         try
           for var LProject in APackage.BuildMatrix.Projects do
             for var LCompiler in LCompilers do
@@ -259,12 +260,18 @@ begin
                       begin
                         var LTarget := TBoss4DBuildTarget.Create;
                         LTarget.PackageName := APackage.Name;
-                        LTarget.ProjectPath := LProject.Path;
+                        LTarget.ProjectPath :=
+                          TBoss4DBuildConventions.ExpandPath(LProject.Path,
+                            LCompiler, LPlatform, LConfiguration);
                         LTarget.ProjectKind := LProject.Kind;
                         LTarget.Compiler := LCompiler;
                         LTarget.Platform := LPlatform;
                         LTarget.Configuration := LConfiguration;
-                        LTarget.DependsOn.AddRange(LProject.DependsOn);
+                        for var LDependencyPath in LProject.DependsOn do
+                          LTarget.DependsOn.Add(
+                            TBoss4DBuildConventions.ExpandPath(
+                              LDependencyPath, LCompiler, LPlatform,
+                              LConfiguration));
                         Result.Add(LTarget);
                       end;
         finally

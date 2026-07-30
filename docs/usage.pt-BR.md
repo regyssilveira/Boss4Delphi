@@ -682,3 +682,43 @@ boss4d publish --registry https://registry.example/api
 
 Consulte o [guia de publicação](publish.pt-BR.md) para todos os bloqueios,
 opções e o contrato do endpoint do registro.
+
+---
+
+## 19. Builds com matriz Multi-Delphi
+
+Gere uma matriz inicial determinística a partir dos projetos locais:
+
+```console
+boss4d spec --detect
+boss4d spec --detect --compiler d13
+```
+
+Comandos de build:
+
+```console
+boss4d build
+boss4d build --compiler d13 --platform Win64 --configuration Release
+boss4d build --compiler all --platform Win32 --configuration Release --jobs 4
+boss4d build --full
+boss4d build --compiler d13 --platform Win32 --configuration Release --explain
+boss4d build --compiler d13 --platform Win32 --configuration Release --register
+```
+
+`--compiler`, `--platform` e `--configuration` aceitam um valor ou `all`
+independentemente. `--force` recompila a seleção atual; `--full` seleciona todos
+os eixos e força o rebuild. `--explain` informa por que cada target foi
+compilado, restaurado ou ignorado. `--register` registra somente BPLs
+design-time no compilador/plataforma exatos.
+
+Ciclo de vida da IDE:
+
+```console
+boss4d ide unregister ComponentDesign370 --compiler d13 --platform Win32
+boss4d ide repair
+```
+
+O `doctor` também verifica matriz/grafo, toolchains instaladas, paths de
+projeto, colisões de outputs/units e divergência do Registro. Consulte o
+[guia completo da matriz](build-matrix-contract.pt-BR.md) e o
+[exemplo copiável](../examples/build-matrix/README.md).

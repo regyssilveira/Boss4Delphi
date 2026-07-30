@@ -14,6 +14,26 @@ uses
   Boss4D.Core.Services.BuildScheduler;
 
 type
+  TBoss4DBuildExecutionOptions = record
+  private
+    FSelection: TBoss4DBuildSelection;
+    FSourceChecksum: string;
+    FForce: Boolean;
+    FJobs: Integer;
+    FCancellation: TBoss4DBuildCancellationProbe;
+  public
+    class function Create(const ASelection: TBoss4DBuildSelection;
+      const ASourceChecksum: string): TBoss4DBuildExecutionOptions; static;
+    property Selection: TBoss4DBuildSelection read FSelection
+      write FSelection;
+    property SourceChecksum: string read FSourceChecksum
+      write FSourceChecksum;
+    property Force: Boolean read FForce write FForce;
+    property Jobs: Integer read FJobs write FJobs;
+    property Cancellation: TBoss4DBuildCancellationProbe read FCancellation
+      write FCancellation;
+  end;
+
   TBoss4DBuildExecutor = class
   private
     FCompiler: IBoss4DCompiler;
@@ -31,10 +51,8 @@ type
     destructor Destroy; override;
     function Execute(const APackage: TBoss4DPackage;
       const ADependency: TBoss4DDependency; const ALock: TBoss4DLock;
-      const ARootDirectory: string; const ASelection: TBoss4DBuildSelection;
-      const ASourceChecksum: string; const AForce: Boolean = False;
-      const AJobs: Integer = 1;
-      const ACancellation: TBoss4DBuildCancellationProbe = nil): Integer;
+      const ARootDirectory: string;
+      const AOptions: TBoss4DBuildExecutionOptions): Integer;
     property LastExplanations: TList<string> read FLastExplanations;
     property BuiltCount: Integer read FBuiltCount;
     property SkippedCount: Integer read FSkippedCount;
@@ -62,6 +80,16 @@ begin
   FBuildState := TBoss4DBuildStateService.Create;
   FLastExplanations := TList<string>.Create;
   FGuard := TObject.Create;
+end;
+
+class function TBoss4DBuildExecutionOptions.Create(
+  const ASelection: TBoss4DBuildSelection;
+  const ASourceChecksum: string): TBoss4DBuildExecutionOptions;
+begin
+  Result := Default(TBoss4DBuildExecutionOptions);
+  Result.FSelection := ASelection;
+  Result.FSourceChecksum := ASourceChecksum;
+  Result.FJobs := 1;
 end;
 
 destructor TBoss4DBuildExecutor.Destroy;
@@ -93,10 +121,8 @@ end;
 
 function TBoss4DBuildExecutor.Execute(const APackage: TBoss4DPackage;
   const ADependency: TBoss4DDependency; const ALock: TBoss4DLock;
-  const ARootDirectory: string; const ASelection: TBoss4DBuildSelection;
-  const ASourceChecksum: string; const AForce: Boolean;
-  const AJobs: Integer;
-  const ACancellation: TBoss4DBuildCancellationProbe): Integer;
+  const ARootDirectory: string;
+  const AOptions: TBoss4DBuildExecutionOptions): Integer;
 var
   LTargets: TBoss4DBuildTargetList;
   LFingerprints: TDictionary<string, string>;
@@ -112,7 +138,8 @@ begin
   FSkippedCount := 0;
   FRestoredCount := 0;
   FLastExplanations.Clear;
-  LTargets := TBoss4DBuildMatrixExpander.Expand(APackage, ASelection);
+  LTargets := TBoss4DBuildMatrixExpander.Expand(APackage,
+    AOptions.Selection);
   TDirectory.CreateDirectory(TPath.Combine(GetBossHome, 'artifact-cache'));
   for var LTarget in LTargets do
     TDirectory.CreateDirectory(TBoss4DBuildPaths.TargetRoot(GetModulesDir,
@@ -120,7 +147,7 @@ begin
       LTarget.Configuration));
   LFingerprints := TDictionary<string, string>.Create;
   try
-    Result := TBoss4DBuildScheduler.Execute(LTargets, AJobs,
+    Result := TBoss4DBuildScheduler.Execute(LTargets, AOptions.Jobs,
       procedure(const LTarget: TBoss4DBuildTarget)
       begin
         var LProjectPath := ResolveProjectPath(ARootDirectory,
@@ -149,7 +176,7 @@ begin
             LDependencyFingerprints.Add(LDependencyFingerprint);
           end;
           var LDecision := FBuildState.Evaluate(LTarget, LProjectPath,
-            LTargetRoot, LDependencyFingerprints.ToArray, AForce);
+            LTargetRoot, LDependencyFingerprints.ToArray, AOptions.Force);
           TMonitor.Enter(FGuard);
           try
             FLastExplanations.Add(LTarget.Identity + ': ' +
@@ -170,9 +197,9 @@ begin
             Exit;
           end;
 
-          var LCacheFingerprint := ASourceChecksum + '|' +
+          var LCacheFingerprint := AOptions.SourceChecksum + '|' +
             LDecision.Fingerprint;
-          if not AForce and FArtifactCache.Restore(ADependency,
+          if not AOptions.Force and FArtifactCache.Restore(ADependency,
             LCacheFingerprint, LTarget.Platform, LTarget.Compiler,
             LTarget.Configuration, LTargetRoot) then
           begin
@@ -213,7 +240,7 @@ begin
           LDependencyFingerprints.Free;
         end;
       end,
-      ACancellation);
+      AOptions.Cancellation);
     FLastExplanations.Sort(TComparer<string>.Construct(
       function(const ALeft, ARight: string): Integer
       begin

@@ -103,6 +103,12 @@ type
 
     [Test]
     procedure TestCLICommandLineParser;
+    [Test]
+    procedure TestCLISpecDetectPersistsBuildMatrix;
+    [Test]
+    procedure TestCLIBuildExecutesSelectedMatrix;
+    [Test]
+    procedure TestCLIIDEUnregisterAndRepairAreExactlyScoped;
 
     [Test]
     procedure TestCompilerAutodetectAndOverride;
@@ -1283,6 +1289,201 @@ begin
   end;
 end;
 
+procedure TTestsServices.TestCLISpecDetectPersistsBuildMatrix;
+var
+  LInit: TBoss4DInitService;
+  LInstall: TBoss4DInstallService;
+  LConfig: TBoss4DConfigService;
+  LParser: TBoss4DCommandLineParser;
+  LLogger: TTestLogger;
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LPackage: TBoss4DPackage;
+  LProjectDirectory: string;
+begin
+  LLogger := TTestLogger.Create;
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LInit := TBoss4DInitService.Create(LPackageRepo, LLogger);
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo,
+    TGitClientMock.Create, THttpClientMock.Create, TCompilerMock.Create,
+    LLogger);
+  LConfig := TBoss4DConfigService.Create(LLogger);
+  LParser := TBoss4DCommandLineParser.Create(LLogger, LInit, LInstall,
+    LConfig, LPackageRepo, TRegistryMock.Create);
+  try
+    LPackage := TBoss4DPackage.Create;
+    try
+      LPackage.Name := 'spec-cli';
+      LPackage.Version := '1.0.0';
+      LPackageRepo.Save(LPackage, GetBossFile);
+    finally
+      LPackage.Free;
+    end;
+
+    LProjectDirectory := TPath.Combine(FTempDir, 'packages\Runtime');
+    TDirectory.CreateDirectory(LProjectDirectory);
+    TFile.WriteAllText(TPath.Combine(LProjectDirectory, 'Runtime.dproj'),
+      '<Project><PropertyGroup><MainSource>Runtime.dpk</MainSource>' +
+      '</PropertyGroup></Project>', TEncoding.UTF8);
+    TFile.WriteAllText(TPath.Combine(LProjectDirectory, 'Runtime.dpk'),
+      'package Runtime;' + sLineBreak + '{$RUNONLY}' + sLineBreak +
+      'requires rtl;' + sLineBreak + 'contains' + sLineBreak + 'end.',
+      TEncoding.UTF8);
+
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'spec', '--detect', '--compiler', 'd13'));
+
+    LPackage := LPackageRepo.Load(GetBossFile);
+    try
+      Assert.AreEqual<Integer>(1, LPackage.BuildMatrix.Compilers.Count);
+      Assert.AreEqual('37.0', LPackage.BuildMatrix.Compilers[0]);
+      Assert.AreEqual<Integer>(1, LPackage.BuildMatrix.Projects.Count);
+      Assert.AreEqual('packages/Runtime/Runtime.dproj',
+        LPackage.BuildMatrix.Projects[0].Path);
+      Assert.AreEqual('spec-cli', LPackage.Name);
+    finally
+      LPackage.Free;
+    end;
+    Assert.IsTrue(LLogger.LastLogMessage.Contains(
+      'buildMatrix detectada: 1 projetos, 1 compiladores.'));
+  finally
+    LParser.Free;
+    LConfig.Free;
+    LInstall.Free;
+    LInit.Free;
+  end;
+end;
+
+procedure TTestsServices.TestCLIBuildExecutesSelectedMatrix;
+var
+  LInit: TBoss4DInitService;
+  LInstall: TBoss4DInstallService;
+  LConfig: TBoss4DConfigService;
+  LParser: TBoss4DCommandLineParser;
+  LLogger: TTestLogger;
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LCompiler: TCompilerMock;
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+begin
+  LLogger := TTestLogger.Create;
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LCompiler := TCompilerMock.Create;
+  LInit := TBoss4DInitService.Create(LPackageRepo, LLogger);
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo,
+    TGitClientMock.Create, THttpClientMock.Create, LCompiler, LLogger);
+  LConfig := TBoss4DConfigService.Create(LLogger);
+  LParser := TBoss4DCommandLineParser.Create(LLogger, LInit, LInstall,
+    LConfig, LPackageRepo, TRegistryMock.Create,
+    TBoss4DParserRuntime.Create(LCompiler, nil, nil, nil));
+  try
+    TFile.WriteAllText(TPath.Combine(FTempDir, 'Runtime.dproj'),
+      '<Project/>', TEncoding.UTF8);
+    LPackage := TBoss4DPackage.Create;
+    try
+      LPackage.Name := 'cli-build-' + TGUID.NewGuid.ToString;
+      LPackage.Version := '1.0.0';
+      LPackage.BuildMatrix.Compilers.Add('37.0');
+      LPackage.BuildMatrix.Platforms.Add('Win32');
+      LPackage.BuildMatrix.Platforms.Add('Win64');
+      LPackage.BuildMatrix.Configurations.Add('Debug');
+      LPackage.BuildMatrix.Configurations.Add('Release');
+      LProject := TBoss4DBuildProject.Create;
+      LProject.Path := 'Runtime.dproj';
+      LPackage.BuildMatrix.Projects.Add(LProject);
+      LPackageRepo.Save(LPackage, GetBossFile);
+    finally
+      LPackage.Free;
+    end;
+
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'build', '--compiler', 'd13', '--platform', 'Win64',
+      '--configuration', 'Release', '--force', '--jobs', '2',
+      '--explain'));
+
+    Assert.AreEqual<Integer>(1, LCompiler.CompiledProjects.Count);
+    Assert.AreEqual('37.0', LCompiler.LastCompilerVersion);
+    Assert.AreEqual('Win64', LCompiler.LastPlatform);
+    Assert.AreEqual('Release', LCompiler.LastConfiguration);
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('Build: 1 agendados'));
+  finally
+    LParser.Free;
+    LConfig.Free;
+    LInstall.Free;
+    LInit.Free;
+  end;
+end;
+
+procedure TTestsServices.TestCLIIDEUnregisterAndRepairAreExactlyScoped;
+var
+  LInit: TBoss4DInitService;
+  LInstall: TBoss4DInstallService;
+  LConfig: TBoss4DConfigService;
+  LParser: TBoss4DCommandLineParser;
+  LLogger: TTestLogger;
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LPackageName: string;
+  LCompiler: string;
+  LPlatform: string;
+  LRepairCalls: Integer;
+begin
+  LLogger := TTestLogger.Create;
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LInit := TBoss4DInitService.Create(LPackageRepo, LLogger);
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo,
+    TGitClientMock.Create, THttpClientMock.Create, TCompilerMock.Create,
+    LLogger);
+  LConfig := TBoss4DConfigService.Create(LLogger);
+  LRepairCalls := 0;
+  LParser := TBoss4DCommandLineParser.Create(LLogger, LInit, LInstall,
+    LConfig, LPackageRepo, TRegistryMock.Create,
+    TBoss4DParserRuntime.Create(nil, nil,
+      function(const APackageName, ACompiler,
+        APlatform: string): Integer
+      begin
+        LPackageName := APackageName;
+        LCompiler := ACompiler;
+        LPlatform := APlatform;
+        Result := 1;
+      end,
+      function: Integer
+      begin
+        Inc(LRepairCalls);
+        Result := 2;
+      end));
+  try
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'ide', 'unregister', 'Component370', '--compiler', 'd13',
+      '--platform', 'win64'));
+    Assert.AreEqual('Component370', LPackageName);
+    Assert.AreEqual('37.0', LCompiler);
+    Assert.AreEqual('Win64', LPlatform);
+
+    LParser.ParseAndExecute(TArray<string>.Create('ide', 'repair'));
+    Assert.AreEqual(1, LRepairCalls);
+    Assert.IsTrue(LLogger.LastLogMessage.Contains(
+      'Registros IDE reparados: 2.'));
+
+    Assert.WillRaise(
+      procedure
+      begin
+        LParser.ParseAndExecute(TArray<string>.Create(
+          'ide', 'unregister', 'Component370', '--compiler', 'd13'));
+      end,
+      EArgumentException);
+  finally
+    LParser.Free;
+    LConfig.Free;
+    LInstall.Free;
+    LInit.Free;
+  end;
+end;
+
 procedure TTestsServices.TestBuildExecutorCompilesExpandedTargets;
 var
   LPackage: TBoss4DPackage;
@@ -1293,6 +1494,7 @@ var
   LExecutor: TBoss4DBuildExecutor;
   LProjectPath: string;
   LCount: Integer;
+  LOptions: TBoss4DBuildExecutionOptions;
 begin
   LPackage := TBoss4DPackage.Create;
   LDep := TBoss4DDependency.Create('github.com/example/component', '1.0.0');
@@ -1312,8 +1514,10 @@ begin
     TDirectory.CreateDirectory(TPath.GetDirectoryName(LProjectPath));
     TFile.WriteAllText(LProjectPath, '<Project/>');
 
-    LCount := LExecutor.Execute(LPackage, LDep, LLock, FTempDir,
-      TBoss4DBuildSelection.All, 'source-checksum', False, 2);
+    LOptions := TBoss4DBuildExecutionOptions.Create(
+      TBoss4DBuildSelection.All, 'source-checksum');
+    LOptions.Jobs := 2;
+    LCount := LExecutor.Execute(LPackage, LDep, LLock, FTempDir, LOptions);
 
     Assert.AreEqual<Integer>(2, LCount);
     Assert.AreEqual<Integer>(2, LCompiler.CompiledProjects.Count);
@@ -1333,8 +1537,7 @@ begin
         'compiled');
     end;
 
-    LCount := LExecutor.Execute(LPackage, LDep, LLock, FTempDir,
-      TBoss4DBuildSelection.All, 'source-checksum', False, 2);
+    LCount := LExecutor.Execute(LPackage, LDep, LLock, FTempDir, LOptions);
     Assert.AreEqual<Integer>(2, LCount);
     Assert.AreEqual<Integer>(2, LCompiler.CompiledProjects.Count,
       'Targets atualizados nao devem invocar o compilador novamente.');
@@ -1342,8 +1545,7 @@ begin
     Assert.IsTrue(LExecutor.LastExplanations[0].Contains('atualizado'));
 
     TFile.WriteAllText(LProjectPath, '<Project><!-- changed --></Project>');
-    LExecutor.Execute(LPackage, LDep, LLock, FTempDir,
-      TBoss4DBuildSelection.All, 'source-checksum', False, 2);
+    LExecutor.Execute(LPackage, LDep, LLock, FTempDir, LOptions);
     Assert.AreEqual<Integer>(4, LCompiler.CompiledProjects.Count);
     Assert.AreEqual<Integer>(2, LExecutor.BuiltCount);
     Assert.IsTrue(LExecutor.LastExplanations[0].Contains('fontes'));
@@ -1463,7 +1665,9 @@ begin
     LStore.DeleteValue(LLibraryKey, 'Search Path');
     LStore.DeleteValue(LPackageKey, LRegistration.BplPath);
 
+    Assert.AreEqual<Integer>(1, Length(LService.FindDrift));
     Assert.AreEqual<Integer>(1, LService.Repair);
+    Assert.AreEqual<Integer>(0, Length(LService.FindDrift));
     Assert.AreEqual('C:\artifacts\dcu',
       LStore.GetValue(LLibraryKey, 'Search Path'));
     Assert.AreEqual('Sample design package',

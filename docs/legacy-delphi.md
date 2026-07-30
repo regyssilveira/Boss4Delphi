@@ -8,7 +8,7 @@ Boss4D ships two IDE integration profiles:
 
 The legacy plug-in preserves package discovery and a stable integration entry
 point while directing dependency operations to the same `boss4d.exe` CLI. It
-is built with the actual BDS 17.0 compiler during the release build and is
+targets the BDS 18.0 compiler in the release matrix and is
 published under `dist/plugins/10.1`.
 
 ```text

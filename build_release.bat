@@ -94,9 +94,9 @@ mkdir "!OUTPUT_DIR!\plugins\11" 2>nul
 mkdir "!OUTPUT_DIR!\plugins\12" 2>nul
 mkdir "!OUTPUT_DIR!\plugins\13" 2>nul
 
-:: Delphi 10.1 Berlin (BDS 17.0) - adaptador legado sem inline variables
+:: Delphi 10.1 Berlin (BDS 18.0) - adaptador legado sem inline variables
 set "D101_PATH="
-for /f "tokens=2,*" %%A in ('reg query "HKCU\Software\Embarcadero\BDS\17.0" /v RootDir 2^>nul') do set "D101_PATH=%%B"
+for /f "tokens=2,*" %%A in ('reg query "HKCU\Software\Embarcadero\BDS\18.0" /v RootDir 2^>nul') do set "D101_PATH=%%B"
 if not defined D101_PATH goto SkipD101
 echo Compilando plugin legado para Delphi 10.1...
 setlocal

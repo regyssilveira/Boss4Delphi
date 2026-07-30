@@ -45,6 +45,18 @@ foreach ($required in @('10.1', '11', '12', '13')) {
     throw "Release matrix is missing Delphi plugin: $required"
   }
 }
+$expectedBds = @{
+  '10.1' = '18.0'
+  '11' = '22.0'
+  '12' = '23.0'
+  '13' = '37.0'
+}
+foreach ($component in @($windows.components |
+  Where-Object kind -eq 'ide-plugin')) {
+  if ($expectedBds[$component.delphi] -ne $component.bds) {
+    throw "Invalid BDS mapping for Delphi $($component.delphi): $($component.bds)"
+  }
+}
 
 $updateSource = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\src\Posix\Boss4D.Posix.Update.pas') -Raw
 if (-not $updateSource.Contains('boss4d-linux-x86_64.tar.gz')) {

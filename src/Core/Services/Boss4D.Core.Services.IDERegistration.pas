@@ -71,6 +71,7 @@ type
     function Unregister(const APackageName, ACompiler,
       APlatform: string): Integer;
     function Repair: Integer;
+    function FindDrift: TArray<string>;
   end;
 
 implementation
@@ -362,17 +363,11 @@ procedure Rollback(const AStore: IBoss4DIDERegistryStore;
   const ASnapshots: TObjectList<TBoss4DRegistrySnapshot>);
 begin
   for var I := ASnapshots.Count - 1 downto 0 do
-  begin
-    try
-      if ASnapshots[I].FExisted then
-        AStore.WriteValue(ASnapshots[I].FKey, ASnapshots[I].FName,
-          ASnapshots[I].FValue)
-      else
-        AStore.DeleteValue(ASnapshots[I].FKey, ASnapshots[I].FName);
-    except
-      // Preserva a excecao original; o chamador reporta a falha transacional.
-    end;
-  end;
+    if ASnapshots[I].FExisted then
+      AStore.WriteValue(ASnapshots[I].FKey, ASnapshots[I].FName,
+        ASnapshots[I].FValue)
+    else
+      AStore.DeleteValue(ASnapshots[I].FKey, ASnapshots[I].FName);
 end;
 
 procedure WritePathValue(const AStore: IBoss4DIDERegistryStore;
@@ -598,6 +593,25 @@ begin
     end;
   finally
     LSnapshots.Free;
+    LInventory.Free;
+  end;
+end;
+
+function TBoss4DIDERegistrationService.FindDrift: TArray<string>;
+var
+  LInventory: TObjectList<TBoss4DIDERegistration>;
+  LDrift: TList<string>;
+begin
+  LInventory := LoadInventory;
+  LDrift := TList<string>.Create;
+  try
+    for var LRegistration in LInventory do
+      if not IsHealthy(LRegistration) then
+        LDrift.Add(LRegistration.Identity);
+    LDrift.Sort;
+    Result := LDrift.ToArray;
+  finally
+    LDrift.Free;
     LInventory.Free;
   end;
 end;

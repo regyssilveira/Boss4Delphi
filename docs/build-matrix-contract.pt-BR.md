@@ -30,7 +30,7 @@ Os formatos existentes continuam válidos sem migração:
   argumento da CLI, `toolchain`, `engines` e padrão `Win32`;
 - salvar um manifesto legado não converte silenciosamente strings em objetos.
 
-A matriz será aditiva. Campos novos não podem alterar a leitura, a gravação ou
+A matriz é aditiva. Campos novos não alteram a leitura, a gravação ou
 o resultado efetivo de um manifesto legado.
 
 ## Sintaxe declarativa
@@ -87,7 +87,7 @@ Um target de build é identificado pelo conjunto:
 
 `pacote + projeto + compilador + plataforma + configuração`
 
-Essa identidade será usada para diretórios de saída, fingerprints, cache,
+Essa identidade é usada para diretórios de saída, fingerprints, cache,
 diagnósticos e registro na IDE. Artefatos produzidos por compiladores,
 plataformas ou configurações diferentes nunca poderão compartilhar o mesmo
 diretório final.
@@ -171,6 +171,98 @@ pacote/compilador/plataforma selecionado, preservando paths do usuário. Registr
 novamente o mesmo target substitui seus paths e pacote anteriores. O reparo
 compara inventário e Registro e reaplica apenas as entradas com divergência.
 
+## Convenções do Delphi
+
+A CLI aceita versões BDS ou aliases curtos:
+
+| Delphi | Seletor BDS/compilador | Alias | Sufixo do package | Símbolo |
+|---|---:|---|---:|---|
+| 10.1 Berlin | `18.0` | `d101` | `240` | `VER310` |
+| 11 Alexandria | `22.0` | `d11` | `280` | `VER350` |
+| 12 Athens | `23.0` | `d12` | `290` | `VER360` |
+| 13 Florence | `37.0` | `d13` | `370` | `VER370` |
+
+Paths podem usar `{compiler}`, `{alias}`, `{libsuffix}`, `{platform}` e
+`{configuration}`. Por exemplo,
+`packages/{alias}/Component{libsuffix}.dproj` vira
+`packages/d13/Component370.dproj` no Delphi 13. Os valores seguem as convenções
+de compilador/package do RAD Studio; `libsuffix` permite que outputs de
+packages de diferentes gerações coexistam.
+
+## Fluxo da CLI
+
+Detecte uma matriz inicial a partir de `.dproj` e `.dpk`:
+
+```console
+boss4d spec --detect
+boss4d spec --detect --compiler d13
+```
+
+A detecção reconhece `{$RUNONLY}` e `{$DESIGNONLY}`, converte entradas locais
+de `requires` em `dependsOn`, ignora diretórios de dependências/artefatos,
+preserva `projects` legados e grava paths determinísticos com `/`.
+
+Compile um target, uma seleção mista ou a matriz completa:
+
+```console
+boss4d build
+boss4d build --compiler d13 --platform Win64 --configuration Release
+boss4d build --compiler all --platform Win32 --configuration Release --jobs 4
+boss4d build --compiler d13 --platform Win32 --configuration Release --explain
+boss4d build --full
+```
+
+- `--compiler`, `--platform` e `--configuration` aceitam um valor ou `all`
+  independentemente.
+- `--jobs n` limita targets isolados concorrentes.
+- `--force` recompila os targets selecionados e ignora restauração do cache.
+- `--full` seleciona todos os eixos e força recompilação.
+- `--explain` mostra a decisão incremental de cada target.
+- `--register` registra os BPLs produzidos por targets design-time.
+
+Os comandos de ciclo de vida da IDE são intencionalmente exatos:
+
+```console
+boss4d ide unregister ComponentDesign370 --compiler d13 --platform Win32
+boss4d ide repair
+```
+
+## Doctor e troubleshooting
+
+`boss4d doctor` verifica as ferramentas do host e o projeto atual. Os
+diagnósticos do projeto usam códigos estáveis e apresentam remediação para:
+
+- matriz inválida, dependências compatíveis ausentes e ciclos no grafo;
+- versões Delphi declaradas mas não instaladas ou paths registrados ausentes;
+- projetos inexistentes e paths fora da raiz do pacote;
+- nomes de output repetidos e declarações duplicadas de units Delphi;
+- divergência entre `%BOSS_HOME%\ide-registrations.json` e o Registro.
+
+Ações comuns de recuperação:
+
+- execute `boss4d spec --detect` após mover ou adicionar packages;
+- use `boss4d build --explain` antes de forçar um rebuild;
+- remova somente o target afetado em `modules/artifacts/` ao investigar um
+  output corrompido; o rebuild normal já detecta outputs ausentes;
+- execute `boss4d ide repair` após alterar manualmente Library Paths;
+- confirme que a versão BDS selecionada está instalada antes de usar
+  `--compiler`.
+
+## Migração de um manifest legado
+
+A migração é opcional. Um manifest legado continua funcionando sem alterações.
+Para adotar a matriz:
+
+1. faça commit do `boss.json` existente;
+2. execute `boss4d spec --detect`;
+3. revise os tipos dos projetos e seus `dependsOn`;
+4. restrinja eixos por projeto quando um design package não existir em todos;
+5. execute primeiro um target explícito com `--explain`;
+6. avance para `--compiler all` ou `--full` somente após esse target passar.
+
+Remover `buildMatrix` restaura a seleção legada; listas de strings e mapas
+string/string de dependências nunca são reescritos.
+
 ## Precedência esperada
 
 A seleção segue esta ordem:
@@ -181,8 +273,25 @@ A seleção segue esta ordem:
 4. contrato legado de `toolchain` e `engines`;
 5. defaults compatíveis do Boss4D.
 
-Uma seleção vazia ou incompatível deverá falhar com mensagem acionável, sem
+Uma seleção vazia ou incompatível falha com mensagem acionável, sem
 executar parcialmente a instalação.
+
+## Evidências de validação
+
+O branch atual foi validado com:
+
+- 183 testes DUnitX no Delphi 13 Win32 e Win64;
+- builds da CLI de produção no Delphi 13 Win32 e Win64;
+- builds reais do plugin da IDE com Delphi 11/BDS 22.0, Delphi 12/BDS 23.0 e
+  Delphi 13/BDS 37.0;
+- 61 testes FPCUnit, smoke tests da CLI e do artefato de release em Linux/FPC
+  3.2.2 via Docker;
+- Sonar Quality Gate `OK`, sem novas violações.
+
+Delphi 10.1 requer BDS 18.0. Essa toolchain não está instalada na máquina
+atual; portanto, seu build do plugin permanece como gate de um runner de
+release, e não como afirmação de validação local. BDS 17.0 corresponde ao
+Delphi 10 Seattle e não é aceito como evidência do Delphi 10.1.
 
 ## Critérios de aceitação
 

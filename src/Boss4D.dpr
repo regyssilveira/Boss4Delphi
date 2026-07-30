@@ -49,6 +49,10 @@ uses
   Boss4D.Core.Services.Publish in 'Core/Services/Boss4D.Core.Services.Publish.pas',
   Boss4D.Core.Services.ArtifactCache in 'Core/Services/Boss4D.Core.Services.ArtifactCache.pas',
   Boss4D.Core.Services.BuildMatrix in 'Core/Services/Boss4D.Core.Services.BuildMatrix.pas',
+  Boss4D.Core.Services.BuildConventions in 'Core/Services/Boss4D.Core.Services.BuildConventions.pas',
+  Boss4D.Core.Services.BuildSpec in 'Core/Services/Boss4D.Core.Services.BuildSpec.pas',
+  Boss4D.Core.Services.BuildCommand in 'Core/Services/Boss4D.Core.Services.BuildCommand.pas',
+  Boss4D.Core.Services.BuildDoctor in 'Core/Services/Boss4D.Core.Services.BuildDoctor.pas',
   Boss4D.Core.Services.BuildPaths in 'Core/Services/Boss4D.Core.Services.BuildPaths.pas',
   Boss4D.Core.Services.BuildExecutor in 'Core/Services/Boss4D.Core.Services.BuildExecutor.pas',
   Boss4D.Core.Services.BuildGraph in 'Core/Services/Boss4D.Core.Services.BuildGraph.pas',
@@ -131,7 +135,9 @@ begin
     LInstallService.SetProgressOutput(TBoss4DConsoleProgressOutput.Create);
 
     // Inicializa o Parser de CLI
-    LParser := TBoss4DCommandLineParser.Create(LLogger, LInitService, LInstallService, LConfigService, LPackageRepo, LRegistry);
+    LParser := TBoss4DCommandLineParser.Create(LLogger, LInitService,
+      LInstallService, LConfigService, LPackageRepo, LRegistry,
+      TBoss4DParserRuntime.Create(LCompiler, nil, nil, nil));
     try
       LParser.ParseAndExecute(LArgs);
     finally

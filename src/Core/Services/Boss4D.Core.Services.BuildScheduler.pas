@@ -47,7 +47,6 @@ type
       const AMessage: string);
     procedure MarkCompleted;
     property Failed: Boolean read FFailed;
-    property Cancelled: Boolean read FCancelled;
     property ErrorMessage: string read FErrorMessage;
     property Completed: Integer read FCompleted;
   end;

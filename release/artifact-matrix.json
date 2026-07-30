@@ -4,7 +4,7 @@
     {
       "name": "boss4d-windows.zip",
       "components": [
-        { "kind": "ide-plugin", "delphi": "10.1", "bds": "17.0" },
+        { "kind": "ide-plugin", "delphi": "10.1", "bds": "18.0" },
         { "kind": "ide-plugin", "delphi": "11", "bds": "22.0" },
         { "kind": "ide-plugin", "delphi": "12", "bds": "23.0" },
         { "kind": "ide-plugin", "delphi": "13", "bds": "37.0" }

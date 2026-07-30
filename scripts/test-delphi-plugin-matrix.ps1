@@ -5,7 +5,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $versions = [ordered]@{
-  '10.1' = @{ Bds = '17.0'; Legacy = $true }
+  '10.1' = @{ Bds = '18.0'; Legacy = $true }
   '11'   = @{ Bds = '22.0'; Legacy = $false }
   '12'   = @{ Bds = '23.0'; Legacy = $false }
   '13'   = @{ Bds = '37.0'; Legacy = $false }

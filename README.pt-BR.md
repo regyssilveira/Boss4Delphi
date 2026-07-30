@@ -5,9 +5,9 @@
 </p>
 
 O **Boss4D** é um gerenciador de dependências nativo e moderno para projetos
-Delphi e Lazarus. A CLI Windows é compilada com Delphi 13, o plugin da IDE é
-validado com Delphi 10.1, 11, 12 e 13, e a CLI Linux x86-64 é compilada
-nativamente com FPC 3.2.2.
+Delphi e Lazarus. A CLI Windows é compilada com Delphi 13, o plugin da IDE tem
+como alvo o Delphi 10.1 e é validado localmente com Delphi 11, 12 e 13, e a
+CLI Linux x86-64 é compilada nativamente com FPC 3.2.2.
 
 ---
 
@@ -25,6 +25,10 @@ nativamente com FPC 3.2.2.
 8. **Projetos Delphi e Lazarus**: Compila `.dproj`, `.lpi` e `.lpk` declarados
    usando MSBuild ou `lazbuild` e integra automaticamente os paths das
    dependências nos projetos e modos de build do Lazarus.
+9. **Matriz Multi-Delphi**: Declara Delphi 10.1/11/12/13, Win32/Win64,
+   Debug/Release, projetos runtime/design, dependências, artefatos isolados,
+   rebuild incremental, paralelismo seguro e registro transacional na IDE sem
+   quebrar manifests legados.
 
 ---
 
@@ -116,6 +120,17 @@ cd /d d:\Projetos\BossDelphi
   Consulta vulnerabilidades OSV das revisões travadas, com cache offline e VEX.
 * `boss4d doctor`, `cache`, `tool`, `plugin`, `getit` e `license report`
   Cobre diagnóstico, cache, ferramentas globais, integrações Windows e licenças.
+* `boss4d spec --detect [--compiler <versão>]`
+  Detecta `.dproj`/`.dpk`, diretivas runtime/design e dependências locais,
+  persistindo uma `buildMatrix` determinística.
+* `boss4d build [--compiler <versão>|all] [--platform Win32|Win64|all]`
+  `[--configuration Debug|Release|all] [--jobs <n>] [--force] [--full]`
+  `[--explain] [--register]`
+  Executa a matriz selecionada com outputs isolados, rebuild incremental,
+  paralelismo seguro pelo grafo, explicações e registro exato opcional.
+* `boss4d ide unregister <pacote> --compiler <versão> --platform <plataforma>`
+  e `boss4d ide repair`
+  Removem um registro exato ou reconciliam divergências transacionalmente.
 * `boss4d config delphi use <caminho_ou_versao>`
   Configura o caminho global do Delphi ou a versão de release (ex: "23.0", "22.0") para a compilação do MSBuild. Se não configurado, o resolvedor autodetecta dinamicamente a versão mais recente instalada.
 * `boss4d config git shallow <true/false>`
@@ -147,7 +162,7 @@ cd /d d:\Projetos\BossDelphi
 ## 📖 Documentação Adicional
 * **[Guia da Feature SBOM](docs/sbom.pt-BR.md)**: Motivação, modelo de evidências, cobertura, VEX, atestações, limites e fluxo recomendado de release.
 * **[Melhorias de Build Determinístico](docs/build-improvements.pt-BR.md)**: Paths sem colisão, toolchains, projetos declarados, Lazarus, scaffolding e normalização.
-* **[Contrato da Matriz de Build](docs/build-matrix-contract.pt-BR.md)**: Compatibilidade, identidade de targets, precedência e critérios para builds Delphi multiversão.
+* **[Guia e Contrato da Matriz de Build](docs/build-matrix-contract.pt-BR.md)**: Schema, fluxo da CLI, convenções, migração, diagnóstico, troubleshooting e critérios para builds Delphi multiversão.
 * **[Ciclo de Vida de Dependências](docs/dependency-lifecycle.pt-BR.md)**: Add, update e remove transacionais, além de list e why baseados no grafo.
 * **[Instalação Reproduzível](docs/reproducible-install.pt-BR.md)**: Lock congelado, cache offline, instalação limpa em CI e garantias de rollback.
 * **[Escopos de Dependências](docs/dependency-scopes.pt-BR.md)**: `devDependencies`, instalação de produção, lock v3 e escopo no SBOM.
@@ -165,7 +180,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Onboarding de Publishers](docs/publisher-onboarding.pt-BR.md)**: Identidade, signatários e metadados imutáveis do Registry público.
 * **[Auditoria Final de Paridade](docs/parity-audit-2026-07-30.pt-BR.md)**: Evidência de implementação e verificação para cada requisito.
 * **[Formato de Pacote Imutável](docs/package-format.pt-BR.md)**: `.b4dpkg` determinístico, instalação verificada, evidências OpenPGP/in-toto, fallback para fontes e variantes por compilador/plataforma.
-* **[Compatibilidade com Delphi Legado](docs/legacy-delphi.pt-BR.md)**: Wizard moderno completo e perfil Delphi 10.1 validado com BDS 17.0.
+* **[Compatibilidade com Delphi Legado](docs/legacy-delphi.pt-BR.md)**: Wizard moderno completo e perfil Delphi 10.1 direcionado ao BDS 18.0.
 * **[CLI FPC/Linux](docs/posix-cli.pt-BR.md)**: Build Linux nativo, ciclo de dependências, lock v3, CI frozen/offline, resolução SemVer e testes FPCUnit.
 * **[Posicionamento competitivo](docs/competitive-positioning.pt-BR.md)**: Comparação baseada em evidências com BOSS, DPM, GetIt, OPM do Lazarus e ecossistemas maduros.
 * **[Resolução e Credenciais Seguras](docs/resolution-and-credentials.pt-BR.md)**: Políticas SemVer highest/minimal e armazenamento nativo de segredos.
