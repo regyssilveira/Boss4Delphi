@@ -41,6 +41,10 @@ type
     destructor Destroy; override;
 
     function Get(const AURL: string; out AResponse: string): Integer;
+    function PostJson(const AURL, ABody: string;
+      out AResponse: string): Integer;
+    procedure AddResponse(const AURL, AResponse: string;
+      const AStatusCode: Integer = 200);
   end;
 
   { Mock para simulacao do Compilador Delphi }
@@ -209,6 +213,19 @@ begin
     Exit(FResponseCodes[AURL.ToLower]);
   end;
   Result := 404; // Not Found padrao
+end;
+
+procedure THttpClientMock.AddResponse(const AURL, AResponse: string;
+  const AStatusCode: Integer);
+begin
+  FResponses.AddOrSetValue(AURL.ToLower, AResponse);
+  FResponseCodes.AddOrSetValue(AURL.ToLower, AStatusCode);
+end;
+
+function THttpClientMock.PostJson(const AURL, ABody: string;
+  out AResponse: string): Integer;
+begin
+  Result := Get(AURL, AResponse);
 end;
 
 { TCompilerMock }

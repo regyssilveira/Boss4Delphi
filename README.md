@@ -125,6 +125,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Dependency Lifecycle](docs/dependency-lifecycle.md)**: Transactional add, update, and remove plus graph-aware list and why commands.
 * **[Reproducible Installation](docs/reproducible-install.md)**: Frozen locks, offline cache behavior, CI clean installs, and rollback guarantees.
 * **[Dependency Scopes](docs/dependency-scopes.md)**: `devDependencies`, production installs, lock v3, and SBOM scope evidence.
+* **[Vulnerability Audit](docs/audit.md)**: OSV commit queries, offline cache, severity gates, and VEX suppression.
 * **[CLI Usage Manual](docs/usage.md)**: Detailed step-by-step guide covering all command options and dependency configurations.
 * **[Contribution Guide](CONTRIBUTING.md)**: Coding standards and guidelines for contribution.
 * **[Release Guide](RELEASE_GUIDE.md)**: Steps and instructions to compile with Delphi 13 (37.0) and publish releases on GitHub.

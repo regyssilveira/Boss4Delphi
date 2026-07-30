@@ -169,7 +169,7 @@ This document details the future planning, new features (backlog), and architect
 ## 🔒 Epic 16: Security and Vulnerability Audit
 *Objective: Protect the Delphi development environment against compromised packages or known security vulnerabilities.*
 
-- [ ] **[Story] Audit Command (`boss4d audit`)**
+- [x] **[Story] Audit Command (`boss4d audit`)**
   - Compare dependencies and their versions against a vulnerability database to report active security flaws.
 - [ ] **[Story] Digital Signature and Tag Verification**
   - Validate signatures of commits and tags from trusted repositories during package download.

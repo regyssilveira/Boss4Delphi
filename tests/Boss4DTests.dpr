@@ -39,6 +39,7 @@ uses
   Boss4D.Core.Services.Install in '..\src\Core\Services\Boss4D.Core.Services.Install.pas',
   Boss4D.Core.Services.Transaction in '..\src\Core\Services\Boss4D.Core.Services.Transaction.pas',
   Boss4D.Core.Services.Dependencies in '..\src\Core\Services\Boss4D.Core.Services.Dependencies.pas',
+  Boss4D.Core.Services.Audit in '..\src\Core\Services\Boss4D.Core.Services.Audit.pas',
   Boss4D.Core.Services.Cache in '..\src\Core\Services\Boss4D.Core.Services.Cache.pas',
   Boss4D.Core.Services.Run in '..\src\Core\Services\Boss4D.Core.Services.Run.pas',
   Boss4D.Core.Services.Doctor in '..\src\Core\Services\Boss4D.Core.Services.Doctor.pas',

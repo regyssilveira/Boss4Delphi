@@ -169,7 +169,7 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 🔒 Épico 16: Segurança e Auditoria de Vulnerabilidades
 *Objetivo: Proteger o ambiente de desenvolvimento Delphi contra pacotes comprometidos ou falhas de segurança conhecidas.*
 
-- [ ] **[Story] Comando de Auditoria (`boss4d audit`)**
+- [x] **[Story] Comando de Auditoria (`boss4d audit`)**
   - Comparar as dependências e suas versões contra uma base de vulnerabilidades para reportar falhas ativas de segurança.
 - [ ] **[Story] Assinatura Digital e Verificação de Tags**
   - Validar assinaturas de commits e tags de repositórios confiáveis durante o download dos pacotes.

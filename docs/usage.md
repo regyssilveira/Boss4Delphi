@@ -64,6 +64,9 @@ clean and reinstall `modules/` from the frozen lock. See the
 Use `add <package> --dev` for development-only tools. `install --production`
 and `ci --production` exclude them. See [dependency scopes](dependency-scopes.md).
 
+Run `audit [--fail-on severity] [--offline] [--vex file]` to evaluate locked
+Git revisions against OSV. See the [audit guide](audit.md).
+
 Boss4D downloads dependencies, checks out the correct version from Git, places them in a local `modules/` folder, and updates compilation paths.
 
 ### Installing a New Package

@@ -57,6 +57,9 @@ type
     procedure TestDevelopmentDependencyScopesAndProduction;
 
     [Test]
+    procedure TestAuditOsvCachePolicyAndVex;
+
+    [Test]
     procedure TestCLICommandLineParser;
 
     [Test]
@@ -167,6 +170,7 @@ uses
   Boss4D.Core.Services.Clean, Boss4D.Core.Services.Scaffold,
   Boss4D.Core.Services.SourceNormalizer,
   Boss4D.Core.Services.Dependencies,
+  Boss4D.Core.Services.Audit,
   Boss4D.Core.Services.PackageManifest, Boss4D.IDE.Wizard;
 
 { TTestLogger }
@@ -765,6 +769,70 @@ begin
     LConfig.Free;
     LInstall.Free;
     LInit.Free;
+  end;
+end;
+
+procedure TTestsServices.TestAuditOsvCachePolicyAndVex;
+var
+  LLockRepo: IBoss4DLockRepository;
+  LLock: TBoss4DLock;
+  LDep: TBoss4DDependency;
+  LLocked: TBoss4DLockedDependency;
+  LHttp: THttpClientMock;
+  LService: TBoss4DAuditService;
+  LOptions: TBoss4DAuditOptions;
+  LSummary: TBoss4DAuditSummary;
+  LLockPath, LVexPath: string;
+  LRaised: Boolean;
+begin
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LLockPath := TPath.Combine(FTempDir, FILE_PACKAGE_LOCK);
+  LLock := TBoss4DLock.Create;
+  LDep := TBoss4DDependency.Create('github.com/example/vulnerable', '1.0.0');
+  try
+    LLock.AddDependency(LDep, '1.0.0', 'hash', 'checksum');
+    Assert.IsTrue(LLock.GetInstalled(LDep, LLocked));
+    LLocked.Revision := 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+    LLockRepo.Save(LLock, LLockPath);
+  finally
+    LDep.Free;
+    LLock.Free;
+  end;
+
+  LHttp := THttpClientMock.Create;
+  LHttp.AddResponse('https://api.osv.dev/v1/query',
+    '{"vulns":[{"id":"OSV-TEST-1","database_specific":{"severity":"HIGH"}}]}');
+  LService := TBoss4DAuditService.Create(LLockRepo, LHttp,
+    TTestLogger.Create);
+  try
+    LOptions := Default(TBoss4DAuditOptions);
+    LOptions.CacheHours := 24;
+    LOptions.FailOn := AuditCritical;
+    LSummary := LService.Execute(LLockPath, LOptions);
+    Assert.AreEqual<Integer>(1, LSummary.Vulnerabilities);
+    Assert.AreEqual<Integer>(0, LSummary.PolicyViolations);
+
+    LOptions.Offline := True;
+    LOptions.FailOn := AuditHigh;
+    LRaised := False;
+    try
+      LService.Execute(LLockPath, LOptions);
+    except
+      on E: EBoss4DAuditPolicy do LRaised := True;
+    end;
+    Assert.IsTrue(LRaised,
+      'Politica high deve falhar usando a resposta do cache offline.');
+
+    LVexPath := TPath.Combine(FTempDir, 'audit.vex.json');
+    TFile.WriteAllText(LVexPath,
+      '{"vulnerabilities":[{"id":"OSV-TEST-1","state":"not_affected"}]}',
+      TEncoding.UTF8);
+    LOptions.VexPath := LVexPath;
+    LSummary := LService.Execute(LLockPath, LOptions);
+    Assert.AreEqual<Integer>(1, LSummary.Suppressed);
+    Assert.AreEqual<Integer>(0, LSummary.PolicyViolations);
+  finally
+    LService.Free;
   end;
 end;
 

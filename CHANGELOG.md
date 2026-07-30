@@ -13,6 +13,8 @@
   `--offline`, plus a clean transactional `boss4d ci` workflow.
 - `devDependencies`, `--dev`, and `--production`, with runtime/development
   scope evidence in lock schema v3, CycloneDX, and SPDX.
+- OSV commit-based `audit` with revision cache, offline operation, severity
+  policy gates, and VEX suppression.
 
 ## 1.3.0 - 2026-07-29
 

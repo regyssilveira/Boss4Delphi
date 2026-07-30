@@ -46,6 +46,7 @@ type
     procedure HandleUpdate(const AArgs: TArray<string>);
     procedure HandleList;
     procedure HandleWhy(const AArgs: TArray<string>);
+    procedure HandleAudit(const AArgs: TArray<string>);
     procedure HandleConfig(const AArgs: TArray<string>);
     procedure HandleCache(const AArgs: TArray<string>);
     procedure HandleRun(const AArgs: TArray<string>);
@@ -79,6 +80,7 @@ implementation
 uses
   System.SysUtils, System.IOUtils,
   Boss4D.Adapters.Json,
+  Boss4D.Adapters.Http,
   Boss4D.Adapters.Git,
   Boss4D.Adapters.Compiler,
   Boss4D.Adapters.Registry,
@@ -92,7 +94,8 @@ uses
   Boss4D.Core.Domain.Sbom,
   Boss4D.Core.Domain.Env,
   Boss4D.Core.Domain.Consts,
-  Boss4D.Core.Services.Dependencies;
+  Boss4D.Core.Services.Dependencies,
+  Boss4D.Core.Services.Audit;
 
 { TBoss4DCommandLineParser }
 
@@ -134,6 +137,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  update [dep]         Atualiza uma ou todas as dependencias.');
   FLogger.Log(TBoss4DLogLevel.Info, '  list                 Lista dependencias diretas e transitivas.');
   FLogger.Log(TBoss4DLogLevel.Info, '  why <dep>            Explica por que uma dependencia foi instalada.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  audit               Consulta vulnerabilidades OSV por revisao do lock.');
   FLogger.Log(TBoss4DLogLevel.Info, '  ci [--offline]       Reinstala limpo usando o lock sem altera-lo.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config delphi use <caminho>  Configura o caminho global do compilador Delphi.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config git shallow <true/false> Configura uso de shallow clones globais.');
@@ -191,6 +195,8 @@ begin
     HandleList
   else if LCommand = 'why' then
     HandleWhy(AArgs)
+  else if LCommand = 'audit' then
+    HandleAudit(AArgs)
   else if LCommand = 'config' then
     HandleConfig(AArgs)
   else if LCommand = 'cache' then
@@ -349,6 +355,59 @@ begin
         'Dependencia nao encontrada no grafo: ' + AArgs[1])
     else
       FLogger.Log(TBoss4DLogLevel.Info, string.Join(' -> ', LPath));
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleAudit(const AArgs: TArray<string>);
+var
+  LOptions: TBoss4DAuditOptions;
+  LService: TBoss4DAuditService;
+  LLockRepo: IBoss4DLockRepository;
+  LHttp: IBoss4DHttpClient;
+  LSummary: TBoss4DAuditSummary;
+  I: Integer;
+begin
+  LOptions := Default(TBoss4DAuditOptions);
+  LOptions.CacheHours := 24;
+  I := 1;
+  while I < Length(AArgs) do
+  begin
+    if SameText(AArgs[I], '--offline') then
+      LOptions.Offline := True
+    else if SameText(AArgs[I], '--fail-on') or
+            SameText(AArgs[I], '--vex') or
+            SameText(AArgs[I], '--cache-hours') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create('Informe um valor para ' + AArgs[I]);
+      Inc(I);
+      if SameText(AArgs[I - 1], '--fail-on') then
+      begin
+        LOptions.FailOn := TBoss4DAuditService.ParseSeverity(AArgs[I]);
+        if LOptions.FailOn = AuditUnknown then
+          raise EArgumentException.Create('Severidade invalida: ' + AArgs[I]);
+      end
+      else if SameText(AArgs[I - 1], '--vex') then
+        LOptions.VexPath := AArgs[I]
+      else
+        LOptions.CacheHours := StrToInt(AArgs[I]);
+    end
+    else
+      raise EArgumentException.Create(
+        'Opcao desconhecida para audit: ' + AArgs[I]);
+    Inc(I);
+  end;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LHttp := TBoss4DHttpNativeAdapter.Create;
+  LService := TBoss4DAuditService.Create(LLockRepo, LHttp, FLogger);
+  try
+    LSummary := LService.Execute(
+      TPath.Combine(GetCurrentDir, FILE_PACKAGE_LOCK), LOptions);
+    FLogger.Log(TBoss4DLogLevel.Info,
+      'Auditoria: %d encontrada(s), %d suprimida(s).',
+      [LSummary.Vulnerabilities, LSummary.Suppressed]);
   finally
     LService.Free;
   end;

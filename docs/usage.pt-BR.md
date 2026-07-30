@@ -64,6 +64,9 @@ Use `add <pacote> --dev` para ferramentas de desenvolvimento. Os comandos
 `install --production` e `ci --production` as excluem. Consulte
 [escopos de dependências](dependency-scopes.pt-BR.md).
 
+Execute `audit [--fail-on severidade] [--offline] [--vex arquivo]` para avaliar
+as revisões do lock no OSV. Consulte o [guia de auditoria](audit.pt-BR.md).
+
 O Boss4D faz o download das dependências do Git, realiza o checkout na versão correta, posiciona os fontes na pasta local `modules/` do seu projeto e atualiza as diretivas de caminhos de busca do compilador.
 
 ### Instalando um Novo Pacote
