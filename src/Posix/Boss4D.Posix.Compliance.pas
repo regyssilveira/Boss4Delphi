@@ -10,17 +10,35 @@ uses
 type
   TBoss4DSbomFormat = (sfCycloneDX, sfSpdx);
 
+  TBoss4DSbomOptions = record
+    Format: TBoss4DSbomFormat;
+    VexPath: string;
+    Reproducible: Boolean;
+    Strict: Boolean;
+    Validate: Boolean;
+  end;
+
 procedure GenerateLockSbom(const ALockPath, AOutputPath: string;
-  const AFormat: TBoss4DSbomFormat; const AVexPath: string = '';
-  const AReproducible: Boolean = False; const AStrict: Boolean = False;
-  const AValidate: Boolean = False);
+  const AOptions: TBoss4DSbomOptions);
 procedure ValidateGeneratedSbom(const APath: string;
   const AFormat: TBoss4DSbomFormat);
+function DefaultSbomOptions(
+  const AFormat: TBoss4DSbomFormat): TBoss4DSbomOptions;
 
 implementation
 
 uses
   fpjson, jsonparser, Boss4D.Posix.Core, Boss4D.Posix.Operations;
+
+function DefaultSbomOptions(
+  const AFormat: TBoss4DSbomFormat): TBoss4DSbomOptions;
+begin
+  Result.Format := AFormat;
+  Result.VexPath := '';
+  Result.Reproducible := False;
+  Result.Strict := False;
+  Result.Validate := False;
+end;
 
 function FindObject(const ARoot: TJSONObject; const AName: string): TJSONObject;
 var
@@ -345,26 +363,26 @@ begin
 end;
 
 procedure GenerateLockSbom(const ALockPath, AOutputPath: string;
-  const AFormat: TBoss4DSbomFormat; const AVexPath: string;
-  const AReproducible: Boolean; const AStrict: Boolean;
-  const AValidate: Boolean);
+  const AOptions: TBoss4DSbomOptions);
 var
   LLock: TJSONObject;
 begin
   if not FileExists(ALockPath) then
     raise Exception.Create('lock not found: ' + ALockPath);
-  if (AFormat = sfSpdx) and (AVexPath <> '') then
+  if (AOptions.Format = sfSpdx) and (AOptions.VexPath <> '') then
     raise Exception.Create('VEX requires CycloneDX');
   LLock := LoadJsonObject(ALockPath);
   try
     if not Assigned(LLock.Find('installedModules')) then
       raise Exception.Create('lock installedModules object is required');
-    if AStrict then ValidateStrictLock(LLock);
-    if AFormat = sfCycloneDX then
-      GenerateCycloneDx(LLock, AOutputPath, AVexPath, AReproducible)
+    if AOptions.Strict then ValidateStrictLock(LLock);
+    if AOptions.Format = sfCycloneDX then
+      GenerateCycloneDx(LLock, AOutputPath, AOptions.VexPath,
+        AOptions.Reproducible)
     else
-      GenerateSpdx(LLock, AOutputPath, AReproducible);
-    if AValidate then ValidateGeneratedSbom(AOutputPath, AFormat);
+      GenerateSpdx(LLock, AOutputPath, AOptions.Reproducible);
+    if AOptions.Validate then
+      ValidateGeneratedSbom(AOutputPath, AOptions.Format);
   finally
     LLock.Free;
   end;

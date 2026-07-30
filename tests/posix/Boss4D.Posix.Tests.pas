@@ -992,11 +992,13 @@ var
   LRoot: TJSONObject;
   LComponents: TJSONArray;
   LComponent: TJSONObject;
+  LOptions: TBoss4DSbomOptions;
 begin
   LDir := NewTempDirectory;
   LLock := CreateComplianceLock(LDir);
   LOutput := IncludeTrailingPathDelimiter(LDir) + 'sbom.cdx.json';
-  GenerateLockSbom(LLock, LOutput, sfCycloneDX);
+  LOptions := DefaultSbomOptions(sfCycloneDX);
+  GenerateLockSbom(LLock, LOutput, LOptions);
   LRoot := LoadJsonObject(LOutput);
   try
     AssertEquals('CycloneDX', LRoot.Get('bomFormat', ''));
@@ -1018,11 +1020,13 @@ var
   LRoot: TJSONObject;
   LPackages: TJSONArray;
   LPackage: TJSONObject;
+  LOptions: TBoss4DSbomOptions;
 begin
   LDir := NewTempDirectory;
   LLock := CreateComplianceLock(LDir);
   LOutput := IncludeTrailingPathDelimiter(LDir) + 'sbom.spdx.json';
-  GenerateLockSbom(LLock, LOutput, sfSpdx);
+  LOptions := DefaultSbomOptions(sfSpdx);
+  GenerateLockSbom(LLock, LOutput, LOptions);
   LRoot := LoadJsonObject(LOutput);
   try
     AssertEquals('SPDX-2.3', LRoot.Get('spdxVersion', ''));
@@ -1042,6 +1046,7 @@ var
   LDir, LLock, LOutput, LVex: string;
   LRoot: TJSONObject;
   LVulnerabilities: TJSONArray;
+  LOptions: TBoss4DSbomOptions;
 begin
   LDir := NewTempDirectory;
   LLock := CreateComplianceLock(LDir);
@@ -1050,7 +1055,9 @@ begin
     '"component":"boss4d:demo@2.0.0","state":"not_affected",' +
     '"detail":"code path excluded"}]}');
   LOutput := IncludeTrailingPathDelimiter(LDir) + 'sbom.vex.cdx.json';
-  GenerateLockSbom(LLock, LOutput, sfCycloneDX, LVex);
+  LOptions := DefaultSbomOptions(sfCycloneDX);
+  LOptions.VexPath := LVex;
+  GenerateLockSbom(LLock, LOutput, LOptions);
   LRoot := LoadJsonObject(LOutput);
   try
     LVulnerabilities := TJSONArray(LRoot.Find('vulnerabilities'));
@@ -1066,13 +1073,16 @@ procedure TPosixCoreTests.TestSbomReproducibleAndRejectsSpdxVex;
 var
   LDir, LLock, LFirst, LSecond, LVex: string;
   LOne, LTwo: TStringList;
+  LOptions: TBoss4DSbomOptions;
 begin
   LDir := NewTempDirectory;
   LLock := CreateComplianceLock(LDir);
   LFirst := IncludeTrailingPathDelimiter(LDir) + 'one.json';
   LSecond := IncludeTrailingPathDelimiter(LDir) + 'two.json';
-  GenerateLockSbom(LLock, LFirst, sfCycloneDX, '', True);
-  GenerateLockSbom(LLock, LSecond, sfCycloneDX, '', True);
+  LOptions := DefaultSbomOptions(sfCycloneDX);
+  LOptions.Reproducible := True;
+  GenerateLockSbom(LLock, LFirst, LOptions);
+  GenerateLockSbom(LLock, LSecond, LOptions);
   LOne := TStringList.Create;
   LTwo := TStringList.Create;
   try
@@ -1086,7 +1096,9 @@ begin
   LVex := IncludeTrailingPathDelimiter(LDir) + 'vex.json';
   SaveFixture(LVex, '{"vulnerabilities":[]}');
   try
-    GenerateLockSbom(LLock, LFirst, sfSpdx, LVex);
+    LOptions := DefaultSbomOptions(sfSpdx);
+    LOptions.VexPath := LVex;
+    GenerateLockSbom(LLock, LFirst, LOptions);
     Fail('SPDX 2.3 VEX should be rejected');
   except
     on E: Exception do AssertTrue(Pos('VEX requires CycloneDX', E.Message) > 0);
@@ -1215,11 +1227,16 @@ end;
 procedure TPosixCoreTests.TestStrictSbomEvidenceAndValidation;
 var
   LDir, LLock, LOutput, LInvalid: string;
+  LOptions: TBoss4DSbomOptions;
 begin
   LDir := NewTempDirectory;
   LLock := CreateComplianceLock(LDir);
   LOutput := IncludeTrailingPathDelimiter(LDir) + 'strict.cdx.json';
-  GenerateLockSbom(LLock, LOutput, sfCycloneDX, '', True, True, True);
+  LOptions := DefaultSbomOptions(sfCycloneDX);
+  LOptions.Reproducible := True;
+  LOptions.Strict := True;
+  LOptions.Validate := True;
+  GenerateLockSbom(LLock, LOutput, LOptions);
   ValidateGeneratedSbom(LOutput, sfCycloneDX);
   LInvalid := IncludeTrailingPathDelimiter(LDir) + 'invalid.json';
   SaveFixture(LInvalid, '{"bomFormat":"CycloneDX"}');
@@ -1236,7 +1253,7 @@ begin
     '"checksum":"sha256:' + StringOfChar('a', 64) +
     '","dependencies":[]}}}');
   try
-    GenerateLockSbom(LLock, LOutput, sfCycloneDX, '', True, True);
+    GenerateLockSbom(LLock, LOutput, LOptions);
     Fail('Strict Git dependency without revision should fail');
   except
     on E: Exception do AssertTrue(Pos('requires Git revision', E.Message) > 0);

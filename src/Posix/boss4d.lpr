@@ -71,6 +71,7 @@ var
   LDoctorResults: TStringList;
   LDoctorOk: Boolean;
   LSbomFormat: TBoss4DSbomFormat;
+  LSbomOptions: TBoss4DSbomOptions;
   LSbomFormatName, LSbomOutput, LVexPath: string;
   LAuditOptions: TBoss4DAuditOptions;
   LAuditService: TBoss4DAuditService;
@@ -411,10 +412,13 @@ begin
       else
         raise Exception.Create('usage: --format must be cyclonedx or spdx');
       LVexPath := OptionValue('--vex', '');
+      LSbomOptions := DefaultSbomOptions(LSbomFormat);
+      LSbomOptions.VexPath := LVexPath;
+      LSbomOptions.Reproducible := HasOption('--reproducible');
+      LSbomOptions.Strict := HasOption('--strict');
+      LSbomOptions.Validate := HasOption('--validate');
       GenerateLockSbom(IncludeTrailingPathDelimiter(GetCurrentDir) +
-        'boss-lock.json', LSbomOutput, LSbomFormat, LVexPath,
-        HasOption('--reproducible'), HasOption('--strict'),
-        HasOption('--validate'));
+        'boss-lock.json', LSbomOutput, LSbomOptions);
       WriteLn('SBOM generated: ' + ExpandFileName(LSbomOutput));
     end
     else if LCommand = 'audit' then
