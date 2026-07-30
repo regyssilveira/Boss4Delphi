@@ -218,7 +218,7 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 
 - [ ] **[Story] Geração Automatizada de Documentação (`boss4d doc`)**
   - Varrer os comentários em PascalDoc/XML Doc de todas as dependências e compilar um site local com a documentação estática de referência das APIs.
-- [ ] **[Story] Divisão de Dependências de Desenvolvimento (`devDependencies`)**
+- [x] **[Story] Divisão de Dependências de Desenvolvimento (`devDependencies`)**
   - Suportar dependências exclusivas de desenvolvimento/testes, permitindo instalações limpas de produção com a flag `--production`.
 - [ ] **[Story] Resolução Estrita de Versões (Minimal Version Selection)**
   - Implementar opção de resolver dependências pela menor versão estável compatível para máxima consistência em builds corporativas.

@@ -11,6 +11,8 @@
   inspection and transaction failures.
 - Frozen and offline installs through `--locked`, `--frozen-lockfile`, and
   `--offline`, plus a clean transactional `boss4d ci` workflow.
+- `devDependencies`, `--dev`, and `--production`, with runtime/development
+  scope evidence in lock schema v3, CycloneDX, and SPDX.
 
 ## 1.3.0 - 2026-07-29
 

@@ -13,6 +13,9 @@ type
     Locked: Boolean;
     Offline: Boolean;
     CleanModules: Boolean;
+    Production: Boolean;
+    Development: Boolean;
+    InstallSingle: string;
   end;
 
   { Servico de caso de uso para instalacao e atualizacao de dependencias (boss install) }
@@ -47,6 +50,7 @@ type
       const APlatform: string);
     procedure ValidateLockedManifest(const APackage: TBoss4DPackage;
       const ALock: TBoss4DLock);
+    procedure ApplyLockScopes(const ALock: TBoss4DLock);
   public
     constructor Create(
       const APackageRepo: IBoss4DPackageRepository;
@@ -312,6 +316,7 @@ begin
         var LChildDep := TBoss4DDependency.Create(
           LChildLocked.Repository, LChildLocked.Version);
         try
+          LChildDep.Scope := LChildLocked.Scope;
           ProcessDependency(LChildDep, ALock, AProcessedDeps);
         finally
           LChildDep.Free;
@@ -349,6 +354,8 @@ begin
       for var LSubDep in LSubDeps do
       begin
         try
+          if SameText(ADep.Scope, 'development') then
+            LSubDep.Scope := 'development';
           ProcessDependency(LSubDep, ALock, AProcessedDeps);
         finally
           LSubDep.Free;
@@ -506,7 +513,7 @@ begin
   LTransaction := TBoss4DProjectTransaction.Create(GetCurrentDir);
   try
     FOptions := AOptions;
-    ExecuteCore('', AOptions.Platform);
+    ExecuteCore(AOptions.InstallSingle, AOptions.Platform);
     LTransaction.Commit;
   finally
     FOptions := Default(TBoss4DInstallOptions);
@@ -543,8 +550,59 @@ begin
       if not ALock.RootDependencies.Contains(LKey) then
         raise Exception.CreateFmt(
           'Dependencia %s nao esta registrada no lock.', [LKey]);
+    if not FOptions.Production then
+    begin
+      LDeclared.Clear;
+      for var LPair in APackage.DevDependencies do
+      begin
+        LDep := TBoss4DDependency.Parse(LPair.Key, LPair.Value);
+        try
+          LDeclared.Add(LDep.GetKey);
+        finally
+          LDep.Free;
+        end;
+      end;
+      if LDeclared.Count <> ALock.RootDevDependencies.Count then
+        raise Exception.Create(
+          'devDependencies divergem do lock congelado.');
+      for LKey in LDeclared do
+        if not ALock.RootDevDependencies.Contains(LKey) then
+          raise Exception.CreateFmt(
+            'Dependencia de desenvolvimento %s nao esta no lock.', [LKey]);
+    end;
   finally
     LDeclared.Free;
+  end;
+end;
+
+procedure TBoss4DInstallService.ApplyLockScopes(const ALock: TBoss4DLock);
+var
+  LVisited: TDictionary<string, Boolean>;
+
+  procedure MarkRuntime(const AKey: string);
+  var
+    LLocked: TBoss4DLockedDependency;
+    LChild: string;
+  begin
+    if LVisited.ContainsKey(AKey) then
+      Exit;
+    LVisited.Add(AKey, True);
+    if not ALock.Installed.TryGetValue(AKey, LLocked) then
+      Exit;
+    LLocked.Scope := 'runtime';
+    for LChild in LLocked.Dependencies do
+      MarkRuntime(LChild);
+  end;
+
+begin
+  for var LLocked in ALock.Installed.Values do
+    LLocked.Scope := 'development';
+  LVisited := TDictionary<string, Boolean>.Create;
+  try
+    for var LRootKey in ALock.RootDependencies do
+      MarkRuntime(LRootKey);
+  finally
+    LVisited.Free;
   end;
 end;
 
@@ -580,6 +638,15 @@ var
         LDeclaredDependency.Free;
       end;
     LLock.RootDependencies.Sort;
+    LLock.RootDevDependencies.Clear;
+    var LDeclaredDevDependencies := LPkg.GetParsedDevDependencies;
+    for var LDeclaredDevDependency in LDeclaredDevDependencies do
+      try
+        LLock.RootDevDependencies.Add(LDeclaredDevDependency.GetKey);
+      finally
+        LDeclaredDevDependency.Free;
+      end;
+    LLock.RootDevDependencies.Sort;
   end;
 begin
   LPkgPath := GetBossFile;
@@ -617,8 +684,13 @@ begin
       // Instala uma unica dependencia (boss install url@versao)
       var LDep := TBoss4DDependency.ParseCommandLine(AInstallSingle);
       try
+        if FOptions.Development then
+          LDep.Scope := 'development';
         ProcessDependency(LDep, LLock, LProcessedDeps);
-        LPkg.AddDependency(LDep.Repository, LDep.Version);
+        if FOptions.Development then
+          LPkg.AddDevDependency(LDep.Repository, LDep.Version)
+        else
+          LPkg.AddDependency(LDep.Repository, LDep.Version);
         FPackageRepo.Save(LPkg, LPkgPath);
         CaptureRootMetadata;
 
@@ -641,6 +713,24 @@ begin
         var LRootDeps := LPkg.GetParsedDependencies;
         for var LDep in LRootDeps do
           LActiveDepsList.Add(LDep);
+        if not FOptions.Production then
+        begin
+          var LRootDevDeps := LPkg.GetParsedDevDependencies;
+          for var LDep in LRootDevDeps do
+          begin
+            var LAlreadyExists := False;
+            for var LExistingDep in LActiveDepsList do
+              if SameText(LExistingDep.Repository, LDep.Repository) then
+              begin
+                LAlreadyExists := True;
+                Break;
+              end;
+            if not LAlreadyExists then
+              LActiveDepsList.Add(LDep)
+            else
+              LDep.Free;
+          end;
+        end;
 
         // Adiciona dependÃªncias de cada subprojeto do workspace de forma unificada
         for var LSubPath in LSubprojects do
@@ -665,6 +755,24 @@ begin
                 LActiveDepsList.Add(LDep)
               else
                 LDep.Free;
+            end;
+            if not FOptions.Production then
+            begin
+              var LSubDevDeps := LSubPkg.GetParsedDevDependencies;
+              for var LDep in LSubDevDeps do
+              begin
+                var LAlreadyExists := False;
+                for var LExistingDep in LActiveDepsList do
+                  if SameText(LExistingDep.Repository, LDep.Repository) then
+                  begin
+                    LAlreadyExists := True;
+                    Break;
+                  end;
+                if not LAlreadyExists then
+                  LActiveDepsList.Add(LDep)
+                else
+                  LDep.Free;
+              end;
             end;
           finally
             LSubPkg.Free;
@@ -734,6 +842,7 @@ begin
     // Atualiza metadados do lock e salva
     if not FOptions.Locked then
     begin
+      ApplyLockScopes(LLock);
       LLock.Updated := FormatDateTime('yyyy-mm-dd"T"hh:nn:ss"Z"', Now);
       FLockRepo.Save(LLock, LLockPath);
     end;

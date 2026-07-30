@@ -9,7 +9,7 @@ Run commands from the project directory unless an example says otherwise.
 boss4d install
 ```
 
-Commit the resulting `boss-lock.json`. Schema v2 stores root metadata, direct
+Commit the resulting `boss-lock.json`. Schema v3 stores root metadata, direct
 dependencies, resolved revisions, typed checksums, licenses, and dependency edges.
 
 ## Generate a development SBOM

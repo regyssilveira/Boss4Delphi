@@ -1,11 +1,15 @@
-# Migração para SBOM e `boss-lock.json` v2
+# Migração para SBOM e `boss-lock.json` v3
+
+A CLI atual promove locks v1/v2 ao schema v3 quando salva. A versão 3 adiciona
+`devDependencies` na raiz e o campo `scope` nos módulos. Escopo ausente em locks
+antigos é interpretado como `runtime`.
 
 Locks v1 existentes continuam legíveis. Execute `boss4d install` com a CLI atualizada
 para resolver novamente as dependências e salvar identidades canônicas dos
 repositórios, revisões Git, checksums SHA-256 tipados, origem das licenças e arestas
-do grafo no schema v2. Versione o `boss-lock.json` resultante.
+do grafo no schema v3. Versione o `boss-lock.json` resultante.
 
-O lock v2 atualizado contém uma seção `root` com nome, versão, licença e as
+O lock v3 atualizado contém uma seção `root` com nome, versão, licença e as
 dependências diretas do projeto. Essa evidência permite que `--lock-only` funcione
 mesmo quando `boss.json` não está disponível. No modo estrito, locks antigos sem
 `root` são recusados com uma orientação para executar novamente `boss4d install`.

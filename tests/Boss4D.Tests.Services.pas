@@ -54,6 +54,9 @@ type
     procedure TestLockedRejectsManifestDrift;
 
     [Test]
+    procedure TestDevelopmentDependencyScopesAndProduction;
+
+    [Test]
     procedure TestCLICommandLineParser;
 
     [Test]
@@ -318,7 +321,7 @@ begin
       var LLockedDep: TBoss4DLockedDependency;
       Assert.IsTrue(LLock.GetInstalled(TBoss4DDependency.Create('github.com/hashload/horse', ''), LLockedDep));
       Assert.AreEqual('3.2.0', LLockedDep.Version); // v3.2.0 atende ^3.1.0 e Ã© a mais recente!
-      Assert.AreEqual<Integer>(2, LLock.LockVersion);
+      Assert.AreEqual<Integer>(3, LLock.LockVersion);
       Assert.AreEqual('https://github.com/hashload/horse', LLockedDep.Repository);
       Assert.AreEqual('0123456789abcdef0123456789abcdef01234567', LLockedDep.Revision);
       Assert.AreEqual('3.2.0', LLockedDep.ResolvedFrom);
@@ -452,9 +455,9 @@ begin
 
     LLogger.LastLogMessage := '';
     LParser.ParseAndExecute(TArray<string>.Create('list'));
-    Assert.IsTrue(LLogger.LastLogMessage.Contains('(direct)'),
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('(direct, runtime)'),
       'list nao classificou dependencia direta: ' + LLogger.LastLogMessage);
-    Assert.IsTrue(LLogger.LastLogMessage.Contains('(transitive)'),
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('(transitive, runtime)'),
       'list nao classificou dependencia transitiva: ' + LLogger.LastLogMessage);
 
     LLogger.LastLogMessage := '';
@@ -672,6 +675,94 @@ begin
     Assert.AreEqual(LLockBefore, TFile.ReadAllText(
       TPath.Combine(FTempDir, FILE_PACKAGE_LOCK), TEncoding.UTF8));
   finally
+    LInstall.Free;
+    LInit.Free;
+  end;
+end;
+
+procedure TTestsServices.TestDevelopmentDependencyScopesAndProduction;
+var
+  LInit: TBoss4DInitService;
+  LInstall: TBoss4DInstallService;
+  LConfig: TBoss4DConfigService;
+  LParser: TBoss4DCommandLineParser;
+  LLogger: TTestLogger;
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LPkg: TBoss4DPackage;
+  LLock: TBoss4DLock;
+  LDevDep, LRuntimeDep: TBoss4DDependency;
+  LLocked: TBoss4DLockedDependency;
+  LCdxPath, LSpdxPath: string;
+begin
+  LLogger := TTestLogger.Create;
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LInit := TBoss4DInitService.Create(LPackageRepo, LLogger);
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo,
+    TGitClientMock.Create, THttpClientMock.Create, TCompilerMock.Create,
+    LLogger);
+  LConfig := TBoss4DConfigService.Create(LLogger);
+  LParser := TBoss4DCommandLineParser.Create(LLogger, LInit, LInstall,
+    LConfig, LPackageRepo, TRegistryMock.Create);
+  LDevDep := TBoss4DDependency.Create('github.com/example/test-kit', '');
+  LRuntimeDep := TBoss4DDependency.Create('github.com/hashload/horse', '');
+  try
+    LInit.Execute(True);
+    LParser.ParseAndExecute(TArray<string>.Create('add',
+      'github.com/hashload/horse@^3.0.0'));
+    LParser.ParseAndExecute(TArray<string>.Create('add',
+      'github.com/example/test-kit@1.0.0', '--dev'));
+
+    LPkg := LPackageRepo.Load(GetBossFile);
+    try
+      Assert.AreEqual<Integer>(1, LPkg.Dependencies.Count);
+      Assert.AreEqual<Integer>(1, LPkg.DevDependencies.Count);
+    finally
+      LPkg.Free;
+    end;
+    LLock := LLockRepo.Load(TPath.Combine(FTempDir, FILE_PACKAGE_LOCK));
+    try
+      Assert.AreEqual<Integer>(1, LLock.RootDevDependencies.Count);
+      Assert.IsTrue(LLock.GetInstalled(LDevDep, LLocked),
+        'Dependencia de desenvolvimento ausente do lock.');
+      Assert.AreEqual('development', LLocked.Scope);
+      Assert.IsTrue(LLock.GetInstalled(LRuntimeDep, LLocked),
+        'Dependencia de runtime ausente do lock.');
+      Assert.AreEqual('runtime', LLocked.Scope);
+    finally
+      LLock.Free;
+    end;
+
+    LCdxPath := TPath.Combine(FTempDir, 'scoped.cdx.json');
+    LSpdxPath := TPath.Combine(FTempDir, 'scoped.spdx.json');
+    LParser.ParseAndExecute(TArray<string>.Create('sbom', '--format',
+      'cyclonedx', '--output', LCdxPath, '--lock-only'));
+    LParser.ParseAndExecute(TArray<string>.Create('sbom', '--format',
+      'spdx', '--output', LSpdxPath, '--lock-only'));
+    var LCdxContent := TFile.ReadAllText(LCdxPath, TEncoding.UTF8);
+    var LSpdxContent := TFile.ReadAllText(LSpdxPath, TEncoding.UTF8);
+    Assert.IsTrue(LCdxContent.Contains('"name": "boss4d:scope"'),
+      'CycloneDX nao exportou a propriedade de escopo: ' + LCdxContent);
+    Assert.IsTrue(LCdxContent.Contains('"value": "development"'),
+      'CycloneDX nao exportou o escopo development: ' + LCdxContent);
+    Assert.IsTrue(LSpdxContent.Contains(
+      '"comment":"boss4d:scope=development"'),
+      'SPDX nao exportou o escopo development: ' + LSpdxContent);
+
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'ci', '--production'));
+    Assert.IsTrue(TDirectory.Exists(TPath.Combine(
+      GetModulesDir, LRuntimeDep.StorageName)),
+      'CI de producao removeu dependencia de runtime.');
+    Assert.IsFalse(TDirectory.Exists(TPath.Combine(
+      GetModulesDir, LDevDep.StorageName)),
+      'CI de producao instalou dependencia de desenvolvimento.');
+  finally
+    LRuntimeDep.Free;
+    LDevDep.Free;
+    LParser.Free;
+    LConfig.Free;
     LInstall.Free;
     LInit.Free;
   end;

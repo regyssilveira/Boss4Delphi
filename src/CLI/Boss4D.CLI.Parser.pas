@@ -126,10 +126,10 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -q, --quiet (modo silencioso).');
   FLogger.Log(TBoss4DLogLevel.Info, '  install              Instala todas as dependencias declaradas no boss.json.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -p, --platform <plataforma> (Win32, Win64, Linux64, etc.).');
-  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --locked, --frozen-lockfile, --offline.');
+  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --locked, --frozen-lockfile, --offline, --production.');
   FLogger.Log(TBoss4DLogLevel.Info, '  install <dep>        Instala uma dependencia especifica.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Exemplo: boss4d install github.com/hashload/horse@^3.0.0');
-  FLogger.Log(TBoss4DLogLevel.Info, '  add <dep>            Adiciona e instala uma dependencia de forma transacional.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  add <dep> [--dev]    Adiciona dependencia de runtime ou desenvolvimento.');
   FLogger.Log(TBoss4DLogLevel.Info, '  remove <dep>         Remove uma dependencia e locks orfaos.');
   FLogger.Log(TBoss4DLogLevel.Info, '  update [dep]         Atualiza uma ou todas as dependencias.');
   FLogger.Log(TBoss4DLogLevel.Info, '  list                 Lista dependencias diretas e transitivas.');
@@ -220,10 +220,21 @@ begin
 end;
 
 procedure TBoss4DCommandLineParser.HandleAdd(const AArgs: TArray<string>);
+var
+  LOptions: TBoss4DInstallOptions;
 begin
-  if Length(AArgs) <> 2 then
-    raise EArgumentException.Create('Uso: boss4d add <repositorio>@<versao>');
-  FInstallService.Execute(AArgs[1]);
+  if (Length(AArgs) < 2) or (Length(AArgs) > 3) then
+    raise EArgumentException.Create(
+      'Uso: boss4d add <repositorio>@<versao> [--dev]');
+  LOptions := Default(TBoss4DInstallOptions);
+  LOptions.InstallSingle := AArgs[1];
+  if Length(AArgs) = 3 then
+  begin
+    if not SameText(AArgs[2], '--dev') then
+      raise EArgumentException.Create('Opcao desconhecida: ' + AArgs[2]);
+    LOptions.Development := True;
+  end;
+  FInstallService.Execute(LOptions);
 end;
 
 procedure TBoss4DCommandLineParser.HandleRemove(const AArgs: TArray<string>);
@@ -246,6 +257,8 @@ procedure TBoss4DCommandLineParser.HandleUpdate(const AArgs: TArray<string>);
 var
   LPkg: TBoss4DPackage;
   LRequested, LKey, LVersion: string;
+  LDevelopment: Boolean;
+  LOptions: TBoss4DInstallOptions;
 begin
   if Length(AArgs) = 1 then
   begin
@@ -263,6 +276,7 @@ begin
   LPkg := FPackageRepo.Load(GetBossFile);
   try
     LKey := '';
+    LDevelopment := False;
     for var LPair in LPkg.Dependencies do
       if SameText(LPair.Key, LRequested) or
          SameText(TPath.GetFileName(LPair.Key), LRequested) then
@@ -272,8 +286,26 @@ begin
         Break;
       end;
     if LKey.IsEmpty then
+      for var LPair in LPkg.DevDependencies do
+        if SameText(LPair.Key, LRequested) or
+           SameText(TPath.GetFileName(LPair.Key), LRequested) then
+        begin
+          LKey := LPair.Key;
+          LVersion := LPair.Value;
+          LDevelopment := True;
+          Break;
+        end;
+    if LKey.IsEmpty then
       raise EArgumentException.Create('Dependencia nao declarada: ' + LRequested);
-    FInstallService.Execute(LKey + '@' + LVersion);
+    if LDevelopment then
+    begin
+      LOptions := Default(TBoss4DInstallOptions);
+      LOptions.InstallSingle := LKey + '@' + LVersion;
+      LOptions.Development := True;
+      FInstallService.Execute(LOptions);
+    end
+    else
+      FInstallService.Execute(LKey + '@' + LVersion);
   finally
     LPkg.Free;
   end;
@@ -292,8 +324,8 @@ begin
     for LInfo in LService.List do
     begin
       if LInfo.Direct then LScope := 'direct' else LScope := 'transitive';
-      FLogger.Log(TBoss4DLogLevel.Info, '%s@%s (%s)',
-        [LInfo.Key, LInfo.Version, LScope]);
+      FLogger.Log(TBoss4DLogLevel.Info, '%s@%s (%s, %s)',
+        [LInfo.Key, LInfo.Version, LScope, LInfo.Scope]);
     end;
   finally
     LService.Free;
@@ -368,6 +400,11 @@ begin
       LOptions.Offline := True;
       Inc(I);
     end
+    else if SameText(AArgs[I], '--production') then
+    begin
+      LOptions.Production := True;
+      Inc(I);
+    end
     else
     begin
       if not AArgs[I].StartsWith('-') then
@@ -380,7 +417,7 @@ begin
     raise EArgumentException.Create(
       '--locked instala somente o grafo completo declarado no lock.');
   if LDepToInstall.IsEmpty and
-     (LOptions.Locked or LOptions.Offline) then
+     (LOptions.Locked or LOptions.Offline or LOptions.Production) then
     FInstallService.Execute(LOptions)
   else
     FInstallService.Execute(LDepToInstall, LOptions.Platform);
@@ -399,6 +436,8 @@ begin
   begin
     if SameText(AArgs[I], '--offline') then
       LOptions.Offline := True
+    else if SameText(AArgs[I], '--production') then
+      LOptions.Production := True
     else if SameText(AArgs[I], '--platform') or
             SameText(AArgs[I], '-p') then
     begin

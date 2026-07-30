@@ -218,7 +218,7 @@ This document details the future planning, new features (backlog), and architect
 
 - [ ] **[Story] Automated Documentation Generation (`boss4d doc`)**
   - Parse PascalDoc/XML Doc comments across all dependencies and compile a local static website of API references.
-- [ ] **[Story] Split Development Dependencies (`devDependencies`)**
+- [x] **[Story] Split Development Dependencies (`devDependencies`)**
   - Support developer-only dependencies (e.g., test/mock suites), enabling clean production deployments using the `--production` flag.
 - [ ] **[Story] Strict Version Resolution (Minimal Version Selection)**
   - Implement an option to resolve dependencies by the lowest stable compatible version for maximum reproducibility in corporate builds.

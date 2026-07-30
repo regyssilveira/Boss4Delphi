@@ -11,6 +11,7 @@ type
     Key: string;
     Version: string;
     Direct: Boolean;
+    Scope: string;
   end;
 
   TBoss4DDependencyService = class
@@ -101,6 +102,7 @@ var
   LRemovedStorage: TList<string>;
   LLocked: TBoss4DLockedDependency;
   LModulePath: string;
+  LIsDevelopment: Boolean;
 begin
   LTransaction := TBoss4DProjectTransaction.Create(GetCurrentDir);
   LRemovedStorage := TList<string>.Create;
@@ -108,10 +110,20 @@ begin
     LPkg := FPackageRepo.Load(GetBossFile);
     try
       LDeclaredKey := ResolveDeclaredKey(ADependency, LPkg.Dependencies);
+      LIsDevelopment := False;
+      if LDeclaredKey.IsEmpty then
+      begin
+        LDeclaredKey := ResolveDeclaredKey(ADependency,
+          LPkg.DevDependencies);
+        LIsDevelopment := not LDeclaredKey.IsEmpty;
+      end;
       if LDeclaredKey.IsEmpty then
         raise EArgumentException.CreateFmt(
           'Dependencia nao declarada: %s', [ADependency]);
-      LPkg.RemoveDependency(LDeclaredKey);
+      if LIsDevelopment then
+        LPkg.DevDependencies.Remove(LDeclaredKey)
+      else
+        LPkg.RemoveDependency(LDeclaredKey);
       FPackageRepo.Save(LPkg, GetBossFile);
     finally
       LPkg.Free;
@@ -123,6 +135,7 @@ begin
       LReachable := TDictionary<string, Boolean>.Create;
       try
         LLock.RootDependencies.Clear;
+        LLock.RootDevDependencies.Clear;
         LPkg := FPackageRepo.Load(GetBossFile);
         try
           for LKey in LPkg.Dependencies.Keys do
@@ -130,6 +143,17 @@ begin
             LDep := TBoss4DDependency.Parse(LKey, LPkg.Dependencies[LKey]);
             try
               LLock.RootDependencies.Add(LDep.GetKey);
+              VisitReachable(LDep.GetKey, LLock, LReachable);
+            finally
+              LDep.Free;
+            end;
+          end;
+          for LKey in LPkg.DevDependencies.Keys do
+          begin
+            LDep := TBoss4DDependency.Parse(LKey,
+              LPkg.DevDependencies[LKey]);
+            try
+              LLock.RootDevDependencies.Add(LDep.GetKey);
               VisitReachable(LDep.GetKey, LLock, LReachable);
             finally
               LDep.Free;
@@ -200,11 +224,21 @@ begin
         LDep.Free;
       end;
     end;
+    for var LManifestPair in LPkg.DevDependencies do
+    begin
+      LDep := TBoss4DDependency.Parse(LManifestPair.Key, LManifestPair.Value);
+      try
+        LDirect.AddOrSetValue(LDep.GetKey, True);
+      finally
+        LDep.Free;
+      end;
+    end;
     for LPair in LLock.Installed do
     begin
       LInfo.Key := LPair.Key;
       LInfo.Version := LPair.Value.Version;
       LInfo.Direct := LDirect.ContainsKey(LPair.Key);
+      LInfo.Scope := LPair.Value.Scope;
       LItems.Add(LInfo);
     end;
     LItems.Sort(TComparer<TBoss4DDependencyInfo>.Construct(

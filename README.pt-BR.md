@@ -99,7 +99,7 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d new app|package <nome> [--path <diretório>]`
   Cria uma estrutura protegida sem sobrescrever um diretório não vazio.
 * `boss4d sbom --format cyclonedx|spdx --output <arquivo> --validate`
-  Gera CycloneDX 1.7 ou SPDX 2.3 usando `boss.json` e `boss-lock.json` v2.
+  Gera CycloneDX 1.7 ou SPDX 2.3 usando `boss.json` e `boss-lock.json` v3.
   Com `--lock-only`, gera um SBOM reproduzível de release usando apenas as
   evidências da raiz e das dependências gravadas no lock. Coletores opcionais
   adicionam inventário GetIt, proveniência do compilador/RTL Delphi e hashes dos
@@ -108,7 +108,7 @@ cd /d d:\Projetos\BossDelphi
   [por que e como funciona o suporte SBOM](docs/sbom.pt-BR.md), a
   [referência da CLI](docs/usage.pt-BR.md#71-geração-de-sbom-sbom), os
   [exemplos copiáveis](docs/sbom-examples.pt-BR.md) e o
-  [guia de migração v2](docs/sbom-migration.pt-BR.md).
+  [guia de migração v3](docs/sbom-migration.pt-BR.md).
 * `boss4d help`
   Exibe o menu de ajuda com todos os comandos descritos em português.
 
@@ -119,6 +119,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Melhorias de Build Determinístico](docs/build-improvements.pt-BR.md)**: Paths sem colisão, toolchains, projetos declarados, Lazarus, scaffolding e normalização.
 * **[Ciclo de Vida de Dependências](docs/dependency-lifecycle.pt-BR.md)**: Add, update e remove transacionais, além de list e why baseados no grafo.
 * **[Instalação Reproduzível](docs/reproducible-install.pt-BR.md)**: Lock congelado, cache offline, instalação limpa em CI e garantias de rollback.
+* **[Escopos de Dependências](docs/dependency-scopes.pt-BR.md)**: `devDependencies`, instalação de produção, lock v3 e escopo no SBOM.
 * **[Manual de Uso da CLI](docs/usage.pt-BR.md)**: Guia completo detalhado de todos os parâmetros e opções de instalação de dependências.
 * **[Guia de Contribuição](CONTRIBUTING.pt-BR.md)**: Padrões de código e fluxo de desenvolvimento para contribuir com o projeto.
 * **[Guia de Lançamento de Release](RELEASE_GUIDE.md)**: Passos e instruções para compilar com Delphi 13 (37.0) e publicar releases no GitHub.

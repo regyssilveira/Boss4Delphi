@@ -1,9 +1,13 @@
-# Migrating to SBOM and `boss-lock.json` v2
+# Migrating to SBOM and `boss-lock.json` v3
+
+The current CLI promotes v1/v2 locks to schema v3 when saving. Version 3 adds
+root `devDependencies` and a `scope` field on installed modules. Missing scope
+in older locks is interpreted as `runtime`.
 
 Existing v1 lock files remain readable. Run `boss4d install` with the updated CLI
 to resolve dependencies again and save canonical repository identities, Git
 revisions, typed SHA-256 checksums, license provenance, and dependency edges in
-schema v2. Commit the resulting `boss-lock.json`.
+schema v3. Commit the resulting `boss-lock.json`.
 
 The updated v2 lock contains a `root` section with the project name, version,
 license, and direct dependencies. This evidence allows `--lock-only` to operate

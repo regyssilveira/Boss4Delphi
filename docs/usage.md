@@ -61,6 +61,9 @@ For deterministic automation, use `install --locked` (also available as
 clean and reinstall `modules/` from the frozen lock. See the
 [reproducible installation guide](reproducible-install.md).
 
+Use `add <package> --dev` for development-only tools. `install --production`
+and `ci --production` exclude them. See [dependency scopes](dependency-scopes.md).
+
 Boss4D downloads dependencies, checks out the correct version from Git, places them in a local `modules/` folder, and updates compilation paths.
 
 ### Installing a New Package

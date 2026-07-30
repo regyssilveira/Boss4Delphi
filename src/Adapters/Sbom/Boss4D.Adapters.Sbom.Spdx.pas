@@ -44,6 +44,9 @@ begin
   Result.AddPair('licenseDeclared', DeclaredLicense(AComponent));
   Result.AddPair('copyrightText', 'NOASSERTION');
   if not AComponent.Description.IsEmpty then Result.AddPair('description', AComponent.Description);
+  var LScope: string;
+  if AComponent.Properties.TryGetValue('boss4d:scope', LScope) then
+    Result.AddPair('comment', 'boss4d:scope=' + LScope);
   if AComponent.Hashes.Count > 0 then
   begin
     var LChecksums := TJSONArray.Create;

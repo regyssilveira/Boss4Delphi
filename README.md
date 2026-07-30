@@ -105,7 +105,7 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d new app|package <name> [--path <directory>]`
   Creates a protected project skeleton without overwriting a non-empty directory.
 * `boss4d sbom --format cyclonedx|spdx --output <file> --validate`
-  Generates CycloneDX 1.7 or SPDX 2.3 from `boss.json` plus `boss-lock.json` v2.
+  Generates CycloneDX 1.7 or SPDX 2.3 from `boss.json` plus `boss-lock.json` v3.
   `--lock-only` can generate a reproducible release SBOM using only root and
   dependency evidence stored in the lock. Optional collectors add GetIt inventory,
   Delphi compiler/RTL provenance, and declared artifact hashes. CycloneDX can also
@@ -113,7 +113,7 @@ cd /d d:\Projetos\BossDelphi
   See [why and how SBOM support works](docs/sbom.md), the
   [CLI reference](docs/usage.md#71-sbom-generation-sbom),
   [copyable examples](docs/sbom-examples.md), and
-  [v2 migration guide](docs/sbom-migration.md).
+  [v3 migration guide](docs/sbom-migration.md).
 * `boss4d help`
   Prints the CLI help menu.
 
@@ -124,6 +124,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Deterministic Build Improvements](docs/build-improvements.md)**: Collision-free paths, toolchains, declared projects, Lazarus, scaffolding, and normalization.
 * **[Dependency Lifecycle](docs/dependency-lifecycle.md)**: Transactional add, update, and remove plus graph-aware list and why commands.
 * **[Reproducible Installation](docs/reproducible-install.md)**: Frozen locks, offline cache behavior, CI clean installs, and rollback guarantees.
+* **[Dependency Scopes](docs/dependency-scopes.md)**: `devDependencies`, production installs, lock v3, and SBOM scope evidence.
 * **[CLI Usage Manual](docs/usage.md)**: Detailed step-by-step guide covering all command options and dependency configurations.
 * **[Contribution Guide](CONTRIBUTING.md)**: Coding standards and guidelines for contribution.
 * **[Release Guide](RELEASE_GUIDE.md)**: Steps and instructions to compile with Delphi 13 (37.0) and publish releases on GitHub.

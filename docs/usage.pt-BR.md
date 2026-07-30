@@ -60,6 +60,10 @@ Para automações determinísticas, use `install --locked` (também disponível 
 `ci` para limpar e reinstalar `modules/` a partir do lock congelado. Consulte o
 [guia de instalação reproduzível](reproducible-install.pt-BR.md).
 
+Use `add <pacote> --dev` para ferramentas de desenvolvimento. Os comandos
+`install --production` e `ci --production` as excluem. Consulte
+[escopos de dependências](dependency-scopes.pt-BR.md).
+
 O Boss4D faz o download das dependências do Git, realiza o checkout na versão correta, posiciona os fontes na pasta local `modules/` do seu projeto e atualiza as diretivas de caminhos de busca do compilador.
 
 ### Instalando um Novo Pacote

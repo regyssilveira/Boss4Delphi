@@ -135,6 +135,7 @@ begin
       LComponent.ComponentType := LibraryComponent;
       LComponent.Properties.AddOrSetValue('boss4d:resolvedFrom', LLocked.ResolvedFrom);
       LComponent.Properties.AddOrSetValue('boss4d:lockKey', LInstalledKey);
+      LComponent.Properties.AddOrSetValue('boss4d:scope', LLocked.Scope);
       if not LLocked.Checksum.IsEmpty then
       begin
         var LHash := TBoss4DSbomHash.Create;
@@ -230,11 +231,18 @@ begin
     ADocument.Relationships.Add(LRootRelation);
     for var LDeclaredKey in APackage.Dependencies.Keys do
       LDeclaredKeys.Add(LDeclaredKey);
+    for var LDeclaredKey in APackage.DevDependencies.Keys do
+      if not LDeclaredKeys.Contains(LDeclaredKey) then
+        LDeclaredKeys.Add(LDeclaredKey);
     LDeclaredKeys.Sort;
     for var LDeclaredKey in LDeclaredKeys do
     begin
+      var LDeclaredVersion: string;
+      if not APackage.Dependencies.TryGetValue(LDeclaredKey,
+        LDeclaredVersion) then
+        LDeclaredVersion := APackage.DevDependencies[LDeclaredKey];
       var LDeclared := TBoss4DDependency.Parse(LDeclaredKey,
-        APackage.Dependencies[LDeclaredKey]);
+        LDeclaredVersion);
       try
         var LLockedDependency: TBoss4DLockedDependency := nil;
         if ALock.GetInstalled(LDeclared, LLockedDependency) then
@@ -402,6 +410,8 @@ begin
       LPackage.License := LLock.RootLicense;
       for var LRootDependency in LLock.RootDependencies do
         LPackage.Dependencies.AddOrSetValue(LRootDependency, '*');
+      for var LRootDependency in LLock.RootDevDependencies do
+        LPackage.DevDependencies.AddOrSetValue(LRootDependency, '*');
     end
     else if AOptions.StrictMode then
     begin

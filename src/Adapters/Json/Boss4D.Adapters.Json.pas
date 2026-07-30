@@ -168,6 +168,18 @@ begin
   end;
 end;
 
+procedure ParsePackageDevDependencies(const AJSONObj: TJSONObject;
+  const APackage: TBoss4DPackage);
+var
+  LObj: TJSONObject;
+begin
+  LObj := ReadObject(AJSONObj, 'devDependencies');
+  if Assigned(LObj) then
+    for var LPair in LObj do
+      APackage.DevDependencies.Add(LPair.JsonString.Value,
+        LPair.JsonValue.Value);
+end;
+
 procedure ParsePackageSbomComponents(const AJSONObj: TJSONObject; const APackage: TBoss4DPackage);
 var
   LSbomObj: TJSONObject;
@@ -274,6 +286,19 @@ begin
       LDepsObj.AddPair(LPair.Key, LPair.Value);
     AJSONObj.AddPair('dependencies', LDepsObj);
   end;
+end;
+
+procedure SavePackageDevDependencies(const AJSONObj: TJSONObject;
+  const APackage: TBoss4DPackage);
+var
+  LDepsObj: TJSONObject;
+begin
+  if APackage.DevDependencies.Count = 0 then
+    Exit;
+  LDepsObj := TJSONObject.Create;
+  for var LPair in APackage.DevDependencies do
+    LDepsObj.AddPair(LPair.Key, LPair.Value);
+  AJSONObj.AddPair('devDependencies', LDepsObj);
 end;
 
 procedure SavePackageEngines(const AJSONObj: TJSONObject; const APackage: TBoss4DPackage);
@@ -401,6 +426,7 @@ begin
       ParsePackageProjects(LJSONObj, Result);
       ParsePackageScripts(LJSONObj, Result);
       ParsePackageDependencies(LJSONObj, Result);
+      ParsePackageDevDependencies(LJSONObj, Result);
       ParsePackageSbomComponents(LJSONObj, Result);
       ParsePackageEngines(LJSONObj, Result);
       ParsePackageToolchain(LJSONObj, Result);
@@ -439,6 +465,7 @@ begin
     SavePackageProjects(LJSONObj, APackage);
     SavePackageScripts(LJSONObj, APackage);
     SavePackageDependencies(LJSONObj, APackage);
+    SavePackageDevDependencies(LJSONObj, APackage);
 
     if APackage.SbomComponents.Count > 0 then
     begin
@@ -531,6 +558,10 @@ begin
         if Assigned(LRootDeps) then
           for var I := 0 to LRootDeps.Count - 1 do
             Result.RootDependencies.Add(LRootDeps[I].Value);
+        var LRootDevDeps := ReadArray(LRootObj, 'devDependencies');
+        if Assigned(LRootDevDeps) then
+          for var I := 0 to LRootDevDeps.Count - 1 do
+            Result.RootDevDependencies.Add(LRootDevDeps[I].Value);
       end;
 
       var LInstalledObj := ReadObject(LJSONObj, 'installedModules');
@@ -545,6 +576,9 @@ begin
             LLockedDep.Name := ReadString(LDepObj, 'name');
             LLockedDep.Version := ReadString(LDepObj, 'version');
             LLockedDep.Hash := ReadString(LDepObj, 'hash');
+            LLockedDep.Scope := ReadString(LDepObj, 'scope');
+            if LLockedDep.Scope.IsEmpty then
+              LLockedDep.Scope := 'runtime';
             ParseLockMetadata(LDepObj, LLockedDep);
 
             var LArtifactsObj := ReadObject(LDepObj, 'artifacts');
@@ -581,6 +615,7 @@ var
   LDependencyKeys: TList<string>;
   LRootObj: TJSONObject;
   LRootDependenciesArr: TJSONArray;
+  LRootDevDependenciesArr: TJSONArray;
 begin
   LJSONObj := TJSONObject.Create;
   try
@@ -606,6 +641,17 @@ begin
         LDependencyKeys.Free;
       end;
       LRootObj.AddPair('dependencies', LRootDependenciesArr);
+      LRootDevDependenciesArr := TJSONArray.Create;
+      LDependencyKeys := TList<string>.Create;
+      try
+        LDependencyKeys.AddRange(ALock.RootDevDependencies);
+        LDependencyKeys.Sort;
+        for var LDependencyKey in LDependencyKeys do
+          LRootDevDependenciesArr.Add(LDependencyKey);
+      finally
+        LDependencyKeys.Free;
+      end;
+      LRootObj.AddPair('devDependencies', LRootDevDependenciesArr);
       LJSONObj.AddPair('root', LRootObj);
     end;
 
@@ -623,6 +669,7 @@ begin
         LDepObj.AddPair('name', LLockedDependency.Name);
         LDepObj.AddPair('version', LLockedDependency.Version);
         LDepObj.AddPair('hash', LLockedDependency.Hash);
+        LDepObj.AddPair('scope', LLockedDependency.Scope);
 
         if not LLockedDependency.Repository.IsEmpty then
           LDepObj.AddPair('repository', LLockedDependency.Repository);

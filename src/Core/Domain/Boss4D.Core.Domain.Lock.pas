@@ -8,7 +8,7 @@ uses
 type
   TBoss4DLockSchema = class
   public const
-    CurrentVersion = 2;
+    CurrentVersion = 3;
   end;
 
   { Representa os artefatos compilados de uma dependencia }
@@ -46,6 +46,7 @@ type
     FDependencies: TList<string>;
     FArtifacts: TBoss4DDependencyArtifacts;
     FChanged: Boolean;
+    FScope: string;
   public
     constructor Create;
     destructor Destroy; override;
@@ -63,6 +64,7 @@ type
     property Dependencies: TList<string> read FDependencies;
     property Artifacts: TBoss4DDependencyArtifacts read FArtifacts;
     property Changed: Boolean read FChanged write FChanged;
+    property Scope: string read FScope write FScope;
   end;
 
   { Entidade pura de dominio representando o arquivo boss.lock }
@@ -78,6 +80,7 @@ type
     FRootHomepage: string;
     FRootLicense: string;
     FRootDependencies: TList<string>;
+    FRootDevDependencies: TList<string>;
     FInstalled: TObjectDictionary<string, TBoss4DLockedDependency>;
   public
     constructor Create;
@@ -96,6 +99,7 @@ type
     property RootHomepage: string read FRootHomepage write FRootHomepage;
     property RootLicense: string read FRootLicense write FRootLicense;
     property RootDependencies: TList<string> read FRootDependencies;
+    property RootDevDependencies: TList<string> read FRootDevDependencies;
     property LockVersion: Integer read FLockVersion write FLockVersion;
     property Installed: TObjectDictionary<string, TBoss4DLockedDependency> read FInstalled;
   end;
@@ -132,6 +136,7 @@ begin
   FDependencies := TList<string>.Create;
   FChecksumAlgorithm := 'SHA-256';
   FChanged := False;
+  FScope := 'runtime';
 end;
 
 destructor TBoss4DLockedDependency.Destroy;
@@ -148,11 +153,13 @@ begin
   inherited Create;
   FLockVersion := TBoss4DLockSchema.CurrentVersion;
   FRootDependencies := TList<string>.Create;
+  FRootDevDependencies := TList<string>.Create;
   FInstalled := TObjectDictionary<string, TBoss4DLockedDependency>.Create([doOwnsValues]);
 end;
 
 destructor TBoss4DLock.Destroy;
 begin
+  FRootDevDependencies.Free;
   FRootDependencies.Free;
   FInstalled.Free;
   inherited Destroy;
@@ -178,6 +185,7 @@ begin
     LLocked.Version := AVersion;
     LLocked.Hash := AHash;
     LLocked.Checksum := AChecksum;
+    LLocked.Scope := ADep.Scope;
     LLocked.Changed := True;
     FInstalled.Add(LKey, LLocked);
   end
@@ -187,6 +195,7 @@ begin
     LLocked.Version := AVersion;
     LLocked.Hash := AHash;
     LLocked.Checksum := AChecksum;
+    LLocked.Scope := ADep.Scope;
     LLocked.Changed := True;
   end;
 end;
