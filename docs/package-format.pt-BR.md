@@ -5,6 +5,7 @@
 ```text
 boss4d pack
 boss4d pack --output dist/minha-biblioteca-1.0.0.b4dpkg
+boss4d pack --output dist/minha-biblioteca-1.0.0.b4dpkg --sign release@example.com
 ```
 
 O formato v1 é um envelope JSON canônico. Ele registra `format`,
@@ -14,6 +15,10 @@ Binários gerados, `.git`, `modules`, `dist`, dados de scratch e saídas do
 compilador são excluídos.
 
 A mesma árvore de fontes produz os mesmos bytes e o mesmo SHA-256 do pacote.
+Cada execução também grava uma declaração in-toto Statement v1 em
+`.intoto.json`, vinculando nome e SHA-256 do artefato ao builder Boss4D e à
+quantidade de arquivos. Com `--sign`, o Boss4D solicita ao GPG uma assinatura
+destacada ASCII `.asc` e a verifica imediatamente antes de informar sucesso.
 `boss4d publish` inclui esse artefato imutável e seu digest no payload do
 protocolo v1, permitindo que o registro armazene conteúdo pelo digest em vez de
 estado mutável do repositório.

@@ -22,6 +22,7 @@ uses
   Boss4D.Adapters.Json in 'Adapters/Json/Boss4D.Adapters.Json.pas',
   Boss4D.Adapters.Logger in 'Adapters/Logger/Boss4D.Adapters.Logger.pas',
   Boss4D.Adapters.Security.Windows in 'Adapters/Security/Boss4D.Adapters.Security.Windows.pas',
+  Boss4D.Adapters.Security.Gpg in 'Adapters/Security/Boss4D.Adapters.Security.Gpg.pas',
   Boss4D.Adapters.Http in 'Adapters/Http/Boss4D.Adapters.Http.pas',
   Boss4D.Adapters.Git in 'Adapters/Git/Boss4D.Adapters.Git.pas',
   Boss4D.Adapters.Registry in 'Adapters/Registry/Boss4D.Adapters.Registry.pas',

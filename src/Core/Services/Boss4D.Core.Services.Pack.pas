@@ -7,6 +7,7 @@ type
     OutputPath: string;
     Digest: string;
     FileCount: Integer;
+    ProvenancePath: string;
   end;
 
   TBoss4DPackService = class
@@ -103,6 +104,30 @@ begin
     Result.OutputPath := LOutput;
     Result.Digest := Sha256(LBytes);
     Result.FileCount := LFiles.Count;
+    Result.ProvenancePath := LOutput + '.intoto.json';
+    var LStatement := TJSONObject.Create;
+    try
+      LStatement.AddPair('_type',
+        'https://in-toto.io/Statement/v1');
+      LStatement.AddPair('predicateType',
+        'https://boss4d.dev/pack/v1');
+      var LSubject := TJSONArray.Create;
+      var LSubjectEntry := TJSONObject.Create;
+      LSubjectEntry.AddPair('name', TPath.GetFileName(LOutput));
+      var LDigestObject := TJSONObject.Create;
+      LDigestObject.AddPair('sha256', Result.Digest);
+      LSubjectEntry.AddPair('digest', LDigestObject);
+      LSubject.AddElement(LSubjectEntry);
+      LStatement.AddPair('subject', LSubject);
+      var LPredicate := TJSONObject.Create;
+      LPredicate.AddPair('builder', 'boss4d/' + '1.4.0');
+      LPredicate.AddPair('fileCount', TJSONNumber.Create(Result.FileCount));
+      LStatement.AddPair('predicate', LPredicate);
+      TFile.WriteAllBytes(Result.ProvenancePath,
+        TEncoding.UTF8.GetBytes(LStatement.ToJSON));
+    finally
+      LStatement.Free;
+    end;
   finally
     LFiles.Free;
   end;

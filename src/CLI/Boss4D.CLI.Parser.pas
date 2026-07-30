@@ -95,6 +95,7 @@ uses
   Boss4D.Adapters.Sbom.Collectors,
   Boss4D.Adapters.Sbom.Spdx,
   Boss4D.Adapters.Sbom.Security,
+  Boss4D.Adapters.Security.Gpg,
   Boss4D.Core.Domain.Dependency,
   Boss4D.Core.Domain.Package,
   Boss4D.Core.Domain.Lock,
@@ -263,10 +264,12 @@ end;
 procedure TBoss4DCommandLineParser.HandlePack(const AArgs: TArray<string>);
 var
   LOutput: string;
+  LSigningKey: string;
   LService: TBoss4DPackService;
   LResult: TBoss4DPackResult;
 begin
   LOutput := TPath.Combine(GetCurrentDir, 'dist\package.b4dpkg');
+  LSigningKey := '';
   for var I := 1 to High(AArgs) do
     if SameText(AArgs[I], '--output') then
     begin
@@ -274,12 +277,31 @@ begin
         raise EArgumentException.Create('Informe o arquivo de saida.');
       LOutput := AArgs[I + 1];
     end;
+  for var I := 1 to High(AArgs) do
+    if SameText(AArgs[I], '--sign') then
+    begin
+      if I + 1 > High(AArgs) then
+        raise EArgumentException.Create('Informe a chave GPG.');
+      LSigningKey := AArgs[I + 1];
+    end;
   LService := TBoss4DPackService.Create;
   try
     LResult := LService.Execute(GetCurrentDir, LOutput);
     FLogger.Log(TBoss4DLogLevel.Info,
       'Pacote gerado: %s (sha256:%s, %d arquivos)',
       [LResult.OutputPath, LResult.Digest, LResult.FileCount]);
+    FLogger.Log(TBoss4DLogLevel.Info,
+      'Proveniencia gerada: ' + LResult.ProvenancePath);
+    if not LSigningKey.IsEmpty then
+    begin
+      var LSigner: IBoss4DPackageSigner :=
+        TBoss4DGpgPackageSigner.Create(Boss4DProcessRunner);
+      var LSignature := LSigner.Sign(LResult.OutputPath, LSigningKey);
+      if not LSigner.Verify(LResult.OutputPath, LSignature) then
+        raise Exception.Create('A assinatura gerada nao foi verificada.');
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Assinatura OpenPGP verificada: ' + LSignature);
+    end;
   finally
     LService.Free;
   end;

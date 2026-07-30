@@ -23,6 +23,7 @@ uses
   Boss4D.Adapters.Compiler in '..\Adapters\Compiler\Boss4D.Adapters.Compiler.pas',
   Boss4D.Adapters.Logger in '..\Adapters\Logger\Boss4D.Adapters.Logger.pas',
   Boss4D.Adapters.Security.Windows in '..\Adapters\Security\Boss4D.Adapters.Security.Windows.pas',
+  Boss4D.Adapters.Security.Gpg in '..\Adapters\Security\Boss4D.Adapters.Security.Gpg.pas',
   Boss4D.Core.Services.Init in '..\Core\Services\Boss4D.Core.Services.Init.pas',
   Boss4D.Core.Services.Config in '..\Core\Services\Boss4D.Core.Services.Config.pas',
   Boss4D.Core.Services.Install in '..\Core\Services\Boss4D.Core.Services.Install.pas',

@@ -23,6 +23,8 @@
   input-order-independent selection.
 - Windows Credential Manager storage for GitHub/GitLab tokens; secrets are no
   longer serialized to `boss.cfg.json`.
+- In-toto package provenance and optional verified OpenPGP detached signatures
+  for immutable `.b4dpkg` artifacts.
 
 ## 1.4.0 - 2026-07-30
 

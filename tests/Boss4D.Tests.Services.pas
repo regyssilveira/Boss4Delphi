@@ -1103,6 +1103,7 @@ begin
       Assert.IsTrue(LPayload.Contains('"format":"boss4d-package-v1"'));
       Assert.IsTrue(LPayload.Contains('"sha256":'));
       Assert.IsTrue(LPayload.Contains('"content":'));
+      Assert.IsTrue(LPayload.Contains('"provenance":'));
       Assert.AreEqual(0, LHttp.AuthorizedPostCount,
         'Dry-run nao pode realizar chamadas de publicacao.');
 
