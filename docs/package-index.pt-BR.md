@@ -61,6 +61,31 @@ string/string original de `dependencies` no `boss.json` não precisam de
 migração. No v2, `versions` é opcional, e um pacote ainda pode expor os campos
 compatíveis com v1 `version`, `artifact` e `sha256` no nível superior.
 
+## Metadados esparsos e revogação
+
+Registros grandes no schema v2 podem manter um documento de metadados por
+pacote. O índice principal referencia esses documentos em `sparse`; cada um
+segue o contrato normal de `packages`:
+
+```json
+{
+  "schemaVersion": 2,
+  "sparse": ["packages/horse.json", "packages/dext.json"],
+  "revocations": [{
+    "name": "InternalLib",
+    "version": "2.4.0",
+    "reason": "solicitação do publisher"
+  }],
+  "packages": []
+}
+```
+
+Uma versão também pode declarar `"revoked": true` e `revocationReason`. A
+resolução escolhe a primeira versão não revogada. Uma revogação no índice raiz
+prevalece sobre metadados incluídos ou esparsos, e a instalação recusa a versão
+selecionada quando revogada. O histórico permanece disponível para preservar
+as evidências de lockfiles e auditorias.
+
 As variantes de artefato são opcionais e não alteram o `boss.json`. Para
 selecioná-las:
 

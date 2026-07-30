@@ -247,6 +247,8 @@ begin
                 WriteLn('license: ' + LFound.LicenseName);
                 WriteLn('description: ' + LFound.Description);
                 WriteLn('source: ' + LFound.Source);
+                if LFound.Revoked then
+                  WriteLn('revoked: true (' + LFound.RevocationReason + ')');
                 LFoundFlag := True;
                 Break;
               end;
@@ -339,6 +341,10 @@ begin
             try
               LFound := LEntries.Find(ParamStr(3));
               if not Assigned(LFound) then Continue;
+              if LFound.Revoked then
+                raise Exception.Create('registry version revoked: ' +
+                  LFound.Name + '@' + LFound.Version + ' - ' +
+                  LFound.RevocationReason);
               LFoundFlag := True;
             LVariant := LFound.SelectVariant(LPlatform, LCompiler);
             if Assigned(LVariant) then

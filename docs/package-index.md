@@ -60,6 +60,31 @@ string-to-string `dependencies` map in `boss.json` do not require migration.
 In v2, `versions` is optional, and a package may still expose the v1-compatible
 top-level `version`, `artifact`, and `sha256` fields.
 
+## Sparse metadata and revocation
+
+Large schema-v2 registries can keep one metadata document per package. The
+entry point lists those documents in `sparse`; each uses the normal schema-v2
+`packages` contract:
+
+```json
+{
+  "schemaVersion": 2,
+  "sparse": ["packages/horse.json", "packages/dext.json"],
+  "revocations": [{
+    "name": "InternalLib",
+    "version": "2.4.0",
+    "reason": "publisher request"
+  }],
+  "packages": []
+}
+```
+
+A version may also carry `"revoked": true` and `revocationReason`. Resolution
+selects the first non-revoked version. A root-level revocation overrides
+included or sparse metadata, and installation refuses a revoked selected
+version. Historical metadata remains available to preserve lockfile and audit
+evidence.
+
 Artifact variants are optional and do not change `boss.json`. Select them with:
 
 ```text

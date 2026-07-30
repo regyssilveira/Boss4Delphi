@@ -39,6 +39,8 @@ type
     FSignatureUrl: string;
     FProvenanceUrl: string;
     FSource: string;
+    FRevoked: Boolean;
+    FRevocationReason: string;
     FVariants: TFPObjectList;
   public
     constructor Create;
@@ -55,6 +57,9 @@ type
     property SignatureUrl: string read FSignatureUrl write FSignatureUrl;
     property ProvenanceUrl: string read FProvenanceUrl write FProvenanceUrl;
     property Source: string read FSource write FSource;
+    property Revoked: Boolean read FRevoked write FRevoked;
+    property RevocationReason: string read FRevocationReason
+      write FRevocationReason;
     property Variants: TFPObjectList read FVariants;
   end;
 
@@ -317,6 +322,8 @@ begin
     LCopy.SignatureUrl := LEntry.SignatureUrl;
     LCopy.ProvenanceUrl := LEntry.ProvenanceUrl;
     LCopy.Source := LEntry.Source;
+    LCopy.Revoked := LEntry.Revoked;
+    LCopy.RevocationReason := LEntry.RevocationReason;
     for J := 0 to LEntry.Variants.Count - 1 do
     begin
       LVariant := TBoss4DArtifactVariant(LEntry.Variants[J]);
@@ -338,11 +345,12 @@ procedure TBoss4DRegistryService.LoadInternal(const ASource: string;
 var
   LData: TJSONData;
   LRoot, LObject, LLatest, LVariantOwner, LVariantObject: TJSONObject;
-  LIncludes, LPackages, LVersions, LVariants: TJSONArray;
+  LIncludes, LSparse, LPackages, LVersions, LVariants, LRevocations: TJSONArray;
   LEntry: TBoss4DRegistryEntry;
   LVariant: TBoss4DArtifactVariant;
-  I, J: Integer;
+  I, J, K: Integer;
   LKey: string;
+  LRevocation: TJSONObject;
 begin
   CheckCancelled;
   LKey := LowerCase(ASource);
@@ -359,6 +367,11 @@ begin
     if Assigned(LIncludes) then
       for I := 0 to LIncludes.Count - 1 do
         LoadInternal(ResolveReference(ASource, LIncludes.Strings[I]),
+          AEntries, AVisited);
+    LSparse := FindArray(LRoot, 'sparse');
+    if Assigned(LSparse) then
+      for I := 0 to LSparse.Count - 1 do
+        LoadInternal(ResolveReference(ASource, LSparse.Strings[I]),
           AEntries, AVisited);
     LPackages := FindArray(LRoot, 'packages');
     if not Assigned(LPackages) then Exit;
@@ -378,12 +391,27 @@ begin
         LEntry.ProvenanceUrl := LObject.Get('provenance', '');
         LVariantOwner := LObject;
         LVersions := FindArray(LObject, 'versions');
-        if Assigned(LVersions) and (LVersions.Count > 0) and
-           (LVersions.Items[0] is TJSONObject) then
+        if Assigned(LVersions) and (LVersions.Count > 0) then
         begin
-          LLatest := TJSONObject(LVersions.Items[0]);
+          LLatest := nil;
+          for K := 0 to LVersions.Count - 1 do
+            if (LVersions.Items[K] is TJSONObject) and
+               not TJSONObject(LVersions.Items[K]).Get('revoked', False) then
+            begin
+              LLatest := TJSONObject(LVersions.Items[K]);
+              Break;
+            end;
+          if not Assigned(LLatest) and (LVersions.Items[0] is TJSONObject) then
+            LLatest := TJSONObject(LVersions.Items[0]);
+          if not Assigned(LLatest) then
+          begin
+            LEntry.Free;
+            Continue;
+          end;
           LVariantOwner := LLatest;
           LEntry.Version := LLatest.Get('version', LEntry.Version);
+          LEntry.Revoked := LLatest.Get('revoked', False);
+          LEntry.RevocationReason := LLatest.Get('revocationReason', '');
           LEntry.ArtifactUrl := LLatest.Get('artifact', LEntry.ArtifactUrl);
           LEntry.ArtifactDigest := LLatest.Get('sha256',
             LEntry.ArtifactDigest);
@@ -418,6 +446,21 @@ begin
         else
           LEntry.Free;
       end;
+    LRevocations := FindArray(LRoot, 'revocations');
+    if Assigned(LRevocations) then
+      for I := 0 to LRevocations.Count - 1 do
+        if LRevocations.Items[I] is TJSONObject then
+        begin
+          LRevocation := TJSONObject(LRevocations.Items[I]);
+          LEntry := AEntries.Find(LRevocation.Get('name', ''));
+          if Assigned(LEntry) and
+             ((LRevocation.Get('version', '') = '') or
+              SameText(LEntry.Version, LRevocation.Get('version', ''))) then
+          begin
+            LEntry.Revoked := True;
+            LEntry.RevocationReason := LRevocation.Get('reason', '');
+          end;
+        end;
   finally
     LData.Free;
   end;

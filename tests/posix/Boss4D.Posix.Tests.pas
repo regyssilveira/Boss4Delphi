@@ -106,6 +106,7 @@ type
     procedure TestRegistryOfflineUsesCache;
     procedure TestRegistryOnlineFallsBackToCache;
     procedure TestRegistrySelectsArtifactVariant;
+    procedure TestRegistrySparseMetadataAndRevocation;
     procedure TestVerifiedPackageInstall;
     procedure TestPackageRejectsArtifactDigestMismatch;
     procedure TestPackageRejectsFileDigestMismatch;
@@ -646,6 +647,40 @@ begin
       finally
         LMatches.Free;
       end;
+    finally
+      LEntries.Free;
+    end;
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestRegistrySparseMetadataAndRevocation;
+var
+  LDir, LRoot, LPackage: string;
+  LService: TBoss4DRegistryService;
+  LEntries: TBoss4DRegistryEntries;
+  LEntry: TBoss4DRegistryEntry;
+begin
+  LDir := NewTempDirectory;
+  LRoot := IncludeTrailingPathDelimiter(LDir) + 'index.json';
+  LPackage := IncludeTrailingPathDelimiter(LDir) + 'horse.json';
+  SaveFixture(LPackage, '{"schemaVersion":2,"packages":[{"name":"Horse",' +
+    '"repository":"github.com/hashload/horse","versions":[' +
+    '{"version":"3.2.0","revoked":true,"revocationReason":"compromised"},' +
+    '{"version":"3.1.0","artifact":"horse.b4dpkg","sha256":"abc"}]}]}');
+  SaveFixture(LRoot, '{"schemaVersion":2,"sparse":["horse.json"],' +
+    '"revocations":[{"name":"Horse","version":"3.1.0",' +
+    '"reason":"publisher request"}],"packages":[]}');
+  LService := TBoss4DRegistryService.Create;
+  try
+    LEntries := LService.Load(LRoot);
+    try
+      AssertEquals(1, LEntries.Count);
+      LEntry := LEntries.Find('Horse');
+      AssertEquals('3.1.0', LEntry.Version);
+      AssertTrue(LEntry.Revoked);
+      AssertEquals('publisher request', LEntry.RevocationReason);
     finally
       LEntries.Free;
     end;
