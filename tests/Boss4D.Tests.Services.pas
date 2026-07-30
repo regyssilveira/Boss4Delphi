@@ -48,6 +48,12 @@ type
     procedure TestInstallTransactionRollback;
 
     [Test]
+    procedure TestLockedOfflineAndCI;
+
+    [Test]
+    procedure TestLockedRejectsManifestDrift;
+
+    [Test]
     procedure TestCLICommandLineParser;
 
     [Test]
@@ -540,6 +546,137 @@ begin
   Assert.AreEqual('preserve', TFile.ReadAllText(LMarkerPath));
 end;
 
+procedure TTestsServices.TestLockedOfflineAndCI;
+var
+  LInit: TBoss4DInitService;
+  LInstall: TBoss4DInstallService;
+  LConfig: TBoss4DConfigService;
+  LParser: TBoss4DCommandLineParser;
+  LLogger: TTestLogger;
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LGitMock: TGitClientMock;
+  LPkg: TBoss4DPackage;
+  LOptions: TBoss4DInstallOptions;
+  LLockBefore, LLockAfter: string;
+  LNetworkCalls: Integer;
+  LStalePath: string;
+  LRaised: Boolean;
+begin
+  LLogger := TTestLogger.Create;
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LGitMock := TGitClientMock.Create;
+  LInit := TBoss4DInitService.Create(LPackageRepo, LLogger);
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo, LGitMock,
+    THttpClientMock.Create, TCompilerMock.Create, LLogger);
+  LConfig := TBoss4DConfigService.Create(LLogger);
+  LParser := TBoss4DCommandLineParser.Create(LLogger, LInit, LInstall,
+    LConfig, LPackageRepo, TRegistryMock.Create);
+  try
+    LInit.Execute(True);
+    LPkg := LPackageRepo.Load(GetBossFile);
+    try
+      LPkg.AddDependency('github.com/hashload/horse', '^3.0.0');
+      LPackageRepo.Save(LPkg, GetBossFile);
+    finally
+      LPkg.Free;
+    end;
+
+    LOptions := Default(TBoss4DInstallOptions);
+    LOptions.Offline := True;
+    LRaised := False;
+    try
+      LInstall.Execute(LOptions);
+    except
+      on E: Exception do LRaised := True;
+    end;
+    Assert.IsTrue(LRaised,
+      '--offline deve recusar dependencia sem cache local.');
+    Assert.IsFalse(TFile.Exists(TPath.Combine(FTempDir, FILE_PACKAGE_LOCK)));
+
+    LInstall.Execute;
+    LLockBefore := TFile.ReadAllText(
+      TPath.Combine(FTempDir, FILE_PACKAGE_LOCK), TEncoding.UTF8);
+    LNetworkCalls := LGitMock.NetworkCallCount;
+
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'install', '--locked', '--offline'));
+    LLockAfter := TFile.ReadAllText(
+      TPath.Combine(FTempDir, FILE_PACKAGE_LOCK), TEncoding.UTF8);
+    Assert.AreEqual(LLockBefore, LLockAfter,
+      '--locked nao pode reescrever nem atualizar timestamp do lock.');
+    Assert.AreEqual<Integer>(LNetworkCalls, LGitMock.NetworkCallCount,
+      '--offline nao pode clonar nem atualizar o cache.');
+    Assert.AreEqual('0123456789abcdef0123456789abcdef01234567',
+      LGitMock.LastCheckoutVersion,
+      '--locked deve fazer checkout da revisao exata.');
+
+    LStalePath := TPath.Combine(GetModulesDir, 'stale.txt');
+    TFile.WriteAllText(LStalePath, 'stale');
+    LParser.ParseAndExecute(TArray<string>.Create('ci', '--offline'));
+    Assert.IsFalse(TFile.Exists(LStalePath),
+      'ci deve iniciar por uma arvore modules limpa.');
+    Assert.AreEqual(LLockBefore, TFile.ReadAllText(
+      TPath.Combine(FTempDir, FILE_PACKAGE_LOCK), TEncoding.UTF8));
+  finally
+    LParser.Free;
+    LConfig.Free;
+    LInstall.Free;
+    LInit.Free;
+  end;
+end;
+
+procedure TTestsServices.TestLockedRejectsManifestDrift;
+var
+  LInit: TBoss4DInitService;
+  LInstall: TBoss4DInstallService;
+  LLogger: IBoss4DLogger;
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LPkg: TBoss4DPackage;
+  LOptions: TBoss4DInstallOptions;
+  LLockBefore: string;
+  LRaised: Boolean;
+begin
+  LLogger := TTestLogger.Create;
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LInit := TBoss4DInitService.Create(LPackageRepo, LLogger);
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo,
+    TGitClientMock.Create, THttpClientMock.Create, TCompilerMock.Create,
+    LLogger);
+  try
+    LInit.Execute(True);
+    LInstall.Execute('github.com/hashload/horse@^3.0.0');
+    LLockBefore := TFile.ReadAllText(
+      TPath.Combine(FTempDir, FILE_PACKAGE_LOCK), TEncoding.UTF8);
+    LPkg := LPackageRepo.Load(GetBossFile);
+    try
+      LPkg.AddDependency('github.com/example/drift', '1.0.0');
+      LPackageRepo.Save(LPkg, GetBossFile);
+    finally
+      LPkg.Free;
+    end;
+
+    LOptions := Default(TBoss4DInstallOptions);
+    LOptions.Locked := True;
+    LRaised := False;
+    try
+      LInstall.Execute(LOptions);
+    except
+      on E: Exception do LRaised := True;
+    end;
+    Assert.IsTrue(LRaised,
+      '--locked deve recusar divergencia entre manifest e lock.');
+    Assert.AreEqual(LLockBefore, TFile.ReadAllText(
+      TPath.Combine(FTempDir, FILE_PACKAGE_LOCK), TEncoding.UTF8));
+  finally
+    LInstall.Free;
+    LInit.Free;
+  end;
+end;
+
 procedure TTestsServices.TestCLICommandLineParser;
 var
   LInit: TBoss4DInitService;
@@ -839,14 +976,17 @@ begin
         Assert.IsTrue(LLock.GetInstalled(LDep, LLockedDep));
         Assert.IsFalse(LLockedDep.Checksum.IsEmpty); // Deve ter computado hash SHA-256
 
-        // Simula uma alteraÃ§Ã£o indevida de arquivos na dependÃªncia instalada
-        LTargetDir := TPath.Combine(GetModulesDir, LDep.StorageName);
-        TFile.WriteAllText(TPath.Combine(LTargetDir, 'unauthorized.txt'), 'tampered content', TEncoding.UTF8);
+        // Simula adulteracao da evidencia de integridade registrada no lock.
+        LLockedDep.Checksum := StringOfChar('0', 64);
+        LLockRepo.Save(LLock, TPath.Combine(
+          TDirectory.GetCurrentDirectory, FILE_PACKAGE_LOCK));
 
-        // 2. Tenta re-instalar (deve disparar erro de seguranÃ§a, pois o checksum calculado diverge do trancado!)
+        // 2. A instalacao congelada deve comparar o checkout limpo com o lock.
         var LFailed := False;
         try
-          LInstall.Execute('');
+          var LOptions := Default(TBoss4DInstallOptions);
+          LOptions.Locked := True;
+          LInstall.Execute(LOptions);
         except
           on E: Exception do
           begin

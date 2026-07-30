@@ -13,6 +13,8 @@ type
     FTags: TDictionary<string, TArray<string>>;
     FCacheMap: TDictionary<string, string>;
     FFailCheckout: Boolean;
+    FNetworkCallCount: Integer;
+    FLastCheckoutVersion: string;
   public
     constructor Create;
     destructor Destroy; override;
@@ -25,6 +27,8 @@ type
     function ResolveRevision(const ACacheDir: string; const AVersion: string): string;
     procedure Checkout(const ACacheDir: string; const AVersion: string; const ATargetDir: string);
     property FailCheckout: Boolean read FFailCheckout write FFailCheckout;
+    property NetworkCallCount: Integer read FNetworkCallCount;
+    property LastCheckoutVersion: string read FLastCheckoutVersion;
   end;
 
   { Mock para simulacao do cliente HTTP }
@@ -103,6 +107,7 @@ end;
 
 procedure TGitClientMock.CloneCache(const ADep: TBoss4DDependency; const ATargetDir: string);
 begin
+  Inc(FNetworkCallCount);
   // Mapeia o nome final do diretorio (que e o hash) para o repositorio
   var LFolder := TPath.GetFileName(ATargetDir).ToLower;
   FCacheMap.AddOrSetValue(LFolder, ADep.Repository.ToLower);
@@ -120,7 +125,7 @@ end;
 
 procedure TGitClientMock.UpdateCache(const ADep: TBoss4DDependency; const ACacheDir: string);
 begin
-  // No-op
+  Inc(FNetworkCallCount);
 end;
 
 function TGitClientMock.GetVersions(const ACacheDir: string): TArray<string>;
@@ -144,11 +149,13 @@ end;
 
 procedure TGitClientMock.Checkout(const ACacheDir: string; const AVersion: string; const ATargetDir: string);
 begin
+  FLastCheckoutVersion := AVersion;
+  if TDirectory.Exists(ATargetDir) then
+    TDirectory.Delete(ATargetDir, True);
   if FFailCheckout then
     raise Exception.Create('Falha de checkout simulada');
   // Simula a criacao do diretorio destino do modulo
-  if not TDirectory.Exists(ATargetDir) then
-    TDirectory.CreateDirectory(ATargetDir);
+  TDirectory.CreateDirectory(ATargetDir);
 
   // Cria um arquivo boss.json mockado na dependencia se nao existir
   var LRepository := '';
@@ -159,7 +166,7 @@ begin
     var LName := TPath.GetFileName(ATargetDir);
     if LRepository.Contains('invalid_project') then
       TFile.WriteAllText(LPkgPath, '{"name": "' + LName +
-        '", "version": "' + AVersion +
+        '", "version": "1.0.0' +
         '", "projects": ["../escape.dproj"], "dependencies": {}}')
     else if LRepository.Contains('declared_projects') then
     begin
@@ -169,11 +176,11 @@ begin
       TFile.WriteAllText(TPath.Combine(ATargetDir, 'src\runtime.lpk'), 'lazarus');
       TFile.WriteAllText(TPath.Combine(ATargetDir, 'examples\demo.dproj'), 'demo');
       TFile.WriteAllText(LPkgPath, '{"name": "' + LName +
-        '", "version": "' + AVersion +
+        '", "version": "1.0.0' +
         '", "projects": ["src/runtime.dproj", "src/runtime.lpk"], "dependencies": {}}');
     end
     else
-      TFile.WriteAllText(LPkgPath, '{"name": "' + LName + '", "version": "' + AVersion + '", "dependencies": {}}');
+      TFile.WriteAllText(LPkgPath, '{"name": "' + LName + '", "version": "1.0.0", "dependencies": {}}');
   end;
 end;
 

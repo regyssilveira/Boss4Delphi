@@ -9,6 +9,8 @@
   manifest, lock, and modules.
 - Bilingual dependency lifecycle documentation and unit coverage for graph
   inspection and transaction failures.
+- Frozen and offline installs through `--locked`, `--frozen-lockfile`, and
+  `--offline`, plus a clean transactional `boss4d ci` workflow.
 
 ## 1.3.0 - 2026-07-29
 

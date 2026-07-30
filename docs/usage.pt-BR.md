@@ -55,6 +55,11 @@ Os comandos explícitos do ciclo de vida são `add`, `remove`, `update`, `list` 
 módulos se qualquer etapa falhar. Consulte o
 [guia do ciclo de vida](dependency-lifecycle.pt-BR.md).
 
+Para automações determinísticas, use `install --locked` (também disponível como
+`--frozen-lockfile`). Acrescente `--offline` para proibir acesso à rede ou use
+`ci` para limpar e reinstalar `modules/` a partir do lock congelado. Consulte o
+[guia de instalação reproduzível](reproducible-install.pt-BR.md).
+
 O Boss4D faz o download das dependências do Git, realiza o checkout na versão correta, posiciona os fontes na pasta local `modules/` do seu projeto e atualiza as diretivas de caminhos de busca do compilador.
 
 ### Instalando um Novo Pacote

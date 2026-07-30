@@ -118,6 +118,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Guia da Feature SBOM](docs/sbom.pt-BR.md)**: Motivação, modelo de evidências, cobertura, VEX, atestações, limites e fluxo recomendado de release.
 * **[Melhorias de Build Determinístico](docs/build-improvements.pt-BR.md)**: Paths sem colisão, toolchains, projetos declarados, Lazarus, scaffolding e normalização.
 * **[Ciclo de Vida de Dependências](docs/dependency-lifecycle.pt-BR.md)**: Add, update e remove transacionais, além de list e why baseados no grafo.
+* **[Instalação Reproduzível](docs/reproducible-install.pt-BR.md)**: Lock congelado, cache offline, instalação limpa em CI e garantias de rollback.
 * **[Manual de Uso da CLI](docs/usage.pt-BR.md)**: Guia completo detalhado de todos os parâmetros e opções de instalação de dependências.
 * **[Guia de Contribuição](CONTRIBUTING.pt-BR.md)**: Padrões de código e fluxo de desenvolvimento para contribuir com o projeto.
 * **[Guia de Lançamento de Release](RELEASE_GUIDE.md)**: Passos e instruções para compilar com Delphi 13 (37.0) e publicar releases no GitHub.

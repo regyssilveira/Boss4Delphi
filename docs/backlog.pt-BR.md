@@ -212,6 +212,9 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 - [x] **[Story] Ciclo de Vida Transacional de Dependências**
   - Adicionar `add`, `remove`, `update`, `list` e `why`, com remoção de órfãos
     baseada no grafo e rollback de manifesto, lock e módulos.
+- [x] **[Story] Instalação Congelada e Offline**
+  - Disponibilizar `--locked`, `--frozen-lockfile`, `--offline` e um fluxo `ci`
+    limpo sem regravar o lock.
 
 - [ ] **[Story] Geração Automatizada de Documentação (`boss4d doc`)**
   - Varrer os comentários em PascalDoc/XML Doc de todas as dependências e compilar um site local com a documentação estática de referência das APIs.

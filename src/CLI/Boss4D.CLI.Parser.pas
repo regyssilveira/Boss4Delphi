@@ -40,6 +40,7 @@ type
     procedure ShowVersion;
     procedure HandleInit(const AArgs: TArray<string>);
     procedure HandleInstall(const AArgs: TArray<string>);
+    procedure HandleCI(const AArgs: TArray<string>);
     procedure HandleAdd(const AArgs: TArray<string>);
     procedure HandleRemove(const AArgs: TArray<string>);
     procedure HandleUpdate(const AArgs: TArray<string>);
@@ -125,6 +126,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -q, --quiet (modo silencioso).');
   FLogger.Log(TBoss4DLogLevel.Info, '  install              Instala todas as dependencias declaradas no boss.json.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -p, --platform <plataforma> (Win32, Win64, Linux64, etc.).');
+  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --locked, --frozen-lockfile, --offline.');
   FLogger.Log(TBoss4DLogLevel.Info, '  install <dep>        Instala uma dependencia especifica.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Exemplo: boss4d install github.com/hashload/horse@^3.0.0');
   FLogger.Log(TBoss4DLogLevel.Info, '  add <dep>            Adiciona e instala uma dependencia de forma transacional.');
@@ -132,6 +134,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  update [dep]         Atualiza uma ou todas as dependencias.');
   FLogger.Log(TBoss4DLogLevel.Info, '  list                 Lista dependencias diretas e transitivas.');
   FLogger.Log(TBoss4DLogLevel.Info, '  why <dep>            Explica por que uma dependencia foi instalada.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  ci [--offline]       Reinstala limpo usando o lock sem altera-lo.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config delphi use <caminho>  Configura o caminho global do compilador Delphi.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config git shallow <true/false> Configura uso de shallow clones globais.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config auth <github/gitlab> <token> Configura tokens de autenticacao global.');
@@ -176,6 +179,8 @@ begin
     HandleInit(AArgs)
   else if (LCommand = 'install') or (LCommand = 'i') then
     HandleInstall(AArgs)
+  else if LCommand = 'ci' then
+    HandleCI(AArgs)
   else if LCommand = 'add' then
     HandleAdd(AArgs)
   else if (LCommand = 'remove') or (LCommand = 'rm') then
@@ -333,11 +338,11 @@ end;
 procedure TBoss4DCommandLineParser.HandleInstall(const AArgs: TArray<string>);
 var
   LDepToInstall: string;
-  LPlatform: string;
+  LOptions: TBoss4DInstallOptions;
   I: Integer;
 begin
   LDepToInstall := '';
-  LPlatform := '';
+  LOptions := Default(TBoss4DInstallOptions);
 
   I := 1;
   while I < Length(AArgs) do
@@ -346,11 +351,22 @@ begin
     begin
       if I + 1 < Length(AArgs) then
       begin
-        LPlatform := AArgs[I + 1];
+        LOptions.Platform := AArgs[I + 1];
         Inc(I, 2);
       end
       else
         Inc(I);
+    end
+    else if SameText(AArgs[I], '--locked') or
+            SameText(AArgs[I], '--frozen-lockfile') then
+    begin
+      LOptions.Locked := True;
+      Inc(I);
+    end
+    else if SameText(AArgs[I], '--offline') then
+    begin
+      LOptions.Offline := True;
+      Inc(I);
     end
     else
     begin
@@ -360,7 +376,42 @@ begin
     end;
   end;
 
-  FInstallService.Execute(LDepToInstall, LPlatform);
+  if LOptions.Locked and not LDepToInstall.IsEmpty then
+    raise EArgumentException.Create(
+      '--locked instala somente o grafo completo declarado no lock.');
+  if LDepToInstall.IsEmpty and
+     (LOptions.Locked or LOptions.Offline) then
+    FInstallService.Execute(LOptions)
+  else
+    FInstallService.Execute(LDepToInstall, LOptions.Platform);
+end;
+
+procedure TBoss4DCommandLineParser.HandleCI(const AArgs: TArray<string>);
+var
+  LOptions: TBoss4DInstallOptions;
+  I: Integer;
+begin
+  LOptions := Default(TBoss4DInstallOptions);
+  LOptions.Locked := True;
+  LOptions.CleanModules := True;
+  I := 1;
+  while I < Length(AArgs) do
+  begin
+    if SameText(AArgs[I], '--offline') then
+      LOptions.Offline := True
+    else if SameText(AArgs[I], '--platform') or
+            SameText(AArgs[I], '-p') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create('Informe uma plataforma.');
+      Inc(I);
+      LOptions.Platform := AArgs[I];
+    end
+    else
+      raise EArgumentException.Create('Opcao desconhecida para ci: ' + AArgs[I]);
+    Inc(I);
+  end;
+  FInstallService.Execute(LOptions);
 end;
 
 procedure TBoss4DCommandLineParser.HandleConfig(const AArgs: TArray<string>);
