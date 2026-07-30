@@ -7,6 +7,23 @@ uses
   Boss4D.Core.Services.Config;
 
 type
+  TBoss4DPackageArtifactVariant = class
+  private
+    FPlatform: string;
+    FCompiler: string;
+    FArtifactUrl: string;
+    FArtifactDigest: string;
+    FSignatureUrl: string;
+    FProvenanceUrl: string;
+  public
+    property Platform: string read FPlatform write FPlatform;
+    property Compiler: string read FCompiler write FCompiler;
+    property ArtifactUrl: string read FArtifactUrl write FArtifactUrl;
+    property ArtifactDigest: string read FArtifactDigest write FArtifactDigest;
+    property SignatureUrl: string read FSignatureUrl write FSignatureUrl;
+    property ProvenanceUrl: string read FProvenanceUrl write FProvenanceUrl;
+  end;
+
   TBoss4DPackageIndexEntry = class
   private
     FName: string;
@@ -19,7 +36,12 @@ type
     FArtifactDigest: string;
     FSignatureUrl: string;
     FProvenanceUrl: string;
+    FVariants: TObjectList<TBoss4DPackageArtifactVariant>;
   public
+    constructor Create;
+    destructor Destroy; override;
+    function SelectVariant(const APlatform, ACompiler: string):
+      TBoss4DPackageArtifactVariant;
     property Name: string read FName write FName;
     property Repository: string read FRepository write FRepository;
     property Description: string read FDescription write FDescription;
@@ -30,6 +52,7 @@ type
     property ArtifactDigest: string read FArtifactDigest write FArtifactDigest;
     property SignatureUrl: string read FSignatureUrl write FSignatureUrl;
     property ProvenanceUrl: string read FProvenanceUrl write FProvenanceUrl;
+    property Variants: TObjectList<TBoss4DPackageArtifactVariant> read FVariants;
   end;
 
   TBoss4DPackageIndexService = class
@@ -62,6 +85,42 @@ uses
 const
   BOSS4D_PUBLIC_REGISTRY =
     'https://raw.githubusercontent.com/regyssilveira/Boss4Delphi/main/registry/index-v2.json';
+
+constructor TBoss4DPackageIndexEntry.Create;
+begin
+  inherited Create;
+  FVariants := TObjectList<TBoss4DPackageArtifactVariant>.Create(True);
+end;
+
+destructor TBoss4DPackageIndexEntry.Destroy;
+begin
+  FVariants.Free;
+  inherited Destroy;
+end;
+
+function TBoss4DPackageIndexEntry.SelectVariant(const APlatform,
+  ACompiler: string): TBoss4DPackageArtifactVariant;
+var
+  LBestScore, LScore: Integer;
+begin
+  Result := nil;
+  LBestScore := -1;
+  for var LVariant in FVariants do
+  begin
+    if not LVariant.Platform.IsEmpty and
+       not SameText(LVariant.Platform, APlatform) then Continue;
+    if not LVariant.Compiler.IsEmpty and
+       not SameText(LVariant.Compiler, ACompiler) then Continue;
+    LScore := 0;
+    if not LVariant.Platform.IsEmpty then Inc(LScore, 2);
+    if not LVariant.Compiler.IsEmpty then Inc(LScore);
+    if LScore > LBestScore then
+    begin
+      LBestScore := LScore;
+      Result := LVariant;
+    end;
+  end;
+end;
 
 constructor TBoss4DPackageIndexService.Create(
   const AConfigService: TBoss4DConfigService; const AHttp: IBoss4DHttpClient;
@@ -180,6 +239,7 @@ begin
         LEntry.ProvenanceUrl := LObject.GetValue<string>('provenance', '');
         if LSchemaVersion = 2 then
         begin
+          var LVariantOwner := LObject;
           var LVersions: TJSONArray := nil;
           if LObject.GetValue('versions') is TJSONArray then
             LVersions := TJSONArray(LObject.GetValue('versions'));
@@ -187,6 +247,7 @@ begin
              (LVersions[0] is TJSONObject) then
           begin
             var LLatest := TJSONObject(LVersions[0]);
+            LVariantOwner := LLatest;
             LEntry.LatestVersion := LLatest.GetValue<string>('version',
               LEntry.LatestVersion);
             LEntry.ArtifactUrl := LLatest.GetValue<string>('artifact',
@@ -198,6 +259,33 @@ begin
             LEntry.ProvenanceUrl := LLatest.GetValue<string>('provenance',
               LEntry.ProvenanceUrl);
           end;
+          var LVariants: TJSONArray := nil;
+          if LVariantOwner.GetValue('variants') is TJSONArray then
+            LVariants := TJSONArray(LVariantOwner.GetValue('variants'));
+          if Assigned(LVariants) then
+            for var LVariantValue in LVariants do
+              if LVariantValue is TJSONObject then
+              begin
+                var LVariantObject := TJSONObject(LVariantValue);
+                var LVariant := TBoss4DPackageArtifactVariant.Create;
+                LVariant.Platform := LVariantObject.GetValue<string>(
+                  'platform', '');
+                LVariant.Compiler := LVariantObject.GetValue<string>(
+                  'compiler', '');
+                LVariant.ArtifactUrl := LVariantObject.GetValue<string>(
+                  'artifact', '');
+                LVariant.ArtifactDigest := LVariantObject.GetValue<string>(
+                  'sha256', '');
+                LVariant.SignatureUrl := LVariantObject.GetValue<string>(
+                  'signature', '');
+                LVariant.ProvenanceUrl := LVariantObject.GetValue<string>(
+                  'provenance', '');
+                if not LVariant.ArtifactUrl.IsEmpty and
+                   not LVariant.ArtifactDigest.IsEmpty then
+                  LEntry.Variants.Add(LVariant)
+                else
+                  LVariant.Free;
+              end;
         end;
         LEntry.Source := ASource;
         if not LEntry.Name.IsEmpty and not LEntry.Repository.IsEmpty then
@@ -254,6 +342,17 @@ begin
         LCopy.ArtifactDigest := LEntry.ArtifactDigest;
         LCopy.SignatureUrl := LEntry.SignatureUrl;
         LCopy.ProvenanceUrl := LEntry.ProvenanceUrl;
+        for var LVariant in LEntry.Variants do
+        begin
+          var LVariantCopy := TBoss4DPackageArtifactVariant.Create;
+          LVariantCopy.Platform := LVariant.Platform;
+          LVariantCopy.Compiler := LVariant.Compiler;
+          LVariantCopy.ArtifactUrl := LVariant.ArtifactUrl;
+          LVariantCopy.ArtifactDigest := LVariant.ArtifactDigest;
+          LVariantCopy.SignatureUrl := LVariant.SignatureUrl;
+          LVariantCopy.ProvenanceUrl := LVariant.ProvenanceUrl;
+          LCopy.Variants.Add(LVariantCopy);
+        end;
         Result.Add(LCopy);
       end;
   finally
@@ -283,6 +382,17 @@ begin
         Result.ArtifactDigest := LEntry.ArtifactDigest;
         Result.SignatureUrl := LEntry.SignatureUrl;
         Result.ProvenanceUrl := LEntry.ProvenanceUrl;
+        for var LVariant in LEntry.Variants do
+        begin
+          var LVariantCopy := TBoss4DPackageArtifactVariant.Create;
+          LVariantCopy.Platform := LVariant.Platform;
+          LVariantCopy.Compiler := LVariant.Compiler;
+          LVariantCopy.ArtifactUrl := LVariant.ArtifactUrl;
+          LVariantCopy.ArtifactDigest := LVariant.ArtifactDigest;
+          LVariantCopy.SignatureUrl := LVariant.SignatureUrl;
+          LVariantCopy.ProvenanceUrl := LVariant.ProvenanceUrl;
+          Result.Variants.Add(LVariantCopy);
+        end;
         Exit;
       end;
   finally

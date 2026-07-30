@@ -35,7 +35,17 @@ package families in separate files or repositories:
       "artifact": "https://packages.example.com/InternalLib-2.4.0.b4dpkg",
       "sha256": "...",
       "signature": "https://packages.example.com/InternalLib-2.4.0.b4dpkg.asc",
-      "provenance": "https://packages.example.com/InternalLib-2.4.0.b4dpkg.intoto.json"
+      "provenance": "https://packages.example.com/InternalLib-2.4.0.b4dpkg.intoto.json",
+      "variants": [{
+        "platform": "Win64",
+        "compiler": "37.0",
+        "artifact": "https://packages.example.com/InternalLib-2.4.0-win64-d37.b4dpkg",
+        "sha256": "..."
+      }, {
+        "platform": "Linux64",
+        "artifact": "https://packages.example.com/InternalLib-2.4.0-linux64.b4dpkg",
+        "sha256": "..."
+      }]
     }]
   }]
 }
@@ -49,6 +59,17 @@ Schema v1 remains fully supported. Existing indexes and the original
 string-to-string `dependencies` map in `boss.json` do not require migration.
 In v2, `versions` is optional, and a package may still expose the v1-compatible
 top-level `version`, `artifact`, and `sha256` fields.
+
+Artifact variants are optional and do not change `boss.json`. Select them with:
+
+```text
+boss4d package install InternalLib --platform Win64 --compiler 37.0
+```
+
+Selection is deterministic: exact platform and compiler, platform-only,
+compiler-only, then a generic variant. A variant with a conflicting non-empty
+selector is never chosen. When no compatible artifact exists, installation
+uses the indexed Git source unless `--no-source-fallback` was supplied.
 
 Additional registry sources are stored in the global Boss4D configuration. A
 source failure is reported as a warning and does not hide results from other
