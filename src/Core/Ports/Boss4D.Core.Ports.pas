@@ -118,6 +118,12 @@ type
       out AResponse: string): Integer;
     function PostJsonAuthorized(const AURL, ABody, ABearerToken: string;
       out AResponse: string): Integer;
+    function DownloadToFile(const AURL, ATargetPath: string): Integer;
+  end;
+
+  IBoss4DSelfUpdateApplier = interface
+    ['{69527D56-F14E-43D4-A746-2D7227D60012}']
+    procedure LaunchVerifiedInstaller(const AInstallerPath: string);
   end;
 
   { Contrato para compilacao de dependencias Delphi e search paths }

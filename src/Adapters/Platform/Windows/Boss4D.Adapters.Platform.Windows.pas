@@ -31,12 +31,18 @@ type
     function CreateDirectoryLink(const ATargetPath, ALinkPath: string): Boolean;
   end;
 
+  TBoss4DWindowsSelfUpdateApplier = class(TInterfacedObject,
+    IBoss4DSelfUpdateApplier)
+  public
+    procedure LaunchVerifiedInstaller(const AInstallerPath: string);
+  end;
+
 procedure ConfigureWindowsPlatform;
 
 implementation
 
 uses
-  System.SysUtils, System.IOUtils, Winapi.Windows,
+  System.SysUtils, System.IOUtils, Winapi.Windows, Winapi.ShellAPI,
   Boss4D.Core.Platform;
 
 function TBoss4DWindowsProcessRunner.Execute(const ACommandLine,
@@ -164,7 +170,16 @@ procedure ConfigureWindowsPlatform;
 begin
   ConfigureBoss4DPlatform(TBoss4DWindowsProcessRunner.Create,
     TBoss4DWindowsPlatformEnvironment.Create,
-    TBoss4DWindowsFileLinkService.Create);
+    TBoss4DWindowsFileLinkService.Create,
+    TBoss4DWindowsSelfUpdateApplier.Create);
+end;
+
+procedure TBoss4DWindowsSelfUpdateApplier.LaunchVerifiedInstaller(
+  const AInstallerPath: string);
+begin
+  if ShellExecute(0, 'open', PChar(AInstallerPath),
+    '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', nil, SW_SHOWNORMAL) <= 32 then
+    RaiseLastOSError;
 end;
 
 end.
