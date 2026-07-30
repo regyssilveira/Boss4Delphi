@@ -8,5 +8,6 @@
   "includes": [
     "index-v1.json"
   ],
+  "sparse": [],
   "packages": []
 }
