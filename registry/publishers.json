@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "publishers": [
+    {
+      "id": "boss4d",
+      "displayName": "Boss4D Project",
+      "repositories": [
+        "github.com/regyssilveira/"
+      ],
+      "allowedSigners": []
+    }
+  ]
+}

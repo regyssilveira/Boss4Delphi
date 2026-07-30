@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 2,
+  "packages": [
+    {
+      "name": "PackageName",
+      "publisher": "publisher-id",
+      "repository": "github.com/owner/repository",
+      "signerFingerprint": "0000000000000000000000000000000000000000",
+      "description": "Package description",
+      "license": "SPDX-LICENSE-ID",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "artifact": "https://example.invalid/PackageName-1.0.0.b4dpkg",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "signature": "https://example.invalid/PackageName-1.0.0.b4dpkg.asc",
+          "provenance": "https://example.invalid/PackageName-1.0.0.b4dpkg.intoto.json"
+        }
+      ]
+    }
+  ]
+}
