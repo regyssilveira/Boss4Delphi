@@ -238,15 +238,15 @@ begin
     ValidateMatrix(APackage.BuildMatrix);
     LCompilers := SelectValues(APackage.BuildMatrix.Compilers,
       ASelection.Compiler, APackage.BuildMatrix.DefaultCompiler, 'Compilador',
-      ASelection.AllTargets);
+      ASelection.CompilerAll);
     try
       LPlatforms := SelectValues(APackage.BuildMatrix.Platforms,
         ASelection.Platform, APackage.BuildMatrix.DefaultPlatform, 'Plataforma',
-        ASelection.AllTargets);
+        ASelection.PlatformAll);
       try
         LConfigurations := SelectValues(APackage.BuildMatrix.Configurations,
           ASelection.Configuration, APackage.BuildMatrix.DefaultConfiguration,
-          'Configuracao', ASelection.AllTargets);
+          'Configuracao', ASelection.ConfigurationAll);
         try
           for var LProject in APackage.BuildMatrix.Projects do
             for var LCompiler in LCompilers do

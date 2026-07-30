@@ -41,6 +41,7 @@ uses
   Boss4D.Core.Services.DependencySubmission in '..\Core\Services\Boss4D.Core.Services.DependencySubmission.pas',
   Boss4D.Core.Services.ArtifactCache in '..\Core\Services\Boss4D.Core.Services.ArtifactCache.pas',
   Boss4D.Core.Services.BuildMatrix in '..\Core\Services\Boss4D.Core.Services.BuildMatrix.pas',
+  Boss4D.Core.Services.BuildConventions in '..\Core\Services\Boss4D.Core.Services.BuildConventions.pas',
   Boss4D.Core.Services.BuildPaths in '..\Core\Services\Boss4D.Core.Services.BuildPaths.pas',
   Boss4D.Core.Services.BuildExecutor in '..\Core\Services\Boss4D.Core.Services.BuildExecutor.pas',
   Boss4D.Core.Services.BuildGraph in '..\Core\Services\Boss4D.Core.Services.BuildGraph.pas',

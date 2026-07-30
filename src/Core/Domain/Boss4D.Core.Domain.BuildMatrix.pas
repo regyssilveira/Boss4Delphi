@@ -55,15 +55,24 @@ type
     FCompiler: string;
     FPlatform: string;
     FConfiguration: string;
-    FAllTargets: Boolean;
+    FCompilerAll: Boolean;
+    FPlatformAll: Boolean;
+    FConfigurationAll: Boolean;
+    function GetAllTargets: Boolean;
   public
-    constructor Create(const ACompiler, APlatform, AConfiguration: string);
+    constructor Create(const ACompiler, APlatform,
+      AConfiguration: string); overload;
+    constructor Create(const ACompiler, APlatform, AConfiguration: string;
+      const ACompilerAll, APlatformAll, AConfigurationAll: Boolean); overload;
     class function All: TBoss4DBuildSelection; static;
     class function Default: TBoss4DBuildSelection; static;
     property Compiler: string read FCompiler;
     property Platform: string read FPlatform;
     property Configuration: string read FConfiguration;
-    property AllTargets: Boolean read FAllTargets;
+    property CompilerAll: Boolean read FCompilerAll;
+    property PlatformAll: Boolean read FPlatformAll;
+    property ConfigurationAll: Boolean read FConfigurationAll;
+    property AllTargets: Boolean read GetAllTargets;
   end;
 
   TBoss4DBuildTarget = class
@@ -141,21 +150,37 @@ end;
 constructor TBoss4DBuildSelection.Create(const ACompiler, APlatform,
   AConfiguration: string);
 begin
+  Create(ACompiler, APlatform, AConfiguration, False, False, False);
+end;
+
+constructor TBoss4DBuildSelection.Create(const ACompiler, APlatform,
+  AConfiguration: string; const ACompilerAll, APlatformAll,
+  AConfigurationAll: Boolean);
+begin
   FCompiler := ACompiler;
   FPlatform := APlatform;
   FConfiguration := AConfiguration;
-  FAllTargets := False;
+  FCompilerAll := ACompilerAll;
+  FPlatformAll := APlatformAll;
+  FConfigurationAll := AConfigurationAll;
 end;
 
 class function TBoss4DBuildSelection.All: TBoss4DBuildSelection;
 begin
   Result := System.Default(TBoss4DBuildSelection);
-  Result.FAllTargets := True;
+  Result.FCompilerAll := True;
+  Result.FPlatformAll := True;
+  Result.FConfigurationAll := True;
 end;
 
 class function TBoss4DBuildSelection.Default: TBoss4DBuildSelection;
 begin
   Result := System.Default(TBoss4DBuildSelection);
+end;
+
+function TBoss4DBuildSelection.GetAllTargets: Boolean;
+begin
+  Result := FCompilerAll and FPlatformAll and FConfigurationAll;
 end;
 
 constructor TBoss4DBuildTarget.Create;

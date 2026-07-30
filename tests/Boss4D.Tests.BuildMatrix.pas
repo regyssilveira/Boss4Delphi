@@ -14,6 +14,12 @@ type
     [Test]
     procedure TestExplicitSelectionFiltersTargets;
     [Test]
+    procedure TestSelectionCanExpandAxesIndependently;
+    [Test]
+    procedure TestDelphiConventionsCoverSupportedCompilers;
+    [Test]
+    procedure TestDelphiConventionsExpandTargetPath;
+    [Test]
     procedure TestLegacyManifestExpandsSingleCompatibleTarget;
     [Test]
     procedure TestInvalidSelectionFailsBeforeBuild;
@@ -48,10 +54,53 @@ uses
   Boss4D.Core.Domain.Package,
   Boss4D.Core.Domain.BuildMatrix,
   Boss4D.Core.Services.BuildMatrix,
+  Boss4D.Core.Services.BuildConventions,
   Boss4D.Core.Services.BuildPaths,
   Boss4D.Core.Services.ArtifactCache,
   Boss4D.Core.Services.BuildGraph,
   Boss4D.Core.Services.BuildScheduler;
+
+procedure TTestsBuildMatrix.TestDelphiConventionsCoverSupportedCompilers;
+var
+  LConvention: TBoss4DDelphiConvention;
+begin
+  LConvention := TBoss4DBuildConventions.ResolveCompiler('d101');
+  Assert.AreEqual('18.0', LConvention.BDSVersion);
+  Assert.AreEqual('240', LConvention.PackageSuffix);
+  Assert.AreEqual('31.0', LConvention.CompilerVersion);
+  Assert.AreEqual('VER310', LConvention.CompilerSymbol);
+
+  LConvention := TBoss4DBuildConventions.ResolveCompiler('d11');
+  Assert.AreEqual('22.0', LConvention.BDSVersion);
+  Assert.AreEqual('280', LConvention.PackageSuffix);
+  Assert.AreEqual('VER350', LConvention.CompilerSymbol);
+
+  LConvention := TBoss4DBuildConventions.ResolveCompiler('d12');
+  Assert.AreEqual('23.0', LConvention.BDSVersion);
+  Assert.AreEqual('290', LConvention.PackageSuffix);
+  Assert.AreEqual('VER360', LConvention.CompilerSymbol);
+
+  LConvention := TBoss4DBuildConventions.ResolveCompiler('d13');
+  Assert.AreEqual('37.0', LConvention.BDSVersion);
+  Assert.AreEqual('370', LConvention.PackageSuffix);
+  Assert.AreEqual('VER370', LConvention.CompilerSymbol);
+
+  Assert.WillRaise(
+    procedure
+    begin
+      TBoss4DBuildConventions.ResolveCompiler('d10');
+    end,
+    EArgumentException);
+end;
+
+procedure TTestsBuildMatrix.TestDelphiConventionsExpandTargetPath;
+begin
+  Assert.AreEqual(
+    'packages\d13\37.0\Win64\Release\Component370.dproj',
+    TBoss4DBuildConventions.ExpandPath(
+      'packages\{alias}\{compiler}\{platform}\{configuration}' +
+      '\Component{libsuffix}.dproj', '37.0', 'Win64', 'Release'));
+end;
 
 procedure TTestsBuildMatrix.TestArtifactCacheKeyIncludesCompleteTarget;
 var
@@ -527,6 +576,47 @@ begin
       Assert.AreEqual('37.0', LTargets[0].Compiler);
       Assert.AreEqual('Win64', LTargets[0].Platform);
       Assert.AreEqual('Release', LTargets[0].Configuration);
+    finally
+      LTargets.Free;
+    end;
+  finally
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsBuildMatrix.TestSelectionCanExpandAxesIndependently;
+var
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+  LSelection: TBoss4DBuildSelection;
+  LTargets: TBoss4DBuildTargetList;
+begin
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'mixed-selection';
+    LPackage.BuildMatrix.Compilers.Add('23.0');
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Platforms.Add('Win64');
+    LPackage.BuildMatrix.Configurations.Add('Debug');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'Component.dproj';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+
+    LSelection := TBoss4DBuildSelection.Create('', 'Win64', 'Release',
+      True, False, False);
+    LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage, LSelection);
+    try
+      Assert.AreEqual<Integer>(2, LTargets.Count);
+      Assert.AreEqual('23.0', LTargets[0].Compiler);
+      Assert.AreEqual('Win64', LTargets[0].Platform);
+      Assert.AreEqual('Release', LTargets[0].Configuration);
+      Assert.AreEqual('37.0', LTargets[1].Compiler);
+      Assert.AreEqual('Win64', LTargets[1].Platform);
+      Assert.AreEqual('Release', LTargets[1].Configuration);
+      Assert.IsFalse(LSelection.AllTargets);
+      Assert.IsTrue(LSelection.CompilerAll);
     finally
       LTargets.Free;
     end;
