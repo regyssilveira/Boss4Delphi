@@ -9,7 +9,7 @@ Execute-os no diretório do projeto, salvo indicação contrária.
 boss4d install
 ```
 
-Versione o `boss-lock.json` resultante. O schema v2 guarda metadados da raiz,
+Versione o `boss-lock.json` resultante. O schema v3 guarda metadados da raiz,
 dependências diretas, revisões resolvidas, checksums tipados, licenças e arestas.
 
 ## Gerar um SBOM de desenvolvimento

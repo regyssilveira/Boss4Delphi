@@ -1,5 +1,5 @@
 {
-  "lockVersion": 2,
+  "lockVersion": 3,
   "hash": "c8e16a29bde3382c811ef2520dc0c428",
   "updated": "2026-07-21T21:01:33Z",
   "root": {
@@ -9,6 +9,8 @@
     "homepage": "https://github.com/regyssilveira/Boss4Delphi",
     "license": "MIT",
     "dependencies": [
+    ],
+    "devDependencies": [
     ]
   },
   "installedModules": {

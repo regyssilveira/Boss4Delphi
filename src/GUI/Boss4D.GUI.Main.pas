@@ -90,7 +90,8 @@ uses
   Boss4D.Core.Services.Doctor,
   Boss4D.Core.Services.Cache,
   Boss4D.Core.Services.Tree,
-  Boss4D.Core.Services.Outdated;
+  Boss4D.Core.Services.Outdated,
+  Boss4D.Core.Services.PackageIndex;
 
 type
   TGUILogger = class(TInterfacedObject, IBoss4DLogger)
@@ -270,49 +271,37 @@ end;
 procedure TFormMain.PopulateCatalog;
 var
   LItem: TListItem;
-  LPackages: TArray<TArray<string>>;
-  I: Integer;
+  LConfig: TBoss4DConfigService;
+  LService: TBoss4DPackageIndexService;
+  LLogger: IBoss4DLogger;
+  LHttp: IBoss4DHttpClient;
 begin
   ListCatalog.Items.Clear;
-
-  LPackages := [
-    ['Horse', 'github.com/hashload/horse'],
-    ['RESTRequest4Delphi', 'github.com/viniciussanchez/RESTRequest4Delphi'],
-    ['mORMot', 'github.com/synopse/mORMot2'],
-    ['Skia4Delphi', 'github.com/skia4delphi/skia4delphi'],
-    ['Dext', 'github.com/regyssilveira/dext'],
-    ['Boss4Delphi', 'github.com/regyssilveira/Boss4Delphi'],
-    ['DataSet-Serialize', 'github.com/viniciussanchez/dataset-serialize']
-  ];
-
-  for I := 0 to Length(LPackages) - 1 do
-  begin
-    LItem := ListCatalog.Items.Add;
-    LItem.Caption := LPackages[I][0];
-    LItem.SubItems.Add(LPackages[I][1]);
+  LLogger := TGUILogger.Create(Self);
+  LHttp := TBoss4DHttpNativeAdapter.Create;
+  LConfig := TBoss4DConfigService.Create(LLogger);
+  LService := TBoss4DPackageIndexService.Create(LConfig, LHttp, LLogger);
+  try
+    var LEntries := LService.Search(Trim(EditSearch.Text));
+    try
+      for var LEntry in LEntries do
+      begin
+        LItem := ListCatalog.Items.Add;
+        LItem.Caption := LEntry.Name;
+        LItem.SubItems.Add(LEntry.Repository);
+      end;
+    finally
+      LEntries.Free;
+    end;
+  finally
+    LService.Free;
+    LConfig.Free;
   end;
 end;
 
 procedure TFormMain.EditSearchChange(Sender: TObject);
-var
-  LText: string;
-  I: Integer;
-  LItem: TListItem;
 begin
-  LText := Trim(EditSearch.Text);
   PopulateCatalog;
-  if LText = '' then
-    Exit;
-
-  for I := ListCatalog.Items.Count - 1 downto 0 do
-  begin
-    LItem := ListCatalog.Items[I];
-    if (not LItem.Caption.ToLower.Contains(LText.ToLower)) and
-       (not LItem.SubItems[0].ToLower.Contains(LText.ToLower)) then
-    begin
-      LItem.Delete;
-    end;
-  end;
 end;
 
 procedure TFormMain.LogMessage(const AMessage: string);

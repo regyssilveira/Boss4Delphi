@@ -50,6 +50,26 @@ Este comando gera um arquivo **`boss.json`** na pasta raiz:
 
 ## 📥 2. Instalando Dependências (`install`)
 
+Os comandos explícitos do ciclo de vida são `add`, `remove`, `update`, `list` e
+`why`. As operações de escrita são transacionais e restauram manifesto, lock e
+módulos se qualquer etapa falhar. Consulte o
+[guia do ciclo de vida](dependency-lifecycle.pt-BR.md).
+
+Para automações determinísticas, use `install --locked` (também disponível como
+`--frozen-lockfile`). Acrescente `--offline` para proibir acesso à rede ou use
+`ci` para limpar e reinstalar `modules/` a partir do lock congelado. Consulte o
+[guia de instalação reproduzível](reproducible-install.pt-BR.md).
+
+Use `add <pacote> --dev` para ferramentas de desenvolvimento. Os comandos
+`install --production` e `ci --production` as excluem. Consulte
+[escopos de dependências](dependency-scopes.pt-BR.md).
+
+Execute `audit [--fail-on severidade] [--offline] [--vex arquivo]` para avaliar
+as revisões do lock no OSV. Consulte o [guia de auditoria](audit.pt-BR.md).
+
+Configure o objeto `trust` do manifesto para exigir commits/tags assinados e
+signatários permitidos. Consulte a [política de confiança Git](trust-policy.pt-BR.md).
+
 O Boss4D faz o download das dependências do Git, realiza o checkout na versão correta, posiciona os fontes na pasta local `modules/` do seu projeto e atualiza as diretivas de caminhos de busca do compilador.
 
 ### Instalando um Novo Pacote
@@ -623,3 +643,22 @@ O assistente integrado do Boss4D adiciona recursos e atalhos na IDE para agiliza
 3. **Caixa de Diálogo do Install**:
    * A opção **Install Package...** abre uma janela integrada da IDE permitindo que você digite a URL e versão do repositório Git de forma rápida, disparando a instalação silenciosa.
 4. **Message View Integrado**: O progresso e os logs coloridos do Boss4D são direcionados para uma aba exclusiva no Message View (painel de mensagens na parte inferior do RAD Studio).
+
+---
+
+## 18. Publicação de pacotes (`publish`)
+
+Valide e inspecione o payload determinístico sem acesso à rede:
+
+```console
+boss4d publish --dry-run --output publish.json
+```
+
+Envie-o com o token bearer lido de `BOSS4D_PUBLISH_TOKEN`:
+
+```console
+boss4d publish --registry https://registry.example/api
+```
+
+Consulte o [guia de publicação](publish.pt-BR.md) para todos os bloqueios,
+opções e o contrato do endpoint do registro.

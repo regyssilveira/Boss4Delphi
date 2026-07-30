@@ -169,9 +169,13 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 🔒 Épico 16: Segurança e Auditoria de Vulnerabilidades
 *Objetivo: Proteger o ambiente de desenvolvimento Delphi contra pacotes comprometidos ou falhas de segurança conhecidas.*
 
-- [ ] **[Story] Comando de Auditoria (`boss4d audit`)**
+- [x] **[Story] Submissão ao GitHub Dependency Graph**
+  - Enviar o grafo do lock v3, escopos e arestas transitivas pela Dependency
+    Submission API do GitHub.
+
+- [x] **[Story] Comando de Auditoria (`boss4d audit`)**
   - Comparar as dependências e suas versões contra uma base de vulnerabilidades para reportar falhas ativas de segurança.
-- [ ] **[Story] Assinatura Digital e Verificação de Tags**
+- [x] **[Story] Assinatura Digital e Verificação de Tags**
   - Validar assinaturas de commits e tags de repositórios confiáveis durante o download dos pacotes.
 
 ---
@@ -179,7 +183,7 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## ⚡ Épico 17: Performance de Redes e Cache Inteligente
 *Objetivo: Acelerar radicalmente o tempo de instalação de dependências e reduzir uso de disco.*
 
-- [ ] **[Story] Compartilhamento Global de Cache via Hardlinks**
+- [x] **[Story] Cache Global Seguro de Objetos Git e Binários**
   - Evitar clones físicos repetidos, mantendo os arquivos Git num repositório centralizado e gerando links lógicos (hard links) para a pasta `modules/` de cada projeto.
 - [ ] **[Story] Paralelização de Downloads e MSBuild**
   - Executar múltiplos downloads em paralelo via Git e disparar compilações em threads assíncronas para módulos sem relação de dependência direta.
@@ -189,10 +193,11 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 🌐 Épico 18: Hospedagem e Registros Privados (Index)
 *Objetivo: Suportar ambientes de desenvolvimento corporativo onde pacotes internos privados não podem ser distribuídos publicamente.*
 
-- [ ] **[Story] Configuração de Múltiplas Fontes de Registro (`boss4d registry`)**
+- [x] **[Story] Configuração de Múltiplas Fontes de Registro (`boss4d registry`)**
   - Permitir a configuração e consumo de múltiplos servidores de índice de pacotes públicos e privados nas configurações do projeto.
-- [ ] **[Story] Publicação Direta via CLI (`boss4d publish`)**
-  - Automatizar o teste, geração de tag e upload de pacotes Delphi para os registros privados configurados diretamente pela CLI.
+- [x] **[Story] Publicação Direta via CLI (`boss4d publish`)**
+  - Validar testes, estado do Git e evidências do lock e enviar metadados
+    determinísticos a registros privados, com dry-run sem rede.
 
 ---
 
@@ -200,8 +205,9 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 *Objetivo: Reduzir o tempo de configuração inicial de novos projetos e descoberta de novas ferramentas.*
 
 - [x] **[Story] Inicialização com Templates (`boss4d new <template>`)**
-  - Os templates `app` e `package` geram estruturas protegidas e `boss.json`. Presets VCL, FMX, API Horse e DUnitX permanecem extensões futuras.
-- [ ] **[Story] Busca de Dependências via CLI/IDE (`boss4d search <termo>`)**
+  - Estruturas protegidas app, package, VCL, FMX, API Horse+Dext, DUnitX,
+    Lazarus e workspace com manifestos completos.
+- [x] **[Story] Busca de Dependências via CLI/IDE (`boss4d search <termo>`)**
   - Mecanismo de busca direta no registro de pacotes a partir do terminal ou interface gráfica na IDE.
 
 ---
@@ -209,9 +215,16 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 📄 Épico 20: Governança, Documentação e Ciclo de Vida
 *Objetivo: Melhorar a consistência de builds em produção e gerar referências de API navegáveis de forma automatizada.*
 
+- [x] **[Story] Ciclo de Vida Transacional de Dependências**
+  - Adicionar `add`, `remove`, `update`, `list` e `why`, com remoção de órfãos
+    baseada no grafo e rollback de manifesto, lock e módulos.
+- [x] **[Story] Instalação Congelada e Offline**
+  - Disponibilizar `--locked`, `--frozen-lockfile`, `--offline` e um fluxo `ci`
+    limpo sem regravar o lock.
+
 - [ ] **[Story] Geração Automatizada de Documentação (`boss4d doc`)**
   - Varrer os comentários em PascalDoc/XML Doc de todas as dependências e compilar um site local com a documentação estática de referência das APIs.
-- [ ] **[Story] Divisão de Dependências de Desenvolvimento (`devDependencies`)**
+- [x] **[Story] Divisão de Dependências de Desenvolvimento (`devDependencies`)**
   - Suportar dependências exclusivas de desenvolvimento/testes, permitindo instalações limpas de produção com a flag `--production`.
 - [ ] **[Story] Resolução Estrita de Versões (Minimal Version Selection)**
   - Implementar opção de resolver dependências pela menor versão estável compatível para máxima consistência em builds corporativas.

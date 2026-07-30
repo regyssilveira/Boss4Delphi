@@ -1,5 +1,34 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Transactional `add`, `remove`, `update`, `list`, and `why` dependency
+  lifecycle commands, including orphan lock pruning and automatic rollback of
+  manifest, lock, and modules.
+- Bilingual dependency lifecycle documentation and unit coverage for graph
+  inspection and transaction failures.
+- Frozen and offline installs through `--locked`, `--frozen-lockfile`, and
+  `--offline`, plus a clean transactional `boss4d ci` workflow.
+- `devDependencies`, `--dev`, and `--production`, with runtime/development
+  scope evidence in lock schema v3, CycloneDX, and SPDX.
+- OSV commit-based `audit` with revision cache, offline operation, severity
+  policy gates, and VEX suppression.
+- Manifest trust policies for native Git commit/tag signature verification and
+  allowed signer enforcement before checkout.
+- Configurable local/HTTP package indexes with `registry`, `search`, and `info`,
+  shared by the CLI, standalone GUI catalog, and RAD Studio integration.
+- GitHub Dependency Submission snapshots generated from lock v3 with direct and
+  transitive relationships plus runtime/development scopes.
+- Safe Git object reuse without working-file hardlinks and compiled executable
+  caching isolated by source checksum, platform, and compiler version.
+- Protected VCL, FMX, Horse+Dext API, DUnitX, Lazarus application/package, and
+  workspace project templates.
+- Gated `publish` workflow with deterministic registry metadata, offline
+  dry-run, clean-worktree and test checks, immutable lock evidence, and
+  environment-only bearer tokens.
+
 ## 1.3.0 - 2026-07-29
 
 ### Added

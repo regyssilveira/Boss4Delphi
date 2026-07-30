@@ -169,9 +169,13 @@ This document details the future planning, new features (backlog), and architect
 ## 🔒 Epic 16: Security and Vulnerability Audit
 *Objective: Protect the Delphi development environment against compromised packages or known security vulnerabilities.*
 
-- [ ] **[Story] Audit Command (`boss4d audit`)**
+- [x] **[Story] GitHub Dependency Graph Submission**
+  - Submit the lock v3 graph, dependency scopes, and transitive edges through
+    GitHub's Dependency Submission API.
+
+- [x] **[Story] Audit Command (`boss4d audit`)**
   - Compare dependencies and their versions against a vulnerability database to report active security flaws.
-- [ ] **[Story] Digital Signature and Tag Verification**
+- [x] **[Story] Digital Signature and Tag Verification**
   - Validate signatures of commits and tags from trusted repositories during package download.
 
 ---
@@ -179,7 +183,7 @@ This document details the future planning, new features (backlog), and architect
 ## ⚡ Epic 17: Network Performance and Smart Caching
 *Objective: Radically accelerate dependency installation time and reduce disk space usage.*
 
-- [ ] **[Story] Global Cache Sharing via Hardlinks**
+- [x] **[Story] Safe Global Git Object and Binary Cache**
   - Avoid duplicate physical repository clones by maintaining a central cache and generating logical hard links to each project's `modules/` folder.
 - [ ] **[Story] Parallel Downloads and MSBuild**
   - Execute multiple package downloads in parallel via Git and dispatch asynchronous compiler builds for independent modules.
@@ -189,10 +193,11 @@ This document details the future planning, new features (backlog), and architect
 ## 🌐 Epic 18: Hosting and Private Registries (Index)
 *Objective: Support corporate development environments where internal private packages cannot be distributed publicly.*
 
-- [ ] **[Story] Multiple Registry Sources Configuration (`boss4d registry`)**
+- [x] **[Story] Multiple Registry Sources Configuration (`boss4d registry`)**
   - Support configuring and consuming multiple public and private package index servers in project settings.
-- [ ] **[Story] Direct Publication via CLI (`boss4d publish`)**
-  - Automate testing, tagging, and uploading Delphi packages to configured private registries directly from the CLI.
+- [x] **[Story] Direct Publication via CLI (`boss4d publish`)**
+  - Validate tests, Git state, and lock evidence and submit deterministic package
+    metadata to private registries, with an offline dry-run.
 
 ---
 
@@ -200,8 +205,9 @@ This document details the future planning, new features (backlog), and architect
 *Objective: Reduce initial setup time for new projects and simplify package discovery.*
 
 - [x] **[Story] Template-based Bootstrap (`boss4d new <template>`)**
-  - `app` and `package` templates generate protected structures and `boss.json` manifests. Additional VCL, FMX, Horse API, and DUnitX presets remain future extensions.
-- [ ] **[Story] Dependency Search via CLI/IDE (`boss4d search <term>`)**
+  - Protected app, package, VCL, FMX, Horse+Dext API, DUnitX, Lazarus, and
+    workspace structures with complete manifests.
+- [x] **[Story] Dependency Search via CLI/IDE (`boss4d search <term>`)**
   - Provide direct package search capabilities from the CLI or within the IDE visual wizard interface.
 
 ---
@@ -209,9 +215,16 @@ This document details the future planning, new features (backlog), and architect
 ## 📄 Epic 20: Governance, Documentation, and Lifecycle
 *Objective: Improve production build consistency and automatically generate browsable API references.*
 
+- [x] **[Story] Transactional Dependency Lifecycle**
+  - Add `add`, `remove`, `update`, `list`, and `why`, with graph-aware orphan
+    pruning and rollback of manifest, lock, and modules.
+- [x] **[Story] Frozen and Offline Installation**
+  - Provide `--locked`, `--frozen-lockfile`, `--offline`, and a clean `ci`
+    workflow without rewriting the lock.
+
 - [ ] **[Story] Automated Documentation Generation (`boss4d doc`)**
   - Parse PascalDoc/XML Doc comments across all dependencies and compile a local static website of API references.
-- [ ] **[Story] Split Development Dependencies (`devDependencies`)**
+- [x] **[Story] Split Development Dependencies (`devDependencies`)**
   - Support developer-only dependencies (e.g., test/mock suites), enabling clean production deployments using the `--production` flag.
 - [ ] **[Story] Strict Version Resolution (Minimal Version Selection)**
   - Implement an option to resolve dependencies by the lowest stable compatible version for maximum reproducibility in corporate builds.

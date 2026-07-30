@@ -9,6 +9,7 @@ type
   private
     FRepository: string;
     FVersion: string;
+    FScope: string;
     FUseSSH: Boolean;
 
     function GetSSHUrl: string;
@@ -27,6 +28,7 @@ type
 
     property Repository: string read FRepository write FRepository;
     property Version: string read FVersion write FVersion;
+    property Scope: string read FScope write FScope;
     property UseSSH: Boolean read FUseSSH write FUseSSH;
   end;
 
@@ -42,6 +44,7 @@ begin
   inherited Create;
   FRepository := ARepository.Trim;
   FVersion := AVersion.Trim;
+  FScope := 'runtime';
   FUseSSH := AUseSSH;
 end;
 

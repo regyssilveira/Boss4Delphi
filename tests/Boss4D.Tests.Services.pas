@@ -42,6 +42,39 @@ type
     procedure TestInstallBranchDependency;
 
     [Test]
+    procedure TestDependencyLifecycleCommands;
+
+    [Test]
+    procedure TestInstallTransactionRollback;
+
+    [Test]
+    procedure TestLockedOfflineAndCI;
+
+    [Test]
+    procedure TestLockedRejectsManifestDrift;
+
+    [Test]
+    procedure TestDevelopmentDependencyScopesAndProduction;
+
+    [Test]
+    procedure TestAuditOsvCachePolicyAndVex;
+
+    [Test]
+    procedure TestGitSignatureTrustPolicy;
+
+    [Test]
+    procedure TestPackageIndexRegistrySearchAndInfo;
+
+    [Test]
+    procedure TestGitHubDependencySubmission;
+
+    [Test]
+    procedure TestPublishDryRunAndGates;
+
+    [Test]
+    procedure TestCompiledArtifactCacheIsolation;
+
+    [Test]
     procedure TestCLICommandLineParser;
 
     [Test]
@@ -123,6 +156,9 @@ type
     procedure TestScaffoldService;
 
     [Test]
+    procedure TestScaffoldPresets;
+
+    [Test]
     procedure TestSourceNormalizer;
 
     [Test]
@@ -151,6 +187,12 @@ uses
   Boss4D.Core.Services.IDEIntegration, Boss4D.Core.Services.Tool, Boss4D.Core.Services.Workspace, Boss4D.Core.Services.GetIt,
   Boss4D.Core.Services.Clean, Boss4D.Core.Services.Scaffold,
   Boss4D.Core.Services.SourceNormalizer,
+  Boss4D.Core.Services.Dependencies,
+  Boss4D.Core.Services.Audit,
+  Boss4D.Core.Services.PackageIndex,
+  Boss4D.Core.Services.DependencySubmission,
+  Boss4D.Core.Services.Publish,
+  Boss4D.Core.Services.ArtifactCache,
   Boss4D.Core.Services.PackageManifest, Boss4D.IDE.Wizard;
 
 { TTestLogger }
@@ -305,7 +347,7 @@ begin
       var LLockedDep: TBoss4DLockedDependency;
       Assert.IsTrue(LLock.GetInstalled(TBoss4DDependency.Create('github.com/hashload/horse', ''), LLockedDep));
       Assert.AreEqual('3.2.0', LLockedDep.Version); // v3.2.0 atende ^3.1.0 e Ã© a mais recente!
-      Assert.AreEqual<Integer>(2, LLock.LockVersion);
+      Assert.AreEqual<Integer>(3, LLock.LockVersion);
       Assert.AreEqual('https://github.com/hashload/horse', LLockedDep.Repository);
       Assert.AreEqual('0123456789abcdef0123456789abcdef01234567', LLockedDep.Revision);
       Assert.AreEqual('3.2.0', LLockedDep.ResolvedFrom);
@@ -377,6 +419,699 @@ begin
 
   finally
     LInstall.Free;
+  end;
+end;
+
+procedure TTestsServices.TestDependencyLifecycleCommands;
+var
+  LInit: TBoss4DInitService;
+  LInstall: TBoss4DInstallService;
+  LConfig: TBoss4DConfigService;
+  LParser: TBoss4DCommandLineParser;
+  LLogger: TTestLogger;
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LGitMock: TGitClientMock;
+  LLock: TBoss4DLock;
+  LRootLocked: TBoss4DLockedDependency;
+  LTransitive: TBoss4DDependency;
+  LPkg: TBoss4DPackage;
+  LRootKey, LTransitiveKey: string;
+  LRootModulePath: string;
+begin
+  LLogger := TTestLogger.Create;
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LGitMock := TGitClientMock.Create;
+  LInit := TBoss4DInitService.Create(LPackageRepo, LLogger);
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo, LGitMock,
+    THttpClientMock.Create, TCompilerMock.Create, LLogger);
+  LConfig := TBoss4DConfigService.Create(LLogger);
+  LParser := TBoss4DCommandLineParser.Create(LLogger, LInit, LInstall,
+    LConfig, LPackageRepo, TRegistryMock.Create);
+  try
+    LInit.Execute(True);
+    LParser.ParseAndExecute(TArray<string>.Create('add',
+      'github.com/hashload/horse@^3.0.0'));
+
+    LPkg := LPackageRepo.Load(GetBossFile);
+    try
+      Assert.AreEqual<Integer>(1, LPkg.Dependencies.Count);
+    finally
+      LPkg.Free;
+    end;
+
+    LLock := LLockRepo.Load(TPath.Combine(FTempDir, FILE_PACKAGE_LOCK));
+    LTransitive := TBoss4DDependency.Create(
+      'github.com/example/transitive', '1.0.0');
+    try
+      LTransitiveKey := LTransitive.GetKey;
+      LLock.AddDependency(LTransitive, '1.0.0', 'transitive-hash');
+      Assert.IsTrue(LLock.RootDependencies.Count > 0,
+        'O add deve registrar a raiz no lock.');
+      LRootKey := LLock.RootDependencies[0];
+      Assert.IsTrue(LLock.Installed.TryGetValue(LRootKey, LRootLocked),
+        'A dependencia raiz deve existir no lock: ' + LRootKey);
+      LRootLocked.Dependencies.Add(LTransitive.GetKey);
+      LLockRepo.Save(LLock, TPath.Combine(FTempDir, FILE_PACKAGE_LOCK));
+    finally
+      LTransitive.Free;
+      LLock.Free;
+    end;
+
+    LLogger.LastLogMessage := '';
+    LParser.ParseAndExecute(TArray<string>.Create('list'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('(direct, runtime)'),
+      'list nao classificou dependencia direta: ' + LLogger.LastLogMessage);
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('(transitive, runtime)'),
+      'list nao classificou dependencia transitiva: ' + LLogger.LastLogMessage);
+
+    LLogger.LastLogMessage := '';
+    LParser.ParseAndExecute(TArray<string>.Create('why', 'transitive'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains(
+      LRootKey + ' -> ' + LTransitiveKey),
+      'why nao retornou o caminho esperado: ' + LLogger.LastLogMessage);
+
+    LParser.ParseAndExecute(TArray<string>.Create('update', 'horse'));
+    var LRootDep := TBoss4DDependency.Create(
+      'github.com/hashload/horse', '');
+    try
+      LRootModulePath := TPath.Combine(GetModulesDir, LRootDep.StorageName);
+    finally
+      LRootDep.Free;
+    end;
+    Assert.IsTrue(TDirectory.Exists(LRootModulePath));
+    LParser.ParseAndExecute(TArray<string>.Create('remove', 'horse'));
+    Assert.IsFalse(TDirectory.Exists(LRootModulePath),
+      'remove deve excluir o modulo que deixou de ser alcancavel.');
+    LPkg := LPackageRepo.Load(GetBossFile);
+    try
+      Assert.AreEqual<Integer>(0, LPkg.Dependencies.Count);
+    finally
+      LPkg.Free;
+    end;
+    LLock := LLockRepo.Load(TPath.Combine(FTempDir, FILE_PACKAGE_LOCK));
+    try
+      Assert.AreEqual<Integer>(0, LLock.Installed.Count,
+        'A remocao deve podar dependencias transitivas orfas.');
+    finally
+      LLock.Free;
+    end;
+  finally
+    LParser.Free;
+    LConfig.Free;
+    LInstall.Free;
+    LInit.Free;
+  end;
+end;
+
+procedure TTestsServices.TestInstallTransactionRollback;
+var
+  LInit: TBoss4DInitService;
+  LInstall: TBoss4DInstallService;
+  LLogger: IBoss4DLogger;
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LGitMock: TGitClientMock;
+  LOriginalManifest: string;
+  LMarkerPath: string;
+  LRaised: Boolean;
+begin
+  LLogger := TTestLogger.Create;
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LInit := TBoss4DInitService.Create(LPackageRepo, LLogger);
+  try
+    LInit.Execute(True);
+  finally
+    LInit.Free;
+  end;
+  LOriginalManifest := TFile.ReadAllText(GetBossFile, TEncoding.UTF8);
+  TDirectory.CreateDirectory(GetModulesDir);
+  LMarkerPath := TPath.Combine(GetModulesDir, 'existing.txt');
+  TFile.WriteAllText(LMarkerPath, 'preserve');
+
+  LGitMock := TGitClientMock.Create;
+  LGitMock.FailCheckout := True;
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo, LGitMock,
+    THttpClientMock.Create, TCompilerMock.Create, LLogger);
+  LRaised := False;
+  try
+    try
+      LInstall.Execute('github.com/example/failing@1.0.0');
+    except
+      on E: Exception do
+        LRaised := True;
+    end;
+  finally
+    LInstall.Free;
+  end;
+
+  Assert.IsTrue(LRaised);
+  Assert.AreEqual(LOriginalManifest,
+    TFile.ReadAllText(GetBossFile, TEncoding.UTF8));
+  Assert.IsFalse(TFile.Exists(TPath.Combine(FTempDir, FILE_PACKAGE_LOCK)));
+  Assert.IsTrue(TFile.Exists(LMarkerPath));
+  Assert.AreEqual('preserve', TFile.ReadAllText(LMarkerPath));
+end;
+
+procedure TTestsServices.TestLockedOfflineAndCI;
+var
+  LInit: TBoss4DInitService;
+  LInstall: TBoss4DInstallService;
+  LConfig: TBoss4DConfigService;
+  LParser: TBoss4DCommandLineParser;
+  LLogger: TTestLogger;
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LGitMock: TGitClientMock;
+  LPkg: TBoss4DPackage;
+  LOptions: TBoss4DInstallOptions;
+  LLockBefore, LLockAfter: string;
+  LNetworkCalls: Integer;
+  LStalePath: string;
+  LRaised: Boolean;
+begin
+  LLogger := TTestLogger.Create;
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LGitMock := TGitClientMock.Create;
+  LInit := TBoss4DInitService.Create(LPackageRepo, LLogger);
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo, LGitMock,
+    THttpClientMock.Create, TCompilerMock.Create, LLogger);
+  LConfig := TBoss4DConfigService.Create(LLogger);
+  LParser := TBoss4DCommandLineParser.Create(LLogger, LInit, LInstall,
+    LConfig, LPackageRepo, TRegistryMock.Create);
+  try
+    LInit.Execute(True);
+    LPkg := LPackageRepo.Load(GetBossFile);
+    try
+      LPkg.AddDependency('github.com/hashload/horse', '^3.0.0');
+      LPackageRepo.Save(LPkg, GetBossFile);
+    finally
+      LPkg.Free;
+    end;
+
+    LOptions := Default(TBoss4DInstallOptions);
+    LOptions.Offline := True;
+    LRaised := False;
+    try
+      LInstall.Execute(LOptions);
+    except
+      on E: Exception do LRaised := True;
+    end;
+    Assert.IsTrue(LRaised,
+      '--offline deve recusar dependencia sem cache local.');
+    Assert.IsFalse(TFile.Exists(TPath.Combine(FTempDir, FILE_PACKAGE_LOCK)));
+
+    LInstall.Execute;
+    LLockBefore := TFile.ReadAllText(
+      TPath.Combine(FTempDir, FILE_PACKAGE_LOCK), TEncoding.UTF8);
+    LNetworkCalls := LGitMock.NetworkCallCount;
+
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'install', '--locked', '--offline'));
+    LLockAfter := TFile.ReadAllText(
+      TPath.Combine(FTempDir, FILE_PACKAGE_LOCK), TEncoding.UTF8);
+    Assert.AreEqual(LLockBefore, LLockAfter,
+      '--locked nao pode reescrever nem atualizar timestamp do lock.');
+    Assert.AreEqual<Integer>(LNetworkCalls, LGitMock.NetworkCallCount,
+      '--offline nao pode clonar nem atualizar o cache.');
+    Assert.AreEqual('0123456789abcdef0123456789abcdef01234567',
+      LGitMock.LastCheckoutVersion,
+      '--locked deve fazer checkout da revisao exata.');
+
+    LStalePath := TPath.Combine(GetModulesDir, 'stale.txt');
+    TFile.WriteAllText(LStalePath, 'stale');
+    LParser.ParseAndExecute(TArray<string>.Create('ci', '--offline'));
+    Assert.IsFalse(TFile.Exists(LStalePath),
+      'ci deve iniciar por uma arvore modules limpa.');
+    Assert.AreEqual(LLockBefore, TFile.ReadAllText(
+      TPath.Combine(FTempDir, FILE_PACKAGE_LOCK), TEncoding.UTF8));
+  finally
+    LParser.Free;
+    LConfig.Free;
+    LInstall.Free;
+    LInit.Free;
+  end;
+end;
+
+procedure TTestsServices.TestLockedRejectsManifestDrift;
+var
+  LInit: TBoss4DInitService;
+  LInstall: TBoss4DInstallService;
+  LLogger: IBoss4DLogger;
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LPkg: TBoss4DPackage;
+  LOptions: TBoss4DInstallOptions;
+  LLockBefore: string;
+  LRaised: Boolean;
+begin
+  LLogger := TTestLogger.Create;
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LInit := TBoss4DInitService.Create(LPackageRepo, LLogger);
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo,
+    TGitClientMock.Create, THttpClientMock.Create, TCompilerMock.Create,
+    LLogger);
+  try
+    LInit.Execute(True);
+    LInstall.Execute('github.com/hashload/horse@^3.0.0');
+    LLockBefore := TFile.ReadAllText(
+      TPath.Combine(FTempDir, FILE_PACKAGE_LOCK), TEncoding.UTF8);
+    LPkg := LPackageRepo.Load(GetBossFile);
+    try
+      LPkg.AddDependency('github.com/example/drift', '1.0.0');
+      LPackageRepo.Save(LPkg, GetBossFile);
+    finally
+      LPkg.Free;
+    end;
+
+    LOptions := Default(TBoss4DInstallOptions);
+    LOptions.Locked := True;
+    LRaised := False;
+    try
+      LInstall.Execute(LOptions);
+    except
+      on E: Exception do LRaised := True;
+    end;
+    Assert.IsTrue(LRaised,
+      '--locked deve recusar divergencia entre manifest e lock.');
+    Assert.AreEqual(LLockBefore, TFile.ReadAllText(
+      TPath.Combine(FTempDir, FILE_PACKAGE_LOCK), TEncoding.UTF8));
+  finally
+    LInstall.Free;
+    LInit.Free;
+  end;
+end;
+
+procedure TTestsServices.TestDevelopmentDependencyScopesAndProduction;
+var
+  LInit: TBoss4DInitService;
+  LInstall: TBoss4DInstallService;
+  LConfig: TBoss4DConfigService;
+  LParser: TBoss4DCommandLineParser;
+  LLogger: TTestLogger;
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LPkg: TBoss4DPackage;
+  LLock: TBoss4DLock;
+  LDevDep, LRuntimeDep: TBoss4DDependency;
+  LLocked: TBoss4DLockedDependency;
+  LCdxPath, LSpdxPath: string;
+begin
+  LLogger := TTestLogger.Create;
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LInit := TBoss4DInitService.Create(LPackageRepo, LLogger);
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo,
+    TGitClientMock.Create, THttpClientMock.Create, TCompilerMock.Create,
+    LLogger);
+  LConfig := TBoss4DConfigService.Create(LLogger);
+  LParser := TBoss4DCommandLineParser.Create(LLogger, LInit, LInstall,
+    LConfig, LPackageRepo, TRegistryMock.Create);
+  LDevDep := TBoss4DDependency.Create('github.com/example/test-kit', '');
+  LRuntimeDep := TBoss4DDependency.Create('github.com/hashload/horse', '');
+  try
+    LInit.Execute(True);
+    LParser.ParseAndExecute(TArray<string>.Create('add',
+      'github.com/hashload/horse@^3.0.0'));
+    LParser.ParseAndExecute(TArray<string>.Create('add',
+      'github.com/example/test-kit@1.0.0', '--dev'));
+
+    LPkg := LPackageRepo.Load(GetBossFile);
+    try
+      Assert.AreEqual<Integer>(1, LPkg.Dependencies.Count);
+      Assert.AreEqual<Integer>(1, LPkg.DevDependencies.Count);
+    finally
+      LPkg.Free;
+    end;
+    LLock := LLockRepo.Load(TPath.Combine(FTempDir, FILE_PACKAGE_LOCK));
+    try
+      Assert.AreEqual<Integer>(1, LLock.RootDevDependencies.Count);
+      Assert.IsTrue(LLock.GetInstalled(LDevDep, LLocked),
+        'Dependencia de desenvolvimento ausente do lock.');
+      Assert.AreEqual('development', LLocked.Scope);
+      Assert.IsTrue(LLock.GetInstalled(LRuntimeDep, LLocked),
+        'Dependencia de runtime ausente do lock.');
+      Assert.AreEqual('runtime', LLocked.Scope);
+    finally
+      LLock.Free;
+    end;
+
+    LCdxPath := TPath.Combine(FTempDir, 'scoped.cdx.json');
+    LSpdxPath := TPath.Combine(FTempDir, 'scoped.spdx.json');
+    LParser.ParseAndExecute(TArray<string>.Create('sbom', '--format',
+      'cyclonedx', '--output', LCdxPath, '--lock-only'));
+    LParser.ParseAndExecute(TArray<string>.Create('sbom', '--format',
+      'spdx', '--output', LSpdxPath, '--lock-only'));
+    var LCdxContent := TFile.ReadAllText(LCdxPath, TEncoding.UTF8);
+    var LSpdxContent := TFile.ReadAllText(LSpdxPath, TEncoding.UTF8);
+    Assert.IsTrue(LCdxContent.Contains('"name": "boss4d:scope"'),
+      'CycloneDX nao exportou a propriedade de escopo: ' + LCdxContent);
+    Assert.IsTrue(LCdxContent.Contains('"value": "development"'),
+      'CycloneDX nao exportou o escopo development: ' + LCdxContent);
+    Assert.IsTrue(LSpdxContent.Contains(
+      '"comment":"boss4d:scope=development"'),
+      'SPDX nao exportou o escopo development: ' + LSpdxContent);
+
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'ci', '--production'));
+    Assert.IsTrue(TDirectory.Exists(TPath.Combine(
+      GetModulesDir, LRuntimeDep.StorageName)),
+      'CI de producao removeu dependencia de runtime.');
+    Assert.IsFalse(TDirectory.Exists(TPath.Combine(
+      GetModulesDir, LDevDep.StorageName)),
+      'CI de producao instalou dependencia de desenvolvimento.');
+  finally
+    LRuntimeDep.Free;
+    LDevDep.Free;
+    LParser.Free;
+    LConfig.Free;
+    LInstall.Free;
+    LInit.Free;
+  end;
+end;
+
+procedure TTestsServices.TestAuditOsvCachePolicyAndVex;
+var
+  LLockRepo: IBoss4DLockRepository;
+  LLock: TBoss4DLock;
+  LDep: TBoss4DDependency;
+  LLocked: TBoss4DLockedDependency;
+  LHttp: THttpClientMock;
+  LService: TBoss4DAuditService;
+  LOptions: TBoss4DAuditOptions;
+  LSummary: TBoss4DAuditSummary;
+  LLockPath, LVexPath: string;
+  LRaised: Boolean;
+begin
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LLockPath := TPath.Combine(FTempDir, FILE_PACKAGE_LOCK);
+  LLock := TBoss4DLock.Create;
+  LDep := TBoss4DDependency.Create('github.com/example/vulnerable', '1.0.0');
+  try
+    LLock.AddDependency(LDep, '1.0.0', 'hash', 'checksum');
+    Assert.IsTrue(LLock.GetInstalled(LDep, LLocked));
+    LLocked.Revision := 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+    LLockRepo.Save(LLock, LLockPath);
+  finally
+    LDep.Free;
+    LLock.Free;
+  end;
+
+  LHttp := THttpClientMock.Create;
+  LHttp.AddResponse('https://api.osv.dev/v1/query',
+    '{"vulns":[{"id":"OSV-TEST-1","database_specific":{"severity":"HIGH"}}]}');
+  LService := TBoss4DAuditService.Create(LLockRepo, LHttp,
+    TTestLogger.Create);
+  try
+    LOptions := Default(TBoss4DAuditOptions);
+    LOptions.CacheHours := 24;
+    LOptions.FailOn := AuditCritical;
+    LSummary := LService.Execute(LLockPath, LOptions);
+    Assert.AreEqual<Integer>(1, LSummary.Vulnerabilities);
+    Assert.AreEqual<Integer>(0, LSummary.PolicyViolations);
+
+    LOptions.Offline := True;
+    LOptions.FailOn := AuditHigh;
+    LRaised := False;
+    try
+      LService.Execute(LLockPath, LOptions);
+    except
+      on E: EBoss4DAuditPolicy do LRaised := True;
+    end;
+    Assert.IsTrue(LRaised,
+      'Politica high deve falhar usando a resposta do cache offline.');
+
+    LVexPath := TPath.Combine(FTempDir, 'audit.vex.json');
+    TFile.WriteAllText(LVexPath,
+      '{"vulnerabilities":[{"id":"OSV-TEST-1","state":"not_affected"}]}',
+      TEncoding.UTF8);
+    LOptions.VexPath := LVexPath;
+    LSummary := LService.Execute(LLockPath, LOptions);
+    Assert.AreEqual<Integer>(1, LSummary.Suppressed);
+    Assert.AreEqual<Integer>(0, LSummary.PolicyViolations);
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestGitSignatureTrustPolicy;
+var
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LPkg: TBoss4DPackage;
+  LGit: TGitClientMock;
+  LInstall: TBoss4DInstallService;
+  LRaised: Boolean;
+begin
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LPkg := TBoss4DPackage.Create;
+  try
+    LPkg.Name := 'signed-project';
+    LPkg.Version := '1.0.0';
+    LPkg.AddDependency('github.com/example/signed', 'v1.0.0');
+    LPkg.Trust.RequireSignedCommits := True;
+    LPkg.Trust.RequireSignedTags := True;
+    LPkg.Trust.AllowedSigners.Add('release@example.com');
+    LPackageRepo.Save(LPkg, GetBossFile);
+  finally
+    LPkg.Free;
+  end;
+
+  LGit := TGitClientMock.Create;
+  LGit.Signer := 'intruder@example.com';
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo, LGit,
+    THttpClientMock.Create, TCompilerMock.Create, TTestLogger.Create);
+  try
+    LRaised := False;
+    try
+      LInstall.Execute;
+    except
+      on E: Exception do
+      begin
+        LRaised := True;
+        Assert.IsTrue(E.Message.Contains('nao autorizado'));
+      end;
+    end;
+    Assert.IsTrue(LRaised);
+    Assert.IsFalse(TFile.Exists(TPath.Combine(FTempDir, FILE_PACKAGE_LOCK)),
+      'Falha de confiança deve fazer rollback do lock.');
+
+    LGit.Signer := 'release@example.com';
+    LInstall.Execute;
+    Assert.IsTrue(TFile.Exists(TPath.Combine(FTempDir, FILE_PACKAGE_LOCK)));
+
+    LGit.TagSignatureValid := False;
+    LRaised := False;
+    try
+      LInstall.Execute;
+    except
+      on E: Exception do
+      begin
+        LRaised := True;
+        Assert.IsTrue(E.Message.Contains('Tag sem assinatura valida'));
+      end;
+    end;
+    Assert.IsTrue(LRaised);
+  finally
+    LInstall.Free;
+  end;
+end;
+
+procedure TTestsServices.TestPackageIndexRegistrySearchAndInfo;
+var
+  LConfig: TBoss4DConfigService;
+  LService: TBoss4DPackageIndexService;
+  LIndexPath: string;
+  LEntry: TBoss4DPackageIndexEntry;
+begin
+  LIndexPath := TPath.Combine(FTempDir, 'private-index.json');
+  TFile.WriteAllText(LIndexPath,
+    '{"packages":[{"name":"InternalLib","repository":' +
+    '"git.example.test/team/internal","description":"Private package",' +
+    '"version":"2.4.0","license":"MIT"}]}', TEncoding.UTF8);
+  LConfig := TBoss4DConfigService.Create(TTestLogger.Create);
+  LService := TBoss4DPackageIndexService.Create(LConfig,
+    THttpClientMock.Create, TTestLogger.Create);
+  try
+    LService.AddRegistry(LIndexPath);
+    Assert.AreEqual<Integer>(1, Length(LService.ListRegistries));
+    var LResults := LService.Search('private');
+    try
+      Assert.AreEqual<Integer>(1, LResults.Count);
+      Assert.AreEqual('InternalLib', LResults[0].Name);
+    finally
+      LResults.Free;
+    end;
+    LEntry := LService.Info('InternalLib');
+    try
+      Assert.IsNotNull(LEntry);
+      Assert.AreEqual('2.4.0', LEntry.LatestVersion);
+      Assert.AreEqual('MIT', LEntry.License);
+    finally
+      LEntry.Free;
+    end;
+    LService.RemoveRegistry(LIndexPath);
+    Assert.AreEqual<Integer>(0, Length(LService.ListRegistries));
+  finally
+    LService.Free;
+    LConfig.Free;
+  end;
+end;
+
+procedure TTestsServices.TestGitHubDependencySubmission;
+var
+  LLockRepo: IBoss4DLockRepository;
+  LLock: TBoss4DLock;
+  LRootDep, LChildDep: TBoss4DDependency;
+  LLocked: TBoss4DLockedDependency;
+  LHttp: THttpClientMock;
+  LService: TBoss4DDependencySubmissionService;
+  LPayload, LLockPath: string;
+begin
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LLock := TBoss4DLock.Create;
+  LRootDep := TBoss4DDependency.Create('github.com/example/root', '1.0.0');
+  LChildDep := TBoss4DDependency.Create('github.com/example/child', '2.0.0');
+  LLockPath := TPath.Combine(FTempDir, FILE_PACKAGE_LOCK);
+  try
+    LLock.RootDependencies.Add(LRootDep.GetKey);
+    LLock.AddDependency(LRootDep, '1.0.0', 'root');
+    LLock.AddDependency(LChildDep, '2.0.0', 'child');
+    Assert.IsTrue(LLock.GetInstalled(LRootDep, LLocked));
+    LLocked.Dependencies.Add(LChildDep.GetKey);
+    LLockRepo.Save(LLock, LLockPath);
+
+    LHttp := THttpClientMock.Create;
+    LHttp.AddResponse(
+      'https://api.github.com/repos/example/project/dependency-graph/snapshots',
+      '{"id":1}', 201);
+    LService := TBoss4DDependencySubmissionService.Create(LLockRepo, LHttp);
+    try
+      LPayload := LService.BuildPayload(LLock,
+        StringOfChar('a', 40), 'refs/heads/main', 'unit-test');
+      Assert.IsTrue(LPayload.Contains('"version":0'));
+      Assert.IsTrue(LPayload.Contains('"relationship":"direct"'));
+      Assert.IsTrue(LPayload.Contains('"relationship":"indirect"'));
+      Assert.IsTrue(LPayload.Contains('"scope":"runtime"'));
+      LService.Submit(LLockPath, 'example/project', StringOfChar('a', 40),
+        'refs/heads/main', 'secret-token', 'unit-test');
+    finally
+      LService.Free;
+    end;
+  finally
+    LChildDep.Free;
+    LRootDep.Free;
+    LLock.Free;
+  end;
+end;
+
+procedure TTestsServices.TestPublishDryRunAndGates;
+var
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LPackage: TBoss4DPackage;
+  LLock: TBoss4DLock;
+  LDep: TBoss4DDependency;
+  LLocked: TBoss4DLockedDependency;
+  LHttp: THttpClientMock;
+  LService: TBoss4DPublishService;
+  LOptions: TBoss4DPublishOptions;
+  LPackagePath, LLockPath, LPayload: string;
+begin
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LPackagePath := TPath.Combine(FTempDir, FILE_PACKAGE);
+  LLockPath := TPath.Combine(FTempDir, FILE_PACKAGE_LOCK);
+  LPackage := TBoss4DPackage.Create;
+  LLock := TBoss4DLock.Create;
+  LDep := TBoss4DDependency.Create('github.com/example/runtime', '1.2.3');
+  try
+    LPackage.Name := 'publish-test';
+    LPackage.Version := '1.0.0';
+    LPackage.Description := 'Pacote de teste';
+    LPackage.License := 'MIT';
+    LPackageRepo.Save(LPackage, LPackagePath);
+
+    LLock.HasRootMetadata := True;
+    LLock.RootName := LPackage.Name;
+    LLock.RootVersion := LPackage.Version;
+    LLock.RootDependencies.Add(LDep.GetKey);
+    LLock.AddDependency(LDep, '1.2.3', 'hash', 'sha256-value');
+    Assert.IsTrue(LLock.GetInstalled(LDep, LLocked));
+    LLocked.Revision := StringOfChar('a', 40);
+    LLockRepo.Save(LLock, LLockPath);
+
+    LHttp := THttpClientMock.Create;
+    LHttp.AddResponse('https://registry.example/packages', '{"accepted":true}', 201);
+    LService := TBoss4DPublishService.Create(
+      LPackageRepo, LLockRepo, LHttp, TTestLogger.Create);
+    try
+      LOptions := Default(TBoss4DPublishOptions);
+      LOptions.DryRun := True;
+      LPayload := LService.Execute(LPackagePath, LLockPath, LOptions);
+      Assert.IsTrue(LPayload.Contains('"name":"publish-test"'));
+      Assert.IsTrue(LPayload.Contains('"checksum":"sha256-value"'));
+      Assert.AreEqual(0, LHttp.AuthorizedPostCount,
+        'Dry-run nao pode realizar chamadas de publicacao.');
+
+      LOptions.DryRun := False;
+      LOptions.RegistryUrl := 'https://registry.example/';
+      LOptions.Token := 'secret';
+      LService.Execute(LPackagePath, LLockPath, LOptions);
+      Assert.AreEqual(1, LHttp.AuthorizedPostCount);
+
+      LLocked.Checksum := '';
+      LLockRepo.Save(LLock, LLockPath);
+      Assert.WillRaise(
+        procedure
+        begin
+          LOptions.DryRun := True;
+          LService.Execute(LPackagePath, LLockPath, LOptions);
+        end,
+        EBoss4DPublishGate);
+    finally
+      LService.Free;
+    end;
+  finally
+    LDep.Free;
+    LLock.Free;
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsServices.TestCompiledArtifactCacheIsolation;
+var
+  LService: TBoss4DArtifactCacheService;
+  LDep: TBoss4DDependency;
+  LBinDir, LArtifact: string;
+begin
+  LDep := TBoss4DDependency.Create('github.com/example/tool', '1.0.0');
+  LService := TBoss4DArtifactCacheService.Create;
+  try
+    LBinDir := TPath.Combine(GetModulesDir,
+      TPath.Combine(LDep.Name, FOLDER_BIN));
+    TDirectory.CreateDirectory(LBinDir);
+    LArtifact := TPath.Combine(LBinDir, 'tool.exe');
+    TFile.WriteAllText(LArtifact, 'win32-delphi37');
+    LService.Store(LDep, 'source-checksum', 'Win32', '37.0');
+    TDirectory.Delete(LBinDir, True);
+    Assert.IsTrue(LService.Restore(LDep, 'source-checksum',
+      'Win32', '37.0'));
+    Assert.AreEqual('win32-delphi37', TFile.ReadAllText(LArtifact));
+
+    TDirectory.Delete(LBinDir, True);
+    Assert.IsFalse(LService.Restore(LDep, 'source-checksum',
+      'Win64', '37.0'), 'Plataformas nao podem compartilhar artefatos.');
+    Assert.IsFalse(LService.Restore(LDep, 'source-checksum',
+      'Win32', '36.0'), 'Compiladores nao podem compartilhar artefatos.');
+  finally
+    LService.Free;
+    LDep.Free;
   end;
 end;
 
@@ -679,14 +1414,17 @@ begin
         Assert.IsTrue(LLock.GetInstalled(LDep, LLockedDep));
         Assert.IsFalse(LLockedDep.Checksum.IsEmpty); // Deve ter computado hash SHA-256
 
-        // Simula uma alteraÃ§Ã£o indevida de arquivos na dependÃªncia instalada
-        LTargetDir := TPath.Combine(GetModulesDir, LDep.StorageName);
-        TFile.WriteAllText(TPath.Combine(LTargetDir, 'unauthorized.txt'), 'tampered content', TEncoding.UTF8);
+        // Simula adulteracao da evidencia de integridade registrada no lock.
+        LLockedDep.Checksum := StringOfChar('0', 64);
+        LLockRepo.Save(LLock, TPath.Combine(
+          TDirectory.GetCurrentDirectory, FILE_PACKAGE_LOCK));
 
-        // 2. Tenta re-instalar (deve disparar erro de seguranÃ§a, pois o checksum calculado diverge do trancado!)
+        // 2. A instalacao congelada deve comparar o checkout limpo com o lock.
         var LFailed := False;
         try
-          LInstall.Execute('');
+          var LOptions := Default(TBoss4DInstallOptions);
+          LOptions.Locked := True;
+          LInstall.Execute(LOptions);
         except
           on E: Exception do
           begin
@@ -1606,6 +2344,75 @@ begin
     Assert.AreEqual('SampleApp.dpr', LPackage.Projects[0]);
   finally
     LPackage.Free;
+  end;
+end;
+
+procedure TTestsServices.TestScaffoldPresets;
+var
+  LRepository: IBoss4DPackageRepository;
+  LService: TBoss4DScaffoldService;
+  LTarget: string;
+  LPackage: TBoss4DPackage;
+
+  procedure CreatePreset(const ATemplate, AName: string);
+  begin
+    LTarget := TPath.Combine(FTempDir, AName);
+    LService.Execute(ATemplate, AName, LTarget);
+    Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget, FILE_PACKAGE)));
+  end;
+
+begin
+  LRepository := TBoss4DPackageJsonRepository.Create;
+  LService := TBoss4DScaffoldService.Create(LRepository, TTestLogger.Create);
+  try
+    CreatePreset('vcl', 'VclSample');
+    Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget, 'src\MainView.pas')));
+    CreatePreset('fmx', 'FmxSample');
+    Assert.IsTrue(TFile.ReadAllText(TPath.Combine(LTarget,
+      'FmxSample.dpr')).Contains('FMX.Forms'));
+
+    CreatePreset('api', 'ApiSample');
+    LPackage := LRepository.Load(TPath.Combine(LTarget, FILE_PACKAGE));
+    try
+      Assert.IsTrue(LPackage.Dependencies.ContainsKey(
+        'github.com/hashload/horse'));
+      Assert.IsTrue(LPackage.Dependencies.ContainsKey(
+        'github.com/regyssilveira/dext'),
+        'O template de API deve incluir Dext.');
+    finally
+      LPackage.Free;
+    end;
+
+    CreatePreset('dunitx', 'TestsSample');
+    LPackage := LRepository.Load(TPath.Combine(LTarget, FILE_PACKAGE));
+    try
+      Assert.IsTrue(LPackage.DevDependencies.ContainsKey(
+        'github.com/VSoftTechnologies/DUnitX'));
+    finally
+      LPackage.Free;
+    end;
+    Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget,
+      'tests\Sample.Tests.pas')));
+
+    CreatePreset('lazarus-app', 'LazApp');
+    Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget, 'LazApp.lpi')));
+    Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget, 'LazApp.lpr')));
+    CreatePreset('lazarus-package', 'LazPackage');
+    Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget, 'LazPackage.lpk')));
+
+    CreatePreset('workspace', 'WorkspaceSample');
+    LPackage := LRepository.Load(TPath.Combine(LTarget, FILE_PACKAGE));
+    try
+      Assert.AreEqual<Integer>(2, LPackage.Workspaces.Count);
+    finally
+      LPackage.Free;
+    end;
+    Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget,
+      'apps\app\boss.json')));
+    Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget,
+      'packages\shared\boss.json')));
+  finally
+    LService.Free;
   end;
 end;
 

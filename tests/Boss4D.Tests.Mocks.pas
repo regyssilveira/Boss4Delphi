@@ -12,6 +12,12 @@ type
   private
     FTags: TDictionary<string, TArray<string>>;
     FCacheMap: TDictionary<string, string>;
+    FFailCheckout: Boolean;
+    FNetworkCallCount: Integer;
+    FLastCheckoutVersion: string;
+    FCommitSignatureValid: Boolean;
+    FTagSignatureValid: Boolean;
+    FSigner: string;
   public
     constructor Create;
     destructor Destroy; override;
@@ -22,7 +28,17 @@ type
     procedure UpdateCache(const ADep: TBoss4DDependency; const ACacheDir: string);
     function GetVersions(const ACacheDir: string): TArray<string>;
     function ResolveRevision(const ACacheDir: string; const AVersion: string): string;
+    function VerifyCommit(const ACacheDir, ARevision: string;
+      out ASigner: string): Boolean;
+    function VerifyTag(const ACacheDir, ATag: string;
+      out ASigner: string): Boolean;
     procedure Checkout(const ACacheDir: string; const AVersion: string; const ATargetDir: string);
+    property FailCheckout: Boolean read FFailCheckout write FFailCheckout;
+    property NetworkCallCount: Integer read FNetworkCallCount;
+    property LastCheckoutVersion: string read FLastCheckoutVersion;
+    property CommitSignatureValid: Boolean read FCommitSignatureValid write FCommitSignatureValid;
+    property TagSignatureValid: Boolean read FTagSignatureValid write FTagSignatureValid;
+    property Signer: string read FSigner write FSigner;
   end;
 
   { Mock para simulacao do cliente HTTP }
@@ -30,11 +46,19 @@ type
   private
     FResponses: TDictionary<string, string>;
     FResponseCodes: TDictionary<string, Integer>;
+    FAuthorizedPostCount: Integer;
   public
     constructor Create;
     destructor Destroy; override;
 
     function Get(const AURL: string; out AResponse: string): Integer;
+    function PostJson(const AURL, ABody: string;
+      out AResponse: string): Integer;
+    function PostJsonAuthorized(const AURL, ABody, ABearerToken: string;
+      out AResponse: string): Integer;
+    procedure AddResponse(const AURL, AResponse: string;
+      const AStatusCode: Integer = 200);
+    property AuthorizedPostCount: Integer read FAuthorizedPostCount;
   end;
 
   { Mock para simulacao do Compilador Delphi }
@@ -85,6 +109,9 @@ begin
   inherited Create;
   FTags := TDictionary<string, TArray<string>>.Create;
   FCacheMap := TDictionary<string, string>.Create;
+  FCommitSignatureValid := True;
+  FTagSignatureValid := True;
+  FSigner := 'trusted@example.com';
 end;
 
 destructor TGitClientMock.Destroy;
@@ -101,6 +128,7 @@ end;
 
 procedure TGitClientMock.CloneCache(const ADep: TBoss4DDependency; const ATargetDir: string);
 begin
+  Inc(FNetworkCallCount);
   // Mapeia o nome final do diretorio (que e o hash) para o repositorio
   var LFolder := TPath.GetFileName(ATargetDir).ToLower;
   FCacheMap.AddOrSetValue(LFolder, ADep.Repository.ToLower);
@@ -118,7 +146,7 @@ end;
 
 procedure TGitClientMock.UpdateCache(const ADep: TBoss4DDependency; const ACacheDir: string);
 begin
-  // No-op
+  Inc(FNetworkCallCount);
 end;
 
 function TGitClientMock.GetVersions(const ACacheDir: string): TArray<string>;
@@ -142,9 +170,13 @@ end;
 
 procedure TGitClientMock.Checkout(const ACacheDir: string; const AVersion: string; const ATargetDir: string);
 begin
+  FLastCheckoutVersion := AVersion;
+  if TDirectory.Exists(ATargetDir) then
+    TDirectory.Delete(ATargetDir, True);
+  if FFailCheckout then
+    raise Exception.Create('Falha de checkout simulada');
   // Simula a criacao do diretorio destino do modulo
-  if not TDirectory.Exists(ATargetDir) then
-    TDirectory.CreateDirectory(ATargetDir);
+  TDirectory.CreateDirectory(ATargetDir);
 
   // Cria um arquivo boss.json mockado na dependencia se nao existir
   var LRepository := '';
@@ -155,7 +187,7 @@ begin
     var LName := TPath.GetFileName(ATargetDir);
     if LRepository.Contains('invalid_project') then
       TFile.WriteAllText(LPkgPath, '{"name": "' + LName +
-        '", "version": "' + AVersion +
+        '", "version": "1.0.0' +
         '", "projects": ["../escape.dproj"], "dependencies": {}}')
     else if LRepository.Contains('declared_projects') then
     begin
@@ -165,11 +197,11 @@ begin
       TFile.WriteAllText(TPath.Combine(ATargetDir, 'src\runtime.lpk'), 'lazarus');
       TFile.WriteAllText(TPath.Combine(ATargetDir, 'examples\demo.dproj'), 'demo');
       TFile.WriteAllText(LPkgPath, '{"name": "' + LName +
-        '", "version": "' + AVersion +
+        '", "version": "1.0.0' +
         '", "projects": ["src/runtime.dproj", "src/runtime.lpk"], "dependencies": {}}');
     end
     else
-      TFile.WriteAllText(LPkgPath, '{"name": "' + LName + '", "version": "' + AVersion + '", "dependencies": {}}');
+      TFile.WriteAllText(LPkgPath, '{"name": "' + LName + '", "version": "1.0.0", "dependencies": {}}');
   end;
 end;
 
@@ -198,6 +230,40 @@ begin
     Exit(FResponseCodes[AURL.ToLower]);
   end;
   Result := 404; // Not Found padrao
+end;
+
+function TGitClientMock.VerifyCommit(const ACacheDir, ARevision: string;
+  out ASigner: string): Boolean;
+begin
+  ASigner := FSigner;
+  Result := FCommitSignatureValid;
+end;
+
+function TGitClientMock.VerifyTag(const ACacheDir, ATag: string;
+  out ASigner: string): Boolean;
+begin
+  ASigner := FSigner;
+  Result := FTagSignatureValid;
+end;
+
+procedure THttpClientMock.AddResponse(const AURL, AResponse: string;
+  const AStatusCode: Integer);
+begin
+  FResponses.AddOrSetValue(AURL.ToLower, AResponse);
+  FResponseCodes.AddOrSetValue(AURL.ToLower, AStatusCode);
+end;
+
+function THttpClientMock.PostJson(const AURL, ABody: string;
+  out AResponse: string): Integer;
+begin
+  Result := Get(AURL, AResponse);
+end;
+
+function THttpClientMock.PostJsonAuthorized(const AURL, ABody,
+  ABearerToken: string; out AResponse: string): Integer;
+begin
+  Inc(FAuthorizedPostCount);
+  Result := Get(AURL, AResponse);
 end;
 
 { TCompilerMock }

@@ -50,6 +50,26 @@ This command creates a **`boss.json`** file in your directory:
 
 ## 📥 2. Installing Dependencies (`install`)
 
+The explicit lifecycle aliases are `add`, `remove`, `update`, `list`, and
+`why`. Mutating operations are transactional and restore the manifest, lock,
+and modules when any step fails. See the
+[dependency lifecycle guide](dependency-lifecycle.md) for commands and
+guarantees.
+
+For deterministic automation, use `install --locked` (also available as
+`--frozen-lockfile`). Add `--offline` to prohibit network access, or use `ci` to
+clean and reinstall `modules/` from the frozen lock. See the
+[reproducible installation guide](reproducible-install.md).
+
+Use `add <package> --dev` for development-only tools. `install --production`
+and `ci --production` exclude them. See [dependency scopes](dependency-scopes.md).
+
+Run `audit [--fail-on severity] [--offline] [--vex file]` to evaluate locked
+Git revisions against OSV. See the [audit guide](audit.md).
+
+Configure the manifest `trust` object to require signed commits/tags and
+allowed signers. See the [Git trust policy](trust-policy.md).
+
 Boss4D downloads dependencies, checks out the correct version from Git, places them in a local `modules/` folder, and updates compilation paths.
 
 ### Installing a New Package
@@ -619,3 +639,22 @@ The integrated RAD Studio wizard adds tools and menu options to speed up package
 3. **Install Package Dialog**:
    * The **Install Package...** option opens an integrated prompt window to capture the Git repository URL and version range, triggering a silent, background package installation.
 4. **Integrated Message View**: The progress and colored log messages of the Boss4D tasks are piped into a dedicated **Boss4D** tab inside the RAD Studio Message View.
+
+---
+
+## 18. Package publishing (`publish`)
+
+Validate and inspect the deterministic registry payload without network access:
+
+```console
+boss4d publish --dry-run --output publish.json
+```
+
+Submit it with a bearer token read from `BOSS4D_PUBLISH_TOKEN`:
+
+```console
+boss4d publish --registry https://registry.example/api
+```
+
+See the [package publishing guide](publish.md) for all gates, options, and the
+registry endpoint contract.

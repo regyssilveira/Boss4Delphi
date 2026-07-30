@@ -39,10 +39,13 @@ service, a commercial scanner, or network access.
 
 ## Evidence model
 
+Lock schema v3 carries runtime/development scope. CycloneDX represents it as
+`boss4d:scope`; SPDX 2.3 uses the package comment.
+
 ```mermaid
 flowchart LR
     M["boss.json<br/>declared intent"] --> B["Neutral SBOM model"]
-    L["boss-lock.json v2<br/>resolved evidence"] --> B
+    L["boss-lock.json v3<br/>resolved evidence"] --> B
     G["GetIt inventory<br/>optional"] --> B
     T["Delphi toolchain and RTL<br/>optional"] --> B
     A["Declared artifacts<br/>optional"] --> B
@@ -168,6 +171,6 @@ optional manual automation for a self-hosted Windows/Delphi runner.
 
 - [Copyable commands and JSON examples](sbom-examples.md)
 - [CLI reference](usage.md#71-sbom-generation-sbom)
-- [Migrating to lock schema v2](sbom-migration.md)
+- [Migrating to lock schema v3](sbom-migration.md)
 - [Release checklist](sbom-release-checklist.md)
 - [Architecture roadmap and decisions](sbom-roadmap.pt-BR.md) (Portuguese)

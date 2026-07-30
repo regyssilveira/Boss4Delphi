@@ -74,9 +74,13 @@ begin
     LPkg.Homepage := 'https://github.com/test/project';
     LPkg.AddProject('Source/Project1.dproj');
     LPkg.AddDependency('github.com/hashload/horse', '^3.0.0');
+    LPkg.AddDevDependency('github.com/example/test-kit', '1.0.0');
     LPkg.Scripts.Add('build', 'msbuild');
     LPkg.Engines.Compiler := '36.0';
     LPkg.Engines.Platforms.Add('Win32');
+    LPkg.Trust.RequireSignedCommits := True;
+    LPkg.Trust.RequireSignedTags := True;
+    LPkg.Trust.AllowedSigners.Add('release@example.com');
     var LManualComponent := TBoss4DManualComponent.Create;
     LManualComponent.Id := 'commercial-driver';
     LManualComponent.Name := 'Commercial Database Driver';
@@ -101,9 +105,15 @@ begin
       Assert.AreEqual('Source/Project1.dproj', LLoadedPkg.Projects[0]);
       Assert.IsTrue(LLoadedPkg.Dependencies.ContainsKey('github.com/hashload/horse'));
       Assert.AreEqual<string>('^3.0.0', LLoadedPkg.Dependencies['github.com/hashload/horse']);
+      Assert.AreEqual<string>('1.0.0',
+        LLoadedPkg.DevDependencies['github.com/example/test-kit']);
       Assert.AreEqual<string>('msbuild', LLoadedPkg.Scripts['build']);
       Assert.AreEqual('36.0', LLoadedPkg.Engines.Compiler);
       Assert.AreEqual('Win32', LLoadedPkg.Engines.Platforms[0]);
+      Assert.IsTrue(LLoadedPkg.Trust.RequireSignedCommits);
+      Assert.IsTrue(LLoadedPkg.Trust.RequireSignedTags);
+      Assert.AreEqual('release@example.com',
+        LLoadedPkg.Trust.AllowedSigners[0]);
       Assert.AreEqual<Integer>(1, LLoadedPkg.SbomComponents.Count);
       Assert.AreEqual('commercial-driver', LLoadedPkg.SbomComponents[0].Id);
       Assert.AreEqual('Commercial', LLoadedPkg.SbomComponents[0].License);
@@ -202,7 +212,7 @@ begin
 
     FLockRepo.Save(LLock, LFilePath);
     LSerialized := TFile.ReadAllText(LFilePath, TEncoding.UTF8);
-    Assert.IsTrue(LSerialized.Contains('"lockVersion": 2'));
+    Assert.IsTrue(LSerialized.Contains('"lockVersion": 3'));
     Assert.IsTrue(LSerialized.Contains('"algorithm": "SHA-256"'));
   finally
     LDep.Free;
@@ -228,24 +238,27 @@ begin
     LLock.RootHomepage := 'https://example.test/sample';
     LLock.RootLicense := 'Apache-2.0';
     LLock.RootDependencies.Add(LDep.GetKey);
+    LLock.RootDevDependencies.Add('github.com/example/test-kit');
     LLock.AddDependency(LDep, '3.1.0', 'legacy-identity-hash', 'content-checksum');
     Assert.IsTrue(LLock.GetInstalled(LDep, LLocked));
     LLocked.Revision := '0123456789abcdef0123456789abcdef01234567';
     LLocked.ResolvedFrom := 'refs/tags/v3.1.0';
     LLocked.LicenseExpression := 'MIT';
     LLocked.LicenseSource := 'boss.json';
+    LLocked.Scope := 'development';
     LLocked.Dependencies.Add('github.com/vendor/dependency');
 
     FLockRepo.Save(LLock, LFilePath);
     LLoadedLock := FLockRepo.Load(LFilePath);
     try
-      Assert.AreEqual<Integer>(2, LLoadedLock.LockVersion);
+      Assert.AreEqual<Integer>(3, LLoadedLock.LockVersion);
       Assert.IsTrue(LLoadedLock.HasRootMetadata);
       Assert.AreEqual('sample-app', LLoadedLock.RootName);
       Assert.AreEqual('2.0.0', LLoadedLock.RootVersion);
       Assert.AreEqual('Apache-2.0', LLoadedLock.RootLicense);
       Assert.AreEqual<Integer>(1, LLoadedLock.RootDependencies.Count);
       Assert.AreEqual(LDep.GetKey, LLoadedLock.RootDependencies[0]);
+      Assert.AreEqual<Integer>(1, LLoadedLock.RootDevDependencies.Count);
       Assert.IsTrue(LLoadedLock.GetInstalled(LDep, LLoaded));
       Assert.AreEqual('https://github.com/hashload/horse', LLoaded.Repository);
       Assert.AreEqual(LLocked.Revision, LLoaded.Revision);
@@ -254,6 +267,7 @@ begin
       Assert.AreEqual('content-checksum', LLoaded.Checksum);
       Assert.AreEqual('MIT', LLoaded.LicenseExpression);
       Assert.AreEqual('boss.json', LLoaded.LicenseSource);
+      Assert.AreEqual('development', LLoaded.Scope);
       Assert.AreEqual<Integer>(1, LLoaded.Dependencies.Count);
       Assert.AreEqual('github.com/vendor/dependency', LLoaded.Dependencies[0]);
     finally

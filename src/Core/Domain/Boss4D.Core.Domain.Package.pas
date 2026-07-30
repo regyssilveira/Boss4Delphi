@@ -58,6 +58,19 @@ type
     property Strict: Boolean read FStrict write FStrict;
   end;
 
+  TBoss4DPackageTrust = class
+  private
+    FRequireSignedCommits: Boolean;
+    FRequireSignedTags: Boolean;
+    FAllowedSigners: TList<string>;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    property RequireSignedCommits: Boolean read FRequireSignedCommits write FRequireSignedCommits;
+    property RequireSignedTags: Boolean read FRequireSignedTags write FRequireSignedTags;
+    property AllowedSigners: TList<string> read FAllowedSigners;
+  end;
+
   { Entidade pura de dominio que representa o arquivo boss.json }
   TBoss4DPackage = class
   private
@@ -71,8 +84,10 @@ type
     FProjects: TList<string>;
     FScripts: TDictionary<string, string>;
     FDependencies: TDictionary<string, string>;
+    FDevDependencies: TDictionary<string, string>;
     FEngines: TBoss4DPackageEngines;
     FToolchain: TBoss4DPackageToolchain;
+    FTrust: TBoss4DPackageTrust;
     FWorkspaces: TList<string>;
     FSbomComponents: TObjectList<TBoss4DManualComponent>;
   public
@@ -80,10 +95,13 @@ type
     destructor Destroy; override;
 
     procedure AddDependency(const ADep: string; const AVer: string);
+    procedure AddDevDependency(const ADep: string; const AVer: string);
+    function RemoveDependency(const ADep: string): Boolean;
     procedure AddProject(const AProject: string);
 
     // Retorna uma lista de dependencias prontas e parseadas. O chamador e responsavel por liberar os objetos do array.
     function GetParsedDependencies: TArray<TBoss4DDependency>;
+    function GetParsedDevDependencies: TArray<TBoss4DDependency>;
 
     property Name: string read FName write FName;
     property Description: string read FDescription write FDescription;
@@ -95,8 +113,10 @@ type
     property Projects: TList<string> read FProjects;
     property Scripts: TDictionary<string, string> read FScripts;
     property Dependencies: TDictionary<string, string> read FDependencies;
+    property DevDependencies: TDictionary<string, string> read FDevDependencies;
     property Engines: TBoss4DPackageEngines read FEngines;
     property Toolchain: TBoss4DPackageToolchain read FToolchain;
+    property Trust: TBoss4DPackageTrust read FTrust;
     property Workspaces: TList<string> read FWorkspaces;
     property SbomComponents: TObjectList<TBoss4DManualComponent> read FSbomComponents;
   end;
@@ -107,6 +127,18 @@ uses
   System.SysUtils;
 
 { TBoss4DPackageEngines }
+
+constructor TBoss4DPackageTrust.Create;
+begin
+  inherited Create;
+  FAllowedSigners := TList<string>.Create;
+end;
+
+destructor TBoss4DPackageTrust.Destroy;
+begin
+  FAllowedSigners.Free;
+  inherited Destroy;
+end;
 
 constructor TBoss4DPackageEngines.Create;
 begin
@@ -128,8 +160,10 @@ begin
   FProjects := TList<string>.Create;
   FScripts := TDictionary<string, string>.Create;
   FDependencies := TDictionary<string, string>.Create;
+  FDevDependencies := TDictionary<string, string>.Create;
   FEngines := TBoss4DPackageEngines.Create;
   FToolchain := TBoss4DPackageToolchain.Create;
+  FTrust := TBoss4DPackageTrust.Create;
   FWorkspaces := TList<string>.Create;
   FSbomComponents := TObjectList<TBoss4DManualComponent>.Create(True);
 end;
@@ -138,8 +172,10 @@ destructor TBoss4DPackage.Destroy;
 begin
   FSbomComponents.Free;
   FWorkspaces.Free;
+  FTrust.Free;
   FToolchain.Free;
   FEngines.Free;
+  FDevDependencies.Free;
   FDependencies.Free;
   FScripts.Free;
   FProjects.Free;
@@ -165,6 +201,39 @@ begin
     FDependencies.Add(ADep, AVer);
 end;
 
+procedure TBoss4DPackage.AddDevDependency(const ADep, AVer: string);
+var
+  LKey, LFoundKey: string;
+begin
+  LFoundKey := '';
+  for LKey in FDevDependencies.Keys do
+    if SameText(LKey, ADep) then
+    begin
+      LFoundKey := LKey;
+      Break;
+    end;
+  if not LFoundKey.IsEmpty then
+    FDevDependencies.AddOrSetValue(LFoundKey, AVer)
+  else
+    FDevDependencies.Add(ADep, AVer);
+end;
+
+function TBoss4DPackage.RemoveDependency(const ADep: string): Boolean;
+var
+  LKey, LFoundKey: string;
+begin
+  LFoundKey := '';
+  for LKey in FDependencies.Keys do
+    if SameText(LKey, ADep) then
+    begin
+      LFoundKey := LKey;
+      Break;
+    end;
+  Result := not LFoundKey.IsEmpty;
+  if Result then
+    FDependencies.Remove(LFoundKey);
+end;
+
 procedure TBoss4DPackage.AddProject(const AProject: string);
 begin
   if not FProjects.Contains(AProject) then
@@ -183,6 +252,27 @@ begin
     for var LPair in FDependencies do
     begin
       LResultList.Add(TBoss4DDependency.Parse(LPair.Key, LPair.Value));
+    end;
+    Result := LResultList.ToArray;
+  finally
+    LResultList.Free;
+  end;
+end;
+
+function TBoss4DPackage.GetParsedDevDependencies: TArray<TBoss4DDependency>;
+var
+  LResultList: TList<TBoss4DDependency>;
+  LDep: TBoss4DDependency;
+begin
+  if FDevDependencies.Count = 0 then
+    Exit(nil);
+  LResultList := TList<TBoss4DDependency>.Create;
+  try
+    for var LPair in FDevDependencies do
+    begin
+      LDep := TBoss4DDependency.Parse(LPair.Key, LPair.Value);
+      LDep.Scope := 'development';
+      LResultList.Add(LDep);
     end;
     Result := LResultList.ToArray;
   finally

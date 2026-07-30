@@ -78,6 +78,10 @@ type
     procedure UpdateCache(const ADep: TBoss4DDependency; const ACacheDir: string);
     function GetVersions(const ACacheDir: string): TArray<string>;
     function ResolveRevision(const ACacheDir: string; const AVersion: string): string;
+    function VerifyCommit(const ACacheDir, ARevision: string;
+      out ASigner: string): Boolean;
+    function VerifyTag(const ACacheDir, ATag: string;
+      out ASigner: string): Boolean;
     procedure Checkout(const ACacheDir: string; const AVersion: string; const ATargetDir: string);
   end;
 
@@ -85,6 +89,10 @@ type
   IBoss4DHttpClient = interface
     ['{69527D56-F14E-43D4-A746-2D7227D60005}']
     function Get(const AURL: string; out AResponse: string): Integer;
+    function PostJson(const AURL, ABody: string;
+      out AResponse: string): Integer;
+    function PostJsonAuthorized(const AURL, ABody, ABearerToken: string;
+      out AResponse: string): Integer;
   end;
 
   { Contrato para compilacao de dependencias Delphi e search paths }

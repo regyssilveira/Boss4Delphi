@@ -39,10 +39,13 @@ comercial ou acesso à rede.
 
 ## Modelo de evidências
 
+O schema v3 do lock preserva o escopo runtime/desenvolvimento. CycloneDX o
+representa como `boss4d:scope`; SPDX 2.3 usa o comentário do pacote.
+
 ```mermaid
 flowchart LR
     M["boss.json<br/>intenção declarada"] --> B["Modelo SBOM neutro"]
-    L["boss-lock.json v2<br/>evidência resolvida"] --> B
+    L["boss-lock.json v3<br/>evidência resolvida"] --> B
     G["Inventário GetIt<br/>opcional"] --> B
     T["Toolchain e RTL Delphi<br/>opcional"] --> B
     A["Artefatos declarados<br/>opcional"] --> B
@@ -151,7 +154,7 @@ de assinatura.
 
 ## Fluxo recomendado de release
 
-1. Execute `boss4d install` e versione o lock v2.
+1. Execute `boss4d install` e versione o lock v3.
 2. Execute `scripts/ci-verify-sbom.ps1` no Windows com Delphi 13.
 3. Execute `build_release.bat`; ele compila em staging e só promove `dist` quando
    todos os alvos e SBOMs forem concluídos.
@@ -167,6 +170,6 @@ manual opcional para runner Windows/Delphi self-hosted.
 
 - [Comandos e exemplos JSON copiáveis](sbom-examples.pt-BR.md)
 - [Referência da CLI](usage.pt-BR.md#71-geração-de-sbom-sbom)
-- [Migração para o schema v2 do lock](sbom-migration.pt-BR.md)
+- [Migração para o schema v3 do lock](sbom-migration.pt-BR.md)
 - [Checklist de release](sbom-release-checklist.pt-BR.md)
 - [Roadmap e decisões arquiteturais](sbom-roadmap.pt-BR.md)

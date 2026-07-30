@@ -40,6 +40,18 @@ type
     procedure ShowVersion;
     procedure HandleInit(const AArgs: TArray<string>);
     procedure HandleInstall(const AArgs: TArray<string>);
+    procedure HandleCI(const AArgs: TArray<string>);
+    procedure HandleAdd(const AArgs: TArray<string>);
+    procedure HandleRemove(const AArgs: TArray<string>);
+    procedure HandleUpdate(const AArgs: TArray<string>);
+    procedure HandleList;
+    procedure HandleWhy(const AArgs: TArray<string>);
+    procedure HandleAudit(const AArgs: TArray<string>);
+    procedure HandleRegistry(const AArgs: TArray<string>);
+    procedure HandleSearch(const AArgs: TArray<string>);
+    procedure HandleInfo(const AArgs: TArray<string>);
+    procedure HandleDependency(const AArgs: TArray<string>);
+    procedure HandlePublish(const AArgs: TArray<string>);
     procedure HandleConfig(const AArgs: TArray<string>);
     procedure HandleCache(const AArgs: TArray<string>);
     procedure HandleRun(const AArgs: TArray<string>);
@@ -73,6 +85,7 @@ implementation
 uses
   System.SysUtils, System.IOUtils,
   Boss4D.Adapters.Json,
+  Boss4D.Adapters.Http,
   Boss4D.Adapters.Git,
   Boss4D.Adapters.Compiler,
   Boss4D.Adapters.Registry,
@@ -81,10 +94,16 @@ uses
   Boss4D.Adapters.Sbom.Spdx,
   Boss4D.Adapters.Sbom.Security,
   Boss4D.Core.Domain.Dependency,
+  Boss4D.Core.Domain.Package,
   Boss4D.Core.Domain.Lock,
   Boss4D.Core.Domain.Sbom,
   Boss4D.Core.Domain.Env,
-  Boss4D.Core.Domain.Consts;
+  Boss4D.Core.Domain.Consts,
+  Boss4D.Core.Services.Dependencies,
+  Boss4D.Core.Services.Audit,
+  Boss4D.Core.Services.PackageIndex,
+  Boss4D.Core.Services.DependencySubmission,
+  Boss4D.Core.Services.Publish;
 
 { TBoss4DCommandLineParser }
 
@@ -118,8 +137,21 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -q, --quiet (modo silencioso).');
   FLogger.Log(TBoss4DLogLevel.Info, '  install              Instala todas as dependencias declaradas no boss.json.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -p, --platform <plataforma> (Win32, Win64, Linux64, etc.).');
+  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --locked, --frozen-lockfile, --offline, --production.');
   FLogger.Log(TBoss4DLogLevel.Info, '  install <dep>        Instala uma dependencia especifica.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Exemplo: boss4d install github.com/hashload/horse@^3.0.0');
+  FLogger.Log(TBoss4DLogLevel.Info, '  add <dep> [--dev]    Adiciona dependencia de runtime ou desenvolvimento.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  remove <dep>         Remove uma dependencia e locks orfaos.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  update [dep]         Atualiza uma ou todas as dependencias.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  list                 Lista dependencias diretas e transitivas.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  why <dep>            Explica por que uma dependencia foi instalada.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  audit               Consulta vulnerabilidades OSV por revisao do lock.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  registry add|remove|list Gerencia indices publicos e privados.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  search <termo>       Pesquisa pacotes nos indices configurados.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  info <pacote>        Exibe metadados de um pacote indexado.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  dependency submit    Envia snapshot ao GitHub Dependency Graph.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  publish              Publica pacote com validacoes; use --dry-run para inspecionar.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  ci [--offline]       Reinstala limpo usando o lock sem altera-lo.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config delphi use <caminho>  Configura o caminho global do compilador Delphi.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config git shallow <true/false> Configura uso de shallow clones globais.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config auth <github/gitlab> <token> Configura tokens de autenticacao global.');
@@ -135,7 +167,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  outdated             Verifica se ha atualizacoes disponiveis dos pacotes.');
   FLogger.Log(TBoss4DLogLevel.Info, '  tool install -g <repo> Compila e instala um utilitario Delphi globalmente.');
   FLogger.Log(TBoss4DLogLevel.Info, '  clean                Apaga a pasta modules e o arquivo boss-lock.json.');
-  FLogger.Log(TBoss4DLogLevel.Info, '  new app|package <nome> [--path <dir>] Cria um projeto a partir de template.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  new <template> <nome> [--path <dir>] Cria app/package/VCL/FMX/API/DUnitX/Lazarus/workspace.');
   FLogger.Log(TBoss4DLogLevel.Info, '  version, -v, --version Exibe a versao atual do Boss4D.');
   FLogger.Log(TBoss4DLogLevel.Info, '  help, -h, --help     Exibe este menu de ajuda.');
   FLogger.Log(TBoss4DLogLevel.Info, '');
@@ -164,6 +196,30 @@ begin
     HandleInit(AArgs)
   else if (LCommand = 'install') or (LCommand = 'i') then
     HandleInstall(AArgs)
+  else if LCommand = 'ci' then
+    HandleCI(AArgs)
+  else if LCommand = 'add' then
+    HandleAdd(AArgs)
+  else if (LCommand = 'remove') or (LCommand = 'rm') then
+    HandleRemove(AArgs)
+  else if (LCommand = 'update') or (LCommand = 'up') then
+    HandleUpdate(AArgs)
+  else if (LCommand = 'list') or (LCommand = 'ls') then
+    HandleList
+  else if LCommand = 'why' then
+    HandleWhy(AArgs)
+  else if LCommand = 'audit' then
+    HandleAudit(AArgs)
+  else if LCommand = 'registry' then
+    HandleRegistry(AArgs)
+  else if LCommand = 'search' then
+    HandleSearch(AArgs)
+  else if LCommand = 'info' then
+    HandleInfo(AArgs)
+  else if LCommand = 'dependency' then
+    HandleDependency(AArgs)
+  else if LCommand = 'publish' then
+    HandlePublish(AArgs)
   else if LCommand = 'config' then
     HandleConfig(AArgs)
   else if LCommand = 'cache' then
@@ -192,6 +248,391 @@ begin
     HandleSbom(AArgs);
 end;
 
+procedure TBoss4DCommandLineParser.HandlePublish(
+  const AArgs: TArray<string>);
+var
+  LOptions: TBoss4DPublishOptions;
+  LService: TBoss4DPublishService;
+  LLockRepo: IBoss4DLockRepository;
+  LHttp: IBoss4DHttpClient;
+  LPayload, LOutputPath, LTokenEnvironment: string;
+  I: Integer;
+  LEncoding: TEncoding;
+begin
+  LOptions := Default(TBoss4DPublishOptions);
+  LOptions.RequireCleanGit := True;
+  LOptions.RunTests := True;
+  LTokenEnvironment := 'BOSS4D_PUBLISH_TOKEN';
+  I := 1;
+  while I < Length(AArgs) do
+  begin
+    if SameText(AArgs[I], '--dry-run') then
+      LOptions.DryRun := True
+    else if SameText(AArgs[I], '--allow-dirty') then
+      LOptions.RequireCleanGit := False
+    else if SameText(AArgs[I], '--skip-tests') then
+      LOptions.RunTests := False
+    else if SameText(AArgs[I], '--registry') or
+            SameText(AArgs[I], '--token-env') or
+            SameText(AArgs[I], '--output') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create('Informe um valor para ' + AArgs[I]);
+      Inc(I);
+      if SameText(AArgs[I - 1], '--registry') then
+        LOptions.RegistryUrl := AArgs[I]
+      else if SameText(AArgs[I - 1], '--token-env') then
+        LTokenEnvironment := AArgs[I]
+      else
+        LOutputPath := AArgs[I];
+    end
+    else
+      raise EArgumentException.Create(
+        'Opcao desconhecida para publish: ' + AArgs[I]);
+    Inc(I);
+  end;
+  LOptions.Token := GetEnvironmentVariable(LTokenEnvironment);
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LHttp := TBoss4DHttpNativeAdapter.Create;
+  LService := TBoss4DPublishService.Create(
+    FPackageRepo, LLockRepo, LHttp, FLogger);
+  try
+    LPayload := LService.Execute(GetBossFile,
+      TPath.Combine(GetCurrentDir, FILE_PACKAGE_LOCK), LOptions);
+    if LOutputPath.IsEmpty then
+    begin
+      if LOptions.DryRun then
+        System.Write(LPayload);
+    end
+    else
+    begin
+      LOutputPath := TPath.GetFullPath(LOutputPath);
+      if not TPath.GetDirectoryName(LOutputPath).IsEmpty then
+        TDirectory.CreateDirectory(TPath.GetDirectoryName(LOutputPath));
+      LEncoding := TUTF8Encoding.Create(False);
+      try
+        TFile.WriteAllText(LOutputPath, LPayload, LEncoding);
+      finally
+        LEncoding.Free;
+      end;
+    end;
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleAdd(const AArgs: TArray<string>);
+var
+  LOptions: TBoss4DInstallOptions;
+begin
+  if (Length(AArgs) < 2) or (Length(AArgs) > 3) then
+    raise EArgumentException.Create(
+      'Uso: boss4d add <repositorio>@<versao> [--dev]');
+  LOptions := Default(TBoss4DInstallOptions);
+  LOptions.InstallSingle := AArgs[1];
+  if Length(AArgs) = 3 then
+  begin
+    if not SameText(AArgs[2], '--dev') then
+      raise EArgumentException.Create('Opcao desconhecida: ' + AArgs[2]);
+    LOptions.Development := True;
+  end;
+  FInstallService.Execute(LOptions);
+end;
+
+procedure TBoss4DCommandLineParser.HandleRemove(const AArgs: TArray<string>);
+var
+  LService: TBoss4DDependencyService;
+  LLockRepo: IBoss4DLockRepository;
+begin
+  if Length(AArgs) <> 2 then
+    raise EArgumentException.Create('Uso: boss4d remove <dependencia>');
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LService := TBoss4DDependencyService.Create(FPackageRepo, LLockRepo, FLogger);
+  try
+    LService.Remove(AArgs[1]);
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleUpdate(const AArgs: TArray<string>);
+var
+  LPkg: TBoss4DPackage;
+  LRequested, LKey, LVersion: string;
+  LDevelopment: Boolean;
+  LOptions: TBoss4DInstallOptions;
+begin
+  if Length(AArgs) = 1 then
+  begin
+    FInstallService.Execute;
+    Exit;
+  end;
+  if Length(AArgs) <> 2 then
+    raise EArgumentException.Create('Uso: boss4d update [dependencia[@versao]]');
+  LRequested := AArgs[1];
+  if LRequested.Contains('@') then
+  begin
+    FInstallService.Execute(LRequested);
+    Exit;
+  end;
+  LPkg := FPackageRepo.Load(GetBossFile);
+  try
+    LKey := '';
+    LDevelopment := False;
+    for var LPair in LPkg.Dependencies do
+      if SameText(LPair.Key, LRequested) or
+         SameText(TPath.GetFileName(LPair.Key), LRequested) then
+      begin
+        LKey := LPair.Key;
+        LVersion := LPair.Value;
+        Break;
+      end;
+    if LKey.IsEmpty then
+      for var LPair in LPkg.DevDependencies do
+        if SameText(LPair.Key, LRequested) or
+           SameText(TPath.GetFileName(LPair.Key), LRequested) then
+        begin
+          LKey := LPair.Key;
+          LVersion := LPair.Value;
+          LDevelopment := True;
+          Break;
+        end;
+    if LKey.IsEmpty then
+      raise EArgumentException.Create('Dependencia nao declarada: ' + LRequested);
+    if LDevelopment then
+    begin
+      LOptions := Default(TBoss4DInstallOptions);
+      LOptions.InstallSingle := LKey + '@' + LVersion;
+      LOptions.Development := True;
+      FInstallService.Execute(LOptions);
+    end
+    else
+      FInstallService.Execute(LKey + '@' + LVersion);
+  finally
+    LPkg.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleList;
+var
+  LService: TBoss4DDependencyService;
+  LLockRepo: IBoss4DLockRepository;
+  LInfo: TBoss4DDependencyInfo;
+  LScope: string;
+begin
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LService := TBoss4DDependencyService.Create(FPackageRepo, LLockRepo, FLogger);
+  try
+    for LInfo in LService.List do
+    begin
+      if LInfo.Direct then LScope := 'direct' else LScope := 'transitive';
+      FLogger.Log(TBoss4DLogLevel.Info, '%s@%s (%s, %s)',
+        [LInfo.Key, LInfo.Version, LScope, LInfo.Scope]);
+    end;
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleWhy(const AArgs: TArray<string>);
+var
+  LService: TBoss4DDependencyService;
+  LLockRepo: IBoss4DLockRepository;
+  LPath: TArray<string>;
+begin
+  if Length(AArgs) <> 2 then
+    raise EArgumentException.Create('Uso: boss4d why <dependencia>');
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LService := TBoss4DDependencyService.Create(FPackageRepo, LLockRepo, FLogger);
+  try
+    LPath := LService.Why(AArgs[1]);
+    if Length(LPath) = 0 then
+      FLogger.Log(TBoss4DLogLevel.Warning,
+        'Dependencia nao encontrada no grafo: ' + AArgs[1])
+    else
+      FLogger.Log(TBoss4DLogLevel.Info, string.Join(' -> ', LPath));
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleAudit(const AArgs: TArray<string>);
+var
+  LOptions: TBoss4DAuditOptions;
+  LService: TBoss4DAuditService;
+  LLockRepo: IBoss4DLockRepository;
+  LHttp: IBoss4DHttpClient;
+  LSummary: TBoss4DAuditSummary;
+  I: Integer;
+begin
+  LOptions := Default(TBoss4DAuditOptions);
+  LOptions.CacheHours := 24;
+  I := 1;
+  while I < Length(AArgs) do
+  begin
+    if SameText(AArgs[I], '--offline') then
+      LOptions.Offline := True
+    else if SameText(AArgs[I], '--fail-on') or
+            SameText(AArgs[I], '--vex') or
+            SameText(AArgs[I], '--cache-hours') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create('Informe um valor para ' + AArgs[I]);
+      Inc(I);
+      if SameText(AArgs[I - 1], '--fail-on') then
+      begin
+        LOptions.FailOn := TBoss4DAuditService.ParseSeverity(AArgs[I]);
+        if LOptions.FailOn = AuditUnknown then
+          raise EArgumentException.Create('Severidade invalida: ' + AArgs[I]);
+      end
+      else if SameText(AArgs[I - 1], '--vex') then
+        LOptions.VexPath := AArgs[I]
+      else
+        LOptions.CacheHours := StrToInt(AArgs[I]);
+    end
+    else
+      raise EArgumentException.Create(
+        'Opcao desconhecida para audit: ' + AArgs[I]);
+    Inc(I);
+  end;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LHttp := TBoss4DHttpNativeAdapter.Create;
+  LService := TBoss4DAuditService.Create(LLockRepo, LHttp, FLogger);
+  try
+    LSummary := LService.Execute(
+      TPath.Combine(GetCurrentDir, FILE_PACKAGE_LOCK), LOptions);
+    FLogger.Log(TBoss4DLogLevel.Info,
+      'Auditoria: %d encontrada(s), %d suprimida(s).',
+      [LSummary.Vulnerabilities, LSummary.Suppressed]);
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleRegistry(
+  const AArgs: TArray<string>);
+var
+  LService: TBoss4DPackageIndexService;
+  LHttp: IBoss4DHttpClient;
+begin
+  if Length(AArgs) < 2 then
+    raise EArgumentException.Create(
+      'Uso: boss4d registry add|remove|list [origem]');
+  LHttp := TBoss4DHttpNativeAdapter.Create;
+  LService := TBoss4DPackageIndexService.Create(
+    FConfigService, LHttp, FLogger);
+  try
+    if SameText(AArgs[1], 'list') then
+      for var LSource in LService.ListRegistries do
+        FLogger.Log(TBoss4DLogLevel.Info, LSource)
+    else if (Length(AArgs) = 3) and SameText(AArgs[1], 'add') then
+      LService.AddRegistry(AArgs[2])
+    else if (Length(AArgs) = 3) and SameText(AArgs[1], 'remove') then
+      LService.RemoveRegistry(AArgs[2])
+    else
+      raise EArgumentException.Create(
+        'Uso: boss4d registry add|remove|list [origem]');
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleSearch(const AArgs: TArray<string>);
+var
+  LService: TBoss4DPackageIndexService;
+  LHttp: IBoss4DHttpClient;
+begin
+  if Length(AArgs) <> 2 then
+    raise EArgumentException.Create('Uso: boss4d search <termo>');
+  LHttp := TBoss4DHttpNativeAdapter.Create;
+  LService := TBoss4DPackageIndexService.Create(
+    FConfigService, LHttp, FLogger);
+  try
+    var LEntries := LService.Search(AArgs[1]);
+    try
+      for var LEntry in LEntries do
+        FLogger.Log(TBoss4DLogLevel.Info, '%s  %s  %s',
+          [LEntry.Name, LEntry.LatestVersion, LEntry.Repository]);
+    finally
+      LEntries.Free;
+    end;
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleInfo(const AArgs: TArray<string>);
+var
+  LService: TBoss4DPackageIndexService;
+  LHttp: IBoss4DHttpClient;
+  LEntry: TBoss4DPackageIndexEntry;
+begin
+  if Length(AArgs) <> 2 then
+    raise EArgumentException.Create('Uso: boss4d info <pacote>');
+  LHttp := TBoss4DHttpNativeAdapter.Create;
+  LService := TBoss4DPackageIndexService.Create(
+    FConfigService, LHttp, FLogger);
+  try
+    LEntry := LService.Info(AArgs[1]);
+    try
+      if not Assigned(LEntry) then
+        raise EArgumentException.Create('Pacote nao encontrado: ' + AArgs[1]);
+      FLogger.Log(TBoss4DLogLevel.Info, 'Nome: ' + LEntry.Name);
+      FLogger.Log(TBoss4DLogLevel.Info, 'Repositorio: ' + LEntry.Repository);
+      FLogger.Log(TBoss4DLogLevel.Info, 'Versao: ' + LEntry.LatestVersion);
+      FLogger.Log(TBoss4DLogLevel.Info, 'Licenca: ' + LEntry.License);
+      FLogger.Log(TBoss4DLogLevel.Info, 'Descricao: ' + LEntry.Description);
+      FLogger.Log(TBoss4DLogLevel.Info, 'Origem: ' + LEntry.Source);
+    finally
+      LEntry.Free;
+    end;
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleDependency(
+  const AArgs: TArray<string>);
+var
+  LRepository, LSha, LRef, LTokenEnv, LJobId: string;
+  LLockRepo: IBoss4DLockRepository;
+  LHttp: IBoss4DHttpClient;
+  LService: TBoss4DDependencySubmissionService;
+  I: Integer;
+begin
+  if (Length(AArgs) < 2) or not SameText(AArgs[1], 'submit') then
+    raise EArgumentException.Create(
+      'Uso: boss4d dependency submit --repo owner/name --sha commit --ref refs/heads/main');
+  LTokenEnv := 'GITHUB_TOKEN';
+  LJobId := FormatDateTime('yyyymmddhhnnss', Now);
+  I := 2;
+  while I < Length(AArgs) do
+  begin
+    if (I + 1 >= Length(AArgs)) or not AArgs[I].StartsWith('--') then
+      raise EArgumentException.Create('Opcao invalida para dependency submit.');
+    if SameText(AArgs[I], '--repo') then LRepository := AArgs[I + 1]
+    else if SameText(AArgs[I], '--sha') then LSha := AArgs[I + 1]
+    else if SameText(AArgs[I], '--ref') then LRef := AArgs[I + 1]
+    else if SameText(AArgs[I], '--token-env') then LTokenEnv := AArgs[I + 1]
+    else if SameText(AArgs[I], '--job-id') then LJobId := AArgs[I + 1]
+    else raise EArgumentException.Create('Opcao desconhecida: ' + AArgs[I]);
+    Inc(I, 2);
+  end;
+  if LRepository.IsEmpty or LSha.IsEmpty or LRef.IsEmpty then
+    raise EArgumentException.Create('--repo, --sha e --ref sao obrigatorios.');
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LHttp := TBoss4DHttpNativeAdapter.Create;
+  LService := TBoss4DDependencySubmissionService.Create(LLockRepo, LHttp);
+  try
+    LService.Submit(TPath.Combine(GetCurrentDir, FILE_PACKAGE_LOCK),
+      LRepository, LSha, LRef, GetEnvironmentVariable(LTokenEnv), LJobId);
+    FLogger.Log(TBoss4DLogLevel.Info,
+      'Snapshot enviado ao GitHub Dependency Graph.');
+  finally
+    LService.Free;
+  end;
+end;
+
 procedure TBoss4DCommandLineParser.HandleInit(const AArgs: TArray<string>);
 var
   LQuiet: Boolean;
@@ -208,11 +649,11 @@ end;
 procedure TBoss4DCommandLineParser.HandleInstall(const AArgs: TArray<string>);
 var
   LDepToInstall: string;
-  LPlatform: string;
+  LOptions: TBoss4DInstallOptions;
   I: Integer;
 begin
   LDepToInstall := '';
-  LPlatform := '';
+  LOptions := Default(TBoss4DInstallOptions);
 
   I := 1;
   while I < Length(AArgs) do
@@ -221,11 +662,27 @@ begin
     begin
       if I + 1 < Length(AArgs) then
       begin
-        LPlatform := AArgs[I + 1];
+        LOptions.Platform := AArgs[I + 1];
         Inc(I, 2);
       end
       else
         Inc(I);
+    end
+    else if SameText(AArgs[I], '--locked') or
+            SameText(AArgs[I], '--frozen-lockfile') then
+    begin
+      LOptions.Locked := True;
+      Inc(I);
+    end
+    else if SameText(AArgs[I], '--offline') then
+    begin
+      LOptions.Offline := True;
+      Inc(I);
+    end
+    else if SameText(AArgs[I], '--production') then
+    begin
+      LOptions.Production := True;
+      Inc(I);
     end
     else
     begin
@@ -235,7 +692,44 @@ begin
     end;
   end;
 
-  FInstallService.Execute(LDepToInstall, LPlatform);
+  if LOptions.Locked and not LDepToInstall.IsEmpty then
+    raise EArgumentException.Create(
+      '--locked instala somente o grafo completo declarado no lock.');
+  if LDepToInstall.IsEmpty and
+     (LOptions.Locked or LOptions.Offline or LOptions.Production) then
+    FInstallService.Execute(LOptions)
+  else
+    FInstallService.Execute(LDepToInstall, LOptions.Platform);
+end;
+
+procedure TBoss4DCommandLineParser.HandleCI(const AArgs: TArray<string>);
+var
+  LOptions: TBoss4DInstallOptions;
+  I: Integer;
+begin
+  LOptions := Default(TBoss4DInstallOptions);
+  LOptions.Locked := True;
+  LOptions.CleanModules := True;
+  I := 1;
+  while I < Length(AArgs) do
+  begin
+    if SameText(AArgs[I], '--offline') then
+      LOptions.Offline := True
+    else if SameText(AArgs[I], '--production') then
+      LOptions.Production := True
+    else if SameText(AArgs[I], '--platform') or
+            SameText(AArgs[I], '-p') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create('Informe uma plataforma.');
+      Inc(I);
+      LOptions.Platform := AArgs[I];
+    end
+    else
+      raise EArgumentException.Create('Opcao desconhecida para ci: ' + AArgs[I]);
+    Inc(I);
+  end;
+  FInstallService.Execute(LOptions);
 end;
 
 procedure TBoss4DCommandLineParser.HandleConfig(const AArgs: TArray<string>);
@@ -599,7 +1093,7 @@ var
 begin
   if Length(AArgs) < 3 then
     raise EArgumentException.Create(
-      'Uso: boss4d new app|package <nome> [--path <diretorio>]');
+      'Uso: boss4d new <template> <nome> [--path <diretorio>]');
   LTemplate := AArgs[1];
   LName := AArgs[2];
   LTargetPath := TPath.Combine(GetCurrentDir, LName);

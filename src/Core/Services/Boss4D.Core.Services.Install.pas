@@ -8,6 +8,16 @@ uses
   Boss4D.Core.Domain.Package;
 
 type
+  TBoss4DInstallOptions = record
+    Platform: string;
+    Locked: Boolean;
+    Offline: Boolean;
+    CleanModules: Boolean;
+    Production: Boolean;
+    Development: Boolean;
+    InstallSingle: string;
+  end;
+
   { Servico de caso de uso para instalacao e atualizacao de dependencias (boss install) }
   TBoss4DInstallService = class
   private
@@ -19,6 +29,8 @@ type
     FLogger: IBoss4DLogger;
     FGitCriticalSection: TCriticalSection;
     FGlobalProcessedDeps: TList<string>;
+    FOptions: TBoss4DInstallOptions;
+    FTrust: TBoss4DPackageTrust;
 
     procedure ProcessDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock;
       const AProcessedDeps: TList<string>);
@@ -35,6 +47,12 @@ type
     function ResolveSemVerRange(const ARangeStr, ACacheDir: string): string;
     function ResolveDependencyVersion(const ADep: TBoss4DDependency; const ACacheDir: string): string;
     function CalculateDirectoryChecksum(const ADirPath: string): string;
+    procedure ExecuteCore(const AInstallSingle: string;
+      const APlatform: string);
+    procedure ValidateLockedManifest(const APackage: TBoss4DPackage;
+      const ALock: TBoss4DLock);
+    procedure ApplyLockScopes(const ALock: TBoss4DLock);
+    function SignerAllowed(const ASigner: string): Boolean;
   public
     constructor Create(
       const APackageRepo: IBoss4DPackageRepository;
@@ -47,7 +65,9 @@ type
 
     destructor Destroy; override;
 
-    procedure Execute(const AInstallSingle: string = ''; const APlatform: string = '');
+    procedure Execute(const AInstallSingle: string = '';
+      const APlatform: string = ''); overload;
+    procedure Execute(const AOptions: TBoss4DInstallOptions); overload;
     procedure RunInstallTask(const ADep: TBoss4DDependency; const ALock: TBoss4DLock; const ATasks: TList<ITask>);
   end;
 
@@ -60,7 +80,9 @@ uses
   Boss4D.Adapters.Registry,
   Boss4D.Core.Services.IDEIntegration, Boss4D.Core.Services.Workspace,
   Boss4D.Core.Services.SourceNormalizer,
-  Boss4D.Core.Services.LazarusProject;
+  Boss4D.Core.Services.LazarusProject,
+  Boss4D.Core.Services.Transaction,
+  Boss4D.Core.Services.ArtifactCache;
 
 { TBoss4DInstallService }
 
@@ -176,6 +198,7 @@ var
   LResolvedVersion: string;
   LResolvedRevision: string;
   LSubDeps: TArray<TBoss4DDependency>;
+  LExistingLocked: TBoss4DLockedDependency;
 begin
   var LDepKey := ADep.GetKey;
 
@@ -205,23 +228,67 @@ begin
     // 1. Garante que o repositorio de cache existe
     if not TDirectory.Exists(LCacheDir) then
     begin
+      if FOptions.Offline then
+        raise Exception.CreateFmt(
+          'Cache ausente para %s; --offline proibe acesso a rede.',
+          [ADep.Name]);
       FLogger.Log(TBoss4DLogLevel.Debug, 'Clonando no cache global: ' + ADep.Repository);
       FGitClient.CloneCache(ADep, LCacheDir);
     end
-    else
+    else if not FOptions.Offline then
     begin
       FLogger.Log(TBoss4DLogLevel.Debug, 'Atualizando cache existente: ' + ADep.Repository);
       FGitClient.UpdateCache(ADep, LCacheDir);
     end;
 
     // 2. Resolve a melhor versao disponivel usando SemVer se a versao informada for um range
-    LResolvedVersion := ResolveDependencyVersion(ADep, LCacheDir);
-    LResolvedRevision := FGitClient.ResolveRevision(LCacheDir, LResolvedVersion);
+    if FOptions.Locked then
+    begin
+      if not ALock.GetInstalled(ADep, LExistingLocked) then
+        raise Exception.CreateFmt(
+          'Dependencia %s nao existe no lock congelado.', [ADep.Name]);
+      LResolvedVersion := LExistingLocked.Version;
+      LResolvedRevision := LExistingLocked.Revision;
+      if LResolvedRevision.IsEmpty then
+        LResolvedRevision := LResolvedVersion;
+    end
+    else
+    begin
+      LResolvedVersion := ResolveDependencyVersion(ADep, LCacheDir);
+      LResolvedRevision := FGitClient.ResolveRevision(LCacheDir, LResolvedVersion);
+    end;
+
+    if Assigned(FTrust) and FTrust.RequireSignedCommits then
+    begin
+      var LSigner: string;
+      if not FGitClient.VerifyCommit(LCacheDir, LResolvedRevision, LSigner) then
+        raise Exception.CreateFmt('Commit sem assinatura valida para %s: %s',
+          [ADep.Name, LResolvedRevision]);
+      if not SignerAllowed(LSigner) then
+        raise Exception.CreateFmt('Signatario nao autorizado para %s: %s',
+          [ADep.Name, LSigner]);
+    end;
+    if Assigned(FTrust) and FTrust.RequireSignedTags and
+       not LResolvedVersion.IsEmpty then
+    begin
+      var LTagSigner: string;
+      if not FGitClient.VerifyTag(LCacheDir, LResolvedVersion,
+        LTagSigner) then
+        raise Exception.CreateFmt('Tag sem assinatura valida para %s: %s',
+          [ADep.Name, LResolvedVersion]);
+      if not SignerAllowed(LTagSigner) then
+        raise Exception.CreateFmt(
+          'Signatario da tag nao autorizado para %s: %s',
+          [ADep.Name, LTagSigner]);
+    end;
 
     FLogger.Log(TBoss4DLogLevel.Debug, 'Versao selecionada para %s: %s', [ADep.Name, LResolvedVersion]);
 
     // 3. Executa o checkout local da versao selecionada na pasta modules/
-    FGitClient.Checkout(LCacheDir, LResolvedVersion, LTargetDir);
+    if FOptions.Locked then
+      FGitClient.Checkout(LCacheDir, LResolvedRevision, LTargetDir)
+    else
+      FGitClient.Checkout(LCacheDir, LResolvedVersion, LTargetDir);
 
     // Normaliza antes do checksum: o lock e a SBOM descrevem exatamente o
     // conteudo instalado, sem divergencia entre checkouts LF e CRLF.
@@ -231,10 +298,12 @@ begin
     var LChecksum := CalculateDirectoryChecksum(LTargetDir);
 
     // Se a dependÃªncia jÃ¡ constava no arquivo lock existente, validar se o checksum atual bate!
-    var LExistingLocked: TBoss4DLockedDependency;
     if ALock.GetInstalled(ADep, LExistingLocked) then
     begin
-      if not LExistingLocked.Checksum.IsEmpty and (LExistingLocked.Checksum <> LChecksum) then
+      if (FOptions.Locked or
+          SameText(LExistingLocked.Revision, LResolvedRevision)) and
+         not LExistingLocked.Checksum.IsEmpty and
+         (LExistingLocked.Checksum <> LChecksum) then
       begin
         raise Exception.CreateFmt(
           'ERRO DE SEGURANCA: O checksum da dependencia "%s" (%s) nao confere com o esperado!' + sLineBreak +
@@ -246,18 +315,43 @@ begin
     end;
 
     // 4. Adiciona no arquivo lock com a sobrecarga de checksum
-    ALock.AddDependency(ADep, LResolvedVersion, ADep.HashName, LChecksum);
-    if ALock.GetInstalled(ADep, LExistingLocked) then
+    if not FOptions.Locked then
     begin
-      LExistingLocked.Revision := LResolvedRevision;
-      LExistingLocked.ResolvedFrom := LResolvedVersion;
-      LExistingLocked.ChecksumAlgorithm := 'SHA-256';
+      ALock.AddDependency(ADep, LResolvedVersion, ADep.HashName, LChecksum);
+      if ALock.GetInstalled(ADep, LExistingLocked) then
+      begin
+        LExistingLocked.Revision := LResolvedRevision;
+        LExistingLocked.ResolvedFrom := LResolvedVersion;
+        LExistingLocked.ChecksumAlgorithm := 'SHA-256';
+      end;
     end;
   finally
     FGitCriticalSection.Leave;
   end;
 
   // 5. Recursividade: Analisa subdependencias do modulo recem-baixado
+  if FOptions.Locked then
+  begin
+    if ALock.GetInstalled(ADep, LExistingLocked) then
+      for var LChildKey in LExistingLocked.Dependencies do
+      begin
+        var LChildLocked: TBoss4DLockedDependency;
+        if not ALock.Installed.TryGetValue(LChildKey, LChildLocked) then
+          raise Exception.CreateFmt(
+            'Lock inconsistente: %s referencia %s ausente.',
+            [ADep.Name, LChildKey]);
+        var LChildDep := TBoss4DDependency.Create(
+          LChildLocked.Repository, LChildLocked.Version);
+        try
+          LChildDep.Scope := LChildLocked.Scope;
+          ProcessDependency(LChildDep, ALock, AProcessedDeps);
+        finally
+          LChildDep.Free;
+        end;
+      end;
+    Exit;
+  end;
+
   var LPkgPath := TPath.Combine(LTargetDir, FILE_PACKAGE);
   if TFile.Exists(LPkgPath) then
   begin
@@ -287,6 +381,8 @@ begin
       for var LSubDep in LSubDeps do
       begin
         try
+          if SameText(ADep.Scope, 'development') then
+            LSubDep.Scope := 'development';
           ProcessDependency(LSubDep, ALock, AProcessedDeps);
         finally
           LSubDep.Free;
@@ -388,7 +484,22 @@ procedure TBoss4DInstallService.BuildDependency(const ADep: TBoss4DDependency;
   const ACompilerVersion: string = '');
 var
   LFiles: TArray<string>;
+  LLocked: TBoss4DLockedDependency;
+  LChecksum: string;
+  LArtifactCache: TBoss4DArtifactCacheService;
 begin
+  LChecksum := '';
+  if ALock.GetInstalled(ADep, LLocked) then
+    LChecksum := LLocked.Checksum;
+  LArtifactCache := TBoss4DArtifactCacheService.Create;
+  try
+    if LArtifactCache.Restore(ADep, LChecksum, APlatform,
+      ACompilerVersion) then
+    begin
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Artefatos restaurados do cache: ' + ADep.Name);
+      Exit;
+    end;
   LFiles := ResolveBuildProjects(ADep);
 
   if Length(LFiles) > 0 then
@@ -413,16 +524,148 @@ begin
         Continue;
 
       // Executa compilaÃ§Ã£o nativa
-      FCompiler.Compile(LFile, ADep, ALock, APlatform, ACompilerVersion);
+      if not FCompiler.Compile(LFile, ADep, ALock, APlatform,
+        ACompilerVersion) then
+        raise Exception.Create('Falha ao compilar dependencia: ' + ADep.Name);
     end;
   end
   else
   begin
     FLogger.Log(TBoss4DLogLevel.Debug, 'Nenhum projeto dproj encontrado para compilar na dependencia %s.', [ADep.Name]);
   end;
+    LArtifactCache.Store(ADep, LChecksum, APlatform, ACompilerVersion);
+  finally
+    LArtifactCache.Free;
+  end;
 end;
 
-procedure TBoss4DInstallService.Execute(const AInstallSingle: string = ''; const APlatform: string = '');
+procedure TBoss4DInstallService.Execute(const AInstallSingle: string;
+  const APlatform: string);
+var
+  LTransaction: TBoss4DProjectTransaction;
+begin
+  LTransaction := TBoss4DProjectTransaction.Create(GetCurrentDir);
+  try
+    ExecuteCore(AInstallSingle, APlatform);
+    LTransaction.Commit;
+  finally
+    LTransaction.Free;
+  end;
+end;
+
+function TBoss4DInstallService.SignerAllowed(const ASigner: string): Boolean;
+begin
+  if not Assigned(FTrust) or (FTrust.AllowedSigners.Count = 0) then
+    Exit(True);
+  for var LAllowed in FTrust.AllowedSigners do
+    if SameText(LAllowed.Trim, ASigner.Trim) then
+      Exit(True);
+  Result := False;
+end;
+
+procedure TBoss4DInstallService.Execute(
+  const AOptions: TBoss4DInstallOptions);
+var
+  LTransaction: TBoss4DProjectTransaction;
+begin
+  LTransaction := TBoss4DProjectTransaction.Create(GetCurrentDir);
+  try
+    FOptions := AOptions;
+    ExecuteCore(AOptions.InstallSingle, AOptions.Platform);
+    LTransaction.Commit;
+  finally
+    FOptions := Default(TBoss4DInstallOptions);
+    LTransaction.Free;
+  end;
+end;
+
+procedure TBoss4DInstallService.ValidateLockedManifest(
+  const APackage: TBoss4DPackage; const ALock: TBoss4DLock);
+var
+  LDeclared: TList<string>;
+  LDep: TBoss4DDependency;
+  LKey: string;
+begin
+  if not ALock.HasRootMetadata then
+    raise Exception.Create(
+      'O lock nao possui metadados da raiz; execute boss4d install.');
+  LDeclared := TList<string>.Create;
+  try
+    for var LPair in APackage.Dependencies do
+    begin
+      LDep := TBoss4DDependency.Parse(LPair.Key, LPair.Value);
+      try
+        LDeclared.Add(LDep.GetKey);
+      finally
+        LDep.Free;
+      end;
+    end;
+    LDeclared.Sort;
+    if LDeclared.Count <> ALock.RootDependencies.Count then
+      raise Exception.Create(
+        'boss.json diverge do lock; instalacao congelada recusada.');
+    for LKey in LDeclared do
+      if not ALock.RootDependencies.Contains(LKey) then
+        raise Exception.CreateFmt(
+          'Dependencia %s nao esta registrada no lock.', [LKey]);
+    if not FOptions.Production then
+    begin
+      LDeclared.Clear;
+      for var LPair in APackage.DevDependencies do
+      begin
+        LDep := TBoss4DDependency.Parse(LPair.Key, LPair.Value);
+        try
+          LDeclared.Add(LDep.GetKey);
+        finally
+          LDep.Free;
+        end;
+      end;
+      if LDeclared.Count <> ALock.RootDevDependencies.Count then
+        raise Exception.Create(
+          'devDependencies divergem do lock congelado.');
+      for LKey in LDeclared do
+        if not ALock.RootDevDependencies.Contains(LKey) then
+          raise Exception.CreateFmt(
+            'Dependencia de desenvolvimento %s nao esta no lock.', [LKey]);
+    end;
+  finally
+    LDeclared.Free;
+  end;
+end;
+
+procedure TBoss4DInstallService.ApplyLockScopes(const ALock: TBoss4DLock);
+var
+  LVisited: TDictionary<string, Boolean>;
+
+  procedure MarkRuntime(const AKey: string);
+  var
+    LLocked: TBoss4DLockedDependency;
+    LChild: string;
+  begin
+    if LVisited.ContainsKey(AKey) then
+      Exit;
+    LVisited.Add(AKey, True);
+    if not ALock.Installed.TryGetValue(AKey, LLocked) then
+      Exit;
+    LLocked.Scope := 'runtime';
+    for LChild in LLocked.Dependencies do
+      MarkRuntime(LChild);
+  end;
+
+begin
+  for var LLocked in ALock.Installed.Values do
+    LLocked.Scope := 'development';
+  LVisited := TDictionary<string, Boolean>.Create;
+  try
+    for var LRootKey in ALock.RootDependencies do
+      MarkRuntime(LRootKey);
+  finally
+    LVisited.Free;
+  end;
+end;
+
+procedure TBoss4DInstallService.ExecuteCore(const AInstallSingle: string;
+  const APlatform: string);
 var
   LPkgPath: string;
   LLockPath: string;
@@ -453,6 +696,15 @@ var
         LDeclaredDependency.Free;
       end;
     LLock.RootDependencies.Sort;
+    LLock.RootDevDependencies.Clear;
+    var LDeclaredDevDependencies := LPkg.GetParsedDevDependencies;
+    for var LDeclaredDevDependency in LDeclaredDevDependencies do
+      try
+        LLock.RootDevDependencies.Add(LDeclaredDevDependency.GetKey);
+      finally
+        LDeclaredDevDependency.Free;
+      end;
+    LLock.RootDevDependencies.Sort;
   end;
 begin
   LPkgPath := GetBossFile;
@@ -469,6 +721,16 @@ begin
   LProcessedDeps := TList<string>.Create;
   LTasks := TList<ITask>.Create;
   try
+    if FOptions.Locked then
+    begin
+      if not FLockRepo.Exists(LLockPath) then
+        raise Exception.Create(
+          'boss-lock.json e obrigatorio para --locked.');
+      ValidateLockedManifest(LPkg, LLock);
+    end;
+    if FOptions.CleanModules and TDirectory.Exists(GetModulesDir) then
+      TDirectory.Delete(GetModulesDir, True);
+    FTrust := LPkg.Trust;
     LEffectivePlatform := ResolveEffectivePlatform(LPkg, APlatform);
     LEffectiveCompiler := LPkg.Toolchain.Compiler;
     CaptureRootMetadata;
@@ -481,8 +743,13 @@ begin
       // Instala uma unica dependencia (boss install url@versao)
       var LDep := TBoss4DDependency.ParseCommandLine(AInstallSingle);
       try
+        if FOptions.Development then
+          LDep.Scope := 'development';
         ProcessDependency(LDep, LLock, LProcessedDeps);
-        LPkg.AddDependency(LDep.Repository, LDep.Version);
+        if FOptions.Development then
+          LPkg.AddDevDependency(LDep.Repository, LDep.Version)
+        else
+          LPkg.AddDependency(LDep.Repository, LDep.Version);
         FPackageRepo.Save(LPkg, LPkgPath);
         CaptureRootMetadata;
 
@@ -505,6 +772,24 @@ begin
         var LRootDeps := LPkg.GetParsedDependencies;
         for var LDep in LRootDeps do
           LActiveDepsList.Add(LDep);
+        if not FOptions.Production then
+        begin
+          var LRootDevDeps := LPkg.GetParsedDevDependencies;
+          for var LDep in LRootDevDeps do
+          begin
+            var LAlreadyExists := False;
+            for var LExistingDep in LActiveDepsList do
+              if SameText(LExistingDep.Repository, LDep.Repository) then
+              begin
+                LAlreadyExists := True;
+                Break;
+              end;
+            if not LAlreadyExists then
+              LActiveDepsList.Add(LDep)
+            else
+              LDep.Free;
+          end;
+        end;
 
         // Adiciona dependÃªncias de cada subprojeto do workspace de forma unificada
         for var LSubPath in LSubprojects do
@@ -529,6 +814,24 @@ begin
                 LActiveDepsList.Add(LDep)
               else
                 LDep.Free;
+            end;
+            if not FOptions.Production then
+            begin
+              var LSubDevDeps := LSubPkg.GetParsedDevDependencies;
+              for var LDep in LSubDevDeps do
+              begin
+                var LAlreadyExists := False;
+                for var LExistingDep in LActiveDepsList do
+                  if SameText(LExistingDep.Repository, LDep.Repository) then
+                  begin
+                    LAlreadyExists := True;
+                    Break;
+                  end;
+                if not LAlreadyExists then
+                  LActiveDepsList.Add(LDep)
+                else
+                  LDep.Free;
+              end;
             end;
           finally
             LSubPkg.Free;
@@ -596,8 +899,12 @@ begin
     end;
 
     // Atualiza metadados do lock e salva
-    LLock.Updated := FormatDateTime('yyyy-mm-dd"T"hh:nn:ss"Z"', Now);
-    FLockRepo.Save(LLock, LLockPath);
+    if not FOptions.Locked then
+    begin
+      ApplyLockScopes(LLock);
+      LLock.Updated := FormatDateTime('yyyy-mm-dd"T"hh:nn:ss"Z"', Now);
+      FLockRepo.Save(LLock, LLockPath);
+    end;
 
     IntegrateLazarusProjectPaths(LPkg, LEffectivePlatform);
 
@@ -615,6 +922,7 @@ begin
       end;
     end;
   finally
+    FTrust := nil;
     LTasks.Free;
     LProcessedDeps.Free;
     LLock.Free;
