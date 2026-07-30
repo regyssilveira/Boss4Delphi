@@ -1,7 +1,8 @@
 # Publishing packages
 
 `boss4d publish` creates a deterministic package record from `boss.json` and
-`boss-lock.json`, validates it, and optionally sends it to a private registry.
+`boss-lock.json`, validates it, and optionally sends it to the official public
+Registry or to a compatible private registry.
 This makes the reviewed manifest and locked supply-chain evidence the source of
 the published metadata.
 

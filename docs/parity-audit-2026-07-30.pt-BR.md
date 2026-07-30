@@ -6,7 +6,7 @@ contrato, integração ou compilador real; não significa possuir escala de npm.
 
 | Critério | Estado | Evidência autoritativa |
 |---|---|---|
-| Registry público consolidado | Completo | `registry/index-v2.json`, composição legada, pacotes sparse e cadastro de publishers |
+| Protocolo do Registry público | Completo | `registry/index-v2.json`, composição legada, suporte a pacotes sparse e cadastro de publishers; povoar o catálogo é trabalho de ecossistema |
 | Busca e informações | Completo | testes DUnitX e FPCUnit de search/info |
 | Pacotes por compilador/plataforma | Completo | seleção determinística de variantes e `release/artifact-matrix.json` |
 | Metadados sparse e cache HTTP | Completo | testes ETag/Last-Modified/304 e cache offline |

@@ -2,6 +2,46 @@
 
 ## Unreleased
 
+## 1.6.0 - 2026-07-30
+
+### Added
+
+- Registry v2 composition with backward-compatible v1 includes, sparse package
+  metadata, persistent sources, ETag/Last-Modified revalidation, offline cache,
+  ordered metadata/artifact mirrors, and explicit version revocation.
+- Verified `.b4dpkg` installation with deterministic compiler/platform variant
+  selection, external and embedded SHA-256 evidence, optional OpenPGP
+  signatures, in-toto provenance, transactional extraction, and Git fallback.
+- Native Linux/FPC parity for locked dependency installation, Registry
+  discovery, package verification, CycloneDX/SPDX generation, VEX, OSV audit,
+  secure publication, credentials, cache, workspaces, global tools, and
+  transactional self-update.
+- Daily Linux project workflows: `update`/`upgrade`, `dependencies`/`tree`,
+  `why`, `outdated`, and `run`, including rollback and preservation of immutable
+  Registry artifacts.
+- Stable operational output through interactive, plain, JSON Lines, and quiet
+  renderers, cooperative cancellation, classified exit codes, and `doctor`.
+- Secure immutable publication with deterministic payloads, lock/test/worktree
+  gates, environment or Secret Service credentials, and HTTP 409 conflict
+  handling.
+- Public publisher onboarding through reviewed scope and OpenPGP fingerprints,
+  a package template, submission validator, negative tests, and pull-request
+  workflow.
+- Automated tag releases for Windows x86/x86-64 and Linux x86-64, combined
+  SHA-256 manifests, machine-readable artifact matrix, and GitHub OIDC build
+  provenance.
+- Real release-gate builds of the IDE plugin with Delphi 10.1, 11, 12, and 13.
+- Final parity and competitive audits covering implementation evidence and the
+  remaining ecosystem investments.
+
+### Changed
+
+- Clarified README compatibility guarantees: legacy `boss.json` maps remain
+  supported, while lock v3 is an intentional Boss4D extension.
+- Documented external host-tool requirements and separated Windows CLI, legacy
+  IDE plugin, and native Linux compiler support.
+- Consolidated the bilingual command reference and current/future backlog.
+
 ## 1.5.0 - 2026-07-30
 
 ### Added

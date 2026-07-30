@@ -14,12 +14,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Regys Silveira"
             VALUE "FileDescription", "Boss4D IDE Integration Plugin"
-            VALUE "FileVersion", "1.5.0.0"
+            VALUE "FileVersion", "1.6.0.0"
             VALUE "InternalName", "Boss4D.IDE.Plugin"
             VALUE "LegalCopyright", "Copyright (C) 2026"
             VALUE "OriginalFilename", "Boss4D.IDE.Plugin.bpl"
             VALUE "ProductName", "Boss4D"
-            VALUE "ProductVersion", "1.5.0.0"
+            VALUE "ProductVersion", "1.6.0.0"
         END
     END
     BLOCK "VarFileInfo"

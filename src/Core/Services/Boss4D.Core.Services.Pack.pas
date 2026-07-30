@@ -121,7 +121,7 @@ begin
       LSubject.AddElement(LSubjectEntry);
       LStatement.AddPair('subject', LSubject);
       var LPredicate := TJSONObject.Create;
-      LPredicate.AddPair('builder', 'boss4d/' + '1.5.0');
+      LPredicate.AddPair('builder', 'boss4d/' + '1.6.0');
       LPredicate.AddPair('fileCount', TJSONNumber.Create(Result.FileCount));
       LStatement.AddPair('predicate', LPredicate);
       TFile.WriteAllBytes(Result.ProvenancePath,

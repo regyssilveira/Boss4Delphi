@@ -32,4 +32,24 @@ if ($content -match 'pull_request:\s*[\r\n]') {
   throw 'Release publishing must not run for pull requests.'
 }
 
+$root = Join-Path $PSScriptRoot '..'
+$manifest = Get-Content -LiteralPath (Join-Path $root 'boss.json') -Raw |
+  ConvertFrom-Json
+$version = [string]$manifest.version
+$versionContracts = @{
+  'boss-lock.json' = '"version": "' + $version + '"'
+  'sonar-project.properties' = 'sonar.projectVersion=' + $version
+  'installer\Boss4D.iss' = 'AppVersion=' + $version
+  'src\CLI\Boss4D.CLI.Parser.pas' = 'v' + $version + '-delphi-native'
+  'src\Posix\Boss4D.Posix.Core.pas' = "Result := '$version';"
+  'src\IDE\Boss4D.IDE.Plugin.rc' = '"' + $version + '.0"'
+  'CHANGELOG.md' = '## ' + $version + ' -'
+}
+foreach ($entry in $versionContracts.GetEnumerator()) {
+  $contract = Get-Content -LiteralPath (Join-Path $root $entry.Key) -Raw
+  if (-not $contract.Contains($entry.Value)) {
+    throw "Release version $version is not synchronized in $($entry.Key)."
+  }
+}
+
 Write-Output 'Release workflow contract: OK'

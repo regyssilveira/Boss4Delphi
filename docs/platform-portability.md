@@ -47,8 +47,10 @@ boundaries are intentional and documented, not silently emulated.
 
 ## Next portability steps
 
-1. Add POSIX credential, workspace-link, and artifact-cache adapters.
-2. Add macOS builds after the Linux contracts reach feature parity.
+1. Add a native macOS host and release artifact.
+2. Evaluate Linux ARM64 and publish a support matrix per architecture.
+3. Maintain recurring cache and installation benchmarks on distributed
+   platforms.
 
 Every new portable capability requires unit tests and an actual target-host
 build. Linux is currently supported for the dependency workflow listed above;
