@@ -62,3 +62,4 @@ coverage.xml
 # Inno Setup and build distribution folders
 dist/
 installer/Output/
+src/IDE/Boss4D.IDE.Plugin.res
