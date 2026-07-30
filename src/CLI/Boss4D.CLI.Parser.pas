@@ -47,6 +47,9 @@ type
     procedure HandleList;
     procedure HandleWhy(const AArgs: TArray<string>);
     procedure HandleAudit(const AArgs: TArray<string>);
+    procedure HandleRegistry(const AArgs: TArray<string>);
+    procedure HandleSearch(const AArgs: TArray<string>);
+    procedure HandleInfo(const AArgs: TArray<string>);
     procedure HandleConfig(const AArgs: TArray<string>);
     procedure HandleCache(const AArgs: TArray<string>);
     procedure HandleRun(const AArgs: TArray<string>);
@@ -95,7 +98,8 @@ uses
   Boss4D.Core.Domain.Env,
   Boss4D.Core.Domain.Consts,
   Boss4D.Core.Services.Dependencies,
-  Boss4D.Core.Services.Audit;
+  Boss4D.Core.Services.Audit,
+  Boss4D.Core.Services.PackageIndex;
 
 { TBoss4DCommandLineParser }
 
@@ -138,6 +142,9 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  list                 Lista dependencias diretas e transitivas.');
   FLogger.Log(TBoss4DLogLevel.Info, '  why <dep>            Explica por que uma dependencia foi instalada.');
   FLogger.Log(TBoss4DLogLevel.Info, '  audit               Consulta vulnerabilidades OSV por revisao do lock.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  registry add|remove|list Gerencia indices publicos e privados.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  search <termo>       Pesquisa pacotes nos indices configurados.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  info <pacote>        Exibe metadados de um pacote indexado.');
   FLogger.Log(TBoss4DLogLevel.Info, '  ci [--offline]       Reinstala limpo usando o lock sem altera-lo.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config delphi use <caminho>  Configura o caminho global do compilador Delphi.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config git shallow <true/false> Configura uso de shallow clones globais.');
@@ -197,6 +204,12 @@ begin
     HandleWhy(AArgs)
   else if LCommand = 'audit' then
     HandleAudit(AArgs)
+  else if LCommand = 'registry' then
+    HandleRegistry(AArgs)
+  else if LCommand = 'search' then
+    HandleSearch(AArgs)
+  else if LCommand = 'info' then
+    HandleInfo(AArgs)
   else if LCommand = 'config' then
     HandleConfig(AArgs)
   else if LCommand = 'cache' then
@@ -408,6 +421,88 @@ begin
     FLogger.Log(TBoss4DLogLevel.Info,
       'Auditoria: %d encontrada(s), %d suprimida(s).',
       [LSummary.Vulnerabilities, LSummary.Suppressed]);
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleRegistry(
+  const AArgs: TArray<string>);
+var
+  LService: TBoss4DPackageIndexService;
+  LHttp: IBoss4DHttpClient;
+begin
+  if Length(AArgs) < 2 then
+    raise EArgumentException.Create(
+      'Uso: boss4d registry add|remove|list [origem]');
+  LHttp := TBoss4DHttpNativeAdapter.Create;
+  LService := TBoss4DPackageIndexService.Create(
+    FConfigService, LHttp, FLogger);
+  try
+    if SameText(AArgs[1], 'list') then
+      for var LSource in LService.ListRegistries do
+        FLogger.Log(TBoss4DLogLevel.Info, LSource)
+    else if (Length(AArgs) = 3) and SameText(AArgs[1], 'add') then
+      LService.AddRegistry(AArgs[2])
+    else if (Length(AArgs) = 3) and SameText(AArgs[1], 'remove') then
+      LService.RemoveRegistry(AArgs[2])
+    else
+      raise EArgumentException.Create(
+        'Uso: boss4d registry add|remove|list [origem]');
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleSearch(const AArgs: TArray<string>);
+var
+  LService: TBoss4DPackageIndexService;
+  LHttp: IBoss4DHttpClient;
+begin
+  if Length(AArgs) <> 2 then
+    raise EArgumentException.Create('Uso: boss4d search <termo>');
+  LHttp := TBoss4DHttpNativeAdapter.Create;
+  LService := TBoss4DPackageIndexService.Create(
+    FConfigService, LHttp, FLogger);
+  try
+    var LEntries := LService.Search(AArgs[1]);
+    try
+      for var LEntry in LEntries do
+        FLogger.Log(TBoss4DLogLevel.Info, '%s  %s  %s',
+          [LEntry.Name, LEntry.LatestVersion, LEntry.Repository]);
+    finally
+      LEntries.Free;
+    end;
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleInfo(const AArgs: TArray<string>);
+var
+  LService: TBoss4DPackageIndexService;
+  LHttp: IBoss4DHttpClient;
+  LEntry: TBoss4DPackageIndexEntry;
+begin
+  if Length(AArgs) <> 2 then
+    raise EArgumentException.Create('Uso: boss4d info <pacote>');
+  LHttp := TBoss4DHttpNativeAdapter.Create;
+  LService := TBoss4DPackageIndexService.Create(
+    FConfigService, LHttp, FLogger);
+  try
+    LEntry := LService.Info(AArgs[1]);
+    try
+      if not Assigned(LEntry) then
+        raise EArgumentException.Create('Pacote nao encontrado: ' + AArgs[1]);
+      FLogger.Log(TBoss4DLogLevel.Info, 'Nome: ' + LEntry.Name);
+      FLogger.Log(TBoss4DLogLevel.Info, 'Repositorio: ' + LEntry.Repository);
+      FLogger.Log(TBoss4DLogLevel.Info, 'Versao: ' + LEntry.LatestVersion);
+      FLogger.Log(TBoss4DLogLevel.Info, 'Licenca: ' + LEntry.License);
+      FLogger.Log(TBoss4DLogLevel.Info, 'Descricao: ' + LEntry.Description);
+      FLogger.Log(TBoss4DLogLevel.Info, 'Origem: ' + LEntry.Source);
+    finally
+      LEntry.Free;
+    end;
   finally
     LService.Free;
   end;

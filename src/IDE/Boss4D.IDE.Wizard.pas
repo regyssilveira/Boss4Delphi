@@ -3,7 +3,8 @@
 interface
 
 uses
-  System.SysUtils, System.Classes, Vcl.Menus, Vcl.Forms, Vcl.StdCtrls, Vcl.Controls, Vcl.Graphics, Vcl.ExtCtrls
+  System.SysUtils, System.Classes, Vcl.Menus, Vcl.Forms, Vcl.StdCtrls,
+  Vcl.Controls, Vcl.Graphics, Vcl.ExtCtrls, Vcl.Dialogs
   {$IFDEF IDE_PLUGIN}
   , ToolsAPI, DesignIntf
   {$ENDIF};
@@ -498,6 +499,7 @@ begin
   AddSubItem('Init', 'init --quiet', 10);
   AddSubItem('Install', 'install', 20);
   AddSubItem('Install Package...', 'install-dialog', 30);
+  AddSubItem('Search Packages...', 'search-dialog', 35);
   AddSubItem('Clean', 'clean', 40);
   AddSubItem('Outdated', 'outdated', 50);
   AddSubItem('Dependency Tree', 'tree', 60);
@@ -538,6 +540,13 @@ begin
   else if LCmd = 'run-script' then
   begin
     ExecuteRunScriptDialog(LProjDir);
+  end
+  else if LCmd = 'search-dialog' then
+  begin
+    var LQuery := '';
+    if InputQuery('Boss4D - Buscar Pacotes', 'Termo de busca:', LQuery) and
+       not LQuery.Trim.IsEmpty then
+      RunBoss4DCommand(LProjDir, 'search "' + LQuery.Replace('"', '') + '"');
   end
   else if LCmd <> '' then
   begin

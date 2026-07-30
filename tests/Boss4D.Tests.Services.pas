@@ -63,6 +63,9 @@ type
     procedure TestGitSignatureTrustPolicy;
 
     [Test]
+    procedure TestPackageIndexRegistrySearchAndInfo;
+
+    [Test]
     procedure TestCLICommandLineParser;
 
     [Test]
@@ -174,6 +177,7 @@ uses
   Boss4D.Core.Services.SourceNormalizer,
   Boss4D.Core.Services.Dependencies,
   Boss4D.Core.Services.Audit,
+  Boss4D.Core.Services.PackageIndex,
   Boss4D.Core.Services.PackageManifest, Boss4D.IDE.Wizard;
 
 { TTestLogger }
@@ -900,6 +904,47 @@ begin
     Assert.IsTrue(LRaised);
   finally
     LInstall.Free;
+  end;
+end;
+
+procedure TTestsServices.TestPackageIndexRegistrySearchAndInfo;
+var
+  LConfig: TBoss4DConfigService;
+  LService: TBoss4DPackageIndexService;
+  LIndexPath: string;
+  LEntry: TBoss4DPackageIndexEntry;
+begin
+  LIndexPath := TPath.Combine(FTempDir, 'private-index.json');
+  TFile.WriteAllText(LIndexPath,
+    '{"packages":[{"name":"InternalLib","repository":' +
+    '"git.example.test/team/internal","description":"Private package",' +
+    '"version":"2.4.0","license":"MIT"}]}', TEncoding.UTF8);
+  LConfig := TBoss4DConfigService.Create(TTestLogger.Create);
+  LService := TBoss4DPackageIndexService.Create(LConfig,
+    THttpClientMock.Create, TTestLogger.Create);
+  try
+    LService.AddRegistry(LIndexPath);
+    Assert.AreEqual<Integer>(1, Length(LService.ListRegistries));
+    var LResults := LService.Search('private');
+    try
+      Assert.AreEqual<Integer>(1, LResults.Count);
+      Assert.AreEqual('InternalLib', LResults[0].Name);
+    finally
+      LResults.Free;
+    end;
+    LEntry := LService.Info('InternalLib');
+    try
+      Assert.IsNotNull(LEntry);
+      Assert.AreEqual('2.4.0', LEntry.LatestVersion);
+      Assert.AreEqual('MIT', LEntry.License);
+    finally
+      LEntry.Free;
+    end;
+    LService.RemoveRegistry(LIndexPath);
+    Assert.AreEqual<Integer>(0, Length(LService.ListRegistries));
+  finally
+    LService.Free;
+    LConfig.Free;
   end;
 end;
 

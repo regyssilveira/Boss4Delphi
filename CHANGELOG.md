@@ -17,6 +17,8 @@
   policy gates, and VEX suppression.
 - Manifest trust policies for native Git commit/tag signature verification and
   allowed signer enforcement before checkout.
+- Configurable local/HTTP package indexes with `registry`, `search`, and `info`,
+  shared by the CLI, standalone GUI catalog, and RAD Studio integration.
 
 ## 1.3.0 - 2026-07-29
 

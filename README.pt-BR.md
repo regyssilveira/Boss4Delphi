@@ -122,6 +122,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Escopos de Dependências](docs/dependency-scopes.pt-BR.md)**: `devDependencies`, instalação de produção, lock v3 e escopo no SBOM.
 * **[Auditoria de Vulnerabilidades](docs/audit.pt-BR.md)**: OSV por commit, cache offline, políticas de severidade e VEX.
 * **[Política de Confiança Git](docs/trust-policy.pt-BR.md)**: Verificação de commits/tags assinados e signatários permitidos.
+* **[Índices de Pacotes](docs/package-index.pt-BR.md)**: Registries públicos/privados, search/info, catálogo GUI e busca na IDE.
 * **[Manual de Uso da CLI](docs/usage.pt-BR.md)**: Guia completo detalhado de todos os parâmetros e opções de instalação de dependências.
 * **[Guia de Contribuição](CONTRIBUTING.pt-BR.md)**: Padrões de código e fluxo de desenvolvimento para contribuir com o projeto.
 * **[Guia de Lançamento de Release](RELEASE_GUIDE.md)**: Passos e instruções para compilar com Delphi 13 (37.0) e publicar releases no GitHub.

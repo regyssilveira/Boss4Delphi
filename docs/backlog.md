@@ -189,7 +189,7 @@ This document details the future planning, new features (backlog), and architect
 ## 🌐 Epic 18: Hosting and Private Registries (Index)
 *Objective: Support corporate development environments where internal private packages cannot be distributed publicly.*
 
-- [ ] **[Story] Multiple Registry Sources Configuration (`boss4d registry`)**
+- [x] **[Story] Multiple Registry Sources Configuration (`boss4d registry`)**
   - Support configuring and consuming multiple public and private package index servers in project settings.
 - [ ] **[Story] Direct Publication via CLI (`boss4d publish`)**
   - Automate testing, tagging, and uploading Delphi packages to configured private registries directly from the CLI.
@@ -201,7 +201,7 @@ This document details the future planning, new features (backlog), and architect
 
 - [x] **[Story] Template-based Bootstrap (`boss4d new <template>`)**
   - `app` and `package` templates generate protected structures and `boss.json` manifests. Additional VCL, FMX, Horse API, and DUnitX presets remain future extensions.
-- [ ] **[Story] Dependency Search via CLI/IDE (`boss4d search <term>`)**
+- [x] **[Story] Dependency Search via CLI/IDE (`boss4d search <term>`)**
   - Provide direct package search capabilities from the CLI or within the IDE visual wizard interface.
 
 ---

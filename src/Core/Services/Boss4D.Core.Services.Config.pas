@@ -3,7 +3,7 @@ unit Boss4D.Core.Services.Config;
 interface
 
 uses
-  Boss4D.Core.Ports;
+  System.Generics.Collections, Boss4D.Core.Ports;
 
 type
   { Representa o modelo de configuracao global do Boss4D }
@@ -13,11 +13,15 @@ type
     FGitShallow: Boolean;
     FGitHubToken: string;
     FGitLabToken: string;
+    FRegistries: TList<string>;
   public
+    constructor Create;
+    destructor Destroy; override;
     property DelphiPath: string read FDelphiPath write FDelphiPath;
     property GitShallow: Boolean read FGitShallow write FGitShallow;
     property GitHubToken: string read FGitHubToken write FGitHubToken;
     property GitLabToken: string read FGitLabToken write FGitLabToken;
+    property Registries: TList<string> read FRegistries;
   end;
 
   { Servico para carregar e salvar as configuracoes do boss.cfg.json }
@@ -37,6 +41,18 @@ uses
   System.SysUtils, System.IOUtils, System.JSON, Boss4D.Core.Domain.Env;
 
 { TBoss4DConfigService }
+
+constructor TBoss4DGlobalConfig.Create;
+begin
+  inherited Create;
+  FRegistries := TList<string>.Create;
+end;
+
+destructor TBoss4DGlobalConfig.Destroy;
+begin
+  FRegistries.Free;
+  inherited Destroy;
+end;
 
 constructor TBoss4DConfigService.Create(const ALogger: IBoss4DLogger);
 begin
@@ -72,6 +88,10 @@ begin
         Result.GitShallow := LJSONObj.GetValue<Boolean>('gitShallow', False);
         Result.GitHubToken := LJSONObj.GetValue<string>('githubToken', '');
         Result.GitLabToken := LJSONObj.GetValue<string>('gitlabToken', '');
+        var LRegistries := LJSONObj.GetValue<TJSONArray>('registries');
+        if Assigned(LRegistries) then
+          for var I := 0 to LRegistries.Count - 1 do
+            Result.Registries.Add(LRegistries[I].Value);
       finally
         LJSONObj.Free;
       end;
@@ -107,6 +127,10 @@ begin
     LJSONObj.AddPair('gitShallow', AConfig.GitShallow);
     LJSONObj.AddPair('githubToken', AConfig.GitHubToken);
     LJSONObj.AddPair('gitlabToken', AConfig.GitLabToken);
+    var LRegistries := TJSONArray.Create;
+    for var LRegistry in AConfig.Registries do
+      LRegistries.Add(LRegistry);
+    LJSONObj.AddPair('registries', LRegistries);
 
     LJSONStr := LJSONObj.Format(2);
     TFile.WriteAllText(LPath, LJSONStr, TEncoding.UTF8);

@@ -189,7 +189,7 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## 🌐 Épico 18: Hospedagem e Registros Privados (Index)
 *Objetivo: Suportar ambientes de desenvolvimento corporativo onde pacotes internos privados não podem ser distribuídos publicamente.*
 
-- [ ] **[Story] Configuração de Múltiplas Fontes de Registro (`boss4d registry`)**
+- [x] **[Story] Configuração de Múltiplas Fontes de Registro (`boss4d registry`)**
   - Permitir a configuração e consumo de múltiplos servidores de índice de pacotes públicos e privados nas configurações do projeto.
 - [ ] **[Story] Publicação Direta via CLI (`boss4d publish`)**
   - Automatizar o teste, geração de tag e upload de pacotes Delphi para os registros privados configurados diretamente pela CLI.
@@ -201,7 +201,7 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 
 - [x] **[Story] Inicialização com Templates (`boss4d new <template>`)**
   - Os templates `app` e `package` geram estruturas protegidas e `boss.json`. Presets VCL, FMX, API Horse e DUnitX permanecem extensões futuras.
-- [ ] **[Story] Busca de Dependências via CLI/IDE (`boss4d search <termo>`)**
+- [x] **[Story] Busca de Dependências via CLI/IDE (`boss4d search <termo>`)**
   - Mecanismo de busca direta no registro de pacotes a partir do terminal ou interface gráfica na IDE.
 
 ---
