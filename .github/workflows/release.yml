@@ -54,18 +54,33 @@ jobs:
       - name: Compile and validate release
         shell: cmd
         run: build_release.bat
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path -LiteralPath $iscc)) {
+            throw "Inno Setup compiler not found: $iscc"
+          }
+          & $iscc installer\Boss4D.iss
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Inno Setup compilation failed.'
+          }
       - name: Archive Windows distribution
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force .release | Out-Null
           Compress-Archive -Path dist\* -DestinationPath .release\boss4d-windows.zip
-          $hash = (Get-FileHash .release\boss4d-windows.zip -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$hash  boss4d-windows.zip" | Set-Content -Encoding ascii .release\SHA256SUMS-windows.txt
+          Copy-Item installer\Output\Boss4D_Setup.exe .release\Boss4D_Setup.exe
+          @('boss4d-windows.zip', 'Boss4D_Setup.exe') | ForEach-Object {
+            $hash = (Get-FileHash (Join-Path .release $_) -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $_"
+          } | Set-Content -Encoding ascii .release\SHA256SUMS-windows.txt
       - uses: actions/upload-artifact@v4
         with:
           name: release-windows
           path: |
             .release/boss4d-windows.zip
+            .release/Boss4D_Setup.exe
             .release/SHA256SUMS-windows.txt
             dist/sbom/*
           if-no-files-found: error
@@ -88,13 +103,14 @@ jobs:
       - name: Create combined checksums
         working-directory: release
         run: |
-          sha256sum boss4d-linux-x86_64.tar.gz boss4d-windows.zip > SHA256SUMS.txt
+          sha256sum boss4d-linux-x86_64.tar.gz boss4d-windows.zip Boss4D_Setup.exe > SHA256SUMS.txt
       - name: Attest release archives
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
             release/boss4d-linux-x86_64.tar.gz
             release/boss4d-windows.zip
+            release/Boss4D_Setup.exe
       - name: Publish GitHub release assets
         uses: softprops/action-gh-release@v2
         with:
@@ -102,6 +118,7 @@ jobs:
           files: |
             release/boss4d-linux-x86_64.tar.gz
             release/boss4d-windows.zip
+            release/Boss4D_Setup.exe
             release/SHA256SUMS.txt
             release/artifact-matrix.json
             release/*.json
