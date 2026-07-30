@@ -5,7 +5,7 @@ unit Boss4D.Posix.Registry;
 interface
 
 uses
-  Classes, SysUtils, Contnrs;
+  Classes, SysUtils, Contnrs, fpjson;
 
 type
   TBoss4DArtifactVariant = class
@@ -97,6 +97,8 @@ type
     FConditionalFetcher: TBoss4DRegistryConditionalFetcher;
     FOffline: Boolean;
     function ReadSource(const ASource: string): string;
+    procedure LoadSparse(const ASource: string; const ARoot: TJSONObject;
+      const AEntries: TBoss4DRegistryEntries; const AVisited: TStringList);
     procedure LoadInternal(const ASource: string;
       const AEntries: TBoss4DRegistryEntries; const AVisited: TStringList);
   public
@@ -116,7 +118,7 @@ function ResolveRegistryReferences(const ASource,
 implementation
 
 uses
-  fpjson, jsonparser, fphttpclient, opensslsockets,
+  jsonparser, fphttpclient, opensslsockets,
   Boss4D.Posix.Operations;
 
 function PublicRegistryUrl: string;
@@ -478,20 +480,64 @@ begin
   end;
 end;
 
+procedure TBoss4DRegistryService.LoadSparse(const ASource: string;
+  const ARoot: TJSONObject; const AEntries: TBoss4DRegistryEntries;
+  const AVisited: TStringList);
+var
+  LSparse, LSparseMirrors: TJSONArray;
+  LSparseObject: TJSONObject;
+  I, J: Integer;
+  LLoaded: Boolean;
+begin
+  LSparse := FindArray(ARoot, 'sparse');
+  if not Assigned(LSparse) then Exit;
+  for I := 0 to LSparse.Count - 1 do
+    if LSparse.Items[I].JSONType = jtString then
+      LoadInternal(ResolveReference(ASource, LSparse.Strings[I]),
+        AEntries, AVisited)
+    else if LSparse.Items[I] is TJSONObject then
+    begin
+      LSparseObject := TJSONObject(LSparse.Items[I]);
+      LLoaded := False;
+      try
+        LoadInternal(ResolveReference(ASource,
+          LSparseObject.Get('path', '')), AEntries, AVisited);
+        LLoaded := True;
+      except
+        on E: Exception do
+          if SameText(E.Message, 'operation cancelled') then raise;
+      end;
+      LSparseMirrors := FindArray(LSparseObject, 'mirrors');
+      if Assigned(LSparseMirrors) then
+        for J := 0 to LSparseMirrors.Count - 1 do
+        begin
+          if LLoaded then Break;
+          try
+            LoadInternal(ResolveReference(ASource,
+              LSparseMirrors.Strings[J]), AEntries, AVisited);
+            LLoaded := True;
+          except
+            on E: Exception do
+              if SameText(E.Message, 'operation cancelled') then raise;
+          end;
+        end;
+      if not LLoaded then
+        raise Exception.Create('all sparse metadata sources failed: ' +
+          LSparseObject.Get('path', ''));
+    end;
+end;
+
 procedure TBoss4DRegistryService.LoadInternal(const ASource: string;
   const AEntries: TBoss4DRegistryEntries; const AVisited: TStringList);
 var
   LData: TJSONData;
-  LRoot, LObject, LLatest, LVariantOwner, LVariantObject,
-    LSparseObject: TJSONObject;
-  LIncludes, LSparse, LSparseMirrors, LPackages, LVersions, LVariants,
-    LRevocations: TJSONArray;
+  LRoot, LObject, LLatest, LVariantOwner, LVariantObject: TJSONObject;
+  LIncludes, LPackages, LVersions, LVariants, LRevocations: TJSONArray;
   LEntry: TBoss4DRegistryEntry;
   LVariant: TBoss4DArtifactVariant;
   I, J, K: Integer;
   LKey: string;
   LRevocation: TJSONObject;
-  LLoaded: Boolean;
 begin
   CheckCancelled;
   LKey := LowerCase(ASource);
@@ -509,42 +555,7 @@ begin
       for I := 0 to LIncludes.Count - 1 do
         LoadInternal(ResolveReference(ASource, LIncludes.Strings[I]),
           AEntries, AVisited);
-    LSparse := FindArray(LRoot, 'sparse');
-    if Assigned(LSparse) then
-      for I := 0 to LSparse.Count - 1 do
-        if LSparse.Items[I].JSONType = jtString then
-          LoadInternal(ResolveReference(ASource, LSparse.Strings[I]),
-            AEntries, AVisited)
-        else if LSparse.Items[I] is TJSONObject then
-        begin
-          LSparseObject := TJSONObject(LSparse.Items[I]);
-          LLoaded := False;
-          try
-            LoadInternal(ResolveReference(ASource,
-              LSparseObject.Get('path', '')), AEntries, AVisited);
-            LLoaded := True;
-          except
-            on E: Exception do
-              if SameText(E.Message, 'operation cancelled') then raise;
-          end;
-          LSparseMirrors := FindArray(LSparseObject, 'mirrors');
-          if Assigned(LSparseMirrors) then
-            for J := 0 to LSparseMirrors.Count - 1 do
-            begin
-              if LLoaded then Break;
-              try
-                LoadInternal(ResolveReference(ASource,
-                  LSparseMirrors.Strings[J]), AEntries, AVisited);
-                LLoaded := True;
-              except
-                on E: Exception do
-                  if SameText(E.Message, 'operation cancelled') then raise;
-              end;
-            end;
-          if not LLoaded then
-            raise Exception.Create('all sparse metadata sources failed: ' +
-              LSparseObject.Get('path', ''));
-        end;
+    LoadSparse(ASource, LRoot, AEntries, AVisited);
     LPackages := FindArray(LRoot, 'packages');
     if not Assigned(LPackages) then Exit;
     for I := 0 to LPackages.Count - 1 do

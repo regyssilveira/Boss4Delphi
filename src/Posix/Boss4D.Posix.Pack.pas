@@ -63,6 +63,7 @@ function ReadRaw(const APath: string): RawByteString;
 var
   LStream: TFileStream;
 begin
+  Result := '';
   LStream := TFileStream.Create(APath, fmOpenRead or fmShareDenyWrite);
   try
     SetLength(Result, LStream.Size);
