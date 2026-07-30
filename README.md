@@ -101,7 +101,7 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d config git shallow <true/false>`
   Enables or disables shallow clones for faster Git download processes.
 * `boss4d version`
-  Prints the CLI version (`v1.4.0-delphi-native`).
+  Prints the CLI version (`v1.5.0-delphi-native`).
 * `boss4d self-update`
   Downloads the official installer, verifies it against `SHA256SUMS.txt`, and
   starts the update only after a successful SHA-256 check.

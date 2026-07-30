@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.5.0 - 2026-07-30
+
 ### Added
 
 - Injectable process, platform-environment, and directory-link contracts, with
@@ -27,6 +29,13 @@
   for immutable `.b4dpkg` artifacts.
 - Public registry/package conformance commands, HTML-escaped static registry
   portal generation, and a deterministic pack benchmark.
+
+### Changed
+
+- The official public registry is now the default discovery source, with an
+  offline built-in catalog used when the network source is unavailable.
+- The Linux FPC validation runner normalizes commands to LF before executing
+  them inside Docker.
 
 ## 1.4.0 - 2026-07-30
 

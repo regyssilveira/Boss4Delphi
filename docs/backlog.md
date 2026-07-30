@@ -252,7 +252,7 @@ This document details the future planning, new features (backlog), and architect
 
 ---
 
-## 📊 Prioritization Matrix (Backlog v1.4.0 & Futures)
+## 📊 Prioritization Matrix (Backlog v1.5.0 & Futures)
 
 | Feature / Story | Epic | Complexity | Business Value | Priority (MoSCoW) |
 | :--- | :--- | :--- | :--- | :--- |

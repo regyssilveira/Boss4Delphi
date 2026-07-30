@@ -84,11 +84,11 @@ var
   LResult: TBoss4DSelfUpdateResult;
 begin
   LHttp := THttpClientMock.Create;
-  LHttp.AddResponse(API_URL, ReleaseJson('1.4.0'), 200);
+  LHttp.AddResponse(API_URL, ReleaseJson('1.5.0'), 200);
   LService := TBoss4DSelfUpdateService.Create(LHttp,
     TUpdateLoggerMock.Create, nil);
   try
-    LResult := LService.CheckAndDownload('1.4.0', TPath.GetTempPath);
+    LResult := LService.CheckAndDownload('1.5.0', TPath.GetTempPath);
     Assert.IsFalse(LResult.Updated);
   finally
     LService.Free;
@@ -111,14 +111,14 @@ begin
   LHasher.Update(LBytes, Length(LBytes));
   LHash := LHasher.HashAsString;
   LHttp := THttpClientMock.Create;
-  LHttp.AddResponse(API_URL, ReleaseJson('1.5.0'), 200);
+  LHttp.AddResponse(API_URL, ReleaseJson('1.6.0'), 200);
   LHttp.AddResponse(BIN_URL, LPayload, 200);
   LHttp.AddResponse(SUM_URL, LHash + '  Boss4D_Setup.exe', 200);
   LApplier := TUpdateApplierMock.Create;
   LService := TBoss4DSelfUpdateService.Create(LHttp,
     TUpdateLoggerMock.Create, LApplier);
   try
-    Assert.IsTrue(LService.CheckAndDownload('1.4.0', LDir).Updated);
+    Assert.IsTrue(LService.CheckAndDownload('1.5.0', LDir).Updated);
     Assert.AreEqual<Integer>(1, LApplier.LaunchCount);
   finally
     LService.Free;
@@ -135,7 +135,7 @@ var
 begin
   LDir := TPath.Combine(TPath.GetTempPath, TPath.GetRandomFileName);
   LHttp := THttpClientMock.Create;
-  LHttp.AddResponse(API_URL, ReleaseJson('1.5.0'), 200);
+  LHttp.AddResponse(API_URL, ReleaseJson('1.6.0'), 200);
   LHttp.AddResponse(BIN_URL, 'tampered', 200);
   LHttp.AddResponse(SUM_URL, StringOfChar('0', 64) +
     '  Boss4D_Setup.exe', 200);
@@ -145,7 +145,7 @@ begin
     Assert.WillRaise(
       procedure
       begin
-        LService.CheckAndDownload('1.4.0', LDir);
+        LService.CheckAndDownload('1.5.0', LDir);
       end, Exception);
     Assert.IsFalse(TFile.Exists(TPath.Combine(LDir, 'Boss4D_Setup.exe')));
   finally

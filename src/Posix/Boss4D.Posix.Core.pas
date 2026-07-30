@@ -24,7 +24,7 @@ uses
 
 function Boss4DVersion: string;
 begin
-  Result := '1.4.0';
+  Result := '1.5.0';
 end;
 
 function PlatformName: string;
