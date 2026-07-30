@@ -17,7 +17,9 @@ O **Boss4D** é um gerenciador de dependências nativo e moderno para projetos D
 5. **Logs Avançados e Thread-Safe**: Saída do console colorida de forma assíncrona usando semáforos críticos, com gravação opcional de arquivos `.log` em modo debug.
 6. **100% Testável**: Suíte de testes unitários que utiliza injeção de dependências e classes Mock para simular Git, HTTP e compilador sem necessitar de conexões de rede ou ferramentas instaladas no ambiente de testes.
 7. **Build Determinístico**: Diretórios sem colisão, ordem declarada de projetos, precedência de toolchain e normalização CRLF segura.
-8. **Projetos Delphi e Lazarus**: Compila `.dproj`, `.lpi` e `.lpk` declarados usando MSBuild ou `lazbuild`.
+8. **Projetos Delphi e Lazarus**: Compila `.dproj`, `.lpi` e `.lpk` declarados
+   usando MSBuild ou `lazbuild` e integra automaticamente os paths das
+   dependências nos projetos e modos de build do Lazarus.
 
 ---
 

@@ -31,6 +31,18 @@ declared order. Paths must exist, remain inside the dependency root, and use
 discovery, excluding common example and test directories. Delphi projects use
 MSBuild; Lazarus projects use `lazbuild` and require it on `PATH`.
 
+During `boss4d install`, resolved dependency unit paths are merged into
+`OtherUnitFiles` in every `CompilerOptions` section of root `.lpi` and `.lpk`
+files, including package options and all build modes. Existing entries retain
+their order, new entries are sorted deterministically, comparisons are
+case-insensitive, and repeated installs do not duplicate paths or rewrite an
+unchanged file.
+
+When `projects` is declared, only listed Lazarus files are updated and every
+path must stay within the project root. Without `projects`, Boss4D discovers
+`.lpi` and `.lpk` files in the root directory. Delphi `.dproj` files are never
+modified by this integration.
+
 ## Project scaffolding
 
 ```powershell

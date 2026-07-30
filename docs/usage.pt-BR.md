@@ -580,6 +580,11 @@ de `engines.platforms` e Win32. `toolchain.compiler` seleciona o RAD Studio. Um
 array ordenado `projects` pode conter `.dproj`, `.lpi` ou `.lpk`; os paths devem
 permanecer dentro da raiz. Delphi usa MSBuild e Lazarus requer `lazbuild` no
 `PATH`. Fontes textuais são normalizados antes da verificação de checksum.
+Na instalação, os paths de units das dependências são mesclados de forma
+idempotente em `OtherUnitFiles` dos arquivos `.lpi`/`.lpk` da raiz, incluindo
+todos os modos de build do Lazarus. Projetos declarados permanecem confinados à
+raiz; sem declarações, arquivos Lazarus no diretório raiz são descobertos
+automaticamente.
 
 Consulte o [guia completo](build-improvements.pt-BR.md) e o
 [exemplo copiável](../examples/build-improvements/README.md).

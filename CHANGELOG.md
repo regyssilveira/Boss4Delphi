@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Integração determinística dos paths de dependências em `OtherUnitFiles` para
+  projetos Lazarus `.lpi` e pacotes `.lpk`, incluindo todos os build modes.
+
 ## 1.2.1 - 2026-07-27
 
 ### Added

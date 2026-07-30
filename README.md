@@ -20,7 +20,9 @@
 6. **Thread-Safe Colored Logging**: Outputs clean, colored console logs asynchronously using critical sections, with optional `.log` file persistence for debug mode.
 7. **100% Testable**: Comprehensive DUnitX unit-testing suite using Mock adapters to isolate network (HTTP), Git processes, and compiler executions.
 8. **Deterministic Package Builds**: Collision-free module directories, declared project ordering, toolchain precedence, and safe CRLF normalization.
-9. **Delphi and Lazarus Projects**: Builds declared `.dproj`, `.lpi`, and `.lpk` projects through MSBuild or `lazbuild`.
+9. **Delphi and Lazarus Projects**: Builds declared `.dproj`, `.lpi`, and `.lpk`
+   projects through MSBuild or `lazbuild`, automatically integrating resolved
+   dependency unit paths into Lazarus projects and build modes.
 
 ---
 

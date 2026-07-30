@@ -44,6 +44,7 @@ uses
   Boss4D.Core.Services.Scaffold in 'Core/Services/Boss4D.Core.Services.Scaffold.pas',
   Boss4D.Core.Services.SourceNormalizer in 'Core/Services/Boss4D.Core.Services.SourceNormalizer.pas',
   Boss4D.Core.Services.PackageManifest in 'Core/Services/Boss4D.Core.Services.PackageManifest.pas',
+  Boss4D.Core.Services.LazarusProject in 'Core/Services/Boss4D.Core.Services.LazarusProject.pas',
   Boss4D.CLI.Parser in 'CLI/Boss4D.CLI.Parser.pas';
 
 var
