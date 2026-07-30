@@ -132,6 +132,19 @@ recorded outputs are all valid. The executor distinguishes and explains:
 Changing a runtime package therefore invalidates its compatible design-time
 consumers even when their own source files did not change.
 
+## Parallel scheduling
+
+The scheduler executes one topological level at a time and never starts a
+consumer before all direct dependencies complete. Within a level, targets with
+different output roots can run concurrently up to the configured jobs limit.
+Projects sharing the same package/compiler/platform/configuration output root
+are grouped and serialized to avoid compiler and filesystem races.
+
+Cancellation is checked before scheduling and before each target. The first
+failure stops new work, waits for already-running tasks to finish safely, and
+reports the failing project. Consequently, no dependent level starts after a
+dependency failure.
+
 ## Expected precedence
 
 Selection follows this order:

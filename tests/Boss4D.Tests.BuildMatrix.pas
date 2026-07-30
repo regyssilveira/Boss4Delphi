@@ -31,18 +31,27 @@ type
     procedure TestBuildGraphRejectsMissingDependencyTarget;
     [Test]
     procedure TestBuildGraphRejectsCycles;
+    [Test]
+    procedure TestBuildSchedulerRunsIsolatedTargetsInParallel;
+    [Test]
+    procedure TestBuildSchedulerSerializesSharedOutputRoot;
+    [Test]
+    procedure TestBuildSchedulerHonorsCancellation;
+    [Test]
+    procedure TestBuildSchedulerStopsDependentsAfterFailure;
   end;
 
 implementation
 
 uses
-  System.SysUtils, System.IOUtils,
+  System.SysUtils, System.IOUtils, System.Classes,
   Boss4D.Core.Domain.Package,
   Boss4D.Core.Domain.BuildMatrix,
   Boss4D.Core.Services.BuildMatrix,
   Boss4D.Core.Services.BuildPaths,
   Boss4D.Core.Services.ArtifactCache,
-  Boss4D.Core.Services.BuildGraph;
+  Boss4D.Core.Services.BuildGraph,
+  Boss4D.Core.Services.BuildScheduler;
 
 procedure TTestsBuildMatrix.TestArtifactCacheKeyIncludesCompleteTarget;
 var
@@ -63,6 +72,221 @@ begin
   Assert.AreNotEqual(LBase, TBoss4DArtifactCacheService.BuildCacheKey(
     'github.com/example/component', 'source-checksum', '37.0', 'Win32',
     'Release'));
+end;
+
+procedure TTestsBuildMatrix.TestBuildSchedulerHonorsCancellation;
+var
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+  LTargets: TBoss4DBuildTargetList;
+  LCalls: Integer;
+  LCompleted: Integer;
+  LCancelled: Boolean;
+begin
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'cancelled-build';
+    LPackage.BuildMatrix.Compilers.Add('23.0');
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Platforms.Add('Win64');
+    LPackage.BuildMatrix.Configurations.Add('Debug');
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'Component.dproj';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+    LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+      TBoss4DBuildSelection.All);
+    try
+      LCalls := 0;
+      LCancelled := False;
+      LCompleted := TBoss4DBuildScheduler.Execute(LTargets, 1,
+        procedure(const ATarget: TBoss4DBuildTarget)
+        begin
+          Inc(LCalls);
+          LCancelled := True;
+        end,
+        function: Boolean
+        begin
+          Result := LCancelled;
+        end);
+      Assert.AreEqual<Integer>(1, LCompleted);
+      Assert.AreEqual<Integer>(1, LCalls,
+        'O cancelamento deve impedir o agendamento dos targets restantes.');
+    finally
+      LTargets.Free;
+    end;
+  finally
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsBuildMatrix.TestBuildSchedulerRunsIsolatedTargetsInParallel;
+var
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+  LTargets: TBoss4DBuildTargetList;
+  LGuard: TObject;
+  LCurrent: Integer;
+  LMaximum: Integer;
+  LCompleted: Integer;
+begin
+  LPackage := TBoss4DPackage.Create;
+  LGuard := TObject.Create;
+  try
+    LPackage.Name := 'parallel-build';
+    LPackage.BuildMatrix.Compilers.Add('23.0');
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Platforms.Add('Win64');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'Component.dproj';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+    LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+      TBoss4DBuildSelection.All);
+    try
+      LCurrent := 0;
+      LMaximum := 0;
+      LCompleted := TBoss4DBuildScheduler.Execute(LTargets, 4,
+        procedure(const ATarget: TBoss4DBuildTarget)
+        begin
+          TMonitor.Enter(LGuard);
+          try
+            Inc(LCurrent);
+            if LCurrent > LMaximum then
+              LMaximum := LCurrent;
+          finally
+            TMonitor.Exit(LGuard);
+          end;
+          TThread.Sleep(75);
+          TMonitor.Enter(LGuard);
+          try
+            Dec(LCurrent);
+          finally
+            TMonitor.Exit(LGuard);
+          end;
+        end);
+      Assert.AreEqual<Integer>(4, LCompleted);
+      Assert.IsTrue(LMaximum > 1,
+        'Targets com outputs isolados devem executar concorrentemente.');
+    finally
+      LTargets.Free;
+    end;
+  finally
+    LGuard.Free;
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsBuildMatrix.TestBuildSchedulerSerializesSharedOutputRoot;
+var
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+  LTargets: TBoss4DBuildTargetList;
+  LGuard: TObject;
+  LCurrent: Integer;
+  LMaximum: Integer;
+begin
+  LPackage := TBoss4DPackage.Create;
+  LGuard := TObject.Create;
+  try
+    LPackage.Name := 'shared-output-build';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Configurations.Add('Debug');
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'First.dproj';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'Second.dproj';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+    LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+      TBoss4DBuildSelection.All);
+    try
+      LCurrent := 0;
+      LMaximum := 0;
+      TBoss4DBuildScheduler.Execute(LTargets, 2,
+        procedure(const ATarget: TBoss4DBuildTarget)
+        begin
+          TMonitor.Enter(LGuard);
+          try
+            Inc(LCurrent);
+            if LCurrent > LMaximum then
+              LMaximum := LCurrent;
+          finally
+            TMonitor.Exit(LGuard);
+          end;
+          TThread.Sleep(30);
+          TMonitor.Enter(LGuard);
+          try
+            Dec(LCurrent);
+          finally
+            TMonitor.Exit(LGuard);
+          end;
+        end);
+      Assert.AreEqual<Integer>(1, LMaximum,
+        'Projetos que compartilham output devem ser serializados.');
+    finally
+      LTargets.Free;
+    end;
+  finally
+    LGuard.Free;
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsBuildMatrix.TestBuildSchedulerStopsDependentsAfterFailure;
+var
+  LPackage: TBoss4DPackage;
+  LRuntime: TBoss4DBuildProject;
+  LDesign: TBoss4DBuildProject;
+  LTargets: TBoss4DBuildTargetList;
+  LDesignCalls: Integer;
+  LRaised: Boolean;
+begin
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'failed-build';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LRuntime := TBoss4DBuildProject.Create;
+    LRuntime.Path := 'Runtime.dproj';
+    LPackage.BuildMatrix.Projects.Add(LRuntime);
+    LDesign := TBoss4DBuildProject.Create;
+    LDesign.Path := 'Design.dproj';
+    LDesign.DependsOn.Add('Runtime.dproj');
+    LPackage.BuildMatrix.Projects.Add(LDesign);
+    LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+      TBoss4DBuildSelection.All);
+    try
+      LDesignCalls := 0;
+      LRaised := False;
+      try
+        TBoss4DBuildScheduler.Execute(LTargets, 2,
+          procedure(const ATarget: TBoss4DBuildTarget)
+          begin
+            if ATarget.ProjectPath.EndsWith('Runtime.dproj') then
+              raise Exception.Create('runtime failed');
+            Inc(LDesignCalls);
+          end);
+      except
+        on E: EBoss4DBuildSchedulerError do
+        begin
+          LRaised := True;
+          Assert.IsTrue(E.Message.Contains('Runtime.dproj'));
+          Assert.IsTrue(E.Message.Contains('runtime failed'));
+        end;
+      end;
+      Assert.IsTrue(LRaised);
+      Assert.AreEqual<Integer>(0, LDesignCalls,
+        'Consumidores nao podem executar depois da falha da dependencia.');
+    finally
+      LTargets.Free;
+    end;
+  finally
+    LPackage.Free;
+  end;
 end;
 
 procedure TTestsBuildMatrix.TestBuildGraphOrdersDependenciesBeforeConsumers;

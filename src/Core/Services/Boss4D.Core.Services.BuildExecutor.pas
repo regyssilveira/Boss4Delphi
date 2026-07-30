@@ -10,7 +10,8 @@ uses
   Boss4D.Core.Domain.Lock,
   Boss4D.Core.Domain.BuildMatrix,
   Boss4D.Core.Services.ArtifactCache,
-  Boss4D.Core.Services.BuildState;
+  Boss4D.Core.Services.BuildState,
+  Boss4D.Core.Services.BuildScheduler;
 
 type
   TBoss4DBuildExecutor = class
@@ -22,6 +23,7 @@ type
     FBuiltCount: Integer;
     FSkippedCount: Integer;
     FRestoredCount: Integer;
+    FGuard: TObject;
     function ResolveProjectPath(const ARootDirectory,
       ADeclaredPath: string): string;
   public
@@ -30,7 +32,9 @@ type
     function Execute(const APackage: TBoss4DPackage;
       const ADependency: TBoss4DDependency; const ALock: TBoss4DLock;
       const ARootDirectory: string; const ASelection: TBoss4DBuildSelection;
-      const ASourceChecksum: string; const AForce: Boolean = False): Integer;
+      const ASourceChecksum: string; const AForce: Boolean = False;
+      const AJobs: Integer = 1;
+      const ACancellation: TBoss4DBuildCancellationProbe = nil): Integer;
     property LastExplanations: TList<string> read FLastExplanations;
     property BuiltCount: Integer read FBuiltCount;
     property SkippedCount: Integer read FSkippedCount;
@@ -42,6 +46,7 @@ implementation
 uses
   System.SysUtils,
   System.IOUtils,
+  System.Generics.Defaults,
   Boss4D.Core.Domain.Env,
   Boss4D.Core.Services.BuildMatrix,
   Boss4D.Core.Services.BuildGraph,
@@ -56,10 +61,12 @@ begin
   FArtifactCache := TBoss4DArtifactCacheService.Create;
   FBuildState := TBoss4DBuildStateService.Create;
   FLastExplanations := TList<string>.Create;
+  FGuard := TObject.Create;
 end;
 
 destructor TBoss4DBuildExecutor.Destroy;
 begin
+  FGuard.Free;
   FLastExplanations.Free;
   FBuildState.Free;
   FArtifactCache.Free;
@@ -87,11 +94,12 @@ end;
 function TBoss4DBuildExecutor.Execute(const APackage: TBoss4DPackage;
   const ADependency: TBoss4DDependency; const ALock: TBoss4DLock;
   const ARootDirectory: string; const ASelection: TBoss4DBuildSelection;
-  const ASourceChecksum: string; const AForce: Boolean): Integer;
+  const ASourceChecksum: string; const AForce: Boolean;
+  const AJobs: Integer;
+  const ACancellation: TBoss4DBuildCancellationProbe): Integer;
 var
   LTargets: TBoss4DBuildTargetList;
   LFingerprints: TDictionary<string, string>;
-  LDependencyFingerprints: TList<string>;
 begin
   if not Assigned(APackage) then
     raise EArgumentNilException.Create('APackage');
@@ -100,75 +108,117 @@ begin
   if not Assigned(ALock) then
     raise EArgumentNilException.Create('ALock');
 
-  Result := 0;
   FBuiltCount := 0;
   FSkippedCount := 0;
   FRestoredCount := 0;
   FLastExplanations.Clear;
   LTargets := TBoss4DBuildMatrixExpander.Expand(APackage, ASelection);
+  TDirectory.CreateDirectory(TPath.Combine(GetBossHome, 'artifact-cache'));
+  for var LTarget in LTargets do
+    TDirectory.CreateDirectory(TBoss4DBuildPaths.TargetRoot(GetModulesDir,
+      ADependency.StorageName, LTarget.Compiler, LTarget.Platform,
+      LTarget.Configuration));
   LFingerprints := TDictionary<string, string>.Create;
   try
-    TBoss4DBuildGraph.Sort(LTargets);
-    for var LTarget in LTargets do
-    begin
-      var LProjectPath := ResolveProjectPath(ARootDirectory,
-        LTarget.ProjectPath);
-      var LTargetRoot := TBoss4DBuildPaths.TargetRoot(GetModulesDir,
-        ADependency.StorageName, LTarget.Compiler, LTarget.Platform,
-        LTarget.Configuration);
-      LDependencyFingerprints := TList<string>.Create;
-      try
-        for var LDependencyPath in LTarget.DependsOn do
-        begin
-          var LDependencyIdentity := (LTarget.PackageName + '|' +
-            LDependencyPath + '|' + LTarget.Compiler + '|' +
-            LTarget.Platform + '|' + LTarget.Configuration).ToLower;
-          if not LFingerprints.ContainsKey(LDependencyIdentity) then
-            raise EBoss4DBuildGraphError.CreateFmt(
-              'Fingerprint da dependencia ainda indisponivel: %s.',
-              [LDependencyIdentity]);
-          LDependencyFingerprints.Add(LFingerprints[LDependencyIdentity]);
-        end;
-        var LDecision := FBuildState.Evaluate(LTarget, LProjectPath,
-          LTargetRoot, LDependencyFingerprints.ToArray, AForce);
-        FLastExplanations.Add(LTarget.Identity + ': ' +
-          FBuildState.Explain(LDecision));
-        if not LDecision.ShouldBuild then
-        begin
-          Inc(FSkippedCount);
-          LFingerprints.Add(LTarget.Identity.ToLower,
-            LDecision.Fingerprint);
-          Inc(Result);
-          Continue;
-        end;
+    Result := TBoss4DBuildScheduler.Execute(LTargets, AJobs,
+      procedure(const LTarget: TBoss4DBuildTarget)
+      begin
+        var LProjectPath := ResolveProjectPath(ARootDirectory,
+          LTarget.ProjectPath);
+        var LTargetRoot := TBoss4DBuildPaths.TargetRoot(GetModulesDir,
+          ADependency.StorageName, LTarget.Compiler, LTarget.Platform,
+          LTarget.Configuration);
+        var LDependencyFingerprints := TList<string>.Create;
+        try
+          for var LDependencyPath in LTarget.DependsOn do
+          begin
+            var LDependencyIdentity := (LTarget.PackageName + '|' +
+              LDependencyPath + '|' + LTarget.Compiler + '|' +
+              LTarget.Platform + '|' + LTarget.Configuration).ToLower;
+            var LDependencyFingerprint := '';
+            TMonitor.Enter(FGuard);
+            try
+              if not LFingerprints.TryGetValue(LDependencyIdentity,
+                LDependencyFingerprint) then
+                raise EBoss4DBuildGraphError.CreateFmt(
+                  'Fingerprint da dependencia ainda indisponivel: %s.',
+                  [LDependencyIdentity]);
+            finally
+              TMonitor.Exit(FGuard);
+            end;
+            LDependencyFingerprints.Add(LDependencyFingerprint);
+          end;
+          var LDecision := FBuildState.Evaluate(LTarget, LProjectPath,
+            LTargetRoot, LDependencyFingerprints.ToArray, AForce);
+          TMonitor.Enter(FGuard);
+          try
+            FLastExplanations.Add(LTarget.Identity + ': ' +
+              FBuildState.Explain(LDecision));
+          finally
+            TMonitor.Exit(FGuard);
+          end;
+          if not LDecision.ShouldBuild then
+          begin
+            TMonitor.Enter(FGuard);
+            try
+              Inc(FSkippedCount);
+              LFingerprints.Add(LTarget.Identity.ToLower,
+                LDecision.Fingerprint);
+            finally
+              TMonitor.Exit(FGuard);
+            end;
+            Exit;
+          end;
 
-        var LCacheFingerprint := ASourceChecksum + '|' +
-          LDecision.Fingerprint;
-        if not AForce and FArtifactCache.Restore(ADependency,
-          LCacheFingerprint, LTarget.Platform, LTarget.Compiler,
-          LTarget.Configuration, LTargetRoot) then
-        begin
-          FBuildState.Save(LTarget, LTargetRoot, LDecision);
-          Inc(FRestoredCount);
-        end
-        else
-        begin
-          if not FCompiler.Compile(LProjectPath, ADependency, ALock,
-            LTarget.Platform, LTarget.Compiler, LTarget.Configuration) then
-            raise Exception.CreateFmt('Falha ao compilar target %s.',
-              [LTarget.Identity]);
-          FBuildState.Save(LTarget, LTargetRoot, LDecision);
-          FArtifactCache.Store(ADependency, LCacheFingerprint,
-            LTarget.Platform, LTarget.Compiler, LTarget.Configuration,
-            LTargetRoot);
-          Inc(FBuiltCount);
+          var LCacheFingerprint := ASourceChecksum + '|' +
+            LDecision.Fingerprint;
+          if not AForce and FArtifactCache.Restore(ADependency,
+            LCacheFingerprint, LTarget.Platform, LTarget.Compiler,
+            LTarget.Configuration, LTargetRoot) then
+          begin
+            FBuildState.Save(LTarget, LTargetRoot, LDecision);
+            TMonitor.Enter(FGuard);
+            try
+              Inc(FRestoredCount);
+            finally
+              TMonitor.Exit(FGuard);
+            end;
+          end
+          else
+          begin
+            if not FCompiler.Compile(LProjectPath, ADependency, ALock,
+              LTarget.Platform, LTarget.Compiler,
+              LTarget.Configuration) then
+              raise Exception.CreateFmt('Falha ao compilar target %s.',
+                [LTarget.Identity]);
+            FBuildState.Save(LTarget, LTargetRoot, LDecision);
+            FArtifactCache.Store(ADependency, LCacheFingerprint,
+              LTarget.Platform, LTarget.Compiler, LTarget.Configuration,
+              LTargetRoot);
+            TMonitor.Enter(FGuard);
+            try
+              Inc(FBuiltCount);
+            finally
+              TMonitor.Exit(FGuard);
+            end;
+          end;
+          TMonitor.Enter(FGuard);
+          try
+            LFingerprints.Add(LTarget.Identity.ToLower,
+              LDecision.Fingerprint);
+          finally
+            TMonitor.Exit(FGuard);
+          end;
+        finally
+          LDependencyFingerprints.Free;
         end;
-        LFingerprints.Add(LTarget.Identity.ToLower, LDecision.Fingerprint);
-        Inc(Result);
-      finally
-        LDependencyFingerprints.Free;
-      end;
-    end;
+      end,
+      ACancellation);
+    FLastExplanations.Sort(TComparer<string>.Construct(
+      function(const ALeft, ARight: string): Integer
+      begin
+        Result := CompareText(ALeft, ARight);
+      end));
   finally
     LFingerprints.Free;
     LTargets.Free;
