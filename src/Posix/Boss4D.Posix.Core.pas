@@ -31,6 +31,8 @@ function CreateGitLockEvidence(const ARepository, AVersion, ATarget,
   AScope, ARevision: string): TJSONObject;
 function SelectVersion(const AConstraint: string; const AVersions: TStrings;
   const AStrategy: string): string;
+function ResolveLatestVersion(const ARepository,
+  AConstraint: string): string;
 function ListProject(const ADirectory: string; const AProduction: Boolean): TStringList;
 procedure InitProject(const ADirectory: string);
 procedure AddDependency(const ADirectory, ARepository, AVersion: string;
@@ -636,6 +638,12 @@ begin
     LVersions.Free;
     LLines.Free;
   end;
+end;
+
+function ResolveLatestVersion(const ARepository,
+  AConstraint: string): string;
+begin
+  Result := ResolveGitVersion(ARepository, AConstraint, 'highest');
 end;
 
 procedure DeleteDirectoryTree(const ADirectory: string);

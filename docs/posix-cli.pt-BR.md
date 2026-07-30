@@ -23,6 +23,11 @@ O host portável oferece:
 - `search` e `info` para Registry v1/v2, incluindo índices compostos;
 - fontes persistentes com `registry add|remove|list` no `boss.cfg.json`;
 - cache HTTP do Registry, modo `--offline` e fallback automático para cache.
+- instalação `.b4dpkg`, mirrors verificados, OpenPGP e proveniência;
+- SBOM CycloneDX/SPDX, VEX e auditoria OSV;
+- credenciais seguras, cache, workspaces e ferramentas globais FPC;
+- `dependencies`/`tree`, `why`, `outdated`, `update` transacional e `run`;
+- autoatualização verificada, empacotamento determinístico e publicação segura.
 
 ```console
 boss4d registry add https://packages.example/index-v2.json
@@ -31,6 +36,11 @@ boss4d search horse
 boss4d info Horse
 boss4d search horse --offline
 boss4d search horse --registry=./registry/index-v2.json
+boss4d dependencies
+boss4d why horse
+boss4d outdated
+boss4d update
+boss4d run test
 ```
 
 O mapa original de dependências não muda:
@@ -54,7 +64,7 @@ manifesto legado, ciclo de dependências, lock v3, frozen, SemVer, composição
 Registry v1/v2, prevenção de ciclos, persistência de fontes, compatibilidade da
 configuração, cache offline e fallback por falha de rede.
 
-O CLI Windows continua responsável por integração IDE/GetIt, instalação
-verificada de `.b4dpkg`, SBOM/audit, OpenPGP, coleta da toolchain e
-autoatualização. O comportamento do Registro do Windows não é simulado no
-POSIX.
+A CLI Windows continua responsável pela integração RAD Studio IDE/GetIt e pela
+coleta da toolchain Windows. O comportamento do Registro do Windows não é
+simulado no POSIX; dependências, Registry, conformidade, publicação,
+atualização e ferramentas globais são nativos no Linux.

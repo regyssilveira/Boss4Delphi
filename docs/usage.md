@@ -498,6 +498,20 @@ finds its `.lpr` project, compiles it with FPC, and installs the executable unde
 transactional, the executable SHA-256 is recorded in `tools.json`, and
 `boss4d tool list` shows registered tools. Add `~/.boss/bin` to `PATH`.
 
+Linux project maintenance commands include:
+
+```console
+boss4d dependencies
+boss4d why horse
+boss4d outdated
+boss4d update
+boss4d run test
+```
+
+`update` replaces Git checkouts transactionally and restores the previous
+modules and lock after failure. Verified Registry artifacts remain in place
+until another immutable artifact is explicitly selected.
+
 * **Example Output (`uninstall`)**:
   ```text
   ✅ Ferramenta "boss" desinstalada com sucesso.

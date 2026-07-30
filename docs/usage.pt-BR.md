@@ -499,6 +499,20 @@ Git, localiza o projeto `.lpr`, compila com FPC e instala o executável em
 transacionais, o SHA-256 fica registrado em `tools.json` e
 `boss4d tool list` mostra as ferramentas. Adicione `~/.boss/bin` ao `PATH`.
 
+Os comandos nativos de manutenção do projeto incluem:
+
+```console
+boss4d dependencies
+boss4d why horse
+boss4d outdated
+boss4d update
+boss4d run test
+```
+
+`update` substitui checkouts Git de forma transacional e restaura módulos e
+lock anteriores em caso de falha. Artefatos verificados do Registry permanecem
+no lugar até a seleção explícita de outro artefato imutável.
+
 * **Exemplo de Saída (`uninstall`)**:
   ```text
   ✅ Ferramenta "boss" desinstalada com sucesso.
