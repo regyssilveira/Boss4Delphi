@@ -10,6 +10,9 @@ type
   TBoss4DConformanceTests = class
   public
     [Test] procedure AcceptsRegistryV1;
+    [Test] procedure AcceptsComposableRegistryV2;
+    [Test] procedure RejectsUnsafeRegistryV2Include;
+    [Test] procedure RejectsPartialRegistryV2Release;
     [Test] procedure RejectsPartialArtifactMetadata;
     [Test] procedure RejectsDuplicateRegistryEntries;
     [Test] procedure AcceptsGeneratedPackage;
@@ -31,6 +34,51 @@ begin
     Assert.IsTrue(LService.ValidateRegistryContent(
       '{"schemaVersion":1,"packages":[{"name":"demo",' +
       '"repository":"github.com/example/demo"}]}').Passed);
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DConformanceTests.AcceptsComposableRegistryV2;
+var
+  LService: TBoss4DConformanceService;
+begin
+  LService := TBoss4DConformanceService.Create;
+  try
+    Assert.IsTrue(LService.ValidateRegistryContent(
+      '{"schemaVersion":2,"includes":["community/index-v1.json"],' +
+      '"packages":[{"name":"demo","repository":"github.com/example/demo",' +
+      '"versions":[{"version":"2.0.0","artifact":"demo.b4dpkg",' +
+      '"sha256":"abc"}]}]}').Passed);
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DConformanceTests.RejectsUnsafeRegistryV2Include;
+var
+  LService: TBoss4DConformanceService;
+begin
+  LService := TBoss4DConformanceService.Create;
+  try
+    Assert.IsFalse(LService.ValidateRegistryContent(
+      '{"schemaVersion":2,"includes":["../private.json"],"packages":[]}')
+      .Passed);
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DConformanceTests.RejectsPartialRegistryV2Release;
+var
+  LService: TBoss4DConformanceService;
+begin
+  LService := TBoss4DConformanceService.Create;
+  try
+    Assert.IsFalse(LService.ValidateRegistryContent(
+      '{"schemaVersion":2,"packages":[{"name":"demo",' +
+      '"repository":"github.com/example/demo","versions":[' +
+      '{"version":"2.0.0","artifact":"demo.b4dpkg"}]}]}').Passed);
   finally
     LService.Free;
   end;
