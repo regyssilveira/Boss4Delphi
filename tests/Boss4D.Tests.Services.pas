@@ -88,6 +88,8 @@ type
 
     [Test]
     procedure TestCompiledArtifactCacheIsolation;
+    [Test]
+    procedure TestCompiledTargetCacheRestoresCompleteOutputTree;
 
     [Test]
     procedure TestCLICommandLineParser;
@@ -1260,6 +1262,46 @@ begin
       'Win64', '37.0'), 'Plataformas nao podem compartilhar artefatos.');
     Assert.IsFalse(LService.Restore(LDep, 'source-checksum',
       'Win32', '36.0'), 'Compiladores nao podem compartilhar artefatos.');
+  finally
+    LService.Free;
+    LDep.Free;
+  end;
+end;
+
+procedure TTestsServices.TestCompiledTargetCacheRestoresCompleteOutputTree;
+var
+  LService: TBoss4DArtifactCacheService;
+  LDep: TBoss4DDependency;
+  LTargetRoot: string;
+  LDcuDir: string;
+  LBplDir: string;
+begin
+  LDep := TBoss4DDependency.Create('github.com/example/component', '1.0.0');
+  LService := TBoss4DArtifactCacheService.Create;
+  try
+    LTargetRoot := TPath.Combine(FTempDir, 'isolated-target');
+    LDcuDir := TPath.Combine(LTargetRoot, FOLDER_DCU);
+    LBplDir := TPath.Combine(LTargetRoot, FOLDER_BPL);
+    TDirectory.CreateDirectory(LDcuDir);
+    TDirectory.CreateDirectory(LBplDir);
+    TFile.WriteAllText(TPath.Combine(LDcuDir, 'Component.dcu'), 'dcu');
+    TFile.WriteAllText(TPath.Combine(LBplDir, 'Component.bpl'), 'bpl');
+
+    LService.Store(LDep, 'target-source', 'Win64', '37.0', 'Release',
+      LTargetRoot);
+    TDirectory.Delete(LTargetRoot, True);
+
+    Assert.IsTrue(LService.Restore(LDep, 'target-source', 'Win64', '37.0',
+      'Release', LTargetRoot));
+    Assert.AreEqual('dcu', TFile.ReadAllText(
+      TPath.Combine(LDcuDir, 'Component.dcu')));
+    Assert.AreEqual('bpl', TFile.ReadAllText(
+      TPath.Combine(LBplDir, 'Component.bpl')));
+
+    TDirectory.Delete(LTargetRoot, True);
+    Assert.IsFalse(LService.Restore(LDep, 'target-source', 'Win64', '37.0',
+      'Debug', LTargetRoot),
+      'Configuracoes nao podem compartilhar a arvore de artefatos.');
   finally
     LService.Free;
     LDep.Free;

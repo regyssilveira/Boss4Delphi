@@ -19,7 +19,7 @@ type
     function GetCompilerParameters(
       const ARootPath: string;
       const ADep: TBoss4DDependency;
-      const APlatform: string
+      const APlatform, ACompilerVersion, AConfiguration: string
     ): string;
   public
     constructor Create(const ARegistry: IBoss4DRegistryService; const ALogger: IBoss4DLogger);
@@ -28,7 +28,8 @@ type
       const ACompilerVersion: string = ''): Boolean;
     function Compile(const AProjectPath: string; const ADep: TBoss4DDependency;
       const ARootLock: TBoss4DLock; const APlatform: string = '';
-      const ACompilerVersion: string = ''): Boolean;
+      const ACompilerVersion: string = '';
+      const AConfiguration: string = ''): Boolean;
     function BuildSearchPath(const ADep: TBoss4DDependency; const APlatform: string = ''): string;
   end;
 
@@ -44,6 +45,7 @@ uses
   Boss4D.Core.Domain.Consts,
   Boss4D.Core.Domain.Env,
   Boss4D.Core.Domain.Package,
+  Boss4D.Core.Services.BuildPaths,
   Boss4D.Adapters.Json;
 
 { TBoss4DDelphiCompilerAdapter }
@@ -219,7 +221,7 @@ end;
 function TBoss4DDelphiCompilerAdapter.GetCompilerParameters(
   const ARootPath: string;
   const ADep: TBoss4DDependency;
-  const APlatform: string
+  const APlatform, ACompilerVersion, AConfiguration: string
 ): string;
 var
   LModuleName: string;
@@ -227,15 +229,41 @@ var
   LBplPath: string;
   LDcpPath: string;
   LDcuPath: string;
+  LConfiguration: string;
 begin
   LModuleName := '';
   if Assigned(ADep) then
     LModuleName := ADep.Name;
 
-  LBinPath := TPath.Combine(ARootPath, TPath.Combine(LModuleName, FOLDER_BIN));
-  LBplPath := TPath.Combine(ARootPath, TPath.Combine(FOLDER_BPL, TPath.Combine(APlatform, 'Debug')));
-  LDcpPath := TPath.Combine(ARootPath, TPath.Combine(FOLDER_DCP, TPath.Combine(APlatform, 'Debug')));
-  LDcuPath := TPath.Combine(ARootPath, TPath.Combine(FOLDER_DCU, TPath.Combine(APlatform, 'Debug')));
+  LConfiguration := AConfiguration;
+  if LConfiguration.IsEmpty then
+    LConfiguration := 'Debug';
+  if not AConfiguration.IsEmpty then
+  begin
+    LBinPath := TBoss4DBuildPaths.OutputDirectory(ARootPath,
+      ADep.StorageName, ACompilerVersion, APlatform, LConfiguration,
+      FOLDER_BIN);
+    LBplPath := TBoss4DBuildPaths.OutputDirectory(ARootPath,
+      ADep.StorageName, ACompilerVersion, APlatform, LConfiguration,
+      FOLDER_BPL);
+    LDcpPath := TBoss4DBuildPaths.OutputDirectory(ARootPath,
+      ADep.StorageName, ACompilerVersion, APlatform, LConfiguration,
+      FOLDER_DCP);
+    LDcuPath := TBoss4DBuildPaths.OutputDirectory(ARootPath,
+      ADep.StorageName, ACompilerVersion, APlatform, LConfiguration,
+      FOLDER_DCU);
+  end
+  else
+  begin
+    LBinPath := TPath.Combine(ARootPath,
+      TPath.Combine(LModuleName, FOLDER_BIN));
+    LBplPath := TPath.Combine(ARootPath, TPath.Combine(FOLDER_BPL,
+      TPath.Combine(APlatform, LConfiguration)));
+    LDcpPath := TPath.Combine(ARootPath, TPath.Combine(FOLDER_DCP,
+      TPath.Combine(APlatform, LConfiguration)));
+    LDcuPath := TPath.Combine(ARootPath, TPath.Combine(FOLDER_DCU,
+      TPath.Combine(APlatform, LConfiguration)));
+  end;
 
   if not TDirectory.Exists(LBplPath) then
     TDirectory.CreateDirectory(LBplPath);
@@ -249,7 +277,7 @@ begin
             ' /p:DCC_DcuOutput="' + LDcuPath + '"' +
             ' /p:DCC_ExeOutput="' + LBinPath + '"' +
             ' /target:Build' +
-            ' /p:config=Debug' +
+            ' /p:config=' + LConfiguration +
             ' /p:DCC_UseMSBuildExternally=true' +
             ' /p:platform=' + APlatform + ' ';
 end;
@@ -314,13 +342,15 @@ end;
 
 function TBoss4DDelphiCompilerAdapter.Compile(const AProjectPath: string;
   const ADep: TBoss4DDependency; const ARootLock: TBoss4DLock;
-  const APlatform: string = ''; const ACompilerVersion: string = ''): Boolean;
+  const APlatform: string = ''; const ACompilerVersion: string = '';
+  const AConfiguration: string = ''): Boolean;
 var
   LRsvarsPath, LPlatform: string;
   LAbsDir, LBuildLog, LBuildBat, LCfgPath: string;
   LCfgContent: TStringBuilder;
   LBatchContent: TStringList;
   LOutput: string;
+  LConfiguration: string;
 begin
   Result := False;
 
@@ -336,20 +366,42 @@ begin
 
   if not APlatform.IsEmpty then
     LPlatform := APlatform;
+  LConfiguration := AConfiguration;
+  if LConfiguration.IsEmpty then
+    LConfiguration := 'Debug';
 
   FLogger.Log(TBoss4DLogLevel.Info, '  Compilando ' + TPath.GetFileName(AProjectPath));
 
   LAbsDir := TPath.GetDirectoryName(TPath.GetFullPath(AProjectPath));
-  var LFileRes := 'build_boss4d_' + TPath.GetFileNameWithoutExtension(AProjectPath);
+  var LFileRes := 'build_boss4d_' +
+    TPath.GetFileNameWithoutExtension(AProjectPath) + '_' +
+    ACompilerVersion.Replace('.', '_') + '_' + LPlatform + '_' +
+    LConfiguration;
   LBuildLog := TPath.Combine(LAbsDir, LFileRes + '.log');
   LBuildBat := TPath.Combine(LAbsDir, LFileRes + '.bat');
-  LCfgPath := TPath.Combine(LAbsDir, 'boss.cfg');
+  LCfgPath := TPath.Combine(LAbsDir, LFileRes + '.cfg');
 
   // 1. Cria o boss.cfg para guardar os Search Paths gigantes (Prevenindo a Issue #205)
   LCfgContent := TStringBuilder.Create;
   try
-    var LDcuPath := TPath.Combine(GetModulesDir, TPath.Combine(FOLDER_DCU, TPath.Combine(LPlatform, 'Debug')));
-    var LDcpPath := TPath.Combine(GetModulesDir, TPath.Combine(FOLDER_DCP, TPath.Combine(LPlatform, 'Debug')));
+    var LDcuPath := '';
+    var LDcpPath := '';
+    if not AConfiguration.IsEmpty then
+    begin
+      LDcuPath := TBoss4DBuildPaths.OutputDirectory(GetModulesDir,
+        ADep.StorageName, ACompilerVersion, LPlatform, LConfiguration,
+        FOLDER_DCU);
+      LDcpPath := TBoss4DBuildPaths.OutputDirectory(GetModulesDir,
+        ADep.StorageName, ACompilerVersion, LPlatform, LConfiguration,
+        FOLDER_DCP);
+    end
+    else
+    begin
+      LDcuPath := TPath.Combine(GetModulesDir, TPath.Combine(FOLDER_DCU,
+        TPath.Combine(LPlatform, LConfiguration)));
+      LDcpPath := TPath.Combine(GetModulesDir, TPath.Combine(FOLDER_DCP,
+        TPath.Combine(LPlatform, LConfiguration)));
+    end;
 
     if not TDirectory.Exists(LDcuPath) then
       TDirectory.CreateDirectory(LDcuPath);
@@ -384,15 +436,24 @@ begin
   // 2. Cria o script batch que carrega o rsvars.bat e executa o msbuild com a diretiva @boss.cfg
   LBatchContent := TStringList.Create;
   try
-    var LBplPath := TPath.Combine(GetModulesDir, TPath.Combine(FOLDER_BPL, TPath.Combine(LPlatform, 'Debug')));
+    var LBplPath := '';
+    if not AConfiguration.IsEmpty then
+      LBplPath := TBoss4DBuildPaths.OutputDirectory(GetModulesDir,
+        ADep.StorageName, ACompilerVersion, LPlatform, LConfiguration,
+        FOLDER_BPL)
+    else
+      LBplPath := TPath.Combine(GetModulesDir, TPath.Combine(FOLDER_BPL,
+        TPath.Combine(LPlatform, LConfiguration)));
     if not TDirectory.Exists(LBplPath) then
       TDirectory.CreateDirectory(LBplPath);
 
     LBatchContent.Add('call "' + LRsvarsPath + '"');
     LBatchContent.Add('set PATH=%PATH%;' + LBplPath + ';');
 
-    var LMsbuildCmd := 'msbuild "' + TPath.GetFullPath(AProjectPath) + '" /p:Configuration=Debug ' +
-                       GetCompilerParameters(GetModulesDir, ADep, LPlatform) +
+    var LMsbuildCmd := 'msbuild "' + TPath.GetFullPath(AProjectPath) +
+                       '" /p:Configuration=' + LConfiguration + ' ' +
+                       GetCompilerParameters(GetModulesDir, ADep, LPlatform,
+                         ACompilerVersion, AConfiguration) +
                        ' /p:DCC_AdditionalSwitches="@' + LCfgPath + '"';
 
     LBatchContent.Add(LMsbuildCmd + ' > "' + LBuildLog + '" 2>&1');
