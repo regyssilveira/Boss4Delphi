@@ -54,6 +54,7 @@ type
     procedure TestRegistryConfigurationPreservesExistingFields;
     procedure TestRegistryOfflineUsesCache;
     procedure TestRegistryOnlineFallsBackToCache;
+    procedure TestRegistrySelectsArtifactVariant;
     procedure TestVerifiedPackageInstall;
     procedure TestPackageRejectsArtifactDigestMismatch;
     procedure TestPackageRejectsFileDigestMismatch;
@@ -220,6 +221,43 @@ begin
     LContent.SaveToFile(APath);
   finally
     LContent.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestRegistrySelectsArtifactVariant;
+var
+  LDir, LRoot: string;
+  LService: TBoss4DRegistryService;
+  LEntries: TBoss4DRegistryEntries;
+  LEntry: TBoss4DRegistryEntry;
+  LVariant: TBoss4DArtifactVariant;
+begin
+  LDir := NewTempDirectory;
+  LRoot := IncludeTrailingPathDelimiter(LDir) + 'index.json';
+  SaveFixture(LRoot, '{"schemaVersion":2,"packages":[{"name":"Demo",' +
+    '"repository":"example.test/demo","versions":[{"version":"2.0.0",' +
+    '"variants":[{"platform":"linux","compiler":"3.2.2",' +
+    '"artifact":"exact.b4dpkg","sha256":"exact"},' +
+    '{"platform":"linux","artifact":"platform.b4dpkg",' +
+    '"sha256":"platform"},{"artifact":"generic.b4dpkg",' +
+    '"sha256":"generic"}]}]}]}');
+  LService := TBoss4DRegistryService.Create;
+  try
+    LEntries := LService.Load(LRoot);
+    try
+      LEntry := LEntries.Find('Demo');
+      AssertEquals(3, LEntry.Variants.Count);
+      LVariant := LEntry.SelectVariant('linux', '3.2.2');
+      AssertEquals('exact.b4dpkg', LVariant.ArtifactUrl);
+      LVariant := LEntry.SelectVariant('linux', '3.0.0');
+      AssertEquals('platform.b4dpkg', LVariant.ArtifactUrl);
+      LVariant := LEntry.SelectVariant('macos', '3.0.0');
+      AssertEquals('generic.b4dpkg', LVariant.ArtifactUrl);
+    finally
+      LEntries.Free;
+    end;
+  finally
+    LService.Free;
   end;
 end;
 

@@ -8,6 +8,23 @@ uses
   Classes, SysUtils, Contnrs;
 
 type
+  TBoss4DArtifactVariant = class
+  private
+    FPlatform: string;
+    FCompiler: string;
+    FArtifactUrl: string;
+    FArtifactDigest: string;
+    FSignatureUrl: string;
+    FProvenanceUrl: string;
+  public
+    property Platform: string read FPlatform write FPlatform;
+    property Compiler: string read FCompiler write FCompiler;
+    property ArtifactUrl: string read FArtifactUrl write FArtifactUrl;
+    property ArtifactDigest: string read FArtifactDigest write FArtifactDigest;
+    property SignatureUrl: string read FSignatureUrl write FSignatureUrl;
+    property ProvenanceUrl: string read FProvenanceUrl write FProvenanceUrl;
+  end;
+
   TBoss4DRegistryFetcher = function(const ASource: string): string of object;
 
   TBoss4DRegistryEntry = class
@@ -22,7 +39,12 @@ type
     FSignatureUrl: string;
     FProvenanceUrl: string;
     FSource: string;
+    FVariants: TFPObjectList;
   public
+    constructor Create;
+    destructor Destroy; override;
+    function SelectVariant(const APlatform,
+      ACompiler: string): TBoss4DArtifactVariant;
     property Name: string read FName write FName;
     property Repository: string read FRepository write FRepository;
     property Description: string read FDescription write FDescription;
@@ -33,6 +55,7 @@ type
     property SignatureUrl: string read FSignatureUrl write FSignatureUrl;
     property ProvenanceUrl: string read FProvenanceUrl write FProvenanceUrl;
     property Source: string read FSource write FSource;
+    property Variants: TFPObjectList read FVariants;
   end;
 
   TBoss4DRegistryEntries = class(TFPObjectList)
@@ -196,6 +219,44 @@ begin
   if LData is TJSONArray then Result := TJSONArray(LData);
 end;
 
+constructor TBoss4DRegistryEntry.Create;
+begin
+  inherited Create;
+  FVariants := TFPObjectList.Create(True);
+end;
+
+destructor TBoss4DRegistryEntry.Destroy;
+begin
+  FVariants.Free;
+  inherited Destroy;
+end;
+
+function TBoss4DRegistryEntry.SelectVariant(const APlatform,
+  ACompiler: string): TBoss4DArtifactVariant;
+var
+  I, LScore, LBestScore: Integer;
+  LVariant: TBoss4DArtifactVariant;
+begin
+  Result := nil;
+  LBestScore := -1;
+  for I := 0 to FVariants.Count - 1 do
+  begin
+    LVariant := TBoss4DArtifactVariant(FVariants[I]);
+    if (LVariant.Platform <> '') and
+       not SameText(LVariant.Platform, APlatform) then Continue;
+    if (LVariant.Compiler <> '') and
+       not SameText(LVariant.Compiler, ACompiler) then Continue;
+    LScore := 0;
+    if LVariant.Platform <> '' then Inc(LScore, 2);
+    if LVariant.Compiler <> '' then Inc(LScore);
+    if LScore > LBestScore then
+    begin
+      Result := LVariant;
+      LBestScore := LScore;
+    end;
+  end;
+end;
+
 constructor TBoss4DRegistryEntries.Create;
 begin
   inherited Create(True);
@@ -223,7 +284,9 @@ function TBoss4DRegistryEntries.Search(
   const AQuery: string): TBoss4DRegistryEntries;
 var
   I: Integer;
+  J: Integer;
   LEntry, LCopy: TBoss4DRegistryEntry;
+  LVariant, LVariantCopy: TBoss4DArtifactVariant;
   LNeedle: string;
 begin
   Result := TBoss4DRegistryEntries.Create;
@@ -246,6 +309,18 @@ begin
     LCopy.SignatureUrl := LEntry.SignatureUrl;
     LCopy.ProvenanceUrl := LEntry.ProvenanceUrl;
     LCopy.Source := LEntry.Source;
+    for J := 0 to LEntry.Variants.Count - 1 do
+    begin
+      LVariant := TBoss4DArtifactVariant(LEntry.Variants[J]);
+      LVariantCopy := TBoss4DArtifactVariant.Create;
+      LVariantCopy.Platform := LVariant.Platform;
+      LVariantCopy.Compiler := LVariant.Compiler;
+      LVariantCopy.ArtifactUrl := LVariant.ArtifactUrl;
+      LVariantCopy.ArtifactDigest := LVariant.ArtifactDigest;
+      LVariantCopy.SignatureUrl := LVariant.SignatureUrl;
+      LVariantCopy.ProvenanceUrl := LVariant.ProvenanceUrl;
+      LCopy.Variants.Add(LVariantCopy);
+    end;
     Result.Add(LCopy);
   end;
 end;
@@ -254,10 +329,11 @@ procedure TBoss4DRegistryService.LoadInternal(const ASource: string;
   const AEntries: TBoss4DRegistryEntries; const AVisited: TStringList);
 var
   LData: TJSONData;
-  LRoot, LObject, LLatest: TJSONObject;
-  LIncludes, LPackages, LVersions: TJSONArray;
+  LRoot, LObject, LLatest, LVariantOwner, LVariantObject: TJSONObject;
+  LIncludes, LPackages, LVersions, LVariants: TJSONArray;
   LEntry: TBoss4DRegistryEntry;
-  I: Integer;
+  LVariant: TBoss4DArtifactVariant;
+  I, J: Integer;
   LKey: string;
 begin
   LKey := LowerCase(ASource);
@@ -291,11 +367,13 @@ begin
         LEntry.ArtifactDigest := LObject.Get('sha256', '');
         LEntry.SignatureUrl := LObject.Get('signature', '');
         LEntry.ProvenanceUrl := LObject.Get('provenance', '');
+        LVariantOwner := LObject;
         LVersions := FindArray(LObject, 'versions');
         if Assigned(LVersions) and (LVersions.Count > 0) and
            (LVersions.Items[0] is TJSONObject) then
         begin
           LLatest := TJSONObject(LVersions.Items[0]);
+          LVariantOwner := LLatest;
           LEntry.Version := LLatest.Get('version', LEntry.Version);
           LEntry.ArtifactUrl := LLatest.Get('artifact', LEntry.ArtifactUrl);
           LEntry.ArtifactDigest := LLatest.Get('sha256',
@@ -305,6 +383,25 @@ begin
           LEntry.ProvenanceUrl := LLatest.Get('provenance',
             LEntry.ProvenanceUrl);
         end;
+        LVariants := FindArray(LVariantOwner, 'variants');
+        if Assigned(LVariants) then
+          for J := 0 to LVariants.Count - 1 do
+            if LVariants.Items[J] is TJSONObject then
+            begin
+              LVariantObject := TJSONObject(LVariants.Items[J]);
+              LVariant := TBoss4DArtifactVariant.Create;
+              LVariant.Platform := LVariantObject.Get('platform', '');
+              LVariant.Compiler := LVariantObject.Get('compiler', '');
+              LVariant.ArtifactUrl := LVariantObject.Get('artifact', '');
+              LVariant.ArtifactDigest := LVariantObject.Get('sha256', '');
+              LVariant.SignatureUrl := LVariantObject.Get('signature', '');
+              LVariant.ProvenanceUrl := LVariantObject.Get('provenance', '');
+              if (LVariant.ArtifactUrl <> '') and
+                 (LVariant.ArtifactDigest <> '') then
+                LEntry.Variants.Add(LVariant)
+              else
+                LVariant.Free;
+            end;
         LEntry.Source := ASource;
         if (LEntry.Name <> '') and (LEntry.Repository <> '') and
            not Assigned(AEntries.Find(LEntry.Name)) then
