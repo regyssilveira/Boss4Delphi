@@ -9,7 +9,7 @@ for implementada.
 
 A primeira matriz avançada cobre:
 
-- Delphi 10.1 (`BDS 18.0`), Delphi 11 (`BDS 28.0`), Delphi 12 (`BDS 23.0`) e
+- Delphi 10.1 (`BDS 18.0`), Delphi 11 (`BDS 22.0`), Delphi 12 (`BDS 23.0`) e
   Delphi 13 (`BDS 37.0`);
 - plataformas `Win32` e `Win64`;
 - configurações `Debug` e `Release`;
@@ -70,4 +70,3 @@ Cada incremento deste contrato exige:
 - builds reais proporcionais à mudança nas versões instaladas do Delphi;
 - atualização da documentação em português e inglês;
 - quality gate do Sonar aprovado antes do encerramento da versão.
-

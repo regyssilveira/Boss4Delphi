@@ -9,7 +9,7 @@ documented when it is implemented.
 
 The first advanced matrix covers:
 
-- Delphi 10.1 (`BDS 18.0`), Delphi 11 (`BDS 28.0`), Delphi 12 (`BDS 23.0`),
+- Delphi 10.1 (`BDS 18.0`), Delphi 11 (`BDS 22.0`), Delphi 12 (`BDS 23.0`),
   and Delphi 13 (`BDS 37.0`);
 - `Win32` and `Win64`;
 - `Debug` and `Release`;
@@ -69,4 +69,3 @@ Every contract increment requires:
 - real builds proportional to the change on installed Delphi versions;
 - Portuguese and English documentation updates;
 - a passing Sonar quality gate before closing the release.
-
