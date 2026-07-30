@@ -78,6 +78,9 @@ begin
     LPkg.Scripts.Add('build', 'msbuild');
     LPkg.Engines.Compiler := '36.0';
     LPkg.Engines.Platforms.Add('Win32');
+    LPkg.Trust.RequireSignedCommits := True;
+    LPkg.Trust.RequireSignedTags := True;
+    LPkg.Trust.AllowedSigners.Add('release@example.com');
     var LManualComponent := TBoss4DManualComponent.Create;
     LManualComponent.Id := 'commercial-driver';
     LManualComponent.Name := 'Commercial Database Driver';
@@ -107,6 +110,10 @@ begin
       Assert.AreEqual<string>('msbuild', LLoadedPkg.Scripts['build']);
       Assert.AreEqual('36.0', LLoadedPkg.Engines.Compiler);
       Assert.AreEqual('Win32', LLoadedPkg.Engines.Platforms[0]);
+      Assert.IsTrue(LLoadedPkg.Trust.RequireSignedCommits);
+      Assert.IsTrue(LLoadedPkg.Trust.RequireSignedTags);
+      Assert.AreEqual('release@example.com',
+        LLoadedPkg.Trust.AllowedSigners[0]);
       Assert.AreEqual<Integer>(1, LLoadedPkg.SbomComponents.Count);
       Assert.AreEqual('commercial-driver', LLoadedPkg.SbomComponents[0].Id);
       Assert.AreEqual('Commercial', LLoadedPkg.SbomComponents[0].License);

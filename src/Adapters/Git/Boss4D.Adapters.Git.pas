@@ -19,6 +19,10 @@ type
     procedure UpdateCache(const ADep: TBoss4DDependency; const ACacheDir: string);
     function GetVersions(const ACacheDir: string): TArray<string>;
     function ResolveRevision(const ACacheDir: string; const AVersion: string): string;
+    function VerifyCommit(const ACacheDir, ARevision: string;
+      out ASigner: string): Boolean;
+    function VerifyTag(const ACacheDir, ATag: string;
+      out ASigner: string): Boolean;
     procedure Checkout(const ACacheDir: string; const AVersion: string; const ATargetDir: string);
   end;
 
@@ -44,6 +48,33 @@ end;
 function TBoss4DGitCliAdapter.ExecuteGit(const AArgs: string; const AWorkingDir: string; out AOutput: string): Boolean;
 begin
   Result := ExecuteCommandLine('git ' + AArgs, AWorkingDir, AOutput);
+end;
+
+function TBoss4DGitCliAdapter.VerifyCommit(const ACacheDir,
+  ARevision: string; out ASigner: string): Boolean;
+var
+  LOutput: string;
+begin
+  ASigner := '';
+  Result := ExecuteGit('verify-commit "' + ARevision + '"',
+    ACacheDir, LOutput);
+  if Result then
+    ExecuteGit('show -s --format="%GS" "' + ARevision + '"',
+      ACacheDir, ASigner);
+  ASigner := ASigner.Trim;
+end;
+
+function TBoss4DGitCliAdapter.VerifyTag(const ACacheDir, ATag: string;
+  out ASigner: string): Boolean;
+var
+  LOutput: string;
+begin
+  ASigner := '';
+  Result := ExecuteGit('verify-tag "' + ATag + '"', ACacheDir, LOutput);
+  if Result then
+    ExecuteGit('tag -v --format="%(signature:signer)" "' + ATag + '"',
+      ACacheDir, ASigner);
+  ASigner := ASigner.Trim;
 end;
 
 procedure TBoss4DGitCliAdapter.CloneCache(const ADep: TBoss4DDependency; const ATargetDir: string);

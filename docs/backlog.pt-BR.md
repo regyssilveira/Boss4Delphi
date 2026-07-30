@@ -171,7 +171,7 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 
 - [x] **[Story] Comando de Auditoria (`boss4d audit`)**
   - Comparar as dependências e suas versões contra uma base de vulnerabilidades para reportar falhas ativas de segurança.
-- [ ] **[Story] Assinatura Digital e Verificação de Tags**
+- [x] **[Story] Assinatura Digital e Verificação de Tags**
   - Validar assinaturas de commits e tags de repositórios confiáveis durante o download dos pacotes.
 
 ---

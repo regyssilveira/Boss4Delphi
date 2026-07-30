@@ -288,6 +288,23 @@ begin
   end;
 end;
 
+procedure ParsePackageTrust(const AJSONObj: TJSONObject;
+  const APackage: TBoss4DPackage);
+var
+  LObj: TJSONObject;
+  LSigners: TJSONArray;
+begin
+  LObj := ReadObject(AJSONObj, 'trust');
+  if not Assigned(LObj) then Exit;
+  APackage.Trust.RequireSignedCommits :=
+    ReadBool(LObj, 'requireSignedCommits');
+  APackage.Trust.RequireSignedTags := ReadBool(LObj, 'requireSignedTags');
+  LSigners := ReadArray(LObj, 'allowedSigners');
+  if Assigned(LSigners) then
+    for var I := 0 to LSigners.Count - 1 do
+      APackage.Trust.AllowedSigners.Add(LSigners[I].Value);
+end;
+
 procedure SavePackageDevDependencies(const AJSONObj: TJSONObject;
   const APackage: TBoss4DPackage);
 var
@@ -321,6 +338,27 @@ begin
     end;
     AJSONObj.AddPair('engines', LEnginesObj);
   end;
+end;
+
+procedure SavePackageTrust(const AJSONObj: TJSONObject;
+  const APackage: TBoss4DPackage);
+var
+  LObj: TJSONObject;
+  LSigners: TJSONArray;
+begin
+  if not APackage.Trust.RequireSignedCommits and
+     not APackage.Trust.RequireSignedTags and
+     (APackage.Trust.AllowedSigners.Count = 0) then Exit;
+  LObj := TJSONObject.Create;
+  LObj.AddPair('requireSignedCommits',
+    TJSONBool.Create(APackage.Trust.RequireSignedCommits));
+  LObj.AddPair('requireSignedTags',
+    TJSONBool.Create(APackage.Trust.RequireSignedTags));
+  LSigners := TJSONArray.Create;
+  for var LSigner in APackage.Trust.AllowedSigners do
+    LSigners.Add(LSigner);
+  LObj.AddPair('allowedSigners', LSigners);
+  AJSONObj.AddPair('trust', LObj);
 end;
 
 procedure SavePackageToolchain(const AJSONObj: TJSONObject; const APackage: TBoss4DPackage);
@@ -430,6 +468,7 @@ begin
       ParsePackageSbomComponents(LJSONObj, Result);
       ParsePackageEngines(LJSONObj, Result);
       ParsePackageToolchain(LJSONObj, Result);
+      ParsePackageTrust(LJSONObj, Result);
       ParsePackageWorkspaces(LJSONObj, Result);
     finally
       LJSONObj.Free;
@@ -496,6 +535,7 @@ begin
     end;
     SavePackageEngines(LJSONObj, APackage);
     SavePackageToolchain(LJSONObj, APackage);
+    SavePackageTrust(LJSONObj, APackage);
     SavePackageWorkspaces(LJSONObj, APackage);
 
     LJSONStr := LJSONObj.Format(2);

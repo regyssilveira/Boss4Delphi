@@ -15,6 +15,9 @@ type
     FFailCheckout: Boolean;
     FNetworkCallCount: Integer;
     FLastCheckoutVersion: string;
+    FCommitSignatureValid: Boolean;
+    FTagSignatureValid: Boolean;
+    FSigner: string;
   public
     constructor Create;
     destructor Destroy; override;
@@ -25,10 +28,17 @@ type
     procedure UpdateCache(const ADep: TBoss4DDependency; const ACacheDir: string);
     function GetVersions(const ACacheDir: string): TArray<string>;
     function ResolveRevision(const ACacheDir: string; const AVersion: string): string;
+    function VerifyCommit(const ACacheDir, ARevision: string;
+      out ASigner: string): Boolean;
+    function VerifyTag(const ACacheDir, ATag: string;
+      out ASigner: string): Boolean;
     procedure Checkout(const ACacheDir: string; const AVersion: string; const ATargetDir: string);
     property FailCheckout: Boolean read FFailCheckout write FFailCheckout;
     property NetworkCallCount: Integer read FNetworkCallCount;
     property LastCheckoutVersion: string read FLastCheckoutVersion;
+    property CommitSignatureValid: Boolean read FCommitSignatureValid write FCommitSignatureValid;
+    property TagSignatureValid: Boolean read FTagSignatureValid write FTagSignatureValid;
+    property Signer: string read FSigner write FSigner;
   end;
 
   { Mock para simulacao do cliente HTTP }
@@ -95,6 +105,9 @@ begin
   inherited Create;
   FTags := TDictionary<string, TArray<string>>.Create;
   FCacheMap := TDictionary<string, string>.Create;
+  FCommitSignatureValid := True;
+  FTagSignatureValid := True;
+  FSigner := 'trusted@example.com';
 end;
 
 destructor TGitClientMock.Destroy;
@@ -213,6 +226,20 @@ begin
     Exit(FResponseCodes[AURL.ToLower]);
   end;
   Result := 404; // Not Found padrao
+end;
+
+function TGitClientMock.VerifyCommit(const ACacheDir, ARevision: string;
+  out ASigner: string): Boolean;
+begin
+  ASigner := FSigner;
+  Result := FCommitSignatureValid;
+end;
+
+function TGitClientMock.VerifyTag(const ACacheDir, ATag: string;
+  out ASigner: string): Boolean;
+begin
+  ASigner := FSigner;
+  Result := FTagSignatureValid;
 end;
 
 procedure THttpClientMock.AddResponse(const AURL, AResponse: string;

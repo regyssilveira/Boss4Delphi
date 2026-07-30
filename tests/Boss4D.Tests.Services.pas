@@ -60,6 +60,9 @@ type
     procedure TestAuditOsvCachePolicyAndVex;
 
     [Test]
+    procedure TestGitSignatureTrustPolicy;
+
+    [Test]
     procedure TestCLICommandLineParser;
 
     [Test]
@@ -833,6 +836,70 @@ begin
     Assert.AreEqual<Integer>(0, LSummary.PolicyViolations);
   finally
     LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestGitSignatureTrustPolicy;
+var
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LPkg: TBoss4DPackage;
+  LGit: TGitClientMock;
+  LInstall: TBoss4DInstallService;
+  LRaised: Boolean;
+begin
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LPkg := TBoss4DPackage.Create;
+  try
+    LPkg.Name := 'signed-project';
+    LPkg.Version := '1.0.0';
+    LPkg.AddDependency('github.com/example/signed', 'v1.0.0');
+    LPkg.Trust.RequireSignedCommits := True;
+    LPkg.Trust.RequireSignedTags := True;
+    LPkg.Trust.AllowedSigners.Add('release@example.com');
+    LPackageRepo.Save(LPkg, GetBossFile);
+  finally
+    LPkg.Free;
+  end;
+
+  LGit := TGitClientMock.Create;
+  LGit.Signer := 'intruder@example.com';
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo, LGit,
+    THttpClientMock.Create, TCompilerMock.Create, TTestLogger.Create);
+  try
+    LRaised := False;
+    try
+      LInstall.Execute;
+    except
+      on E: Exception do
+      begin
+        LRaised := True;
+        Assert.IsTrue(E.Message.Contains('nao autorizado'));
+      end;
+    end;
+    Assert.IsTrue(LRaised);
+    Assert.IsFalse(TFile.Exists(TPath.Combine(FTempDir, FILE_PACKAGE_LOCK)),
+      'Falha de confiança deve fazer rollback do lock.');
+
+    LGit.Signer := 'release@example.com';
+    LInstall.Execute;
+    Assert.IsTrue(TFile.Exists(TPath.Combine(FTempDir, FILE_PACKAGE_LOCK)));
+
+    LGit.TagSignatureValid := False;
+    LRaised := False;
+    try
+      LInstall.Execute;
+    except
+      on E: Exception do
+      begin
+        LRaised := True;
+        Assert.IsTrue(E.Message.Contains('Tag sem assinatura valida'));
+      end;
+    end;
+    Assert.IsTrue(LRaised);
+  finally
+    LInstall.Free;
   end;
 end;
 

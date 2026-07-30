@@ -67,6 +67,9 @@ and `ci --production` exclude them. See [dependency scopes](dependency-scopes.md
 Run `audit [--fail-on severity] [--offline] [--vex file]` to evaluate locked
 Git revisions against OSV. See the [audit guide](audit.md).
 
+Configure the manifest `trust` object to require signed commits/tags and
+allowed signers. See the [Git trust policy](trust-policy.md).
+
 Boss4D downloads dependencies, checks out the correct version from Git, places them in a local `modules/` folder, and updates compilation paths.
 
 ### Installing a New Package

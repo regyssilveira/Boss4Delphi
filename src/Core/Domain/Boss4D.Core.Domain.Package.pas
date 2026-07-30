@@ -58,6 +58,19 @@ type
     property Strict: Boolean read FStrict write FStrict;
   end;
 
+  TBoss4DPackageTrust = class
+  private
+    FRequireSignedCommits: Boolean;
+    FRequireSignedTags: Boolean;
+    FAllowedSigners: TList<string>;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    property RequireSignedCommits: Boolean read FRequireSignedCommits write FRequireSignedCommits;
+    property RequireSignedTags: Boolean read FRequireSignedTags write FRequireSignedTags;
+    property AllowedSigners: TList<string> read FAllowedSigners;
+  end;
+
   { Entidade pura de dominio que representa o arquivo boss.json }
   TBoss4DPackage = class
   private
@@ -74,6 +87,7 @@ type
     FDevDependencies: TDictionary<string, string>;
     FEngines: TBoss4DPackageEngines;
     FToolchain: TBoss4DPackageToolchain;
+    FTrust: TBoss4DPackageTrust;
     FWorkspaces: TList<string>;
     FSbomComponents: TObjectList<TBoss4DManualComponent>;
   public
@@ -102,6 +116,7 @@ type
     property DevDependencies: TDictionary<string, string> read FDevDependencies;
     property Engines: TBoss4DPackageEngines read FEngines;
     property Toolchain: TBoss4DPackageToolchain read FToolchain;
+    property Trust: TBoss4DPackageTrust read FTrust;
     property Workspaces: TList<string> read FWorkspaces;
     property SbomComponents: TObjectList<TBoss4DManualComponent> read FSbomComponents;
   end;
@@ -112,6 +127,18 @@ uses
   System.SysUtils;
 
 { TBoss4DPackageEngines }
+
+constructor TBoss4DPackageTrust.Create;
+begin
+  inherited Create;
+  FAllowedSigners := TList<string>.Create;
+end;
+
+destructor TBoss4DPackageTrust.Destroy;
+begin
+  FAllowedSigners.Free;
+  inherited Destroy;
+end;
 
 constructor TBoss4DPackageEngines.Create;
 begin
@@ -136,6 +163,7 @@ begin
   FDevDependencies := TDictionary<string, string>.Create;
   FEngines := TBoss4DPackageEngines.Create;
   FToolchain := TBoss4DPackageToolchain.Create;
+  FTrust := TBoss4DPackageTrust.Create;
   FWorkspaces := TList<string>.Create;
   FSbomComponents := TObjectList<TBoss4DManualComponent>.Create(True);
 end;
@@ -144,6 +172,7 @@ destructor TBoss4DPackage.Destroy;
 begin
   FSbomComponents.Free;
   FWorkspaces.Free;
+  FTrust.Free;
   FToolchain.Free;
   FEngines.Free;
   FDevDependencies.Free;

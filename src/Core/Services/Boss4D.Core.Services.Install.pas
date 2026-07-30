@@ -30,6 +30,7 @@ type
     FGitCriticalSection: TCriticalSection;
     FGlobalProcessedDeps: TList<string>;
     FOptions: TBoss4DInstallOptions;
+    FTrust: TBoss4DPackageTrust;
 
     procedure ProcessDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock;
       const AProcessedDeps: TList<string>);
@@ -51,6 +52,7 @@ type
     procedure ValidateLockedManifest(const APackage: TBoss4DPackage;
       const ALock: TBoss4DLock);
     procedure ApplyLockScopes(const ALock: TBoss4DLock);
+    function SignerAllowed(const ASigner: string): Boolean;
   public
     constructor Create(
       const APackageRepo: IBoss4DPackageRepository;
@@ -253,6 +255,30 @@ begin
     begin
       LResolvedVersion := ResolveDependencyVersion(ADep, LCacheDir);
       LResolvedRevision := FGitClient.ResolveRevision(LCacheDir, LResolvedVersion);
+    end;
+
+    if Assigned(FTrust) and FTrust.RequireSignedCommits then
+    begin
+      var LSigner: string;
+      if not FGitClient.VerifyCommit(LCacheDir, LResolvedRevision, LSigner) then
+        raise Exception.CreateFmt('Commit sem assinatura valida para %s: %s',
+          [ADep.Name, LResolvedRevision]);
+      if not SignerAllowed(LSigner) then
+        raise Exception.CreateFmt('Signatario nao autorizado para %s: %s',
+          [ADep.Name, LSigner]);
+    end;
+    if Assigned(FTrust) and FTrust.RequireSignedTags and
+       not LResolvedVersion.IsEmpty then
+    begin
+      var LTagSigner: string;
+      if not FGitClient.VerifyTag(LCacheDir, LResolvedVersion,
+        LTagSigner) then
+        raise Exception.CreateFmt('Tag sem assinatura valida para %s: %s',
+          [ADep.Name, LResolvedVersion]);
+      if not SignerAllowed(LTagSigner) then
+        raise Exception.CreateFmt(
+          'Signatario da tag nao autorizado para %s: %s',
+          [ADep.Name, LTagSigner]);
     end;
 
     FLogger.Log(TBoss4DLogLevel.Debug, 'Versao selecionada para %s: %s', [ADep.Name, LResolvedVersion]);
@@ -505,6 +531,16 @@ begin
   end;
 end;
 
+function TBoss4DInstallService.SignerAllowed(const ASigner: string): Boolean;
+begin
+  if not Assigned(FTrust) or (FTrust.AllowedSigners.Count = 0) then
+    Exit(True);
+  for var LAllowed in FTrust.AllowedSigners do
+    if SameText(LAllowed.Trim, ASigner.Trim) then
+      Exit(True);
+  Result := False;
+end;
+
 procedure TBoss4DInstallService.Execute(
   const AOptions: TBoss4DInstallOptions);
 var
@@ -672,6 +708,7 @@ begin
     end;
     if FOptions.CleanModules and TDirectory.Exists(GetModulesDir) then
       TDirectory.Delete(GetModulesDir, True);
+    FTrust := LPkg.Trust;
     LEffectivePlatform := ResolveEffectivePlatform(LPkg, APlatform);
     LEffectiveCompiler := LPkg.Toolchain.Compiler;
     CaptureRootMetadata;
@@ -863,6 +900,7 @@ begin
       end;
     end;
   finally
+    FTrust := nil;
     LTasks.Free;
     LProcessedDeps.Free;
     LLock.Free;

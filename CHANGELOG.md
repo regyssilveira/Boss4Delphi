@@ -15,6 +15,8 @@
   scope evidence in lock schema v3, CycloneDX, and SPDX.
 - OSV commit-based `audit` with revision cache, offline operation, severity
   policy gates, and VEX suppression.
+- Manifest trust policies for native Git commit/tag signature verification and
+  allowed signer enforcement before checkout.
 
 ## 1.3.0 - 2026-07-29
 

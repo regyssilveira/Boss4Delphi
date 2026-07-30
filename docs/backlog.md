@@ -171,7 +171,7 @@ This document details the future planning, new features (backlog), and architect
 
 - [x] **[Story] Audit Command (`boss4d audit`)**
   - Compare dependencies and their versions against a vulnerability database to report active security flaws.
-- [ ] **[Story] Digital Signature and Tag Verification**
+- [x] **[Story] Digital Signature and Tag Verification**
   - Validate signatures of commits and tags from trusted repositories during package download.
 
 ---

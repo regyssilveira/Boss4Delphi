@@ -78,6 +78,10 @@ type
     procedure UpdateCache(const ADep: TBoss4DDependency; const ACacheDir: string);
     function GetVersions(const ACacheDir: string): TArray<string>;
     function ResolveRevision(const ACacheDir: string; const AVersion: string): string;
+    function VerifyCommit(const ACacheDir, ARevision: string;
+      out ASigner: string): Boolean;
+    function VerifyTag(const ACacheDir, ATag: string;
+      out ASigner: string): Boolean;
     procedure Checkout(const ACacheDir: string; const AVersion: string; const ATargetDir: string);
   end;
 
