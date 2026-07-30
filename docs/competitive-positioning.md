@@ -14,7 +14,7 @@ scale are kept separate from CLI feature count.
 | Immutable distribution | `.b4dpkg`, SHA-256, OpenPGP, in-toto, transactional install | Primarily Git checkout | Signed hosted packages | Hosted packages | Immutable archives and checksums |
 | Publishing policy | Dry-run, gates, secure token, immutable versions, reviewed publishers | No comparable public registry workflow documented | Central source and package push | Vendor submission | Mature authenticated publishing |
 | Supply-chain evidence | CycloneDX, SPDX, VEX, OSV, in-toto and OpenPGP | No SBOM/audit workflow documented | SBOM plus author/repository signing | Vendor-controlled | Ecosystem-dependent, generally mature |
-| Compiler/platform matrix | Delphi 10.1/11/12/13 IDE plugins; Win32/Win64; Linux x86_64/FPC | Compiler/platform selection | Delphi XE2–13 and supported targets | Current vendor releases | Rich target mechanisms |
+| Compiler/platform matrix | Delphi 10/10.1/11/12/13 IDE plugins; Win32/Win64; Linux x86_64/FPC | Compiler/platform selection | Delphi XE2–13 and supported targets | Current vendor releases | Rich target mechanisms |
 | Auto-update | Verified transactional Windows and Linux update | `upgrade`, including pre-release channel | Installer/package delivery | RAD Studio delivery | Mature toolchain-specific update |
 | Progress/automation | Plain, interactive, JSON, quiet, cancellation and stable exit codes | Interactive dependency progress | Conventional CLI output | IDE UI | Mature machine-readable automation |
 
@@ -44,7 +44,7 @@ tooling, and operational registry infrastructure.
 
 - Delphi 13 DUnitX: 143 tests on Win32 and 143 on Win64.
 - FPC 3.2.2/Linux x86_64: 61 FPCUnit tests plus real CLI smoke tests.
-- Real IDE plugin builds: Delphi 10.1, 11, 12 and 13.
+- Real IDE plugin builds: Delphi 10, 10.1, 11, 12 and 13.
 - Release archives: Windows and Linux with SHA-256 and GitHub OIDC provenance.
 - Registry submission checks: publisher scope, OpenPGP fingerprint, immutable
   versions, signature and provenance.

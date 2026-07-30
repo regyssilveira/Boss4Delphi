@@ -150,7 +150,7 @@ begin
     LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
       TBoss4DBuildSelection.All);
     try
-      Assert.AreEqual<Integer>(19, LTargets.Count);
+      Assert.AreEqual<Integer>(23, LTargets.Count);
       Assert.AreEqual(
         'multi-delphi-component|packages/ComponentDesign.dproj|22.0|Win32|Release',
         LTargets[0].Identity);

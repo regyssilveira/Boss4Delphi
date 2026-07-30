@@ -7,7 +7,7 @@ pelo Boss4D para descrever builds em múltiplas versões do Delphi.
 
 A primeira matriz avançada cobre:
 
-- Delphi 10.1 (`BDS 18.0`), Delphi 11 (`BDS 22.0`), Delphi 12 (`BDS 23.0`) e
+- Delphi 10 (`BDS 17.0`), Delphi 10.1 (`BDS 18.0`), Delphi 11 (`BDS 22.0`), Delphi 12 (`BDS 23.0`) e
   Delphi 13 (`BDS 37.0`);
 - plataformas `Win32` e `Win64`;
 - configurações `Debug` e `Release`;
@@ -38,7 +38,7 @@ o resultado efetivo de um manifesto legado.
 ```json
 {
   "buildMatrix": {
-    "compilers": ["18.0", "22.0", "23.0", "37.0"],
+    "compilers": ["17.0", "18.0", "22.0", "23.0", "37.0"],
     "platforms": ["Win32", "Win64"],
     "configurations": ["Debug", "Release"],
     "defaults": {
@@ -177,6 +177,7 @@ A CLI aceita versões BDS ou aliases curtos:
 
 | Delphi | Seletor BDS/compilador | Alias | Sufixo do package | Símbolo |
 |---|---:|---|---:|---|
+| 10 Seattle | `17.0` | `d10` | `230` | `VER300` |
 | 10.1 Berlin | `18.0` | `d101` | `240` | `VER310` |
 | 11 Alexandria | `22.0` | `d11` | `280` | `VER350` |
 | 12 Athens | `23.0` | `d12` | `290` | `VER360` |
@@ -280,18 +281,17 @@ executar parcialmente a instalação.
 
 O branch atual foi validado com:
 
-- 183 testes DUnitX no Delphi 13 Win32 e Win64;
+- 184 testes DUnitX no Delphi 13 Win32 e Win64;
 - builds da CLI de produção no Delphi 13 Win32 e Win64;
-- builds reais do plugin da IDE com Delphi 11/BDS 22.0, Delphi 12/BDS 23.0 e
+- builds reais do plugin da IDE com Delphi 10/BDS 17.0, Delphi 11/BDS 22.0, Delphi 12/BDS 23.0 e
   Delphi 13/BDS 37.0;
 - 61 testes FPCUnit, smoke tests da CLI e do artefato de release em Linux/FPC
   3.2.2 via Docker;
 - Sonar Quality Gate `OK`, sem novas violações.
 
-Delphi 10.1 requer BDS 18.0. Essa toolchain não está instalada na máquina
-atual; portanto, seu build do plugin permanece como gate de um runner de
-release, e não como afirmação de validação local. BDS 17.0 corresponde ao
-Delphi 10 Seattle e não é aceito como evidência do Delphi 10.1.
+Delphi 10 Seattle é validado com BDS 17.0. Delphi 10.1 continua sendo um alvo
+distinto e requer BDS 18.0; um build do Seattle não deve ser apresentado como
+evidência do Berlin.
 
 ## Critérios de aceitação
 
