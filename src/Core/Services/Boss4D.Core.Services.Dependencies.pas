@@ -66,7 +66,9 @@ begin
       LDep.Free;
     end;
   except
-    { Permite nome/repositório sem versão para mensagens amigáveis. }
+    on E: Exception do
+      FLogger.Log(TBoss4DLogLevel.Debug,
+        'Entrada tratada como nome de dependencia: ' + E.Message);
   end;
   for LKey in ADependencies.Keys do
     if SameText(LKey, LRequested) or
