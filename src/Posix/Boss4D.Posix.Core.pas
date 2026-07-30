@@ -13,6 +13,7 @@ type
     Locked: Boolean;
     Offline: Boolean;
     Production: Boolean;
+    Resolution: string;
   end;
 
 function Boss4DVersion: string;
@@ -23,6 +24,8 @@ function DependencyTarget(const ARepository: string): string;
 function BuildCloneArguments(const ARepository, AVersion,
   ATarget: string): TStringList;
 function ManifestFingerprint(const AManifest: TJSONObject): string;
+function SelectVersion(const AConstraint: string; const AVersions: TStrings;
+  const AStrategy: string): string;
 function ListProject(const ADirectory: string; const AProduction: Boolean): TStringList;
 procedure InitProject(const ADirectory: string);
 procedure AddDependency(const ADirectory, ARepository, AVersion: string;
@@ -163,6 +166,87 @@ begin
   Result := LowerCase(IntToHex(LHash, 16));
 end;
 
+function StripVersionPrefix(const AValue: string): string;
+begin
+  Result := Trim(AValue);
+  if (Length(Result) > 1) and ((Result[1] = 'v') or (Result[1] = 'V')) then
+    Delete(Result, 1, 1);
+end;
+
+function VersionPart(const AVersion: string; const AIndex: Integer): Integer;
+var
+  LParts: TStringList;
+  LValue: string;
+begin
+  Result := 0;
+  LParts := TStringList.Create;
+  try
+    LParts.Delimiter := '.';
+    LParts.StrictDelimiter := True;
+    LParts.DelimitedText := StripVersionPrefix(AVersion);
+    if AIndex >= LParts.Count then Exit;
+    LValue := LParts[AIndex];
+    while (Length(LValue) > 0) and not (LValue[Length(LValue)] in ['0'..'9']) do
+      Delete(LValue, Length(LValue), 1);
+    TryStrToInt(LValue, Result);
+  finally
+    LParts.Free;
+  end;
+end;
+
+function CompareVersions(const ALeft, ARight: string): Integer;
+var
+  I, LLeft, LRight: Integer;
+begin
+  Result := 0;
+  for I := 0 to 2 do
+  begin
+    LLeft := VersionPart(ALeft, I);
+    LRight := VersionPart(ARight, I);
+    if LLeft < LRight then Exit(-1);
+    if LLeft > LRight then Exit(1);
+  end;
+end;
+
+function VersionMatches(const AVersion, AConstraint: string): Boolean;
+var
+  LConstraint: string;
+begin
+  LConstraint := Trim(AConstraint);
+  if (LConstraint = '') or (LConstraint = '*') then Exit(True);
+  if LConstraint[1] = '^' then
+  begin
+    Delete(LConstraint, 1, 1);
+    Exit((VersionPart(AVersion, 0) = VersionPart(LConstraint, 0)) and
+      (CompareVersions(AVersion, LConstraint) >= 0));
+  end;
+  if LConstraint[1] = '~' then
+  begin
+    Delete(LConstraint, 1, 1);
+    Exit((VersionPart(AVersion, 0) = VersionPart(LConstraint, 0)) and
+      (VersionPart(AVersion, 1) = VersionPart(LConstraint, 1)) and
+      (CompareVersions(AVersion, LConstraint) >= 0));
+  end;
+  Result := SameText(StripVersionPrefix(AVersion),
+    StripVersionPrefix(LConstraint));
+end;
+
+function SelectVersion(const AConstraint: string; const AVersions: TStrings;
+  const AStrategy: string): string;
+var
+  I: Integer;
+begin
+  Result := '';
+  for I := 0 to AVersions.Count - 1 do
+    if VersionMatches(AVersions[I], AConstraint) and
+      ((Result = '') or
+       (SameText(AStrategy, 'minimal') and
+        (CompareVersions(AVersions[I], Result) < 0)) or
+       (not SameText(AStrategy, 'minimal') and
+        (CompareVersions(AVersions[I], Result) > 0))) then
+      Result := AVersions[I];
+end;
+
 procedure InitProject(const ADirectory: string);
 var
   LFile: TextFile;
@@ -270,6 +354,41 @@ begin
   end;
 end;
 
+function ResolveGitVersion(const ARepository, AConstraint,
+  AStrategy: string): string;
+var
+  LLines, LVersions: TStringList;
+  LOutput, LLine, LPrefix: string;
+  I, LPosition: Integer;
+begin
+  Result := AConstraint;
+  if (AConstraint = '') or (AConstraint = '*') or
+     not (AConstraint[1] in ['^', '~']) then Exit;
+  LLines := TStringList.Create;
+  LVersions := TStringList.Create;
+  try
+    if not RunCommand('git', ['ls-remote', '--tags', '--refs', ARepository],
+      LOutput) then
+      raise Exception.Create('unable to query versions for ' + ARepository);
+    LLines.Text := LOutput;
+    LPrefix := 'refs/tags/';
+    for I := 0 to LLines.Count - 1 do
+    begin
+      LLine := LLines[I];
+      LPosition := Pos(LPrefix, LLine);
+      if LPosition > 0 then
+        LVersions.Add(Copy(LLine, LPosition + Length(LPrefix), MaxInt));
+    end;
+    Result := SelectVersion(AConstraint, LVersions, AStrategy);
+    if Result = '' then
+      raise Exception.CreateFmt('no version satisfies %s for %s',
+        [AConstraint, ARepository]);
+  finally
+    LVersions.Free;
+    LLines.Free;
+  end;
+end;
+
 procedure DeleteDirectoryTree(const ADirectory: string);
 var
   LSearch: TSearchRec;
@@ -321,6 +440,9 @@ begin
         raise Exception.Create('dependency is missing from lock: ' + LRepository);
       LVersion := LExistingEntry.Get('version', LVersion);
     end;
+    if not AOptions.Locked and not AOptions.Offline then
+      LVersion := ResolveGitVersion(LRepository, LVersion,
+        AOptions.Resolution);
     if not DirectoryExists(LTarget) then
     begin
       if AOptions.Offline then

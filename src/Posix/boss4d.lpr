@@ -10,7 +10,18 @@ begin
   WriteLn('Boss4D portable CLI');
   WriteLn('Commands: version, platform, init, install, ci, add, remove, list');
   WriteLn('Install options: --locked --frozen-lockfile --offline --production');
+  WriteLn('                 --resolution=highest|minimal');
   WriteLn('Add options: boss4d add <repository> [version] [--dev]');
+end;
+
+function OptionValue(const APrefix, ADefault: string): string;
+var
+  I: Integer;
+begin
+  Result := ADefault;
+  for I := 2 to ParamCount do
+    if Pos(APrefix + '=', LowerCase(ParamStr(I))) = 1 then
+      Exit(Copy(ParamStr(I), Length(APrefix) + 2, MaxInt));
 end;
 
 function HasOption(const AName: string): Boolean;
@@ -49,6 +60,10 @@ begin
         (LCommand = 'ci');
       LOptions.Offline := HasOption('--offline');
       LOptions.Production := HasOption('--production');
+      LOptions.Resolution := OptionValue('--resolution', 'highest');
+      if not SameText(LOptions.Resolution, 'highest') and
+         not SameText(LOptions.Resolution, 'minimal') then
+        raise Exception.Create('resolution must be highest or minimal');
       InstallProject(GetCurrentDir, LOptions);
     end
     else if LCommand = 'add' then

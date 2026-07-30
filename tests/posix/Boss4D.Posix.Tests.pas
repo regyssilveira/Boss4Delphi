@@ -20,6 +20,9 @@ type
     procedure TestListHonorsProduction;
     procedure TestInstallWritesV3Lock;
     procedure TestFrozenRejectsManifestDrift;
+    procedure TestHighestVersionResolution;
+    procedure TestMinimalVersionResolution;
+    procedure TestTildeDoesNotCrossMinor;
   end;
 
 implementation
@@ -32,6 +35,50 @@ begin
   Result := IncludeTrailingPathDelimiter(GetTempDir(False)) +
     'boss4d-posix-' + IntToHex(Random(MaxInt), 8);
   ForceDirectories(Result);
+end;
+
+function Versions(const AValues: array of string): TStringList;
+var
+  I: Integer;
+begin
+  Result := TStringList.Create;
+  for I := Low(AValues) to High(AValues) do Result.Add(AValues[I]);
+end;
+
+procedure TPosixCoreTests.TestHighestVersionResolution;
+var
+  LVersions: TStringList;
+begin
+  LVersions := Versions(['v1.2.0', 'v2.0.0', 'v1.9.1']);
+  try
+    AssertEquals('v1.9.1', SelectVersion('^1.1.0', LVersions, 'highest'));
+  finally
+    LVersions.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestMinimalVersionResolution;
+var
+  LVersions: TStringList;
+begin
+  LVersions := Versions(['1.4.0', '1.2.1', '1.8.0']);
+  try
+    AssertEquals('1.2.1', SelectVersion('^1.2.0', LVersions, 'minimal'));
+  finally
+    LVersions.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestTildeDoesNotCrossMinor;
+var
+  LVersions: TStringList;
+begin
+  LVersions := Versions(['1.2.3', '1.2.9', '1.3.0']);
+  try
+    AssertEquals('1.2.9', SelectVersion('~1.2.0', LVersions, 'highest'));
+  finally
+    LVersions.Free;
+  end;
 end;
 
 procedure WriteText(const AFileName, AValue: string);
