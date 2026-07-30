@@ -69,6 +69,9 @@ type
     procedure TestGitHubDependencySubmission;
 
     [Test]
+    procedure TestCompiledArtifactCacheIsolation;
+
+    [Test]
     procedure TestCLICommandLineParser;
 
     [Test]
@@ -182,6 +185,7 @@ uses
   Boss4D.Core.Services.Audit,
   Boss4D.Core.Services.PackageIndex,
   Boss4D.Core.Services.DependencySubmission,
+  Boss4D.Core.Services.ArtifactCache,
   Boss4D.Core.Services.PackageManifest, Boss4D.IDE.Wizard;
 
 { TTestLogger }
@@ -996,6 +1000,37 @@ begin
     LChildDep.Free;
     LRootDep.Free;
     LLock.Free;
+  end;
+end;
+
+procedure TTestsServices.TestCompiledArtifactCacheIsolation;
+var
+  LService: TBoss4DArtifactCacheService;
+  LDep: TBoss4DDependency;
+  LBinDir, LArtifact: string;
+begin
+  LDep := TBoss4DDependency.Create('github.com/example/tool', '1.0.0');
+  LService := TBoss4DArtifactCacheService.Create;
+  try
+    LBinDir := TPath.Combine(GetModulesDir,
+      TPath.Combine(LDep.Name, FOLDER_BIN));
+    TDirectory.CreateDirectory(LBinDir);
+    LArtifact := TPath.Combine(LBinDir, 'tool.exe');
+    TFile.WriteAllText(LArtifact, 'win32-delphi37');
+    LService.Store(LDep, 'source-checksum', 'Win32', '37.0');
+    TDirectory.Delete(LBinDir, True);
+    Assert.IsTrue(LService.Restore(LDep, 'source-checksum',
+      'Win32', '37.0'));
+    Assert.AreEqual('win32-delphi37', TFile.ReadAllText(LArtifact));
+
+    TDirectory.Delete(LBinDir, True);
+    Assert.IsFalse(LService.Restore(LDep, 'source-checksum',
+      'Win64', '37.0'), 'Plataformas nao podem compartilhar artefatos.');
+    Assert.IsFalse(LService.Restore(LDep, 'source-checksum',
+      'Win32', '36.0'), 'Compiladores nao podem compartilhar artefatos.');
+  finally
+    LService.Free;
+    LDep.Free;
   end;
 end;
 

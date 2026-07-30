@@ -183,7 +183,7 @@ This document details the future planning, new features (backlog), and architect
 ## ⚡ Epic 17: Network Performance and Smart Caching
 *Objective: Radically accelerate dependency installation time and reduce disk space usage.*
 
-- [ ] **[Story] Global Cache Sharing via Hardlinks**
+- [x] **[Story] Safe Global Git Object and Binary Cache**
   - Avoid duplicate physical repository clones by maintaining a central cache and generating logical hard links to each project's `modules/` folder.
 - [ ] **[Story] Parallel Downloads and MSBuild**
   - Execute multiple package downloads in parallel via Git and dispatch asynchronous compiler builds for independent modules.

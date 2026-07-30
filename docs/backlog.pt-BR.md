@@ -183,7 +183,7 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 ## ⚡ Épico 17: Performance de Redes e Cache Inteligente
 *Objetivo: Acelerar radicalmente o tempo de instalação de dependências e reduzir uso de disco.*
 
-- [ ] **[Story] Compartilhamento Global de Cache via Hardlinks**
+- [x] **[Story] Cache Global Seguro de Objetos Git e Binários**
   - Evitar clones físicos repetidos, mantendo os arquivos Git num repositório centralizado e gerando links lógicos (hard links) para a pasta `modules/` de cada projeto.
 - [ ] **[Story] Paralelização de Downloads e MSBuild**
   - Executar múltiplos downloads em paralelo via Git e disparar compilações em threads assíncronas para módulos sem relação de dependência direta.

@@ -21,6 +21,8 @@
   shared by the CLI, standalone GUI catalog, and RAD Studio integration.
 - GitHub Dependency Submission snapshots generated from lock v3 with direct and
   transitive relationships plus runtime/development scopes.
+- Safe Git object reuse without working-file hardlinks and compiled executable
+  caching isolated by source checksum, platform, and compiler version.
 
 ## 1.3.0 - 2026-07-29
 

@@ -129,6 +129,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Git Trust Policy](docs/trust-policy.md)**: Signed commit/tag verification and allowed signer enforcement.
 * **[Package Indexes](docs/package-index.md)**: Public/private registries, search/info, GUI catalog, and IDE discovery.
 * **[GitHub Dependency Submission](docs/github-dependency-submission.md)**: Publish lock v3 snapshots to the GitHub Dependency Graph.
+* **[Cache Strategy](docs/cache-strategy.md)**: Safe Git object reuse and platform/compiler-isolated executable artifacts.
 * **[CLI Usage Manual](docs/usage.md)**: Detailed step-by-step guide covering all command options and dependency configurations.
 * **[Contribution Guide](CONTRIBUTING.md)**: Coding standards and guidelines for contribution.
 * **[Release Guide](RELEASE_GUIDE.md)**: Steps and instructions to compile with Delphi 13 (37.0) and publish releases on GitHub.

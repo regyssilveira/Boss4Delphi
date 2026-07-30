@@ -81,7 +81,8 @@ uses
   Boss4D.Core.Services.IDEIntegration, Boss4D.Core.Services.Workspace,
   Boss4D.Core.Services.SourceNormalizer,
   Boss4D.Core.Services.LazarusProject,
-  Boss4D.Core.Services.Transaction;
+  Boss4D.Core.Services.Transaction,
+  Boss4D.Core.Services.ArtifactCache;
 
 { TBoss4DInstallService }
 
@@ -483,7 +484,22 @@ procedure TBoss4DInstallService.BuildDependency(const ADep: TBoss4DDependency;
   const ACompilerVersion: string = '');
 var
   LFiles: TArray<string>;
+  LLocked: TBoss4DLockedDependency;
+  LChecksum: string;
+  LArtifactCache: TBoss4DArtifactCacheService;
 begin
+  LChecksum := '';
+  if ALock.GetInstalled(ADep, LLocked) then
+    LChecksum := LLocked.Checksum;
+  LArtifactCache := TBoss4DArtifactCacheService.Create;
+  try
+    if LArtifactCache.Restore(ADep, LChecksum, APlatform,
+      ACompilerVersion) then
+    begin
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Artefatos restaurados do cache: ' + ADep.Name);
+      Exit;
+    end;
   LFiles := ResolveBuildProjects(ADep);
 
   if Length(LFiles) > 0 then
@@ -508,12 +524,18 @@ begin
         Continue;
 
       // Executa compilaÃ§Ã£o nativa
-      FCompiler.Compile(LFile, ADep, ALock, APlatform, ACompilerVersion);
+      if not FCompiler.Compile(LFile, ADep, ALock, APlatform,
+        ACompilerVersion) then
+        raise Exception.Create('Falha ao compilar dependencia: ' + ADep.Name);
     end;
   end
   else
   begin
     FLogger.Log(TBoss4DLogLevel.Debug, 'Nenhum projeto dproj encontrado para compilar na dependencia %s.', [ADep.Name]);
+  end;
+    LArtifactCache.Store(ADep, LChecksum, APlatform, ACompilerVersion);
+  finally
+    LArtifactCache.Free;
   end;
 end;
 

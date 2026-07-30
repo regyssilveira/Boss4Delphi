@@ -190,7 +190,8 @@ begin
 
   // Copia o repositorio do cache para a pasta destino (sem a pasta .git para manter limpo, ou clonando localmente)
   // Fazemos um clone local do cache para a pasta destino, o que e muito mais rapido e mantem integridade
-  if not ExecuteGit('clone "' + ACacheDir + '" "' + ATargetDir + '"', '', LOutput) then
+  if not ExecuteGit('clone --no-hardlinks --reference-if-able "' +
+    ACacheDir + '" "' + ACacheDir + '" "' + ATargetDir + '"', '', LOutput) then
     raise Exception.CreateFmt('Erro ao criar clone local para checkout: %s', [LOutput]);
 
   // Efetua o checkout da versao desejada no destino (se informada)
