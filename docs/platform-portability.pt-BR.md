@@ -37,9 +37,8 @@ diretório home gravável.
 Credenciais no Secret Service, tokens efêmeros de CI, mirrors Git bare,
 manutenção de cache e links simbólicos de workspace são fluxos nativos Linux.
 
-O host Windows ainda é necessário para integração RAD Studio/GetIt, GUI,
-plugins da IDE e
-autoatualização. Esses limites são explícitos.
+O host Windows ainda é necessário para integração RAD Studio/GetIt, GUI e
+plugins da IDE. Esses limites são explícitos.
 
 ## Próximas etapas de portabilidade
 

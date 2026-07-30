@@ -59,6 +59,20 @@ type
     property Success: Boolean read FSuccess write FSuccess;
   end;
 
+  TUpdateMock = class
+  private
+    FDirectory: string;
+    FRelease: string;
+    FDownloads: Integer;
+  public
+    function Fetch: string;
+    function Download(const AUrl, ATarget: string): Boolean;
+    function Extract(const AArchive, ATargetDirectory: string): Boolean;
+    property Directory: string read FDirectory write FDirectory;
+    property Release: string read FRelease write FRelease;
+    property Downloads: Integer read FDownloads;
+  end;
+
   TPosixCoreTests = class(TTestCase)
   published
     procedure TestPlatform;
@@ -111,6 +125,8 @@ type
     procedure TestSecretMasking;
     procedure TestCacheManagement;
     procedure TestWorkspaceLinks;
+    procedure TestSecureSelfUpdate;
+    procedure TestSelfUpdateSkipsCurrentVersion;
   end;
 
 implementation
@@ -120,7 +136,7 @@ uses
   Boss4D.Posix.Config,
   Boss4D.Posix.Package,
   Boss4D.Posix.Operations, Boss4D.Posix.Compliance, Boss4D.Posix.Audit,
-  Boss4D.Posix.Workflows;
+  Boss4D.Posix.Workflows, Boss4D.Posix.Update;
 
 procedure SaveFixture(const APath, AContent: string); forward;
 
@@ -1013,6 +1029,45 @@ begin
   Result := FSuccess;
 end;
 
+function TUpdateMock.Fetch: string;
+begin
+  Result := FRelease;
+end;
+
+function TUpdateMock.Download(const AUrl, ATarget: string): Boolean;
+var
+  LSource: string;
+  LInput, LOutput: TFileStream;
+begin
+  Inc(FDownloads);
+  if Pos('SHA256SUMS', AUrl) > 0 then
+    LSource := IncludeTrailingPathDelimiter(FDirectory) + 'SHA256SUMS.txt'
+  else
+    LSource := IncludeTrailingPathDelimiter(FDirectory) +
+      'boss4d-linux-x86_64.tar.gz';
+  LInput := TFileStream.Create(LSource, fmOpenRead);
+  try
+    LOutput := TFileStream.Create(ATarget, fmCreate);
+    try
+      LOutput.CopyFrom(LInput, 0);
+    finally
+      LOutput.Free;
+    end;
+  finally
+    LInput.Free;
+  end;
+  Result := True;
+end;
+
+function TUpdateMock.Extract(const AArchive,
+  ATargetDirectory: string): Boolean;
+begin
+  ForceDirectories(ATargetDirectory);
+  SaveFixture(IncludeTrailingPathDelimiter(ATargetDirectory) + 'boss4d',
+    'new executable');
+  Result := True;
+end;
+
 function CreateComplianceLock(const ADirectory: string): string;
 begin
   Result := IncludeTrailingPathDelimiter(ADirectory) + 'boss-lock.json';
@@ -1388,6 +1443,80 @@ begin
   AssertTrue(DirectoryExists(IncludeTrailingPathDelimiter(LDir) +
     'packages/two/modules'));
   AssertEquals(0, LinkDeclaredWorkspaces(LDir));
+end;
+
+procedure TPosixCoreTests.TestSecureSelfUpdate;
+var
+  LDir, LArchive, LTarget, LHash: string;
+  LMock: TUpdateMock;
+  LService: TBoss4DPosixUpdateService;
+  LResult: TBoss4DUpdateResult;
+  LContent: TStringList;
+begin
+  LDir := NewTempDirectory;
+  LArchive := IncludeTrailingPathDelimiter(LDir) +
+    'boss4d-linux-x86_64.tar.gz';
+  SaveFixture(LArchive, 'archive fixture');
+  LHash := Sha256File(LArchive);
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'SHA256SUMS.txt',
+    LHash + '  boss4d-linux-x86_64.tar.gz');
+  LTarget := IncludeTrailingPathDelimiter(LDir) + 'installed/boss4d';
+  ForceDirectories(ExtractFileDir(LTarget));
+  SaveFixture(LTarget, 'old executable');
+  LMock := TUpdateMock.Create;
+  try
+    LMock.Directory := LDir;
+    LMock.Release := '{"tag_name":"v1.6.0","assets":[' +
+      '{"name":"boss4d-linux-x86_64.tar.gz",' +
+      '"browser_download_url":"https://release/archive"},' +
+      '{"name":"SHA256SUMS.txt",' +
+      '"browser_download_url":"https://release/SHA256SUMS.txt"}]}';
+    LService := TBoss4DPosixUpdateService.Create(@LMock.Fetch,
+      @LMock.Download, @LMock.Extract);
+    try
+      LResult := LService.Execute('1.5.0', LTarget);
+      AssertTrue(LResult.Updated);
+      AssertEquals('v1.6.0', LResult.Version);
+      AssertEquals(2, LMock.Downloads);
+      LContent := TStringList.Create;
+      try
+        LContent.LoadFromFile(LTarget);
+        AssertTrue(Pos('new executable', LContent.Text) > 0);
+      finally
+        LContent.Free;
+      end;
+      AssertFalse(FileExists(LTarget + '.previous'));
+    finally
+      LService.Free;
+    end;
+  finally
+    LMock.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestSelfUpdateSkipsCurrentVersion;
+var
+  LMock: TUpdateMock;
+  LService: TBoss4DPosixUpdateService;
+  LResult: TBoss4DUpdateResult;
+begin
+  AssertTrue(CompareVersions('1.5.0', 'v1.6.0') < 0);
+  AssertEquals(0, CompareVersions('v1.5.0', '1.5.0'));
+  LMock := TUpdateMock.Create;
+  try
+    LMock.Release := '{"tag_name":"v1.5.0","assets":[]}';
+    LService := TBoss4DPosixUpdateService.Create(@LMock.Fetch,
+      @LMock.Download, @LMock.Extract);
+    try
+      LResult := LService.Execute('1.5.0', '/not/used');
+      AssertFalse(LResult.Updated);
+      AssertEquals(0, LMock.Downloads);
+    finally
+      LService.Free;
+    end;
+  finally
+    LMock.Free;
+  end;
 end;
 
 initialization

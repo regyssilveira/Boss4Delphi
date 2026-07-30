@@ -22,3 +22,12 @@ Only assets from the repository's official latest-release API are accepted.
 This integrity check detects corruption or substitution after publication; the
 release pipeline remains responsible for protecting and publishing the
 checksum manifest.
+
+## Linux
+
+The native Linux/FPC CLI selects `boss4d-linux-x86_64.tar.gz` from the same
+official release, verifies it against `SHA256SUMS.txt`, extracts into staging,
+and replaces the running executable transactionally. The previous executable
+is retained until the replacement succeeds and is restored on failure. The new
+file is installed with executable permissions. When the latest semantic version
+is already installed, no asset is downloaded.

@@ -5,14 +5,15 @@ program boss4d;
 uses
   Classes, SysUtils, DateUtils, Boss4D.Posix.Core, Boss4D.Posix.Registry,
   Boss4D.Posix.Config, Boss4D.Posix.Package, Boss4D.Posix.Operations,
-  Boss4D.Posix.Compliance, Boss4D.Posix.Audit, Boss4D.Posix.Workflows;
+  Boss4D.Posix.Compliance, Boss4D.Posix.Audit, Boss4D.Posix.Workflows,
+  Boss4D.Posix.Update;
 
 procedure Help;
 begin
   WriteLn('Boss4D portable CLI');
   WriteLn('Commands: version, platform, init, install, ci, add, remove, list,');
   WriteLn('          search, info, registry, package, doctor, sbom, audit,');
-  WriteLn('          config, cache');
+  WriteLn('          config, cache, self-update');
   WriteLn('Install options: --locked --frozen-lockfile --offline --production');
   WriteLn('                 --resolution=highest|minimal');
   WriteLn('                 --progress plain|interactive --json --quiet');
@@ -27,6 +28,7 @@ begin
   WriteLn('Credentials: boss4d config auth <provider> <token>');
   WriteLn('             boss4d config auth remove <provider>');
   WriteLn('Cache: boss4d cache size|clean|prune');
+  WriteLn('Update: boss4d self-update');
 end;
 
 function OptionValue(const APrefix, ADefault: string): string;
@@ -104,6 +106,8 @@ var
   LCredentialStore: TBoss4DPosixCredentialStore;
   LCacheDirectory: string;
   LRemoved: Integer;
+  LUpdateService: TBoss4DPosixUpdateService;
+  LUpdateResult: TBoss4DUpdateResult;
   LFoundFlag: Boolean;
   I: Integer;
 begin
@@ -523,6 +527,20 @@ begin
       end
       else
         raise Exception.Create('usage: boss4d cache size|clean|prune');
+    end
+    else if LCommand = 'self-update' then
+    begin
+      LUpdateService := TBoss4DPosixUpdateService.Create;
+      try
+        LUpdateResult := LUpdateService.Execute(Boss4DVersion,
+          ExpandFileName(ParamStr(0)));
+      finally
+        LUpdateService.Free;
+      end;
+      if LUpdateResult.Updated then
+        WriteLn('Boss4D updated to ' + LUpdateResult.Version)
+      else
+        WriteLn('Boss4D is current: ' + LUpdateResult.Version);
     end
     else if (LCommand = 'help') or (LCommand = '--help') then
       Help

@@ -39,8 +39,8 @@ FPC, and a writable Boss home.
 Secret Service credentials, environment-only CI tokens, bare Git mirrors,
 cache maintenance, and POSIX workspace symlinks are native Linux workflows.
 
-The Windows host remains required for RAD Studio/GetIt integration, GUI, IDE
-plugins, and self-update. These
+The Windows host remains required for RAD Studio/GetIt integration, GUI, and
+IDE plugins. These
 boundaries are intentional and documented, not silently emulated.
 
 ## Next portability steps
