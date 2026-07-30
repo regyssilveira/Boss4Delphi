@@ -135,6 +135,7 @@ uses
   Boss4D.Core.Services.PackageInstall,
   Boss4D.Core.Services.BuildSpec,
   Boss4D.Core.Services.BuildConventions,
+  Boss4D.Core.Services.BuildDoctor,
   Boss4D.Core.Services.IDERegistration;
 
 { TBoss4DCommandLineParser }
@@ -1367,6 +1368,11 @@ procedure TBoss4DCommandLineParser.HandleDoctor(const AArgs: TArray<string>);
 var
   LDoctorService: TBoss4DDoctorService;
   LFix: Boolean;
+  LPackage: TBoss4DPackage;
+  LBuildDoctor: TBoss4DBuildDoctor;
+  LBuildResult: TBoss4DBuildDoctorResult;
+  LRegistrationService: TBoss4DIDERegistrationService;
+  LLevel: TBoss4DLogLevel;
 begin
   LFix := False;
   if (Length(AArgs) > 1) and ((AArgs[1] = '-fix') or (AArgs[1] = '--fix')) then
@@ -1377,6 +1383,52 @@ begin
     LDoctorService.Check(LFix);
   finally
     LDoctorService.Free;
+  end;
+
+  if not FPackageRepo.Exists(GetBossFile) then
+    Exit;
+  LPackage := FPackageRepo.Load(GetBossFile);
+  try
+    LRegistrationService := TBoss4DIDERegistrationService.Create(
+      TBoss4DWindowsIDERegistryStore.Create,
+      TPath.Combine(GetBossHome, 'ide-registrations.json'));
+    try
+      LBuildDoctor := TBoss4DBuildDoctor.Create(FRegistry,
+        function: TArray<string>
+        begin
+          Result := LRegistrationService.FindDrift;
+        end);
+      try
+        LBuildResult := LBuildDoctor.Diagnose(LPackage, GetCurrentDir);
+        try
+          if LBuildResult.Issues.Count = 0 then
+            FLogger.Log(TBoss4DLogLevel.Info,
+              '[OK] Matriz, grafo, outputs e registros IDE consistentes.')
+          else
+            for var LIssue in LBuildResult.Issues do
+            begin
+              case LIssue.Severity of
+                TBoss4DDoctorSeverity.Error:
+                  LLevel := TBoss4DLogLevel.Error;
+                TBoss4DDoctorSeverity.Warning:
+                  LLevel := TBoss4DLogLevel.Warning;
+              else
+                LLevel := TBoss4DLogLevel.Info;
+              end;
+              FLogger.Log(LLevel, '[%s] %s Acao: %s',
+                [LIssue.Code, LIssue.Message, LIssue.Remediation]);
+            end;
+        finally
+          LBuildResult.Free;
+        end;
+      finally
+        LBuildDoctor.Free;
+      end;
+    finally
+      LRegistrationService.Free;
+    end;
+  finally
+    LPackage.Free;
   end;
 end;
 

@@ -71,6 +71,7 @@ type
     function Unregister(const APackageName, ACompiler,
       APlatform: string): Integer;
     function Repair: Integer;
+    function FindDrift: TArray<string>;
   end;
 
 implementation
@@ -598,6 +599,25 @@ begin
     end;
   finally
     LSnapshots.Free;
+    LInventory.Free;
+  end;
+end;
+
+function TBoss4DIDERegistrationService.FindDrift: TArray<string>;
+var
+  LInventory: TObjectList<TBoss4DIDERegistration>;
+  LDrift: TList<string>;
+begin
+  LInventory := LoadInventory;
+  LDrift := TList<string>.Create;
+  try
+    for var LRegistration in LInventory do
+      if not IsHealthy(LRegistration) then
+        LDrift.Add(LRegistration.Identity);
+    LDrift.Sort;
+    Result := LDrift.ToArray;
+  finally
+    LDrift.Free;
     LInventory.Free;
   end;
 end;

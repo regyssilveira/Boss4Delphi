@@ -1662,7 +1662,9 @@ begin
     LStore.DeleteValue(LLibraryKey, 'Search Path');
     LStore.DeleteValue(LPackageKey, LRegistration.BplPath);
 
+    Assert.AreEqual<Integer>(1, Length(LService.FindDrift));
     Assert.AreEqual<Integer>(1, LService.Repair);
+    Assert.AreEqual<Integer>(0, Length(LService.FindDrift));
     Assert.AreEqual('C:\artifacts\dcu',
       LStore.GetValue(LLibraryKey, 'Search Path'));
     Assert.AreEqual('Sample design package',
