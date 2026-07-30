@@ -90,6 +90,8 @@ type
     procedure TestCompiledArtifactCacheIsolation;
     [Test]
     procedure TestCompiledTargetCacheRestoresCompleteOutputTree;
+    [Test]
+    procedure TestBuildExecutorCompilesExpandedTargets;
 
     [Test]
     procedure TestCLICommandLineParser;
@@ -210,6 +212,8 @@ uses
   Boss4D.Core.Services.DependencySubmission,
   Boss4D.Core.Services.Publish,
   Boss4D.Core.Services.ArtifactCache,
+  Boss4D.Core.Domain.BuildMatrix,
+  Boss4D.Core.Services.BuildExecutor,
   Boss4D.Core.Services.PackageManifest, Boss4D.IDE.Wizard;
 
 { TTestLogger }
@@ -1265,6 +1269,51 @@ begin
   finally
     LService.Free;
     LDep.Free;
+  end;
+end;
+
+procedure TTestsServices.TestBuildExecutorCompilesExpandedTargets;
+var
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+  LDep: TBoss4DDependency;
+  LLock: TBoss4DLock;
+  LCompiler: TCompilerMock;
+  LExecutor: TBoss4DBuildExecutor;
+  LProjectPath: string;
+  LCount: Integer;
+begin
+  LPackage := TBoss4DPackage.Create;
+  LDep := TBoss4DDependency.Create('github.com/example/component', '1.0.0');
+  LLock := TBoss4DLock.Create;
+  LCompiler := TCompilerMock.Create;
+  LExecutor := TBoss4DBuildExecutor.Create(LCompiler);
+  try
+    LPackage.Name := 'component';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Platforms.Add('Win64');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'packages\Component.dproj';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+    LProjectPath := TPath.Combine(FTempDir, LProject.Path);
+    TDirectory.CreateDirectory(TPath.GetDirectoryName(LProjectPath));
+    TFile.WriteAllText(LProjectPath, '<Project/>');
+
+    LCount := LExecutor.Execute(LPackage, LDep, LLock, FTempDir,
+      TBoss4DBuildSelection.All, 'source-checksum');
+
+    Assert.AreEqual<Integer>(2, LCount);
+    Assert.AreEqual<Integer>(2, LCompiler.CompiledProjects.Count);
+    Assert.AreEqual('37.0', LCompiler.LastCompilerVersion);
+    Assert.AreEqual('Win64', LCompiler.LastPlatform);
+    Assert.AreEqual('Release', LCompiler.LastConfiguration);
+  finally
+    LExecutor.Free;
+    LLock.Free;
+    LDep.Free;
+    LPackage.Free;
   end;
 end;
 

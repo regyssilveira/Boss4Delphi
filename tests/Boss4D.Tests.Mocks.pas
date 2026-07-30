@@ -68,6 +68,7 @@ type
     FCompiledProjects: TList<string>;
     FLastPlatform: string;
     FLastCompilerVersion: string;
+    FLastConfiguration: string;
     FSearchPath: string;
   public
     constructor Create;
@@ -80,6 +81,7 @@ type
     property CompiledProjects: TList<string> read FCompiledProjects;
     property LastPlatform: string read FLastPlatform;
     property LastCompilerVersion: string read FLastCompilerVersion;
+    property LastConfiguration: string read FLastConfiguration;
     property SearchPath: string read FSearchPath write FSearchPath;
   end;
 
@@ -300,6 +302,7 @@ begin
   FCompiledProjects.Add(AProjectPath);
   FLastPlatform := APlatform;
   FLastCompilerVersion := ACompilerVersion;
+  FLastConfiguration := AConfiguration;
   Result := True;
 end;
 
