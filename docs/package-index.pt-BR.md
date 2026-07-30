@@ -1,7 +1,9 @@
 # Índices e descoberta de pacotes
 
-O Boss4D possui um catálogo inicial embutido e combina múltiplos índices
-públicos, privados, HTTP ou arquivos JSON locais.
+O Boss4D consulta o registro público oficial por padrão e combina múltiplos
+índices privados, HTTP ou arquivos JSON locais. Se o registro público estiver
+temporariamente indisponível, a busca continua funcionando com o catálogo
+inicial offline embutido e todas as demais fontes configuradas.
 
 ```console
 boss4d registry add https://packages.example.com/boss4d-index.json
@@ -29,6 +31,7 @@ Formato do índice:
 }
 ```
 
-As fontes ficam na configuração global. A falha de uma fonte gera aviso sem
-ocultar resultados das demais. O catálogo da GUI e a busca do RAD Studio usam
-o mesmo serviço da CLI.
+As fontes adicionais ficam na configuração global. A falha de uma fonte gera
+aviso sem ocultar resultados das demais. Protocolos com versão desconhecida
+são rejeitados, e a URL do artefato sempre é associada ao seu SHA-256 imutável.
+O catálogo da GUI e a busca do RAD Studio usam o mesmo serviço da CLI.

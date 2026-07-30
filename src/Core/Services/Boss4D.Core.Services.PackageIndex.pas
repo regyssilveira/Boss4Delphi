@@ -52,6 +52,10 @@ implementation
 uses
   System.SysUtils, System.IOUtils, System.JSON;
 
+const
+  BOSS4D_PUBLIC_REGISTRY =
+    'https://raw.githubusercontent.com/regyssilveira/Boss4Delphi/main/registry/index-v1.json';
+
 constructor TBoss4DPackageIndexService.Create(
   const AConfigService: TBoss4DConfigService; const AHttp: IBoss4DHttpClient;
   const ALogger: IBoss4DLogger);
@@ -144,7 +148,17 @@ begin
   LAll := TObjectList<TBoss4DPackageIndexEntry>.Create(True);
   LConfig := FConfigService.Load;
   try
-    AddBuiltIn(LAll);
+    try
+      LoadRegistry(BOSS4D_PUBLIC_REGISTRY, LAll);
+    except
+      on E: Exception do
+      begin
+        FLogger.Log(TBoss4DLogLevel.Warning,
+          'Registro publico indisponivel; usando catalogo offline: ' +
+          E.Message);
+        AddBuiltIn(LAll);
+      end;
+    end;
     for var LSource in LConfig.Registries do
       try
         LoadRegistry(LSource, LAll);

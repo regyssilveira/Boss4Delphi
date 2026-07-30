@@ -75,6 +75,8 @@ type
 
     [Test]
     procedure TestPackageIndexRegistrySearchAndInfo;
+    [Test]
+    procedure TestPublicRegistryIsDefaultSource;
 
     [Test]
     procedure TestGitHubDependencySubmission;
@@ -1007,6 +1009,37 @@ begin
   end;
 end;
 
+procedure TTestsServices.TestPublicRegistryIsDefaultSource;
+const
+  PUBLIC_URL =
+    'https://raw.githubusercontent.com/regyssilveira/Boss4Delphi/main/registry/index-v1.json';
+var
+  LConfig: TBoss4DConfigService;
+  LHttp: THttpClientMock;
+  LService: TBoss4DPackageIndexService;
+begin
+  LConfig := TBoss4DConfigService.Create(TTestLogger.Create);
+  LHttp := THttpClientMock.Create;
+  LHttp.AddResponse(PUBLIC_URL,
+    '{"schemaVersion":1,"packages":[{"name":"PublicOnly",' +
+    '"repository":"github.com/example/public-only","version":"1.0.0"}]}',
+    200);
+  LService := TBoss4DPackageIndexService.Create(LConfig, LHttp,
+    TTestLogger.Create);
+  try
+    var LResults := LService.Search('PublicOnly');
+    try
+      Assert.AreEqual<Integer>(1, LResults.Count);
+      Assert.AreEqual(PUBLIC_URL, LResults[0].Source);
+    finally
+      LResults.Free;
+    end;
+  finally
+    LService.Free;
+    LConfig.Free;
+  end;
+end;
+
 procedure TTestsServices.TestGitHubDependencySubmission;
 var
   LLockRepo: IBoss4DLockRepository;
@@ -1196,6 +1229,8 @@ begin
     // Testa o comando "help"
     LParser.ParseAndExecute(TArray<string>.Create('-h'));
     Assert.IsTrue(LLogger.LastLogMessage.Contains('Uso:'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains(
+      'conformance registry|package'));
 
     // Gera um SBOM por meio do parser real, sem escrever JSON no fluxo de logs.
     LInit.Execute(True);

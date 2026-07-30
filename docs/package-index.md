@@ -1,7 +1,9 @@
 # Package indexes and discovery
 
-Boss4D has a built-in starter catalog and can merge any number of public,
-private, HTTP, or local JSON indexes.
+Boss4D queries the official public registry by default and can merge any number
+of private, HTTP, or local JSON indexes. If the public registry is temporarily
+unavailable, search remains usable through the built-in offline starter catalog
+and every other configured source.
 
 ```console
 boss4d registry add https://packages.example.com/boss4d-index.json
@@ -29,8 +31,9 @@ Index format:
 }
 ```
 
-Registry sources are stored in the global Boss4D configuration. A source
-failure is reported as a warning and does not hide results from other indexes.
+Additional registry sources are stored in the global Boss4D configuration. A
+source failure is reported as a warning and does not hide results from other
+indexes.
 Unknown protocol schemas are rejected. Artifact URLs are always paired with
 their immutable SHA-256 digest.
 The standalone GUI catalog and RAD Studio search action use the same index

@@ -4,7 +4,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-docker run --rm -v "${root}:/work" -w /work $Image sh -lc @'
+$linuxScript = @'
 set -eu
 mkdir -p .fpc-build
 fpc -B -Fu./src/Posix -FE./.fpc-build -FU./.fpc-build ./src/Posix/boss4d.lpr
@@ -13,6 +13,8 @@ fpc -B -Fu./src/Posix -Fu./tests/posix -FE./.fpc-build -FU./.fpc-build ./tests/p
 ./.fpc-build/boss4d version
 ./.fpc-build/boss4d platform | grep -qx linux
 '@
+$linuxScript = $linuxScript.Replace("`r`n", "`n")
+docker run --rm -v "${root}:/work" -w /work $Image sh -lc $linuxScript
 if ($LASTEXITCODE -ne 0) {
   throw "FPC Linux CI failed with exit code $LASTEXITCODE."
 }
