@@ -36,6 +36,9 @@ type
     procedure AddBuiltIn(const AEntries: TObjectList<TBoss4DPackageIndexEntry>);
     procedure LoadRegistry(const ASource: string;
       const AEntries: TObjectList<TBoss4DPackageIndexEntry>);
+    procedure LoadRegistryInternal(const ASource: string;
+      const AEntries: TObjectList<TBoss4DPackageIndexEntry>;
+      const AVisited: TDictionary<string, Boolean>);
   public
     constructor Create(const AConfigService: TBoss4DConfigService;
       const AHttp: IBoss4DHttpClient; const ALogger: IBoss4DLogger);
@@ -54,7 +57,7 @@ uses
 
 const
   BOSS4D_PUBLIC_REGISTRY =
-    'https://raw.githubusercontent.com/regyssilveira/Boss4Delphi/main/registry/index-v1.json';
+    'https://raw.githubusercontent.com/regyssilveira/Boss4Delphi/main/registry/index-v2.json';
 
 constructor TBoss4DPackageIndexService.Create(
   const AConfigService: TBoss4DConfigService; const AHttp: IBoss4DHttpClient;
@@ -89,10 +92,25 @@ end;
 
 procedure TBoss4DPackageIndexService.LoadRegistry(const ASource: string;
   const AEntries: TObjectList<TBoss4DPackageIndexEntry>);
+begin
+  var LVisited := TDictionary<string, Boolean>.Create;
+  try
+    LoadRegistryInternal(ASource, AEntries, LVisited);
+  finally
+    LVisited.Free;
+  end;
+end;
+
+procedure TBoss4DPackageIndexService.LoadRegistryInternal(const ASource: string;
+  const AEntries: TObjectList<TBoss4DPackageIndexEntry>;
+  const AVisited: TDictionary<string, Boolean>);
 var
   LContent: string;
   LStatus: Integer;
 begin
+  if AVisited.ContainsKey(ASource.ToLower) then
+    Exit;
+  AVisited.Add(ASource.ToLower, True);
   if ASource.StartsWith('http://', True) or
      ASource.StartsWith('https://', True) then
   begin
@@ -109,12 +127,39 @@ begin
       raise Exception.Create('Indice deve ser um objeto JSON: ' + ASource);
     var LSchemaVersion := TJSONObject(LValue).GetValue<Integer>(
       'schemaVersion', 0);
-    if LSchemaVersion <> 1 then
+    if not (LSchemaVersion in [1, 2]) then
       raise Exception.CreateFmt('Schema de registry nao suportado: %d',
         [LSchemaVersion]);
+    if LSchemaVersion = 2 then
+    begin
+      var LIncludes: TJSONArray := nil;
+      if TJSONObject(LValue).GetValue('includes') is TJSONArray then
+        LIncludes := TJSONArray(TJSONObject(LValue).GetValue('includes'));
+      if Assigned(LIncludes) then
+        for var LInclude in LIncludes do
+        begin
+          var LReference := LInclude.Value;
+          var LResolved: string;
+          if LReference.StartsWith('http://', True) or
+             LReference.StartsWith('https://', True) or
+             TPath.IsPathRooted(LReference) then
+            LResolved := LReference
+          else if ASource.StartsWith('http://', True) or
+                  ASource.StartsWith('https://', True) then
+            LResolved := ASource.Substring(0, ASource.LastIndexOf('/') + 1) +
+              LReference.Replace('\', '/')
+          else
+            LResolved := TPath.GetFullPath(TPath.Combine(
+              TPath.GetDirectoryName(TPath.GetFullPath(ASource)), LReference));
+          LoadRegistryInternal(LResolved, AEntries, AVisited);
+        end;
+    end;
     var LPackages := TJSONObject(LValue).GetValue<TJSONArray>('packages');
     if not Assigned(LPackages) then
-      raise Exception.Create('Indice nao contem packages: ' + ASource);
+      if LSchemaVersion = 1 then
+        raise Exception.Create('Indice nao contem packages: ' + ASource)
+      else
+        Exit;
     for var I := 0 to LPackages.Count - 1 do
       if LPackages[I] is TJSONObject then
       begin
@@ -127,6 +172,23 @@ begin
         LEntry.License := LObject.GetValue<string>('license', '');
         LEntry.ArtifactUrl := LObject.GetValue<string>('artifact', '');
         LEntry.ArtifactDigest := LObject.GetValue<string>('sha256', '');
+        if LSchemaVersion = 2 then
+        begin
+          var LVersions: TJSONArray := nil;
+          if LObject.GetValue('versions') is TJSONArray then
+            LVersions := TJSONArray(LObject.GetValue('versions'));
+          if Assigned(LVersions) and (LVersions.Count > 0) and
+             (LVersions[0] is TJSONObject) then
+          begin
+            var LLatest := TJSONObject(LVersions[0]);
+            LEntry.LatestVersion := LLatest.GetValue<string>('version',
+              LEntry.LatestVersion);
+            LEntry.ArtifactUrl := LLatest.GetValue<string>('artifact',
+              LEntry.ArtifactUrl);
+            LEntry.ArtifactDigest := LLatest.GetValue<string>('sha256',
+              LEntry.ArtifactDigest);
+          end;
+        end;
         LEntry.Source := ASource;
         if not LEntry.Name.IsEmpty and not LEntry.Repository.IsEmpty then
           AEntries.Add(LEntry)

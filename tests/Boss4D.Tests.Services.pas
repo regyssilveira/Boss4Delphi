@@ -76,6 +76,8 @@ type
     [Test]
     procedure TestPackageIndexRegistrySearchAndInfo;
     [Test]
+    procedure TestPackageIndexV2IncludesV1;
+    [Test]
     procedure TestPublicRegistryIsDefaultSource;
 
     [Test]
@@ -1009,10 +1011,56 @@ begin
   end;
 end;
 
+procedure TTestsServices.TestPackageIndexV2IncludesV1;
+var
+  LConfig: TBoss4DConfigService;
+  LService: TBoss4DPackageIndexService;
+  LRootPath, LChildPath: string;
+begin
+  LRootPath := TPath.Combine(FTempDir, 'index-v2.json');
+  LChildPath := TPath.Combine(FTempDir, 'legacy-v1.json');
+  TFile.WriteAllText(LChildPath,
+    '{"schemaVersion":1,"packages":[{"name":"LegacyPackage",' +
+    '"repository":"git.example.test/legacy","version":"1.0.0"}]}',
+    TEncoding.UTF8);
+  TFile.WriteAllText(LRootPath,
+    '{"schemaVersion":2,"includes":["legacy-v1.json"],"packages":[' +
+    '{"name":"ModernPackage","repository":"git.example.test/modern",' +
+    '"license":"MIT","versions":[{"version":"2.1.0",' +
+    '"artifact":"https://packages.example/modern.b4dpkg",' +
+    '"sha256":"def456"}]}]}', TEncoding.UTF8);
+  LConfig := TBoss4DConfigService.Create(TTestLogger.Create);
+  LService := TBoss4DPackageIndexService.Create(LConfig,
+    THttpClientMock.Create, TTestLogger.Create);
+  try
+    LService.AddRegistry(LRootPath);
+    var LLegacy := LService.Info('LegacyPackage');
+    try
+      Assert.IsNotNull(LLegacy);
+      Assert.AreEqual('1.0.0', LLegacy.LatestVersion);
+    finally
+      LLegacy.Free;
+    end;
+    var LModern := LService.Info('ModernPackage');
+    try
+      Assert.IsNotNull(LModern);
+      Assert.AreEqual('2.1.0', LModern.LatestVersion);
+      Assert.AreEqual('https://packages.example/modern.b4dpkg',
+        LModern.ArtifactUrl);
+      Assert.AreEqual('def456', LModern.ArtifactDigest);
+    finally
+      LModern.Free;
+    end;
+  finally
+    LService.Free;
+    LConfig.Free;
+  end;
+end;
+
 procedure TTestsServices.TestPublicRegistryIsDefaultSource;
 const
   PUBLIC_URL =
-    'https://raw.githubusercontent.com/regyssilveira/Boss4Delphi/main/registry/index-v1.json';
+    'https://raw.githubusercontent.com/regyssilveira/Boss4Delphi/main/registry/index-v2.json';
 var
   LConfig: TBoss4DConfigService;
   LHttp: THttpClientMock;
@@ -1021,7 +1069,7 @@ begin
   LConfig := TBoss4DConfigService.Create(TTestLogger.Create);
   LHttp := THttpClientMock.Create;
   LHttp.AddResponse(PUBLIC_URL,
-    '{"schemaVersion":1,"packages":[{"name":"PublicOnly",' +
+    '{"schemaVersion":2,"packages":[{"name":"PublicOnly",' +
     '"repository":"github.com/example/public-only","version":"1.0.0"}]}',
     200);
   LService := TBoss4DPackageIndexService.Create(LConfig, LHttp,
