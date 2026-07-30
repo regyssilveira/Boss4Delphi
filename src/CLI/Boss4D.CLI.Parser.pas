@@ -161,7 +161,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  registry add|remove|list Gerencia indices publicos e privados.');
   FLogger.Log(TBoss4DLogLevel.Info, '  search <termo>       Pesquisa pacotes nos indices configurados.');
   FLogger.Log(TBoss4DLogLevel.Info, '  info <pacote>        Exibe metadados de um pacote indexado.');
-  FLogger.Log(TBoss4DLogLevel.Info, '  package install <pacote> Instala .b4dpkg verificado, com fallback para Git.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  package install <pacote> Instala .b4dpkg verificado; aceita --platform e --compiler.');
   FLogger.Log(TBoss4DLogLevel.Info, '  dependency submit    Envia snapshot ao GitHub Dependency Graph.');
   FLogger.Log(TBoss4DLogLevel.Info, '  publish              Publica pacote com validacoes; use --dry-run para inspecionar.');
   FLogger.Log(TBoss4DLogLevel.Info, '  ci [--offline]       Reinstala limpo usando o lock sem altera-lo; aceita --progress, --json e --quiet.');
@@ -732,13 +732,31 @@ var
   LRequest: TBoss4DPackageInstallRequest;
   LDependency: TBoss4DDependency;
   LAllowFallback: Boolean;
+  LPlatform, LCompiler: string;
 begin
   if (Length(AArgs) < 3) or not SameText(AArgs[1], 'install') then
     raise EArgumentException.Create(
       'Uso: boss4d package install <pacote> [--no-source-fallback].');
   LAllowFallback := True;
-  for var LArg in AArgs do
-    if SameText(LArg, '--no-source-fallback') then LAllowFallback := False;
+  LPlatform := '';
+  LCompiler := '';
+  var I := 3;
+  while I < Length(AArgs) do
+  begin
+    if SameText(AArgs[I], '--no-source-fallback') then
+      LAllowFallback := False
+    else if SameText(AArgs[I], '--platform') and (I + 1 < Length(AArgs)) then
+    begin
+      LPlatform := AArgs[I + 1];
+      Inc(I);
+    end
+    else if SameText(AArgs[I], '--compiler') and (I + 1 < Length(AArgs)) then
+    begin
+      LCompiler := AArgs[I + 1];
+      Inc(I);
+    end;
+    Inc(I);
+  end;
   LIndex := TBoss4DPackageIndexService.Create(FConfigService,
     TBoss4DHttpNativeAdapter.Create, FLogger);
   try
@@ -746,6 +764,21 @@ begin
     try
       if not Assigned(LEntry) then
         raise EArgumentException.Create('Pacote nao encontrado: ' + AArgs[2]);
+      var LVariant := LEntry.SelectVariant(LPlatform, LCompiler);
+      if Assigned(LVariant) then
+      begin
+        LEntry.ArtifactUrl := LVariant.ArtifactUrl;
+        LEntry.ArtifactDigest := LVariant.ArtifactDigest;
+        LEntry.SignatureUrl := LVariant.SignatureUrl;
+        LEntry.ProvenanceUrl := LVariant.ProvenanceUrl;
+      end
+      else if LEntry.Variants.Count > 0 then
+      begin
+        LEntry.ArtifactUrl := '';
+        LEntry.ArtifactDigest := '';
+        LEntry.SignatureUrl := '';
+        LEntry.ProvenanceUrl := '';
+      end;
       if not LEntry.ArtifactUrl.IsEmpty and
          not LEntry.ArtifactDigest.IsEmpty then
       begin

@@ -13,6 +13,7 @@ type
     [Test] procedure AcceptsComposableRegistryV2;
     [Test] procedure RejectsUnsafeRegistryV2Include;
     [Test] procedure RejectsPartialRegistryV2Release;
+    [Test] procedure RejectsPartialRegistryV2Variant;
     [Test] procedure RejectsPartialArtifactMetadata;
     [Test] procedure RejectsDuplicateRegistryEntries;
     [Test] procedure AcceptsGeneratedPackage;
@@ -34,6 +35,22 @@ begin
     Assert.IsTrue(LService.ValidateRegistryContent(
       '{"schemaVersion":1,"packages":[{"name":"demo",' +
       '"repository":"github.com/example/demo"}]}').Passed);
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DConformanceTests.RejectsPartialRegistryV2Variant;
+var
+  LService: TBoss4DConformanceService;
+begin
+  LService := TBoss4DConformanceService.Create;
+  try
+    Assert.IsFalse(LService.ValidateRegistryContent(
+      '{"schemaVersion":2,"packages":[{"name":"demo",' +
+      '"repository":"github.com/example/demo","versions":[' +
+      '{"version":"2.0.0","variants":[{"platform":"Win64",' +
+      '"artifact":"demo-win64.b4dpkg"}]}]}]}').Passed);
   finally
     LService.Free;
   end;

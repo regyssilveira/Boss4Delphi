@@ -1029,7 +1029,14 @@ begin
     '"license":"MIT","versions":[{"version":"2.1.0",' +
     '"artifact":"https://packages.example/modern.b4dpkg",' +
     '"sha256":"def456","signature":"https://packages.example/modern.asc",' +
-    '"provenance":"https://packages.example/modern.intoto.json"}]}]}',
+    '"provenance":"https://packages.example/modern.intoto.json",' +
+    '"variants":[{"platform":"Win64","compiler":"37.0",' +
+    '"artifact":"https://packages.example/modern-win64.b4dpkg",' +
+    '"sha256":"win64"},{"platform":"Win64",' +
+    '"artifact":"https://packages.example/modern-win64-any.b4dpkg",' +
+    '"sha256":"win64-any"},{"artifact":' +
+    '"https://packages.example/modern-generic.b4dpkg",' +
+    '"sha256":"generic"}]}]}]}',
     TEncoding.UTF8);
   LConfig := TBoss4DConfigService.Create(TTestLogger.Create);
   LService := TBoss4DPackageIndexService.Create(LConfig,
@@ -1054,6 +1061,15 @@ begin
         LModern.SignatureUrl);
       Assert.AreEqual('https://packages.example/modern.intoto.json',
         LModern.ProvenanceUrl);
+      Assert.AreEqual<Integer>(3, LModern.Variants.Count);
+      Assert.AreEqual('https://packages.example/modern-win64.b4dpkg',
+        LModern.SelectVariant('Win64', '37.0').ArtifactUrl);
+      Assert.AreEqual('https://packages.example/modern-win64-any.b4dpkg',
+        LModern.SelectVariant('Win64', '36.0').ArtifactUrl);
+      Assert.AreEqual('https://packages.example/modern-generic.b4dpkg',
+        LModern.SelectVariant('Linux64', '3.2.2').ArtifactUrl);
+      LModern.Variants.Delete(2);
+      Assert.IsNull(LModern.SelectVariant('Linux64', '3.2.2'));
     finally
       LModern.Free;
     end;

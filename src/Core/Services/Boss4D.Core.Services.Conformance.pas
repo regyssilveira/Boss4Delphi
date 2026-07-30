@@ -134,6 +134,29 @@ begin
                 'Release artifact and sha256 must be declared together.';
               Exit;
             end;
+            var LVariants: TJSONArray := nil;
+            if TJSONObject(LVersionValue).GetValue('variants') is TJSONArray then
+              LVariants := TJSONArray(
+                TJSONObject(LVersionValue).GetValue('variants'));
+            if Assigned(LVariants) then
+              for var LVariantValue in LVariants do
+              begin
+                if not (LVariantValue is TJSONObject) then
+                begin
+                  Result.ErrorMessage := 'Every variant must be an object.';
+                  Exit;
+                end;
+                LArtifact := TJSONObject(LVariantValue).GetValue<string>(
+                  'artifact', '');
+                LDigest := TJSONObject(LVariantValue).GetValue<string>(
+                  'sha256', '');
+                if LArtifact.IsEmpty or LDigest.IsEmpty then
+                begin
+                  Result.ErrorMessage :=
+                    'Every variant needs artifact and sha256.';
+                  Exit;
+                end;
+              end;
           end;
       end;
     finally
