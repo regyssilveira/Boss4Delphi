@@ -89,10 +89,29 @@ call "!OUTPUT_DIR!\bin\boss4d.exe" sbom --format spdx --strict --validate --lock
 if errorlevel 1 goto BuildFailed
 
 :: Compilando os Plugins de IDE para cada versao suportada
+mkdir "!OUTPUT_DIR!\plugins\10" 2>nul
 mkdir "!OUTPUT_DIR!\plugins\10.1" 2>nul
 mkdir "!OUTPUT_DIR!\plugins\11" 2>nul
 mkdir "!OUTPUT_DIR!\plugins\12" 2>nul
 mkdir "!OUTPUT_DIR!\plugins\13" 2>nul
+
+:: Delphi 10 Seattle (BDS 17.0) - adaptador legado sem inline variables
+set "D10_PATH="
+for /f "tokens=2,*" %%A in ('reg query "HKCU\Software\Embarcadero\BDS\17.0" /v RootDir 2^>nul') do set "D10_PATH=%%B"
+if not defined D10_PATH goto SkipD10
+echo Compilando plugin legado para Delphi 10...
+setlocal
+pushd src\IDE
+call "%D10_PATH%\bin\rsvars.bat"
+brcc32 Boss4D.IDE.Plugin.rc
+call dcc32 -B -Q -LUrtl -LUvcl -LUdesignide -DIDE_PLUGIN -DLEGACY_IDE -U"%D10_PATH%\lib\Win32\release" Boss4D.IDE.Plugin.dpk
+popd
+copy src\IDE\Boss4D.IDE.Plugin.bpl "!OUTPUT_DIR!\plugins\10\Boss4D.IDE.Plugin.bpl"
+if errorlevel 1 goto BuildFailed
+del src\IDE\Boss4D.IDE.Plugin.bpl 2>nul
+del src\IDE\Boss4D.IDE.Plugin.res 2>nul
+endlocal
+:SkipD10
 
 :: Delphi 10.1 Berlin (BDS 18.0) - adaptador legado sem inline variables
 set "D101_PATH="
