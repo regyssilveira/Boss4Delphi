@@ -15,6 +15,10 @@ uses
 
 
 type
+  TBoss4DIDEUnregisterHandler = reference to function(
+    const APackageName, ACompiler, APlatform: string): Integer;
+  TBoss4DIDERepairHandler = reference to function: Integer;
+
   TBoss4DSbomCommandOptions = record
     Options: TBoss4DSbomOptions;
     OutputPath: string;
@@ -38,6 +42,8 @@ type
     FRegistry: IBoss4DRegistryService;
     FCompiler: IBoss4DCompiler;
     FRegistrationHandler: TBoss4DIDERegistrationHandler;
+    FUnregisterHandler: TBoss4DIDEUnregisterHandler;
+    FRepairHandler: TBoss4DIDERepairHandler;
 
     procedure ShowHelp;
     procedure ShowVersion;
@@ -73,6 +79,7 @@ type
     procedure HandleConformance(const AArgs: TArray<string>);
     procedure HandleSpec(const AArgs: TArray<string>);
     procedure HandleBuild(const AArgs: TArray<string>);
+    procedure HandleIDE(const AArgs: TArray<string>);
     function ParseSbomArguments(
       const AArgs: TArray<string>): TBoss4DSbomCommandOptions;
     procedure HandleSbom(const AArgs: TArray<string>);
@@ -85,7 +92,9 @@ type
       const APackageRepo: IBoss4DPackageRepository;
       const ARegistry: IBoss4DRegistryService;
       const ACompiler: IBoss4DCompiler = nil;
-      const ARegistrationHandler: TBoss4DIDERegistrationHandler = nil
+      const ARegistrationHandler: TBoss4DIDERegistrationHandler = nil;
+      const AUnregisterHandler: TBoss4DIDEUnregisterHandler = nil;
+      const ARepairHandler: TBoss4DIDERepairHandler = nil
     );
 
     procedure ParseAndExecute(const AArgs: TArray<string>);
@@ -125,6 +134,7 @@ uses
   Boss4D.Core.Services.RegistryPortal,
   Boss4D.Core.Services.PackageInstall,
   Boss4D.Core.Services.BuildSpec,
+  Boss4D.Core.Services.BuildConventions,
   Boss4D.Core.Services.IDERegistration;
 
 { TBoss4DCommandLineParser }
@@ -137,7 +147,9 @@ constructor TBoss4DCommandLineParser.Create(
   const APackageRepo: IBoss4DPackageRepository;
   const ARegistry: IBoss4DRegistryService;
   const ACompiler: IBoss4DCompiler;
-  const ARegistrationHandler: TBoss4DIDERegistrationHandler
+  const ARegistrationHandler: TBoss4DIDERegistrationHandler;
+  const AUnregisterHandler: TBoss4DIDEUnregisterHandler;
+  const ARepairHandler: TBoss4DIDERepairHandler
 );
 begin
   inherited Create;
@@ -149,6 +161,8 @@ begin
   FRegistry := ARegistry;
   FCompiler := ACompiler;
   FRegistrationHandler := ARegistrationHandler;
+  FUnregisterHandler := AUnregisterHandler;
+  FRepairHandler := ARepairHandler;
 end;
 
 procedure TBoss4DCommandLineParser.ShowHelp;
@@ -202,6 +216,8 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  spec --detect [--compiler <versao>] Detecta projetos e gera buildMatrix.');
   FLogger.Log(TBoss4DLogLevel.Info, '  build                Compila a matriz declarada.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --compiler, --platform, --configuration, --jobs, --force, --full, --explain, --register.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  ide unregister <pacote> --compiler <versao> --platform <Win32|Win64>');
+  FLogger.Log(TBoss4DLogLevel.Info, '  ide repair           Repara registros da IDE a partir do inventario.');
   FLogger.Log(TBoss4DLogLevel.Info, '  help, -h, --help     Exibe este menu de ajuda.');
   FLogger.Log(TBoss4DLogLevel.Info, '');
 end;
@@ -289,8 +305,97 @@ begin
     HandleSpec(AArgs)
   else if LCommand = 'build' then
     HandleBuild(AArgs)
+  else if LCommand = 'ide' then
+    HandleIDE(AArgs)
   else if LCommand = 'sbom' then
     HandleSbom(AArgs);
+end;
+
+procedure TBoss4DCommandLineParser.HandleIDE(
+  const AArgs: TArray<string>);
+var
+  LCompiler: string;
+  LPlatform: string;
+  LIDEIntegration: TBoss4DIDEIntegrationService;
+  LCount: Integer;
+  I: Integer;
+begin
+  if Length(AArgs) < 2 then
+    raise EArgumentException.Create(
+      'Uso: boss4d ide unregister|repair.');
+
+  LIDEIntegration := nil;
+  try
+    if SameText(AArgs[1], 'repair') then
+    begin
+      if Length(AArgs) <> 2 then
+        raise EArgumentException.Create('Uso: boss4d ide repair.');
+      if Assigned(FRepairHandler) then
+        LCount := FRepairHandler()
+      else
+      begin
+        LIDEIntegration := TBoss4DIDEIntegrationService.Create(
+          FRegistry, FLogger);
+        LCount := LIDEIntegration.RepairRegistrations;
+      end;
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Registros IDE reparados: %d.', [LCount]);
+      Exit;
+    end;
+
+    if not SameText(AArgs[1], 'unregister') or (Length(AArgs) < 3) then
+      raise EArgumentException.Create(
+        'Uso: boss4d ide unregister <pacote> --compiler <versao> ' +
+        '--platform <Win32|Win64>.');
+    I := 3;
+    while I < Length(AArgs) do
+    begin
+      if SameText(AArgs[I], '--compiler') then
+      begin
+        if I + 1 >= Length(AArgs) then
+          raise EArgumentException.Create(
+            'Informe um valor para --compiler.');
+        Inc(I);
+        LCompiler :=
+          TBoss4DBuildConventions.ResolveCompiler(AArgs[I]).BDSVersion;
+      end
+      else if SameText(AArgs[I], '--platform') then
+      begin
+        if I + 1 >= Length(AArgs) then
+          raise EArgumentException.Create(
+            'Informe um valor para --platform.');
+        Inc(I);
+        if SameText(AArgs[I], 'Win32') then
+          LPlatform := 'Win32'
+        else if SameText(AArgs[I], 'Win64') then
+          LPlatform := 'Win64'
+        else
+          raise EArgumentException.CreateFmt(
+            'Plataforma Delphi nao suportada: %s.', [AArgs[I]]);
+      end
+      else
+        raise EArgumentException.Create(
+          'Opcao desconhecida para ide unregister: ' + AArgs[I]);
+      Inc(I);
+    end;
+    if LCompiler.IsEmpty or LPlatform.IsEmpty then
+      raise EArgumentException.Create(
+        '--compiler e --platform sao obrigatorios para ide unregister.');
+
+    if Assigned(FUnregisterHandler) then
+      LCount := FUnregisterHandler(AArgs[2], LCompiler, LPlatform)
+    else
+    begin
+      LIDEIntegration := TBoss4DIDEIntegrationService.Create(
+        FRegistry, FLogger);
+      LCount := LIDEIntegration.UnregisterTarget(
+        AArgs[2], LCompiler, LPlatform);
+    end;
+    FLogger.Log(TBoss4DLogLevel.Info,
+      'Registros IDE removidos: %d.', [LCount]);
+  finally
+    LIDEIntegration.Free;
+  end;
 end;
 
 procedure TBoss4DCommandLineParser.HandleBuild(

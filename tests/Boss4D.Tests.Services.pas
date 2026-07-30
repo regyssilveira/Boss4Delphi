@@ -107,6 +107,8 @@ type
     procedure TestCLISpecDetectPersistsBuildMatrix;
     [Test]
     procedure TestCLIBuildExecutesSelectedMatrix;
+    [Test]
+    procedure TestCLIIDEUnregisterAndRepairAreExactlyScoped;
 
     [Test]
     procedure TestCompilerAutodetectAndOverride;
@@ -1406,6 +1408,72 @@ begin
     Assert.AreEqual('Win64', LCompiler.LastPlatform);
     Assert.AreEqual('Release', LCompiler.LastConfiguration);
     Assert.IsTrue(LLogger.LastLogMessage.Contains('Build: 1 agendados'));
+  finally
+    LParser.Free;
+    LConfig.Free;
+    LInstall.Free;
+    LInit.Free;
+  end;
+end;
+
+procedure TTestsServices.TestCLIIDEUnregisterAndRepairAreExactlyScoped;
+var
+  LInit: TBoss4DInitService;
+  LInstall: TBoss4DInstallService;
+  LConfig: TBoss4DConfigService;
+  LParser: TBoss4DCommandLineParser;
+  LLogger: TTestLogger;
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LPackageName: string;
+  LCompiler: string;
+  LPlatform: string;
+  LRepairCalls: Integer;
+begin
+  LLogger := TTestLogger.Create;
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LInit := TBoss4DInitService.Create(LPackageRepo, LLogger);
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo,
+    TGitClientMock.Create, THttpClientMock.Create, TCompilerMock.Create,
+    LLogger);
+  LConfig := TBoss4DConfigService.Create(LLogger);
+  LRepairCalls := 0;
+  LParser := TBoss4DCommandLineParser.Create(LLogger, LInit, LInstall,
+    LConfig, LPackageRepo, TRegistryMock.Create, nil, nil,
+    function(const APackageName, ACompiler,
+      APlatform: string): Integer
+    begin
+      LPackageName := APackageName;
+      LCompiler := ACompiler;
+      LPlatform := APlatform;
+      Result := 1;
+    end,
+    function: Integer
+    begin
+      Inc(LRepairCalls);
+      Result := 2;
+    end);
+  try
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'ide', 'unregister', 'Component370', '--compiler', 'd13',
+      '--platform', 'win64'));
+    Assert.AreEqual('Component370', LPackageName);
+    Assert.AreEqual('37.0', LCompiler);
+    Assert.AreEqual('Win64', LPlatform);
+
+    LParser.ParseAndExecute(TArray<string>.Create('ide', 'repair'));
+    Assert.AreEqual(1, LRepairCalls);
+    Assert.IsTrue(LLogger.LastLogMessage.Contains(
+      'Registros IDE reparados: 2.'));
+
+    Assert.WillRaise(
+      procedure
+      begin
+        LParser.ParseAndExecute(TArray<string>.Create(
+          'ide', 'unregister', 'Component370', '--compiler', 'd13'));
+      end,
+      EArgumentException);
   finally
     LParser.Free;
     LConfig.Free;
