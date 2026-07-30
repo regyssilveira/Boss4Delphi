@@ -6,14 +6,14 @@ uses
   Classes, SysUtils, DateUtils, Boss4D.Posix.Core, Boss4D.Posix.Registry,
   Boss4D.Posix.Config, Boss4D.Posix.Package, Boss4D.Posix.Operations,
   Boss4D.Posix.Compliance, Boss4D.Posix.Audit, Boss4D.Posix.Workflows,
-  Boss4D.Posix.Update;
+  Boss4D.Posix.Update, Boss4D.Posix.Tools;
 
 procedure Help;
 begin
   WriteLn('Boss4D portable CLI');
   WriteLn('Commands: version, platform, init, install, ci, add, remove, list,');
   WriteLn('          search, info, registry, package, doctor, sbom, audit,');
-  WriteLn('          config, cache, self-update');
+  WriteLn('          config, cache, self-update, tool');
   WriteLn('Install options: --locked --frozen-lockfile --offline --production');
   WriteLn('                 --resolution=highest|minimal');
   WriteLn('                 --progress plain|interactive --json --quiet');
@@ -29,6 +29,8 @@ begin
   WriteLn('             boss4d config auth remove <provider>');
   WriteLn('Cache: boss4d cache size|clean|prune');
   WriteLn('Update: boss4d self-update');
+  WriteLn('Tools: boss4d tool install -g <source> [--name <name>]');
+  WriteLn('       boss4d tool update <name> <source>|uninstall <name>|list');
 end;
 
 function OptionValue(const APrefix, ADefault: string): string;
@@ -108,6 +110,9 @@ var
   LRemoved: Integer;
   LUpdateService: TBoss4DPosixUpdateService;
   LUpdateResult: TBoss4DUpdateResult;
+  LToolService: TBoss4DPosixToolService;
+  LToolPath, LToolName, LToolSource: string;
+  LTools: TStringList;
   LFoundFlag: Boolean;
   I: Integer;
 begin
@@ -541,6 +546,53 @@ begin
         WriteLn('Boss4D updated to ' + LUpdateResult.Version)
       else
         WriteLn('Boss4D is current: ' + LUpdateResult.Version);
+    end
+    else if LCommand = 'tool' then
+    begin
+      if ParamCount < 2 then
+        raise Exception.Create('usage: boss4d tool install|update|uninstall|list');
+      LToolService := TBoss4DPosixToolService.Create;
+      try
+        if SameText(ParamStr(2), 'install') then
+        begin
+          if (ParamCount < 4) or not SameText(ParamStr(3), '-g') then
+            raise Exception.Create(
+              'usage: boss4d tool install -g <source> [--name <name>]');
+          LToolSource := ParamStr(4);
+          LToolName := OptionValue('--name', '');
+          LToolPath := LToolService.Install(LToolSource, LToolName);
+          WriteLn('global tool installed: ' + LToolPath);
+        end
+        else if SameText(ParamStr(2), 'update') then
+        begin
+          if ParamCount < 4 then
+            raise Exception.Create(
+              'usage: boss4d tool update <name> <source>');
+          LToolPath := LToolService.Install(ParamStr(4), ParamStr(3));
+          WriteLn('global tool updated: ' + LToolPath);
+        end
+        else if SameText(ParamStr(2), 'uninstall') then
+        begin
+          if ParamCount < 3 then
+            raise Exception.Create('usage: boss4d tool uninstall <name>');
+          LToolService.Uninstall(ParamStr(3));
+          WriteLn('global tool uninstalled: ' + ParamStr(3));
+        end
+        else if SameText(ParamStr(2), 'list') then
+        begin
+          LTools := LToolService.List;
+          try
+            for I := 0 to LTools.Count - 1 do WriteLn(LTools[I]);
+          finally
+            LTools.Free;
+          end;
+        end
+        else
+          raise Exception.Create(
+            'usage: boss4d tool install|update|uninstall|list');
+      finally
+        LToolService.Free;
+      end;
     end
     else if (LCommand = 'help') or (LCommand = '--help') then
       Help

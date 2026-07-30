@@ -493,6 +493,12 @@ boss4d tool update boss github.com/hashload/boss
 boss4d tool uninstall boss
 ```
 
+No Linux, a CLI nativa FPC aceita um diretório de fontes local ou repositório
+Git, localiza o projeto `.lpr`, compila com FPC e instala o executável em
+`$BOSS_HOME/bin` (por padrão `~/.boss/bin`). Instalações e atualizações são
+transacionais, o SHA-256 fica registrado em `tools.json` e
+`boss4d tool list` mostra as ferramentas. Adicione `~/.boss/bin` ao `PATH`.
+
 * **Exemplo de Saída (`uninstall`)**:
   ```text
   ✅ Ferramenta "boss" desinstalada com sucesso.

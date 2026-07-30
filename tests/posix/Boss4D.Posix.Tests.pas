@@ -73,6 +73,14 @@ type
     property Downloads: Integer read FDownloads;
   end;
 
+  TToolCompilerMock = class
+  private
+    FCalls: Integer;
+  public
+    function Compile(const ASourceDirectory, AOutputPath: string): Boolean;
+    property Calls: Integer read FCalls;
+  end;
+
   TPosixCoreTests = class(TTestCase)
   published
     procedure TestPlatform;
@@ -127,6 +135,7 @@ type
     procedure TestWorkspaceLinks;
     procedure TestSecureSelfUpdate;
     procedure TestSelfUpdateSkipsCurrentVersion;
+    procedure TestGlobalToolLifecycle;
   end;
 
 implementation
@@ -136,7 +145,7 @@ uses
   Boss4D.Posix.Config,
   Boss4D.Posix.Package,
   Boss4D.Posix.Operations, Boss4D.Posix.Compliance, Boss4D.Posix.Audit,
-  Boss4D.Posix.Workflows, Boss4D.Posix.Update;
+  Boss4D.Posix.Workflows, Boss4D.Posix.Update, Boss4D.Posix.Tools;
 
 procedure SaveFixture(const APath, AContent: string); forward;
 
@@ -1068,6 +1077,14 @@ begin
   Result := True;
 end;
 
+function TToolCompilerMock.Compile(const ASourceDirectory,
+  AOutputPath: string): Boolean;
+begin
+  Inc(FCalls);
+  SaveFixture(AOutputPath, 'tool build ' + IntToStr(FCalls));
+  Result := True;
+end;
+
 function CreateComplianceLock(const ADirectory: string): string;
 begin
   Result := IncludeTrailingPathDelimiter(ADirectory) + 'boss-lock.json';
@@ -1516,6 +1533,56 @@ begin
     end;
   finally
     LMock.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestGlobalToolLifecycle;
+var
+  LDir, LSource, LTarget: string;
+  LCompiler: TToolCompilerMock;
+  LService: TBoss4DPosixToolService;
+  LTools, LContent: TStringList;
+begin
+  LDir := NewTempDirectory;
+  LSource := IncludeTrailingPathDelimiter(LDir) + 'source';
+  ForceDirectories(LSource);
+  LCompiler := TToolCompilerMock.Create;
+  try
+    LService := TBoss4DPosixToolService.Create(
+      IncludeTrailingPathDelimiter(LDir) + 'home', @LCompiler.Compile);
+    try
+      LTarget := LService.Install(LSource, 'demo-tool');
+      AssertTrue(FileExists(LTarget));
+      LTools := LService.List;
+      try
+        AssertEquals(1, LTools.Count);
+        AssertEquals('demo-tool', LTools[0]);
+      finally
+        LTools.Free;
+      end;
+      LService.Install(LSource, 'demo-tool');
+      AssertEquals(2, LCompiler.Calls);
+      LContent := TStringList.Create;
+      try
+        LContent.LoadFromFile(LTarget);
+        AssertTrue(Pos('tool build 2', LContent.Text) > 0);
+      finally
+        LContent.Free;
+      end;
+      AssertFalse(FileExists(LTarget + '.previous'));
+      LService.Uninstall('demo-tool');
+      AssertFalse(FileExists(LTarget));
+      LTools := LService.List;
+      try
+        AssertEquals(0, LTools.Count);
+      finally
+        LTools.Free;
+      end;
+    finally
+      LService.Free;
+    end;
+  finally
+    LCompiler.Free;
   end;
 end;
 

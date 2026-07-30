@@ -38,6 +38,8 @@ cooperative Ctrl+C cancellation, and `doctor` checks for Git, SHA-256, GPG,
 FPC, and a writable Boss home.
 Secret Service credentials, environment-only CI tokens, bare Git mirrors,
 cache maintenance, and POSIX workspace symlinks are native Linux workflows.
+Global FPC tools are compiled and installed transactionally under
+`~/.boss/bin`.
 
 The Windows host remains required for RAD Studio/GetIt integration, GUI, and
 IDE plugins. These
