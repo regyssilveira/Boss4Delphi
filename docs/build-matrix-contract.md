@@ -145,6 +145,29 @@ failure stops new work, waits for already-running tasks to finish safely, and
 reports the failing project. Consequently, no dependent level starts after a
 dependency failure.
 
+## Transactional IDE registration
+
+Design-time packages are registered only in the Delphi toolchain and platform
+that produced them. Boss4D no longer treats one BPL as compatible with every
+installed IDE.
+
+For each target, the registration transaction manages:
+
+- `Known Packages` and cleanup of the matching `Known IDE Packages` entry;
+- `Search Path`;
+- `Browsing Path`;
+- `Debug DCU Path`.
+
+Every registry value is snapshotted before mutation. A failed write or
+inventory update restores the values in reverse order and does not persist a
+partial registration. The desired state is stored in
+`%BOSS_HOME%\ide-registrations.json`.
+
+Unregister removes only the exact paths and BPL owned by the selected
+package/compiler/platform, preserving unrelated user paths. Re-registering the
+same target replaces its previous paths and package cleanly. Repair compares
+the inventory with the registry and reapplies only entries with drift.
+
 ## Expected precedence
 
 Selection follows this order:
