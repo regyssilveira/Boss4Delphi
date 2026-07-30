@@ -102,8 +102,9 @@ cd /d d:\Projetos\BossDelphi
   Enables or disables shallow clones for faster Git download processes.
 * `boss4d version`
   Prints the CLI version (`v1.3.0-delphi-native`).
-* `boss4d new app|package <name> [--path <directory>]`
-  Creates a protected project skeleton without overwriting a non-empty directory.
+* `boss4d new <template> <name> [--path <directory>]`
+  Creates protected Delphi, VCL, FMX, API (Horse + Dext), DUnitX, Lazarus, or
+  workspace projects without overwriting a non-empty directory.
 * `boss4d sbom --format cyclonedx|spdx --output <file> --validate`
   Generates CycloneDX 1.7 or SPDX 2.3 from `boss.json` plus `boss-lock.json` v3.
   `--lock-only` can generate a reproducible release SBOM using only root and
@@ -130,6 +131,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Package Indexes](docs/package-index.md)**: Public/private registries, search/info, GUI catalog, and IDE discovery.
 * **[GitHub Dependency Submission](docs/github-dependency-submission.md)**: Publish lock v3 snapshots to the GitHub Dependency Graph.
 * **[Cache Strategy](docs/cache-strategy.md)**: Safe Git object reuse and platform/compiler-isolated executable artifacts.
+* **[Project Templates](docs/templates.md)**: Delphi, VCL, FMX, Horse+Dext API, DUnitX, Lazarus, and workspace presets.
 * **[CLI Usage Manual](docs/usage.md)**: Detailed step-by-step guide covering all command options and dependency configurations.
 * **[Contribution Guide](CONTRIBUTING.md)**: Coding standards and guidelines for contribution.
 * **[Release Guide](RELEASE_GUIDE.md)**: Steps and instructions to compile with Delphi 13 (37.0) and publish releases on GitHub.

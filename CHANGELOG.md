@@ -23,6 +23,8 @@
   transitive relationships plus runtime/development scopes.
 - Safe Git object reuse without working-file hardlinks and compiled executable
   caching isolated by source checksum, platform, and compiler version.
+- Protected VCL, FMX, Horse+Dext API, DUnitX, Lazarus application/package, and
+  workspace project templates.
 
 ## 1.3.0 - 2026-07-29
 

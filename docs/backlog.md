@@ -204,7 +204,8 @@ This document details the future planning, new features (backlog), and architect
 *Objective: Reduce initial setup time for new projects and simplify package discovery.*
 
 - [x] **[Story] Template-based Bootstrap (`boss4d new <template>`)**
-  - `app` and `package` templates generate protected structures and `boss.json` manifests. Additional VCL, FMX, Horse API, and DUnitX presets remain future extensions.
+  - Protected app, package, VCL, FMX, Horse+Dext API, DUnitX, Lazarus, and
+    workspace structures with complete manifests.
 - [x] **[Story] Dependency Search via CLI/IDE (`boss4d search <term>`)**
   - Provide direct package search capabilities from the CLI or within the IDE visual wizard interface.
 

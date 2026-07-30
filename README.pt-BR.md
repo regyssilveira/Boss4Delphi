@@ -96,8 +96,9 @@ cd /d d:\Projetos\BossDelphi
   Habilita ou desabilita o uso de clones rasos (shallow clone) para downloads mais velozes.
 * `boss4d version`
   Exibe a versão atual do Boss4D (`v1.3.0-delphi-native`).
-* `boss4d new app|package <nome> [--path <diretório>]`
-  Cria uma estrutura protegida sem sobrescrever um diretório não vazio.
+* `boss4d new <template> <nome> [--path <diretório>]`
+  Cria projetos Delphi, VCL, FMX, API Horse+Dext, DUnitX, Lazarus ou workspace
+  sem sobrescrever um diretório não vazio.
 * `boss4d sbom --format cyclonedx|spdx --output <arquivo> --validate`
   Gera CycloneDX 1.7 ou SPDX 2.3 usando `boss.json` e `boss-lock.json` v3.
   Com `--lock-only`, gera um SBOM reproduzível de release usando apenas as
@@ -125,6 +126,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Índices de Pacotes](docs/package-index.pt-BR.md)**: Registries públicos/privados, search/info, catálogo GUI e busca na IDE.
 * **[GitHub Dependency Submission](docs/github-dependency-submission.pt-BR.md)**: Publicação do lock v3 no Dependency Graph.
 * **[Estratégia de Cache](docs/cache-strategy.pt-BR.md)**: Reuso seguro de objetos Git e executáveis isolados por plataforma/compilador.
+* **[Templates de Projeto](docs/templates.pt-BR.md)**: Presets Delphi, VCL, FMX, API Horse+Dext, DUnitX, Lazarus e workspace.
 * **[Manual de Uso da CLI](docs/usage.pt-BR.md)**: Guia completo detalhado de todos os parâmetros e opções de instalação de dependências.
 * **[Guia de Contribuição](CONTRIBUTING.pt-BR.md)**: Padrões de código e fluxo de desenvolvimento para contribuir com o projeto.
 * **[Guia de Lançamento de Release](RELEASE_GUIDE.md)**: Passos e instruções para compilar com Delphi 13 (37.0) e publicar releases no GitHub.

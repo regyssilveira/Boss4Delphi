@@ -204,7 +204,8 @@ Este documento detalha o planejamento futuro, as novas funcionalidades (backlog)
 *Objetivo: Reduzir o tempo de configuração inicial de novos projetos e descoberta de novas ferramentas.*
 
 - [x] **[Story] Inicialização com Templates (`boss4d new <template>`)**
-  - Os templates `app` e `package` geram estruturas protegidas e `boss.json`. Presets VCL, FMX, API Horse e DUnitX permanecem extensões futuras.
+  - Estruturas protegidas app, package, VCL, FMX, API Horse+Dext, DUnitX,
+    Lazarus e workspace com manifestos completos.
 - [x] **[Story] Busca de Dependências via CLI/IDE (`boss4d search <termo>`)**
   - Mecanismo de busca direta no registro de pacotes a partir do terminal ou interface gráfica na IDE.
 

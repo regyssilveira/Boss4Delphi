@@ -164,7 +164,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  outdated             Verifica se ha atualizacoes disponiveis dos pacotes.');
   FLogger.Log(TBoss4DLogLevel.Info, '  tool install -g <repo> Compila e instala um utilitario Delphi globalmente.');
   FLogger.Log(TBoss4DLogLevel.Info, '  clean                Apaga a pasta modules e o arquivo boss-lock.json.');
-  FLogger.Log(TBoss4DLogLevel.Info, '  new app|package <nome> [--path <dir>] Cria um projeto a partir de template.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  new <template> <nome> [--path <dir>] Cria app/package/VCL/FMX/API/DUnitX/Lazarus/workspace.');
   FLogger.Log(TBoss4DLogLevel.Info, '  version, -v, --version Exibe a versao atual do Boss4D.');
   FLogger.Log(TBoss4DLogLevel.Info, '  help, -h, --help     Exibe este menu de ajuda.');
   FLogger.Log(TBoss4DLogLevel.Info, '');
@@ -1015,7 +1015,7 @@ var
 begin
   if Length(AArgs) < 3 then
     raise EArgumentException.Create(
-      'Uso: boss4d new app|package <nome> [--path <diretorio>]');
+      'Uso: boss4d new <template> <nome> [--path <diretorio>]');
   LTemplate := AArgs[1];
   LName := AArgs[2];
   LTargetPath := TPath.Combine(GetCurrentDir, LName);

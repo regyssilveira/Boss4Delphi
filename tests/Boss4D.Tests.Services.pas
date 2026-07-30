@@ -153,6 +153,9 @@ type
     procedure TestScaffoldService;
 
     [Test]
+    procedure TestScaffoldPresets;
+
+    [Test]
     procedure TestSourceNormalizer;
 
     [Test]
@@ -2263,6 +2266,75 @@ begin
     Assert.AreEqual('SampleApp.dpr', LPackage.Projects[0]);
   finally
     LPackage.Free;
+  end;
+end;
+
+procedure TTestsServices.TestScaffoldPresets;
+var
+  LRepository: IBoss4DPackageRepository;
+  LService: TBoss4DScaffoldService;
+  LTarget: string;
+  LPackage: TBoss4DPackage;
+
+  procedure CreatePreset(const ATemplate, AName: string);
+  begin
+    LTarget := TPath.Combine(FTempDir, AName);
+    LService.Execute(ATemplate, AName, LTarget);
+    Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget, FILE_PACKAGE)));
+  end;
+
+begin
+  LRepository := TBoss4DPackageJsonRepository.Create;
+  LService := TBoss4DScaffoldService.Create(LRepository, TTestLogger.Create);
+  try
+    CreatePreset('vcl', 'VclSample');
+    Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget, 'src\MainView.pas')));
+    CreatePreset('fmx', 'FmxSample');
+    Assert.IsTrue(TFile.ReadAllText(TPath.Combine(LTarget,
+      'FmxSample.dpr')).Contains('FMX.Forms'));
+
+    CreatePreset('api', 'ApiSample');
+    LPackage := LRepository.Load(TPath.Combine(LTarget, FILE_PACKAGE));
+    try
+      Assert.IsTrue(LPackage.Dependencies.ContainsKey(
+        'github.com/hashload/horse'));
+      Assert.IsTrue(LPackage.Dependencies.ContainsKey(
+        'github.com/regyssilveira/dext'),
+        'O template de API deve incluir Dext.');
+    finally
+      LPackage.Free;
+    end;
+
+    CreatePreset('dunitx', 'TestsSample');
+    LPackage := LRepository.Load(TPath.Combine(LTarget, FILE_PACKAGE));
+    try
+      Assert.IsTrue(LPackage.DevDependencies.ContainsKey(
+        'github.com/VSoftTechnologies/DUnitX'));
+    finally
+      LPackage.Free;
+    end;
+    Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget,
+      'tests\Sample.Tests.pas')));
+
+    CreatePreset('lazarus-app', 'LazApp');
+    Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget, 'LazApp.lpi')));
+    Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget, 'LazApp.lpr')));
+    CreatePreset('lazarus-package', 'LazPackage');
+    Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget, 'LazPackage.lpk')));
+
+    CreatePreset('workspace', 'WorkspaceSample');
+    LPackage := LRepository.Load(TPath.Combine(LTarget, FILE_PACKAGE));
+    try
+      Assert.AreEqual<Integer>(2, LPackage.Workspaces.Count);
+    finally
+      LPackage.Free;
+    end;
+    Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget,
+      'apps\app\boss.json')));
+    Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget,
+      'packages\shared\boss.json')));
+  finally
+    LService.Free;
   end;
 end;
 
