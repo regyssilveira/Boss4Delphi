@@ -8,6 +8,7 @@ $content = Get-Content -LiteralPath $Path -Raw
 $required = @(
   'tags:',
   'ubuntu-24.04',
+  'fp-units-fcl',
   'self-hosted, windows, delphi-13',
   'Boss4DPosixTests',
   'build_release.bat',
