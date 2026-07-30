@@ -27,6 +27,16 @@ type
 
   TBoss4DRegistryFetcher = function(const ASource: string): string of object;
 
+  TBoss4DRegistryHttpResponse = record
+    StatusCode: Integer;
+    Content: string;
+    ETag: string;
+    LastModified: string;
+  end;
+
+  TBoss4DRegistryConditionalFetcher = function(const ASource, AETag,
+    ALastModified: string): TBoss4DRegistryHttpResponse of object;
+
   TBoss4DRegistryEntry = class
   private
     FName: string;
@@ -78,6 +88,7 @@ type
   private
     FCacheDirectory: string;
     FFetcher: TBoss4DRegistryFetcher;
+    FConditionalFetcher: TBoss4DRegistryConditionalFetcher;
     FOffline: Boolean;
     function ReadSource(const ASource: string): string;
     procedure LoadInternal(const ASource: string;
@@ -87,6 +98,8 @@ type
       const AFetcher: TBoss4DRegistryFetcher = nil);
     function Load(const ASource: string;
       const AOffline: Boolean = False): TBoss4DRegistryEntries;
+    property ConditionalFetcher: TBoss4DRegistryConditionalFetcher
+      read FConditionalFetcher write FConditionalFetcher;
   end;
 
 function PublicRegistryUrl: string;
@@ -135,6 +148,35 @@ begin
   end;
 end;
 
+function NativeConditionalFetch(const ASource, AETag,
+  ALastModified: string): TBoss4DRegistryHttpResponse;
+var
+  LClient: TFPHTTPClient;
+begin
+  Result.StatusCode := 0;
+  Result.Content := '';
+  Result.ETag := '';
+  Result.LastModified := '';
+  LClient := TFPHTTPClient.Create(nil);
+  try
+    LClient.AllowRedirect := True;
+    if AETag <> '' then LClient.AddHeader('If-None-Match', AETag);
+    if ALastModified <> '' then
+      LClient.AddHeader('If-Modified-Since', ALastModified);
+    try
+      Result.Content := LClient.Get(ASource);
+    except
+      on E: EHTTPClient do
+        if LClient.ResponseStatusCode <> 304 then raise;
+    end;
+    Result.StatusCode := LClient.ResponseStatusCode;
+    Result.ETag := LClient.ResponseHeaders.Values['ETag'];
+    Result.LastModified := LClient.ResponseHeaders.Values['Last-Modified'];
+  finally
+    LClient.Free;
+  end;
+end;
+
 function RegistryCacheName(const ASource: string): string;
 var
   I: Integer;
@@ -170,12 +212,16 @@ end;
 
 function TBoss4DRegistryService.ReadSource(const ASource: string): string;
 var
-  LCachePath: string;
+  LCachePath, LMetadataPath, LETag, LLastModified: string;
   LContent: TStringList;
+  LMetadataData: TJSONData;
+  LMetadata, LNewMetadata: TJSONObject;
+  LResponse: TBoss4DRegistryHttpResponse;
 begin
   if not IsHttp(ASource) then Exit(NativeReadSource(ASource));
   LCachePath := IncludeTrailingPathDelimiter(FCacheDirectory) +
     RegistryCacheName(ASource);
+  LMetadataPath := LCachePath + '.meta.json';
   if FOffline then
   begin
     if not FileExists(LCachePath) then
@@ -183,8 +229,43 @@ begin
     Exit(NativeReadSource(LCachePath));
   end;
   try
-    if Assigned(FFetcher) then Result := FFetcher(ASource)
-    else Result := NativeReadSource(ASource);
+    LETag := '';
+    LLastModified := '';
+    if FileExists(LMetadataPath) then
+    begin
+      LMetadataData := GetJSON(NativeReadSource(LMetadataPath));
+      try
+        if LMetadataData is TJSONObject then
+        begin
+          LMetadata := TJSONObject(LMetadataData);
+          LETag := LMetadata.Get('etag', '');
+          LLastModified := LMetadata.Get('lastModified', '');
+        end;
+      finally
+        LMetadataData.Free;
+      end;
+    end;
+    if Assigned(FConditionalFetcher) then
+      LResponse := FConditionalFetcher(ASource, LETag, LLastModified)
+    else if not Assigned(FFetcher) then
+      LResponse := NativeConditionalFetch(ASource, LETag, LLastModified)
+    else
+    begin
+      LResponse.StatusCode := 200;
+      LResponse.Content := FFetcher(ASource);
+      LResponse.ETag := '';
+      LResponse.LastModified := '';
+    end;
+    if LResponse.StatusCode = 304 then
+    begin
+      if not FileExists(LCachePath) then
+        raise Exception.Create('registry returned 304 without cache: ' + ASource);
+      Exit(NativeReadSource(LCachePath));
+    end;
+    if (LResponse.StatusCode < 200) or (LResponse.StatusCode >= 300) then
+      raise Exception.CreateFmt('registry HTTP status %d: %s',
+        [LResponse.StatusCode, ASource]);
+    Result := LResponse.Content;
     ForceDirectories(FCacheDirectory);
     LContent := TStringList.Create;
     try
@@ -192,6 +273,20 @@ begin
       LContent.SaveToFile(LCachePath);
     finally
       LContent.Free;
+    end;
+    LNewMetadata := TJSONObject.Create;
+    try
+      LNewMetadata.Add('etag', LResponse.ETag);
+      LNewMetadata.Add('lastModified', LResponse.LastModified);
+      LContent := TStringList.Create;
+      try
+        LContent.Text := LNewMetadata.AsJSON;
+        LContent.SaveToFile(LMetadataPath);
+      finally
+        LContent.Free;
+      end;
+    finally
+      LNewMetadata.Free;
     end;
   except
     if FileExists(LCachePath) then Result := NativeReadSource(LCachePath)

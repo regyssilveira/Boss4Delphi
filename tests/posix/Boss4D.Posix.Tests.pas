@@ -5,7 +5,7 @@ unit Boss4D.Posix.Tests;
 interface
 
 uses
-  Classes, SysUtils, fpcunit, testregistry;
+  Classes, SysUtils, fpcunit, testregistry, Boss4D.Posix.Registry;
 
 type
   TRegistryFetcherMock = class
@@ -18,6 +18,19 @@ type
     property Calls: Integer read FCalls;
     property Content: string read FContent write FContent;
     property Fail: Boolean read FFail write FFail;
+  end;
+
+  TRegistryConditionalFetcherMock = class
+  private
+    FCalls: Integer;
+    FETag: string;
+    FLastModified: string;
+  public
+    function Fetch(const ASource, AETag,
+      ALastModified: string): TBoss4DRegistryHttpResponse;
+    property Calls: Integer read FCalls;
+    property ETag: string read FETag;
+    property LastModified: string read FLastModified;
   end;
 
   TSignatureVerifierMock = class
@@ -105,6 +118,7 @@ type
     procedure TestRegistryConfigurationPreservesExistingFields;
     procedure TestRegistryOfflineUsesCache;
     procedure TestRegistryOnlineFallsBackToCache;
+    procedure TestRegistryConditionalHttpCache;
     procedure TestRegistrySelectsArtifactVariant;
     procedure TestRegistrySparseMetadataAndRevocation;
     procedure TestVerifiedPackageInstall;
@@ -142,7 +156,7 @@ type
 implementation
 
 uses
-  fpjson, DateUtils, Boss4D.Posix.Core, Boss4D.Posix.Registry,
+  fpjson, DateUtils, Boss4D.Posix.Core,
   Boss4D.Posix.Config,
   Boss4D.Posix.Package,
   Boss4D.Posix.Operations, Boss4D.Posix.Compliance, Boss4D.Posix.Audit,
@@ -155,6 +169,29 @@ begin
   Inc(FCalls);
   if FFail then raise Exception.Create('network unavailable');
   Result := FContent;
+end;
+
+function TRegistryConditionalFetcherMock.Fetch(const ASource, AETag,
+  ALastModified: string): TBoss4DRegistryHttpResponse;
+begin
+  Inc(FCalls);
+  FETag := AETag;
+  FLastModified := ALastModified;
+  if FCalls = 1 then
+  begin
+    Result.StatusCode := 200;
+    Result.Content := '{"schemaVersion":2,"packages":[{"name":"Cached",' +
+      '"repository":"example.test/cached"}]}';
+    Result.ETag := '"registry-v1"';
+    Result.LastModified := 'Wed, 30 Jul 2026 12:00:00 GMT';
+  end
+  else
+  begin
+    Result.StatusCode := 304;
+    Result.Content := '';
+    Result.ETag := '';
+    Result.LastModified := '';
+  end;
 end;
 
 function TSignatureVerifierMock.Verify(const AArtifactPath,
@@ -224,6 +261,46 @@ begin
       LEntries := LService.Load('https://registry.example/index.json');
       try
         AssertEquals('Fallback', LEntries[0].Name);
+        AssertEquals(2, LFetcher.Calls);
+      finally
+        LEntries.Free;
+      end;
+    finally
+      LService.Free;
+    end;
+  finally
+    LFetcher.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestRegistryConditionalHttpCache;
+var
+  LDir: string;
+  LFetcher: TRegistryConditionalFetcherMock;
+  LService: TBoss4DRegistryService;
+  LEntries: TBoss4DRegistryEntries;
+begin
+  LDir := NewTempDirectory;
+  LFetcher := TRegistryConditionalFetcherMock.Create;
+  try
+    LService := TBoss4DRegistryService.Create(LDir);
+    try
+      LService.ConditionalFetcher := @LFetcher.Fetch;
+      LEntries := LService.Load('https://registry.example/index.json');
+      LEntries.Free;
+      LEntries := LService.Load('https://registry.example/index.json');
+      try
+        AssertEquals(1, LEntries.Count);
+        AssertEquals('"registry-v1"', LFetcher.ETag);
+        AssertEquals('Wed, 30 Jul 2026 12:00:00 GMT',
+          LFetcher.LastModified);
+        AssertEquals(2, LFetcher.Calls);
+      finally
+        LEntries.Free;
+      end;
+      LEntries := LService.Load('https://registry.example/index.json', True);
+      try
+        AssertEquals(1, LEntries.Count);
         AssertEquals(2, LFetcher.Calls);
       finally
         LEntries.Free;

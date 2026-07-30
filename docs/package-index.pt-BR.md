@@ -104,3 +104,9 @@ e a URL de um artefato sempre deve estar acompanhada de seu SHA-256 imutável,
 inclusive dentro de `versions`.
 
 O catálogo da GUI e a busca do RAD Studio usam o mesmo serviço da CLI.
+
+Metadados HTTP são armazenados com seus validadores `ETag` e `Last-Modified`.
+As consultas online enviam `If-None-Match` e `If-Modified-Since`; uma resposta
+`304 Not Modified` reutiliza os bytes do cache. Falhas de rede usam a última
+cópia válida, enquanto `--offline` não realiza chamadas HTTP e informa
+claramente quando ainda não existe uma cópia local.

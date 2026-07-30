@@ -103,3 +103,9 @@ Unknown protocol schemas are rejected. Artifact URLs are always paired with
 their immutable SHA-256 digest, including entries inside `versions`.
 The standalone GUI catalog and RAD Studio search action use the same index
 service as the CLI.
+
+HTTP metadata is cached with its `ETag` and `Last-Modified` validators. Online
+requests send `If-None-Match` and `If-Modified-Since`; a `304 Not Modified`
+reuses the cached bytes. Network failures fall back to the last valid cache,
+while `--offline` performs no HTTP request and fails clearly when no cached
+copy exists.
