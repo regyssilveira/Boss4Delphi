@@ -48,6 +48,7 @@ scratch_*
 # SonarQube temporary directories
 .sonar/
 .scannerwork/
+.fpc-build/
 
 # Local scratch directories (credentials and temporary scripts)
 scratch/

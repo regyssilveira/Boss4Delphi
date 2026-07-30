@@ -17,6 +17,8 @@
 - Versioned public registry index schema with immutable artifact metadata.
 - Delphi 10.1 Berlin IDE integration profile compiled with BDS 17.0, alongside
   the full Delphi 11/12/13 wizard builds.
+- Native FPC 3.2.2 Linux CLI host with FPCUnit coverage for platform detection,
+  manifest initialization, dependency naming, and Git installation arguments.
 
 ## 1.4.0 - 2026-07-30
 

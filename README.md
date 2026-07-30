@@ -141,6 +141,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Secure Self-update](docs/self-update.md)**: Release discovery, SHA-256 verification, staging, and installer handoff.
 * **[Immutable Package Format](docs/package-format.md)**: Deterministic `.b4dpkg` artifacts and digest-bound publication.
 * **[Legacy Delphi Compatibility](docs/legacy-delphi.md)**: Full modern wizard plus a BDS 17.0-tested Delphi 10.1 integration profile.
+* **[FPC/Linux CLI](docs/posix-cli.md)**: Native Linux build, FPCUnit tests, portable init and Git installation.
 * **[CLI Usage Manual](docs/usage.md)**: Detailed step-by-step guide covering all command options and dependency configurations.
 * **[Contribution Guide](CONTRIBUTING.md)**: Coding standards and guidelines for contribution.
 * **[Release Guide](RELEASE_GUIDE.md)**: Steps and instructions to compile with Delphi 13 (37.0) and publish releases on GitHub.
