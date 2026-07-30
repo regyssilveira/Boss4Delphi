@@ -181,6 +181,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  version, -v, --version Exibe a versao atual do Boss4D.');
   FLogger.Log(TBoss4DLogLevel.Info, '  self-update          Baixa, verifica e inicia a atualizacao oficial.');
   FLogger.Log(TBoss4DLogLevel.Info, '  pack [--output arq]  Gera um pacote .b4dpkg deterministico e imutavel.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  conformance registry|package <arq> Valida o protocolo publico.');
   FLogger.Log(TBoss4DLogLevel.Info, '  help, -h, --help     Exibe este menu de ajuda.');
   FLogger.Log(TBoss4DLogLevel.Info, '');
 end;
