@@ -103,6 +103,8 @@ type
 
     [Test]
     procedure TestCLICommandLineParser;
+    [Test]
+    procedure TestCLISpecDetectPersistsBuildMatrix;
 
     [Test]
     procedure TestCompilerAutodetectAndOverride;
@@ -1280,6 +1282,72 @@ begin
   finally
     LService.Free;
     LDep.Free;
+  end;
+end;
+
+procedure TTestsServices.TestCLISpecDetectPersistsBuildMatrix;
+var
+  LInit: TBoss4DInitService;
+  LInstall: TBoss4DInstallService;
+  LConfig: TBoss4DConfigService;
+  LParser: TBoss4DCommandLineParser;
+  LLogger: TTestLogger;
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LPackage: TBoss4DPackage;
+  LProjectDirectory: string;
+begin
+  LLogger := TTestLogger.Create;
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LInit := TBoss4DInitService.Create(LPackageRepo, LLogger);
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo,
+    TGitClientMock.Create, THttpClientMock.Create, TCompilerMock.Create,
+    LLogger);
+  LConfig := TBoss4DConfigService.Create(LLogger);
+  LParser := TBoss4DCommandLineParser.Create(LLogger, LInit, LInstall,
+    LConfig, LPackageRepo, TRegistryMock.Create);
+  try
+    LPackage := TBoss4DPackage.Create;
+    try
+      LPackage.Name := 'spec-cli';
+      LPackage.Version := '1.0.0';
+      LPackageRepo.Save(LPackage, GetBossFile);
+    finally
+      LPackage.Free;
+    end;
+
+    LProjectDirectory := TPath.Combine(FTempDir, 'packages\Runtime');
+    TDirectory.CreateDirectory(LProjectDirectory);
+    TFile.WriteAllText(TPath.Combine(LProjectDirectory, 'Runtime.dproj'),
+      '<Project><PropertyGroup><MainSource>Runtime.dpk</MainSource>' +
+      '</PropertyGroup></Project>', TEncoding.UTF8);
+    TFile.WriteAllText(TPath.Combine(LProjectDirectory, 'Runtime.dpk'),
+      'package Runtime;' + sLineBreak + '{$RUNONLY}' + sLineBreak +
+      'requires rtl;' + sLineBreak + 'contains' + sLineBreak + 'end.',
+      TEncoding.UTF8);
+
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'spec', '--detect', '--compiler', 'd13'));
+
+    LPackage := LPackageRepo.Load(GetBossFile);
+    try
+      Assert.AreEqual<Integer>(1, LPackage.BuildMatrix.Compilers.Count);
+      Assert.AreEqual('37.0', LPackage.BuildMatrix.Compilers[0]);
+      Assert.AreEqual<Integer>(1, LPackage.BuildMatrix.Projects.Count);
+      Assert.AreEqual('packages/Runtime/Runtime.dproj',
+        LPackage.BuildMatrix.Projects[0].Path);
+      Assert.AreEqual('spec-cli', LPackage.Name);
+    finally
+      LPackage.Free;
+    end;
+    Assert.IsTrue(LLogger.LastLogMessage.Contains(
+      'buildMatrix detectada: 1 projetos, 1 compiladores.'));
+  finally
+    LParser.Free;
+    LConfig.Free;
+    LInstall.Free;
+    LInit.Free;
   end;
 end;
 

@@ -68,6 +68,7 @@ type
     procedure HandleSelfUpdate;
     procedure HandlePack(const AArgs: TArray<string>);
     procedure HandleConformance(const AArgs: TArray<string>);
+    procedure HandleSpec(const AArgs: TArray<string>);
     function ParseSbomArguments(
       const AArgs: TArray<string>): TBoss4DSbomCommandOptions;
     procedure HandleSbom(const AArgs: TArray<string>);
@@ -88,6 +89,7 @@ implementation
 
 uses
   System.SysUtils, System.IOUtils,
+  System.Generics.Collections,
   Boss4D.Adapters.Json,
   Boss4D.Adapters.Http,
   Boss4D.Adapters.Git,
@@ -115,7 +117,8 @@ uses
   Boss4D.Core.Services.Resolver,
   Boss4D.Core.Services.Conformance,
   Boss4D.Core.Services.RegistryPortal,
-  Boss4D.Core.Services.PackageInstall;
+  Boss4D.Core.Services.PackageInstall,
+  Boss4D.Core.Services.BuildSpec;
 
 { TBoss4DCommandLineParser }
 
@@ -185,6 +188,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  self-update          Baixa, verifica e inicia a atualizacao oficial.');
   FLogger.Log(TBoss4DLogLevel.Info, '  pack [--output arq]  Gera um pacote .b4dpkg deterministico e imutavel.');
   FLogger.Log(TBoss4DLogLevel.Info, '  conformance registry|package <arq> Valida o protocolo publico.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  spec --detect [--compiler <versao>] Detecta projetos e gera buildMatrix.');
   FLogger.Log(TBoss4DLogLevel.Info, '  help, -h, --help     Exibe este menu de ajuda.');
   FLogger.Log(TBoss4DLogLevel.Info, '');
 end;
@@ -268,8 +272,60 @@ begin
     HandlePack(AArgs)
   else if LCommand = 'conformance' then
     HandleConformance(AArgs)
+  else if LCommand = 'spec' then
+    HandleSpec(AArgs)
   else if LCommand = 'sbom' then
     HandleSbom(AArgs);
+end;
+
+procedure TBoss4DCommandLineParser.HandleSpec(
+  const AArgs: TArray<string>);
+var
+  LCompilers: TList<string>;
+  LPackage: TBoss4DPackage;
+  I: Integer;
+begin
+  if (Length(AArgs) < 2) or not SameText(AArgs[1], '--detect') then
+    raise EArgumentException.Create(
+      'Uso: boss4d spec --detect [--compiler <versao>].');
+
+  LCompilers := TList<string>.Create;
+  try
+    I := 2;
+    while I < Length(AArgs) do
+    begin
+      if not SameText(AArgs[I], '--compiler') then
+        raise EArgumentException.Create(
+          'Opcao desconhecida para spec: ' + AArgs[I]);
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create(
+          'Informe um valor para --compiler.');
+      Inc(I);
+      if SameText(AArgs[I], 'all') then
+        LCompilers.Clear
+      else
+        LCompilers.Add(AArgs[I]);
+      Inc(I);
+    end;
+
+    LPackage := FPackageRepo.Load(GetBossFile);
+    try
+      if LCompilers.Count = 0 then
+        TBoss4DBuildSpecDetector.Detect(LPackage, GetCurrentDir)
+      else
+        TBoss4DBuildSpecDetector.Detect(LPackage, GetCurrentDir,
+          LCompilers.ToArray);
+      FPackageRepo.Save(LPackage, GetBossFile);
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'buildMatrix detectada: %d projetos, %d compiladores.',
+        [LPackage.BuildMatrix.Projects.Count,
+         LPackage.BuildMatrix.Compilers.Count]);
+    finally
+      LPackage.Free;
+    end;
+  finally
+    LCompilers.Free;
+  end;
 end;
 
 procedure TBoss4DCommandLineParser.HandleConformance(
