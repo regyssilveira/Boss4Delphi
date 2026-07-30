@@ -287,9 +287,10 @@ The current branch is validated with:
   3.2.2 through Docker;
 - Sonar Quality Gate `OK` with zero new violations.
 
-Delphi 10 Seattle is validated with BDS 17.0. Delphi 10.1 remains a distinct
-target and requires BDS 18.0; a Seattle build must not be reported as Berlin
-evidence.
+Delphi 10 Seattle is validated with BDS 17.0 and is accepted as the
+conservative real-compiler compatibility gate for the legacy source profile
+shared with Delphi 10.1. Berlin remains mapped to BDS 18.0, and a binary BPL
+published specifically for Berlin must still be produced by BDS 18.0.
 
 ## Acceptance criteria
 
