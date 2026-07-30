@@ -841,6 +841,7 @@ procedure TPosixCoreTests.TestStructuredProgressFormats;
 var
   LEvent: TBoss4DProgressEvent;
   LJson, LPlain: string;
+  LReporter: TBoss4DProgressReporter;
 begin
   LEvent.OperationId := 'install-1';
   LEvent.PackageName := 'Demo';
@@ -856,6 +857,12 @@ begin
   LPlain := FormatProgressEvent(LEvent, pmPlain);
   AssertEquals('[verification] Demo 1/2 - checking "digest"', LPlain);
   AssertEquals('', FormatProgressEvent(LEvent, pmQuiet));
+  LReporter := TBoss4DProgressReporter.Create(pmQuiet);
+  try
+    LReporter.Emit(LEvent);
+  finally
+    LReporter.Free;
+  end;
 end;
 
 procedure TPosixCoreTests.TestProgressModePrecedence;
