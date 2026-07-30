@@ -413,7 +413,8 @@ begin
       LVexPath := OptionValue('--vex', '');
       GenerateLockSbom(IncludeTrailingPathDelimiter(GetCurrentDir) +
         'boss-lock.json', LSbomOutput, LSbomFormat, LVexPath,
-        HasOption('--reproducible'));
+        HasOption('--reproducible'), HasOption('--strict'),
+        HasOption('--validate'));
       WriteLn('SBOM generated: ' + ExpandFileName(LSbomOutput));
     end
     else if LCommand = 'audit' then

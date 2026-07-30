@@ -12,7 +12,10 @@ type
 
 procedure GenerateLockSbom(const ALockPath, AOutputPath: string;
   const AFormat: TBoss4DSbomFormat; const AVexPath: string = '';
-  const AReproducible: Boolean = False);
+  const AReproducible: Boolean = False; const AStrict: Boolean = False;
+  const AValidate: Boolean = False);
+procedure ValidateGeneratedSbom(const APath: string;
+  const AFormat: TBoss4DSbomFormat);
 
 implementation
 
@@ -287,9 +290,64 @@ begin
   end;
 end;
 
+procedure ValidateStrictLock(const ALock: TJSONObject);
+var
+  LRoot, LInstalled, LEntry: TJSONObject;
+  I: Integer;
+begin
+  LRoot := FindObject(ALock, 'root');
+  if not Assigned(LRoot) or (LRoot.Get('name', '') = '') or
+     (LRoot.Get('version', '') = '') then
+    raise Exception.Create('strict lock requires root identity');
+  LInstalled := FindObject(ALock, 'installedModules');
+  for I := 0 to LInstalled.Count - 1 do
+  begin
+    if not (LInstalled.Items[I] is TJSONObject) then
+      raise Exception.Create('strict lock dependency must be an object');
+    LEntry := TJSONObject(LInstalled.Items[I]);
+    if (LEntry.Get('name', '') = '') or (LEntry.Get('version', '') = '') or
+       (LEntry.Get('repository', '') = '') then
+      raise Exception.Create('strict lock requires dependency identity');
+    if not Assigned(LEntry.Find('checksum')) then
+      raise Exception.Create('strict lock requires dependency checksum');
+    if SameText(LEntry.Get('resolvedFrom', ''), 'git') and
+       (LEntry.Get('revision', '') = '') then
+      raise Exception.Create('strict lock requires Git revision');
+    if not (LEntry.Find('dependencies') is TJSONArray) then
+      raise Exception.Create('strict lock requires dependency graph');
+  end;
+end;
+
+procedure ValidateGeneratedSbom(const APath: string;
+  const AFormat: TBoss4DSbomFormat);
+var
+  LRoot: TJSONObject;
+begin
+  LRoot := LoadJsonObject(APath);
+  try
+    if AFormat = sfCycloneDX then
+    begin
+      if (LRoot.Get('bomFormat', '') <> 'CycloneDX') or
+         (LRoot.Get('specVersion', '') <> '1.7') or
+         not (LRoot.Find('components') is TJSONArray) or
+         not (LRoot.Find('dependencies') is TJSONArray) then
+        raise Exception.Create('generated CycloneDX document is invalid');
+    end
+    else if (LRoot.Get('spdxVersion', '') <> 'SPDX-2.3') or
+       (LRoot.Get('SPDXID', '') <> 'SPDXRef-DOCUMENT') or
+       not (LRoot.Find('creationInfo') is TJSONObject) or
+       not (LRoot.Find('packages') is TJSONArray) or
+       not (LRoot.Find('relationships') is TJSONArray) then
+      raise Exception.Create('generated SPDX document is invalid');
+  finally
+    LRoot.Free;
+  end;
+end;
+
 procedure GenerateLockSbom(const ALockPath, AOutputPath: string;
   const AFormat: TBoss4DSbomFormat; const AVexPath: string;
-  const AReproducible: Boolean);
+  const AReproducible: Boolean; const AStrict: Boolean;
+  const AValidate: Boolean);
 var
   LLock: TJSONObject;
 begin
@@ -301,10 +359,12 @@ begin
   try
     if not Assigned(LLock.Find('installedModules')) then
       raise Exception.Create('lock installedModules object is required');
+    if AStrict then ValidateStrictLock(LLock);
     if AFormat = sfCycloneDX then
       GenerateCycloneDx(LLock, AOutputPath, AVexPath, AReproducible)
     else
       GenerateSpdx(LLock, AOutputPath, AReproducible);
+    if AValidate then ValidateGeneratedSbom(AOutputPath, AFormat);
   finally
     LLock.Free;
   end;

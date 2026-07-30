@@ -89,6 +89,9 @@ type
     procedure TestAuditPolicyAndVex;
     procedure TestAuditOfflineCache;
     procedure TestAuditOfflineCacheMiss;
+    procedure TestDirectoryDigestIsDeterministicAndExcludesGit;
+    procedure TestStrictSbomEvidenceAndValidation;
+    procedure TestGitLockEvidence;
   end;
 
 implementation
@@ -979,7 +982,8 @@ begin
     '"version":"1.0.0"},"installedModules":{"example.test/demo":{' +
     '"name":"demo","version":"2.0.0","repository":"example.test/demo",' +
     '"scope":"development","revision":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",' +
-    '"checksum":"sha256:' + StringOfChar('b', 64) + '"}}}');
+    '"checksum":"sha256:' + StringOfChar('b', 64) +
+    '","dependencies":[]}}}');
 end;
 
 procedure TPosixCoreTests.TestCycloneDxLockOnlySbom;
@@ -1187,6 +1191,75 @@ begin
     end;
   finally
     LService.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestDirectoryDigestIsDeterministicAndExcludesGit;
+var
+  LDir, LFirst, LSecond: string;
+begin
+  LDir := NewTempDirectory;
+  ForceDirectories(IncludeTrailingPathDelimiter(LDir) + 'src');
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'src/a.pas', 'a');
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'b.pas', 'b');
+  LFirst := DirectorySha256(LDir);
+  AssertEquals(LFirst, DirectorySha256(LDir));
+  ForceDirectories(IncludeTrailingPathDelimiter(LDir) + '.git');
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + '.git/index', 'ignored');
+  AssertEquals(LFirst, DirectorySha256(LDir));
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'b.pas', 'changed');
+  LSecond := DirectorySha256(LDir);
+  AssertTrue(LFirst <> LSecond);
+end;
+
+procedure TPosixCoreTests.TestStrictSbomEvidenceAndValidation;
+var
+  LDir, LLock, LOutput, LInvalid: string;
+begin
+  LDir := NewTempDirectory;
+  LLock := CreateComplianceLock(LDir);
+  LOutput := IncludeTrailingPathDelimiter(LDir) + 'strict.cdx.json';
+  GenerateLockSbom(LLock, LOutput, sfCycloneDX, '', True, True, True);
+  ValidateGeneratedSbom(LOutput, sfCycloneDX);
+  LInvalid := IncludeTrailingPathDelimiter(LDir) + 'invalid.json';
+  SaveFixture(LInvalid, '{"bomFormat":"CycloneDX"}');
+  try
+    ValidateGeneratedSbom(LInvalid, sfCycloneDX);
+    Fail('Invalid generated SBOM should fail validation');
+  except
+    on E: Exception do AssertTrue(Pos('CycloneDX document is invalid',
+      E.Message) > 0);
+  end;
+  SaveFixture(LLock, '{"lockVersion":3,"root":{"name":"app",' +
+    '"version":"1.0.0"},"installedModules":{"repo":{"name":"demo",' +
+    '"version":"1.0.0","repository":"repo","resolvedFrom":"git",' +
+    '"checksum":"sha256:' + StringOfChar('a', 64) +
+    '","dependencies":[]}}}');
+  try
+    GenerateLockSbom(LLock, LOutput, sfCycloneDX, '', True, True);
+    Fail('Strict Git dependency without revision should fail');
+  except
+    on E: Exception do AssertTrue(Pos('requires Git revision', E.Message) > 0);
+  end;
+end;
+
+procedure TPosixCoreTests.TestGitLockEvidence;
+var
+  LDir: string;
+  LEvidence: TJSONObject;
+begin
+  LDir := NewTempDirectory;
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'unit.pas', 'content');
+  LEvidence := CreateGitLockEvidence('example.test/demo', 'v1.0.0',
+    LDir, 'runtime', 'abc123');
+  try
+    AssertEquals('git', LEvidence.Get('resolvedFrom', ''));
+    AssertEquals('abc123', LEvidence.Get('revision', ''));
+    AssertEquals('modules/demo', LEvidence.Get('target', ''));
+    AssertTrue(Pos('sha256:', LEvidence.Get('checksum', '')) = 1);
+    AssertTrue(LEvidence.Find('dependencies') is TJSONArray);
+  finally
+    LEvidence.Free;
   end;
 end;
 

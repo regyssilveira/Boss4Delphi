@@ -24,6 +24,9 @@ function DependencyTarget(const ARepository: string): string;
 function BuildCloneArguments(const ARepository, AVersion,
   ATarget: string): TStringList;
 function ManifestFingerprint(const AManifest: TJSONObject): string;
+function DirectorySha256(const ADirectory: string): string;
+function CreateGitLockEvidence(const ARepository, AVersion, ATarget,
+  AScope, ARevision: string): TJSONObject;
 function SelectVersion(const AConstraint: string; const AVersions: TStrings;
   const AStrategy: string): string;
 function ListProject(const ADirectory: string; const AProduction: Boolean): TStringList;
@@ -40,7 +43,7 @@ procedure InstallProject(const ADirectory: string;
 implementation
 
 uses
-  jsonparser, process, Boss4D.Posix.Operations;
+  jsonparser, process, Boss4D.Posix.Operations, Boss4D.Posix.Package;
 
 const
   MANIFEST_FILE = 'boss.json';
@@ -166,6 +169,86 @@ begin
     LHash := LHash * QWord($100000001B3);
   end;
   Result := LowerCase(IntToHex(LHash, 16));
+end;
+
+procedure CollectFiles(const ARoot, ADirectory: string;
+  const AFiles: TStringList);
+var
+  LSearch: TSearchRec;
+  LPath, LRelative: string;
+begin
+  if FindFirst(IncludeTrailingPathDelimiter(ADirectory) + '*',
+    faAnyFile, LSearch) <> 0 then Exit;
+  try
+    repeat
+      if (LSearch.Name = '.') or (LSearch.Name = '..') or
+         (LSearch.Name = '.git') then Continue;
+      LPath := IncludeTrailingPathDelimiter(ADirectory) + LSearch.Name;
+      if (LSearch.Attr and faDirectory) <> 0 then
+        CollectFiles(ARoot, LPath, AFiles)
+      else
+      begin
+        LRelative := Copy(LPath, Length(IncludeTrailingPathDelimiter(
+          ARoot)) + 1, MaxInt);
+        LRelative := StringReplace(LRelative, DirectorySeparator, '/',
+          [rfReplaceAll]);
+        AFiles.Add(LRelative);
+      end;
+    until FindNext(LSearch) <> 0;
+  finally
+    FindClose(LSearch);
+  end;
+end;
+
+function DirectorySha256(const ADirectory: string): string;
+var
+  LFiles, LManifest: TStringList;
+  LManifestPath, LPath: string;
+  I: Integer;
+begin
+  if not DirectoryExists(ADirectory) then
+    raise Exception.Create('directory not found: ' + ADirectory);
+  LFiles := TStringList.Create;
+  LManifest := TStringList.Create;
+  try
+    CollectFiles(ExpandFileName(ADirectory), ExpandFileName(ADirectory),
+      LFiles);
+    LFiles.Sort;
+    for I := 0 to LFiles.Count - 1 do
+    begin
+      LPath := IncludeTrailingPathDelimiter(ADirectory) +
+        StringReplace(LFiles[I], '/', DirectorySeparator, [rfReplaceAll]);
+      LManifest.Add(Sha256File(LPath) + '  ' + LFiles[I]);
+    end;
+    LManifestPath := IncludeTrailingPathDelimiter(GetTempDir(False)) +
+      'boss4d-tree-' + IntToHex(Random(MaxInt), 8) + '.txt';
+    LManifest.SaveToFile(LManifestPath);
+    try
+      Result := Sha256File(LManifestPath);
+    finally
+      DeleteFile(LManifestPath);
+    end;
+  finally
+    LManifest.Free;
+    LFiles.Free;
+  end;
+end;
+
+function CreateGitLockEvidence(const ARepository, AVersion, ATarget,
+  AScope, ARevision: string): TJSONObject;
+begin
+  if Trim(ARevision) = '' then
+    raise Exception.Create('Git revision is required for lock evidence');
+  Result := TJSONObject.Create;
+  Result.Add('name', DependencyTarget(ARepository));
+  Result.Add('version', AVersion);
+  Result.Add('repository', ARepository);
+  Result.Add('resolvedFrom', 'git');
+  Result.Add('scope', AScope);
+  Result.Add('revision', Trim(ARevision));
+  Result.Add('checksum', 'sha256:' + DirectorySha256(ATarget));
+  Result.Add('target', 'modules/' + DependencyTarget(ARepository));
+  Result.Add('dependencies', TJSONArray.Create);
 end;
 
 function StripVersionPrefix(const AValue: string): string;
@@ -345,6 +428,7 @@ begin
       LEntry.Add('scope', 'runtime');
       LEntry.Add('checksum', 'sha256:' + LowerCase(ADigest));
       LEntry.Add('target', ATarget);
+      LEntry.Add('dependencies', TJSONArray.Create);
       LInstalled.Add(ARepository, LEntry);
       SaveJsonObject(LLockPath, LLock);
     finally
@@ -467,7 +551,7 @@ procedure AddLockEntries(const ADirectory: string;
   const ACreated: TStringList);
 var
   I: Integer;
-  LRepository, LVersion, LTarget, LStage: string;
+  LRepository, LVersion, LTarget, LStage, LRevision: string;
   LArguments: TStringList;
   LEntry, LExistingEntry: TJSONObject;
 begin
@@ -509,12 +593,30 @@ begin
         raise Exception.Create('unable to commit installed module: ' + LTarget);
       ACreated.Add(LTarget);
     end;
-    LEntry := TJSONObject.Create;
-    LEntry.Add('name', DependencyTarget(LRepository));
-    LEntry.Add('version', LVersion);
-    LEntry.Add('repository', LRepository);
-    LEntry.Add('resolvedFrom', 'git');
-    LEntry.Add('scope', AScope);
+    if Assigned(LExistingEntry) and SameText(
+       LExistingEntry.Get('resolvedFrom', ''), 'registry-artifact') then
+    begin
+      LEntry := TJSONObject.Create;
+      LEntry.Add('name', DependencyTarget(LRepository));
+      LEntry.Add('version', LVersion);
+      LEntry.Add('repository', LRepository);
+      LEntry.Add('scope', AScope);
+      LEntry.Add('dependencies', TJSONArray.Create);
+      LEntry.Add('resolvedFrom', 'registry-artifact');
+      if Assigned(LExistingEntry.Find('checksum')) then
+        LEntry.Add('checksum', LExistingEntry.Find('checksum').Clone);
+      if LExistingEntry.Get('target', '') <> '' then
+        LEntry.Add('target', LExistingEntry.Get('target', ''));
+    end
+    else
+    begin
+      if not RunCommand('git', ['-C', LTarget, 'rev-parse', 'HEAD'],
+         LRevision) then
+        raise Exception.Create('unable to resolve installed revision: ' +
+          LRepository);
+      LEntry := CreateGitLockEvidence(LRepository, LVersion, LTarget,
+        AScope, LRevision);
+    end;
     ALockInstalled.Add(LRepository, LEntry);
   end;
 end;
