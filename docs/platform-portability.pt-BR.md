@@ -35,15 +35,14 @@ O host também oferece progresso estruturado, códigos de saída estáveis,
 cancelamento cooperativo por Ctrl+C e `doctor` para Git, SHA-256, GPG, FPC e
 diretório home gravável.
 
-O host Windows ainda é necessário para comandos SBOM/audit, armazenamento de
-credenciais, integração RAD Studio/GetIt, GUI, plugins da IDE e
+O host Windows ainda é necessário para armazenamento de credenciais, integração
+RAD Studio/GetIt, GUI, plugins da IDE e
 autoatualização. Esses limites são explícitos.
 
 ## Próximas etapas de portabilidade
 
-1. Portar geração SBOM lock-only, auditoria OSV e progresso estruturado.
-2. Adicionar adaptadores POSIX de credenciais, links de workspace e cache de
+1. Adicionar adaptadores POSIX de credenciais, links de workspace e cache de
    artefatos.
-3. Adicionar builds macOS após os contratos Linux atingirem paridade funcional.
+2. Adicionar builds macOS após os contratos Linux atingirem paridade funcional.
 
 Cada nova capacidade portátil exige testes unitários e build no sistema alvo.

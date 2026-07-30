@@ -167,6 +167,7 @@ begin
   if (Pos('network', LMessage) > 0) or
      (Pos('offline', LMessage) > 0) or
      (Pos('http', LMessage) > 0) then Exit(5);
+  if Pos('audit policy violation', LMessage) > 0 then Exit(6);
   Result := 1;
 end;
 

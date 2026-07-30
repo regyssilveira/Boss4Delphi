@@ -5,13 +5,13 @@ program boss4d;
 uses
   Classes, SysUtils, Boss4D.Posix.Core, Boss4D.Posix.Registry,
   Boss4D.Posix.Config, Boss4D.Posix.Package, Boss4D.Posix.Operations,
-  Boss4D.Posix.Compliance;
+  Boss4D.Posix.Compliance, Boss4D.Posix.Audit;
 
 procedure Help;
 begin
   WriteLn('Boss4D portable CLI');
   WriteLn('Commands: version, platform, init, install, ci, add, remove, list,');
-  WriteLn('          search, info, registry, package, doctor, sbom');
+  WriteLn('          search, info, registry, package, doctor, sbom, audit');
   WriteLn('Install options: --locked --frozen-lockfile --offline --production');
   WriteLn('                 --resolution=highest|minimal');
   WriteLn('                 --progress plain|interactive --json --quiet');
@@ -21,6 +21,8 @@ begin
   WriteLn('         [--compiler <version>] [--no-source-fallback]');
   WriteLn('SBOM: boss4d sbom --format cyclonedx|spdx --lock-only');
   WriteLn('      [--output <file>] [--reproducible] [--vex <file>]');
+  WriteLn('Audit: boss4d audit [--fail-on low|medium|high|critical]');
+  WriteLn('       [--offline] [--cache-hours <hours>] [--vex <file>]');
 end;
 
 function OptionValue(const APrefix, ADefault: string): string;
@@ -70,6 +72,10 @@ var
   LDoctorOk: Boolean;
   LSbomFormat: TBoss4DSbomFormat;
   LSbomFormatName, LSbomOutput, LVexPath: string;
+  LAuditOptions: TBoss4DAuditOptions;
+  LAuditService: TBoss4DAuditService;
+  LAuditSummary: TBoss4DAuditSummary;
+  LCacheHoursText: string;
   LFoundFlag: Boolean;
   I: Integer;
 begin
@@ -409,6 +415,34 @@ begin
         'boss-lock.json', LSbomOutput, LSbomFormat, LVexPath,
         HasOption('--reproducible'));
       WriteLn('SBOM generated: ' + ExpandFileName(LSbomOutput));
+    end
+    else if LCommand = 'audit' then
+    begin
+      LAuditOptions := DefaultAuditOptions;
+      LAuditOptions.Offline := HasOption('--offline');
+      LAuditOptions.FailOn := LowerCase(OptionValue('--fail-on', 'high'));
+      LAuditOptions.VexPath := OptionValue('--vex', '');
+      LCacheHoursText := OptionValue('--cache-hours', '24');
+      if not TryStrToInt(LCacheHoursText, LAuditOptions.CacheHours) or
+         (LAuditOptions.CacheHours < 0) then
+        raise Exception.Create('usage: --cache-hours requires a non-negative integer');
+      LAuditService := TBoss4DAuditService.Create;
+      try
+        LAuditSummary := LAuditService.Execute(
+          IncludeTrailingPathDelimiter(GetCurrentDir) + 'boss-lock.json',
+          LAuditOptions);
+        for I := 0 to LAuditService.Findings.Count - 1 do
+          WriteLn(LAuditService.Findings[I]);
+      finally
+        LAuditService.Free;
+      end;
+      WriteLn('audited packages: ' + IntToStr(LAuditSummary.Packages));
+      WriteLn('vulnerabilities: ' +
+        IntToStr(LAuditSummary.Vulnerabilities));
+      WriteLn('suppressed: ' + IntToStr(LAuditSummary.Suppressed));
+      if LAuditSummary.PolicyViolations > 0 then
+        raise Exception.Create('audit policy violation: ' +
+          IntToStr(LAuditSummary.PolicyViolations));
     end
     else if (LCommand = 'help') or (LCommand = '--help') then
       Help

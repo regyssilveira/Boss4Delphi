@@ -48,4 +48,5 @@ stop at a safe operation boundary and return exit code 130.
 | 3 | Package not found |
 | 4 | Integrity, signature, provenance, or unsafe-path rejection |
 | 5 | Network or offline-cache failure |
+| 6 | Vulnerability audit policy violation |
 | 130 | Cancelled by the user |

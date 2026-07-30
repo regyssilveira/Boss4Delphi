@@ -31,6 +31,8 @@ grep -q sha256sum .fpc-build/doctor.txt
 grep -q CycloneDX .fpc-build/package-smoke/project/sbom.cdx.json
 grep -q CVE-2099-0001 .fpc-build/package-smoke/project/sbom.cdx.json
 grep -q SPDX-2.3 .fpc-build/package-smoke/project/sbom.spdx.json
+(cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d audit --offline > audit.txt)
+grep -q 'audited packages' .fpc-build/package-smoke/project/audit.txt
 '@
 $linuxScript = $linuxScript.Replace("`r`n", "`n")
 docker run --rm -v "${root}:/work" -w /work $Image sh -lc $linuxScript

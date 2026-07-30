@@ -30,6 +30,20 @@ type
     property Calls: Integer read FCalls;
   end;
 
+  TAuditFetcherMock = class
+  private
+    FCalls: Integer;
+    FResponse: string;
+    FNextResponse: string;
+    FFail: Boolean;
+  public
+    function Fetch(const ARevision, APageToken: string): string;
+    property Calls: Integer read FCalls;
+    property Response: string read FResponse write FResponse;
+    property NextResponse: string read FNextResponse write FNextResponse;
+    property Fail: Boolean read FFail write FFail;
+  end;
+
   TPosixCoreTests = class(TTestCase)
   published
     procedure TestPlatform;
@@ -72,6 +86,9 @@ type
     procedure TestSpdxLockOnlySbom;
     procedure TestCycloneDxVex;
     procedure TestSbomReproducibleAndRejectsSpdxVex;
+    procedure TestAuditPolicyAndVex;
+    procedure TestAuditOfflineCache;
+    procedure TestAuditOfflineCacheMiss;
   end;
 
 implementation
@@ -79,7 +96,7 @@ implementation
 uses
   fpjson, Boss4D.Posix.Core, Boss4D.Posix.Registry, Boss4D.Posix.Config,
   Boss4D.Posix.Package,
-  Boss4D.Posix.Operations, Boss4D.Posix.Compliance;
+  Boss4D.Posix.Operations, Boss4D.Posix.Compliance, Boss4D.Posix.Audit;
 
 procedure SaveFixture(const APath, AContent: string); forward;
 
@@ -890,6 +907,7 @@ begin
   AssertEquals(3, ClassifyExitCode('package not found: demo'));
   AssertEquals(4, ClassifyExitCode('artifact SHA-256 mismatch'));
   AssertEquals(5, ClassifyExitCode('offline registry cache miss'));
+  AssertEquals(6, ClassifyExitCode('audit policy violation: 1'));
   AssertEquals(130, ClassifyExitCode('operation cancelled'));
   AssertEquals(1, ClassifyExitCode('unexpected failure'));
 end;
@@ -943,6 +961,14 @@ begin
   finally
     LResults.Free;
   end;
+end;
+
+function TAuditFetcherMock.Fetch(const ARevision, APageToken: string): string;
+begin
+  Inc(FCalls);
+  if FFail then raise Exception.Create('network unavailable');
+  if APageToken = '' then Result := FResponse
+  else Result := FNextResponse;
 end;
 
 function CreateComplianceLock(const ADirectory: string): string;
@@ -1060,6 +1086,107 @@ begin
     Fail('SPDX 2.3 VEX should be rejected');
   except
     on E: Exception do AssertTrue(Pos('VEX requires CycloneDX', E.Message) > 0);
+  end;
+end;
+
+procedure TPosixCoreTests.TestAuditPolicyAndVex;
+var
+  LDir, LLock, LVex: string;
+  LFetcher: TAuditFetcherMock;
+  LService: TBoss4DAuditService;
+  LOptions: TBoss4DAuditOptions;
+  LSummary: TBoss4DAuditSummary;
+begin
+  LDir := NewTempDirectory;
+  LLock := CreateComplianceLock(LDir);
+  LFetcher := TAuditFetcherMock.Create;
+  try
+    LFetcher.Response := '{"vulns":[{"id":"OSV-TEST-1",' +
+      '"database_specific":{"severity":"HIGH"}}],' +
+      '"next_page_token":"page-2"}';
+    LFetcher.NextResponse := '{"vulns":[{"id":"OSV-TEST-2",' +
+      '"database_specific":{"severity":"LOW"}}]}';
+    LService := TBoss4DAuditService.Create(@LFetcher.Fetch);
+    try
+      LOptions := DefaultAuditOptions;
+      LOptions.CacheDirectory := IncludeTrailingPathDelimiter(LDir) + 'cache';
+      LOptions.FailOn := 'high';
+      LSummary := LService.Execute(LLock, LOptions);
+      AssertEquals(1, LSummary.Packages);
+      AssertEquals(2, LSummary.Vulnerabilities);
+      AssertEquals(1, LSummary.PolicyViolations);
+      AssertEquals(2, LFetcher.Calls);
+      AssertTrue(Pos('HIGH OSV-TEST-1', LService.Findings[0]) = 1);
+      LVex := IncludeTrailingPathDelimiter(LDir) + 'audit.vex.json';
+      SaveFixture(LVex, '{"vulnerabilities":[{"id":"OSV-TEST-1",' +
+        '"state":"not_affected"}]}');
+      LOptions.VexPath := LVex;
+      LSummary := LService.Execute(LLock, LOptions);
+      AssertEquals(1, LSummary.Suppressed);
+      AssertEquals(0, LSummary.PolicyViolations);
+    finally
+      LService.Free;
+    end;
+  finally
+    LFetcher.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestAuditOfflineCache;
+var
+  LDir, LLock: string;
+  LFetcher: TAuditFetcherMock;
+  LService: TBoss4DAuditService;
+  LOptions: TBoss4DAuditOptions;
+  LSummary: TBoss4DAuditSummary;
+begin
+  LDir := NewTempDirectory;
+  LLock := CreateComplianceLock(LDir);
+  LFetcher := TAuditFetcherMock.Create;
+  try
+    LFetcher.Response := '{"vulns":[]}';
+    LService := TBoss4DAuditService.Create(@LFetcher.Fetch);
+    try
+      LOptions := DefaultAuditOptions;
+      LOptions.CacheDirectory := IncludeTrailingPathDelimiter(LDir) + 'cache';
+      LSummary := LService.Execute(LLock, LOptions);
+      AssertEquals(1, LSummary.Packages);
+      AssertEquals(1, LFetcher.Calls);
+      LFetcher.Fail := True;
+      LOptions.Offline := True;
+      LSummary := LService.Execute(LLock, LOptions);
+      AssertEquals(0, LSummary.Vulnerabilities);
+      AssertEquals(1, LFetcher.Calls);
+    finally
+      LService.Free;
+    end;
+  finally
+    LFetcher.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestAuditOfflineCacheMiss;
+var
+  LDir, LLock: string;
+  LOptions: TBoss4DAuditOptions;
+  LService: TBoss4DAuditService;
+begin
+  LDir := NewTempDirectory;
+  LLock := CreateComplianceLock(LDir);
+  LOptions := DefaultAuditOptions;
+  LOptions.CacheDirectory := IncludeTrailingPathDelimiter(LDir) + 'empty-cache';
+  LOptions.Offline := True;
+  LService := TBoss4DAuditService.Create;
+  try
+    try
+      LService.Execute(LLock, LOptions);
+      Fail('Offline audit cache miss should fail');
+    except
+      on E: Exception do AssertTrue(Pos('offline audit cache miss',
+        E.Message) > 0);
+    end;
+  finally
+    LService.Free;
   end;
 end;
 
