@@ -71,8 +71,11 @@ suportada, paths de projeto duplicados e seleções sem targets são recusados
 antes da compilação.
 
 `kind` aceita `runtime` ou `design` e usa `runtime` como padrão. `dependsOn`
-registra relações de build pelo path do projeto; a ordenação das dependências é
-responsabilidade da etapa de grafo.
+registra relações de build pelo path do projeto. Dependências são resolvidas
+para o mesmo compilador, plataforma e configuração do target consumidor. O
+Boss4D executa uma ordenação topológica estável, recusa targets compatíveis
+ausentes e informa todos os projetos participantes de um ciclo antes de
+compilar.
 
 A seleção padrão expande um target por projeto aplicável. A seleção completa
 expande o produto cartesiano após aplicar as restrições por projeto. O resultado
@@ -104,6 +107,31 @@ inclui identidade da dependência, checksum dos fontes, compilador, plataforma e
 configuração. Assim, restaurar um target nunca sobrescreve nem satisfaz outro.
 Manifests legados preservam o layout existente até serem compilados
 explicitamente pelo executor da matriz.
+
+## Rebuild incremental
+
+Cada target de projeto mantém um documento de estado independente em
+`.boss4d-state/`. O estado registra:
+
+- identidade do target;
+- fingerprint dos fontes;
+- fingerprints das dependências diretas entre projetos;
+- fingerprint combinado;
+- inventário dos outputs produzidos.
+
+Um target só é ignorado quando estado, fingerprints de fontes/dependências e
+outputs registrados continuam válidos. O executor diferencia e explica:
+
+- target atualizado;
+- rebuild forçado;
+- primeiro build (estado ausente);
+- output ausente;
+- mudança em fontes ou metadados do projeto;
+- mudança no fingerprint de uma dependência;
+- estado inválido ou corrompido.
+
+Alterar um pacote runtime invalida seus consumidores design-time compatíveis
+mesmo quando os fontes deles não foram modificados.
 
 ## Precedência esperada
 

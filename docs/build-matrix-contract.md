@@ -71,8 +71,10 @@ duplicate project paths, and a selection that yields no targets are rejected
 before compilation.
 
 `kind` accepts `runtime` or `design` and defaults to `runtime`. `dependsOn`
-records build relationships by project path; dependency ordering is handled by
-the project graph stage.
+records build relationships by project path. Dependencies are resolved for the
+same compiler, platform, and configuration as the consuming target. Boss4D
+performs a stable topological sort, rejects missing compatible targets, and
+reports every project participating in a cycle before compilation.
 
 Default selection expands one target per applicable project. An all-targets
 selection expands the complete Cartesian product after applying project
@@ -104,6 +106,31 @@ dependency identity, source checksum, compiler, platform, and configuration.
 Restoring one target can therefore never overwrite or satisfy another target.
 Legacy manifests keep their existing output layout until explicitly built
 through the matrix executor.
+
+## Incremental rebuild
+
+Each project target stores an independent state document under
+`.boss4d-state/`. The state records:
+
+- target identity;
+- source fingerprint;
+- fingerprints of direct project dependencies;
+- combined fingerprint;
+- an inventory of produced outputs.
+
+A target is skipped only when its state, source/dependency fingerprints, and
+recorded outputs are all valid. The executor distinguishes and explains:
+
+- up to date;
+- forced rebuild;
+- first build (missing state);
+- missing output;
+- source/project metadata change;
+- dependency fingerprint change;
+- invalid or corrupt state.
+
+Changing a runtime package therefore invalidates its compatible design-time
+consumers even when their own source files did not change.
 
 ## Expected precedence
 

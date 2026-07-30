@@ -25,6 +25,12 @@ type
     procedure TestTargetOutputPathsAreCollisionFree;
     [Test]
     procedure TestArtifactCacheKeyIncludesCompleteTarget;
+    [Test]
+    procedure TestBuildGraphOrdersDependenciesBeforeConsumers;
+    [Test]
+    procedure TestBuildGraphRejectsMissingDependencyTarget;
+    [Test]
+    procedure TestBuildGraphRejectsCycles;
   end;
 
 implementation
@@ -35,7 +41,8 @@ uses
   Boss4D.Core.Domain.BuildMatrix,
   Boss4D.Core.Services.BuildMatrix,
   Boss4D.Core.Services.BuildPaths,
-  Boss4D.Core.Services.ArtifactCache;
+  Boss4D.Core.Services.ArtifactCache,
+  Boss4D.Core.Services.BuildGraph;
 
 procedure TTestsBuildMatrix.TestArtifactCacheKeyIncludesCompleteTarget;
 var
@@ -56,6 +63,131 @@ begin
   Assert.AreNotEqual(LBase, TBoss4DArtifactCacheService.BuildCacheKey(
     'github.com/example/component', 'source-checksum', '37.0', 'Win32',
     'Release'));
+end;
+
+procedure TTestsBuildMatrix.TestBuildGraphOrdersDependenciesBeforeConsumers;
+var
+  LPackage: TBoss4DPackage;
+  LRuntime: TBoss4DBuildProject;
+  LDesign: TBoss4DBuildProject;
+  LTargets: TBoss4DBuildTargetList;
+begin
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'graph-component';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LDesign := TBoss4DBuildProject.Create;
+    LDesign.Path := 'packages/Design.dproj';
+    LDesign.Kind := 'design';
+    LDesign.DependsOn.Add('packages/Runtime.dproj');
+    LPackage.BuildMatrix.Projects.Add(LDesign);
+    LRuntime := TBoss4DBuildProject.Create;
+    LRuntime.Path := 'packages/Runtime.dproj';
+    LPackage.BuildMatrix.Projects.Add(LRuntime);
+
+    LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+      TBoss4DBuildSelection.All);
+    try
+      Assert.IsTrue(LTargets[0].ProjectPath.EndsWith('Design.dproj'),
+        'A expansao lexical deve demonstrar que o grafo altera a ordem.');
+      TBoss4DBuildGraph.Sort(LTargets);
+      Assert.IsTrue(LTargets[0].ProjectPath.EndsWith('Runtime.dproj'));
+      Assert.IsTrue(LTargets[1].ProjectPath.EndsWith('Design.dproj'));
+    finally
+      LTargets.Free;
+    end;
+  finally
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsBuildMatrix.TestBuildGraphRejectsCycles;
+var
+  LPackage: TBoss4DPackage;
+  LProjectA: TBoss4DBuildProject;
+  LProjectB: TBoss4DBuildProject;
+  LTargets: TBoss4DBuildTargetList;
+  LRaised: Boolean;
+begin
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'cyclic-component';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Configurations.Add('Debug');
+    LProjectA := TBoss4DBuildProject.Create;
+    LProjectA.Path := 'A.dproj';
+    LProjectA.DependsOn.Add('B.dproj');
+    LPackage.BuildMatrix.Projects.Add(LProjectA);
+    LProjectB := TBoss4DBuildProject.Create;
+    LProjectB.Path := 'B.dproj';
+    LProjectB.DependsOn.Add('A.dproj');
+    LPackage.BuildMatrix.Projects.Add(LProjectB);
+    LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+      TBoss4DBuildSelection.All);
+    try
+      LRaised := False;
+      try
+        TBoss4DBuildGraph.Sort(LTargets);
+      except
+        on E: EBoss4DBuildGraphError do
+        begin
+          LRaised := True;
+          Assert.IsTrue(E.Message.Contains('ciclo'));
+          Assert.IsTrue(E.Message.Contains('A.dproj'));
+          Assert.IsTrue(E.Message.Contains('B.dproj'));
+        end;
+      end;
+      Assert.IsTrue(LRaised, 'Ciclos devem impedir o build.');
+    finally
+      LTargets.Free;
+    end;
+  finally
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsBuildMatrix.TestBuildGraphRejectsMissingDependencyTarget;
+var
+  LPackage: TBoss4DPackage;
+  LDesign: TBoss4DBuildProject;
+  LTargets: TBoss4DBuildTargetList;
+  LRaised: Boolean;
+begin
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'missing-target';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win64');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LDesign := TBoss4DBuildProject.Create;
+    LDesign.Path := 'Design.dproj';
+    LDesign.DependsOn.Add('Runtime.dproj');
+    LPackage.BuildMatrix.Projects.Add(LDesign);
+    LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+      TBoss4DBuildSelection.All);
+    try
+      LRaised := False;
+      try
+        TBoss4DBuildGraph.Sort(LTargets);
+      except
+        on E: EBoss4DBuildGraphError do
+        begin
+          LRaised := True;
+          Assert.IsTrue(E.Message.Contains('Runtime.dproj'));
+          Assert.IsTrue(E.Message.Contains('37.0|Win64|Release'));
+        end;
+      end;
+      Assert.IsTrue(LRaised,
+        'Dependencias sem target compativel devem impedir o build.');
+    finally
+      LTargets.Free;
+    end;
+  finally
+    LPackage.Free;
+  end;
 end;
 
 procedure TTestsBuildMatrix.TestDeclarativeMatrixExpandsDeterministically;

@@ -92,6 +92,8 @@ type
     procedure TestCompiledTargetCacheRestoresCompleteOutputTree;
     [Test]
     procedure TestBuildExecutorCompilesExpandedTargets;
+    [Test]
+    procedure TestIncrementalBuildStateExplainsRebuildReasons;
 
     [Test]
     procedure TestCLICommandLineParser;
@@ -214,6 +216,8 @@ uses
   Boss4D.Core.Services.ArtifactCache,
   Boss4D.Core.Domain.BuildMatrix,
   Boss4D.Core.Services.BuildExecutor,
+  Boss4D.Core.Services.BuildState,
+  Boss4D.Core.Services.BuildPaths,
   Boss4D.Core.Services.PackageManifest, Boss4D.IDE.Wizard;
 
 { TTestLogger }
@@ -1309,11 +1313,116 @@ begin
     Assert.AreEqual('37.0', LCompiler.LastCompilerVersion);
     Assert.AreEqual('Win64', LCompiler.LastPlatform);
     Assert.AreEqual('Release', LCompiler.LastConfiguration);
+    Assert.AreEqual<Integer>(2, LExecutor.BuiltCount);
+
+    for var LPlatform in TArray<string>.Create('Win32', 'Win64') do
+    begin
+      var LTargetRoot := TBoss4DBuildPaths.TargetRoot(GetModulesDir,
+        LDep.StorageName, '37.0', LPlatform, 'Release');
+      var LDcuDir := TPath.Combine(LTargetRoot, FOLDER_DCU);
+      TDirectory.CreateDirectory(LDcuDir);
+      TFile.WriteAllText(TPath.Combine(LDcuDir, 'Component.dcu'),
+        'compiled');
+    end;
+
+    LCount := LExecutor.Execute(LPackage, LDep, LLock, FTempDir,
+      TBoss4DBuildSelection.All, 'source-checksum');
+    Assert.AreEqual<Integer>(2, LCount);
+    Assert.AreEqual<Integer>(2, LCompiler.CompiledProjects.Count,
+      'Targets atualizados nao devem invocar o compilador novamente.');
+    Assert.AreEqual<Integer>(2, LExecutor.SkippedCount);
+    Assert.IsTrue(LExecutor.LastExplanations[0].Contains('atualizado'));
+
+    TFile.WriteAllText(LProjectPath, '<Project><!-- changed --></Project>');
+    LExecutor.Execute(LPackage, LDep, LLock, FTempDir,
+      TBoss4DBuildSelection.All, 'source-checksum');
+    Assert.AreEqual<Integer>(4, LCompiler.CompiledProjects.Count);
+    Assert.AreEqual<Integer>(2, LExecutor.BuiltCount);
+    Assert.IsTrue(LExecutor.LastExplanations[0].Contains('fontes'));
   finally
     LExecutor.Free;
     LLock.Free;
     LDep.Free;
     LPackage.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIncrementalBuildStateExplainsRebuildReasons;
+var
+  LService: TBoss4DBuildStateService;
+  LTarget: TBoss4DBuildTarget;
+  LProjectDir: string;
+  LProjectPath: string;
+  LSourcePath: string;
+  LTargetRoot: string;
+  LOutputPath: string;
+  LDecision: TBoss4DBuildDecision;
+begin
+  LService := TBoss4DBuildStateService.Create;
+  LTarget := TBoss4DBuildTarget.Create;
+  try
+    LTarget.PackageName := 'incremental-component';
+    LTarget.ProjectPath := 'Component.dproj';
+    LTarget.Compiler := '37.0';
+    LTarget.Platform := 'Win64';
+    LTarget.Configuration := 'Release';
+    LProjectDir := TPath.Combine(FTempDir, 'incremental-source');
+    TDirectory.CreateDirectory(LProjectDir);
+    LProjectPath := TPath.Combine(LProjectDir, 'Component.dproj');
+    var LSharedSourceDir := TPath.Combine(FTempDir, 'shared-source');
+    TDirectory.CreateDirectory(LSharedSourceDir);
+    LSourcePath := TPath.Combine(LSharedSourceDir, 'Component.pas');
+    TFile.WriteAllText(LProjectPath,
+      '<Project><DCCReference Include="..\shared-source\Component.pas"/>' +
+      '</Project>');
+    TFile.WriteAllText(LSourcePath, 'unit Component;');
+    LTargetRoot := TPath.Combine(FTempDir, 'incremental-output');
+
+    LDecision := LService.Evaluate(LTarget, LProjectPath, LTargetRoot,
+      TArray<string>.Create('runtime-v1'), False);
+    Assert.IsTrue(LDecision.ShouldBuild);
+    Assert.AreEqual(TBoss4DBuildDecisionReason.MissingState,
+      LDecision.Reason);
+    Assert.IsTrue(LService.Explain(LDecision).Contains('estado'));
+
+    TDirectory.CreateDirectory(TPath.Combine(LTargetRoot, FOLDER_DCU));
+    LOutputPath := TPath.Combine(TPath.Combine(LTargetRoot, FOLDER_DCU),
+      'Component.dcu');
+    TFile.WriteAllText(LOutputPath, 'compiled-v1');
+    LService.Save(LTarget, LTargetRoot, LDecision);
+
+    LDecision := LService.Evaluate(LTarget, LProjectPath, LTargetRoot,
+      TArray<string>.Create('runtime-v1'), False);
+    Assert.IsFalse(LDecision.ShouldBuild);
+    Assert.AreEqual(TBoss4DBuildDecisionReason.UpToDate, LDecision.Reason);
+
+    TFile.WriteAllText(LSourcePath, 'unit Component; // changed');
+    LDecision := LService.Evaluate(LTarget, LProjectPath, LTargetRoot,
+      TArray<string>.Create('runtime-v1'), False);
+    Assert.AreEqual(TBoss4DBuildDecisionReason.SourceChanged,
+      LDecision.Reason);
+    Assert.IsTrue(LService.Explain(LDecision).Contains('fontes'));
+    TFile.WriteAllText(LOutputPath, 'compiled-v2');
+    LService.Save(LTarget, LTargetRoot, LDecision);
+
+    LDecision := LService.Evaluate(LTarget, LProjectPath, LTargetRoot,
+      TArray<string>.Create('runtime-v2'), False);
+    Assert.AreEqual(TBoss4DBuildDecisionReason.DependencyChanged,
+      LDecision.Reason);
+    Assert.IsTrue(LService.Explain(LDecision).Contains('dependencia'));
+
+    LDecision := LService.Evaluate(LTarget, LProjectPath, LTargetRoot,
+      TArray<string>.Create('runtime-v2'), True);
+    Assert.AreEqual(TBoss4DBuildDecisionReason.Forced, LDecision.Reason);
+
+    TFile.Delete(LOutputPath);
+    LDecision := LService.Evaluate(LTarget, LProjectPath, LTargetRoot,
+      TArray<string>.Create('runtime-v1'), False);
+    Assert.AreEqual(TBoss4DBuildDecisionReason.MissingOutputs,
+      LDecision.Reason);
+  finally
+    LTarget.Free;
+    LService.Free;
   end;
 end;
 
