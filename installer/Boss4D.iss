@@ -15,7 +15,7 @@ Source: "..\dist\bin\boss4d.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "..\dist\bin\boss4d_x64.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "..\dist\bin\Boss4D.GUI.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "..\dist\bin\Boss4D.GUI_x64.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
-Source: "..\dist\plugins\10.1\Boss4D.IDE.Plugin.bpl"; DestDir: "{commondocs}\Embarcadero\Studio\17.0\Bpl"; Flags: ignoreversion; Check: IsDelphi101Installed
+Source: "..\dist\plugins\10.1\Boss4D.IDE.Plugin.bpl"; DestDir: "{commondocs}\Embarcadero\Studio\18.0\Bpl"; Flags: ignoreversion; Check: IsDelphi101Installed
 Source: "..\dist\plugins\11\Boss4D.IDE.Plugin.bpl"; DestDir: "{commondocs}\Embarcadero\Studio\22.0\Bpl"; Flags: ignoreversion; Check: IsDelphi11Installed
 Source: "..\dist\plugins\12\Boss4D.IDE.Plugin.bpl"; DestDir: "{commondocs}\Embarcadero\Studio\23.0\Bpl"; Flags: ignoreversion; Check: IsDelphi12Installed
 Source: "..\dist\plugins\13\Boss4D.IDE.Plugin.bpl"; DestDir: "{commondocs}\Embarcadero\Studio\37.0\Bpl"; Flags: ignoreversion; Check: IsDelphi13Installed
@@ -36,7 +36,7 @@ var
 
 function IsDelphi101Installed: Boolean;
 begin
-  Result := RegKeyExists(HKCU, 'Software\Embarcadero\BDS\17.0');
+  Result := RegKeyExists(HKCU, 'Software\Embarcadero\BDS\18.0');
 end;
 
 function IsDelphi11Installed: Boolean;
@@ -229,7 +229,7 @@ begin
   if CurStep = ssPostInstall then
   begin
     // Limpa registros obsoletos de instalacoes anteriores para evitar conflito de units na IDE
-    CleanObsoleteRegistry('17.0', 'Boss4D.IDE.Plugin_10_1.bpl');
+    CleanObsoleteRegistry('18.0', 'Boss4D.IDE.Plugin_10_1.bpl');
     CleanObsoleteRegistry('22.0', 'Boss4D.IDE.Plugin_11.bpl');
     CleanObsoleteRegistry('23.0', 'Boss4D.IDE.Plugin_12.bpl');
     CleanObsoleteRegistry('37.0', 'Boss4D.IDE.Plugin_13.bpl');
@@ -238,9 +238,9 @@ begin
     if Delphi101Idx <> -1 then
     begin
       if IDEOptionPage.Values[Delphi101Idx] then
-        RegisterPlugin('17.0', '10.1')
+        RegisterPlugin('18.0', '10.1')
       else
-        UnregisterPlugin('17.0', '10.1');
+        UnregisterPlugin('18.0', '10.1');
     end;
 
     // Delphi 11 (Alexandria)
@@ -280,7 +280,7 @@ begin
   if CurUninstallStep = usPostUninstall then
   begin
     // Limpa registros de todas as IDEs
-    UnregisterPlugin('17.0', '10.1');
+    UnregisterPlugin('18.0', '10.1');
     UnregisterPlugin('22.0', '11');
     UnregisterPlugin('23.0', '12');
     UnregisterPlugin('37.0', '13');

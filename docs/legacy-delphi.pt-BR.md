@@ -8,7 +8,7 @@ O Boss4D distribui dois perfis de integração com a IDE:
 
 O plug-in legado preserva a descoberta do pacote e um ponto estável de
 integração, direcionando as operações de dependência ao mesmo `boss4d.exe`.
-Ele é compilado pelo BDS 17.0 real durante o build de release e publicado em
+Ele tem como alvo o compilador BDS 18.0 na matriz de release e é publicado em
 `dist/plugins/10.1`.
 
 ```text

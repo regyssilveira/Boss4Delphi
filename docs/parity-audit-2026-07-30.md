@@ -13,7 +13,7 @@ real-compiler test; it does not mean the ecosystem has reached npm-scale.
 | Mirrors and revocation | Complete | ordered metadata/artifact mirror tests, digest rejection, revocation test |
 | Immutable publication | Complete | deterministic publish test, lock gates, token non-disclosure, HTTP 409 conflict |
 | Publisher onboarding | Complete | scope/fingerprint/signature/provenance validator with negative tests |
-| Older Delphi compilers | Complete | real plugin compilation with Delphi 10.1, 11, 12 and 13 |
+| Older Delphi compilers | Partial | real plugin compilation with Delphi 11, 12 and 13; Delphi 10.1 requires a runner with BDS 18.0 |
 | Native Linux CLI | Complete | FPC 3.2.2 x86_64 build, FPCUnit suite and real command smoke tests |
 | Daily project workflows | Complete | install/update/tree/why/outdated/run tests and transactional rollback |
 | Global tools/workspaces/cache | Complete | lifecycle, linking, pruning and real FPC tool smoke tests |
@@ -22,7 +22,7 @@ real-compiler test; it does not mean the ecosystem has reached npm-scale.
 | Auto-update | Complete | release selection, SHA-256, extraction, transactional promotion and rollback tests |
 | Compliance/audit | Complete | CycloneDX, SPDX, VEX, OSV, strict lock evidence and external validators |
 | Release distribution | Complete | tag workflow, Windows/Linux archives, checksums, OIDC provenance and final tarball execution |
-| Quality | Complete | Delphi Win32/Win64, FPC/Linux, workflow contract tests and Sonar zero-issue gate |
+| Quality | Under validation | Delphi 13 Win32/Win64 and FPC/Linux validated; BDS 18.0 and the final Sonar gate are still pending |
 
 ## Required invariants
 

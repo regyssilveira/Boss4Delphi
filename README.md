@@ -171,7 +171,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Publisher Onboarding](docs/publisher-onboarding.md)**: Public Registry identity, signer, immutable metadata, and review workflow.
 * **[Parity Completion Audit](docs/parity-audit-2026-07-30.md)**: Requirement-by-requirement implementation and verification evidence.
 * **[Immutable Package Format](docs/package-format.md)**: Deterministic `.b4dpkg`, verified installation, OpenPGP/in-toto evidence, source fallback, and compiler/platform variants.
-* **[Legacy Delphi Compatibility](docs/legacy-delphi.md)**: Full modern wizard plus a BDS 17.0-tested Delphi 10.1 integration profile.
+* **[Legacy Delphi Compatibility](docs/legacy-delphi.md)**: Full modern wizard plus a Delphi 10.1 integration profile targeting BDS 18.0.
 * **[FPC/Linux CLI](docs/posix-cli.md)**: Native Linux build, dependency lifecycle, lock v3, frozen/offline CI, SemVer resolution, and FPCUnit tests.
 * **[Competitive Positioning](docs/competitive-positioning.md)**: Evidence-based comparison with BOSS, DPM, GetIt, Lazarus OPM, and mature package ecosystems.
 * **[Resolution and Secure Credentials](docs/resolution-and-credentials.md)**: Highest/minimal SemVer policies and native credential storage.

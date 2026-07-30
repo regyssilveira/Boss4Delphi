@@ -57,7 +57,7 @@
 - Deterministic `boss4d pack` artifacts with per-file and package SHA-256
   evidence, embedded into versioned registry publication payloads.
 - Versioned public registry index schema with immutable artifact metadata.
-- Delphi 10.1 Berlin IDE integration profile compiled with BDS 17.0, alongside
+- Delphi 10.1 Berlin IDE integration profile corrected to target BDS 18.0, alongside
   the full Delphi 11/12/13 wizard builds.
 - Native FPC 3.2.2 Linux CLI host with FPCUnit coverage for platform detection,
   manifest initialization, dependency naming, and Git installation arguments.
