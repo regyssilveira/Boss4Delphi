@@ -34,9 +34,11 @@ instalação verificada é registrada no manifesto compatível e no lock v3.
 O host também oferece progresso estruturado, códigos de saída estáveis,
 cancelamento cooperativo por Ctrl+C e `doctor` para Git, SHA-256, GPG, FPC e
 diretório home gravável.
+Credenciais no Secret Service, tokens efêmeros de CI, mirrors Git bare,
+manutenção de cache e links simbólicos de workspace são fluxos nativos Linux.
 
-O host Windows ainda é necessário para armazenamento de credenciais, integração
-RAD Studio/GetIt, GUI, plugins da IDE e
+O host Windows ainda é necessário para integração RAD Studio/GetIt, GUI,
+plugins da IDE e
 autoatualização. Esses limites são explícitos.
 
 ## Próximas etapas de portabilidade

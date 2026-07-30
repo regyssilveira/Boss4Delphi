@@ -23,6 +23,8 @@ function LoadJsonObject(const AFileName: string): TJSONObject;
 function DependencyTarget(const ARepository: string): string;
 function BuildCloneArguments(const ARepository, AVersion,
   ATarget: string): TStringList;
+function BuildCachedCloneArguments(const ARepository, AVersion,
+  ATarget, ACache: string): TStringList;
 function ManifestFingerprint(const AManifest: TJSONObject): string;
 function DirectorySha256(const ADirectory: string): string;
 function CreateGitLockEvidence(const ARepository, AVersion, ATarget,
@@ -43,7 +45,8 @@ procedure InstallProject(const ADirectory: string;
 implementation
 
 uses
-  jsonparser, process, Boss4D.Posix.Operations, Boss4D.Posix.Package;
+  jsonparser, process, Boss4D.Posix.Operations, Boss4D.Posix.Package,
+  Boss4D.Posix.Workflows;
 
 const
   MANIFEST_FILE = 'boss.json';
@@ -473,17 +476,130 @@ end;
 procedure RunGit(const AArguments: TStringList);
 var
   LProcess: TProcess;
+  I: Integer;
+  LRepository, LToken: string;
 begin
   LProcess := TProcess.Create(nil);
   try
     LProcess.Executable := 'git';
     LProcess.Parameters.Assign(AArguments);
+    LRepository := '';
+    for I := 0 to AArguments.Count - 1 do
+      if (Pos('github.com/', LowerCase(AArguments[I])) > 0) or
+         (Pos('gitlab.com/', LowerCase(AArguments[I])) > 0) then
+        LRepository := AArguments[I];
+    LToken := CredentialForRepository(LRepository);
+    if LToken <> '' then
+    begin
+      for I := 1 to GetEnvironmentVariableCount do
+        LProcess.Environment.Add(GetEnvironmentString(I));
+      LProcess.Environment.Add('GIT_CONFIG_COUNT=1');
+      LProcess.Environment.Add('GIT_CONFIG_KEY_0=http.extraHeader');
+      LProcess.Environment.Add('GIT_CONFIG_VALUE_0=Authorization: Bearer ' +
+        LToken);
+    end;
     LProcess.Options := [poWaitOnExit];
     LProcess.Execute;
     if LProcess.ExitStatus <> 0 then
       raise Exception.CreateFmt('git failed with exit code %d',
         [LProcess.ExitStatus]);
   finally
+    LProcess.Free;
+  end;
+end;
+
+function BuildCachedCloneArguments(const ARepository, AVersion,
+  ATarget, ACache: string): TStringList;
+begin
+  Result := BuildCloneArguments(ARepository, AVersion, ATarget);
+  if ACache = '' then Exit;
+  Result.Insert(1, '--reference-if-able');
+  Result.Insert(2, ACache);
+  Result.Insert(3, '--no-hardlinks');
+end;
+
+function RepositoryCacheName(const ARepository: string): string;
+var
+  I: Integer;
+  LHash: QWord;
+begin
+  LHash := QWord($CBF29CE484222325);
+  for I := 1 to Length(ARepository) do
+  begin
+    LHash := LHash xor Ord(ARepository[I]);
+    LHash := LHash * QWord($100000001B3);
+  end;
+  Result := LowerCase(IntToHex(LHash, 16)) + '.git';
+end;
+
+function PrepareGitCache(const ARepository: string): string;
+var
+  LHome: string;
+  LArguments: TStringList;
+begin
+  LHome := GetEnvironmentVariable('BOSS_HOME');
+  if LHome = '' then
+    LHome := IncludeTrailingPathDelimiter(GetEnvironmentVariable('HOME')) +
+      '.boss';
+  Result := IncludeTrailingPathDelimiter(LHome) + 'cache' +
+    DirectorySeparator + 'git' + DirectorySeparator +
+    RepositoryCacheName(ARepository);
+  ForceDirectories(ExtractFileDir(Result));
+  LArguments := TStringList.Create;
+  try
+    if not DirectoryExists(Result) then
+    begin
+      LArguments.Add('clone');
+      LArguments.Add('--mirror');
+      LArguments.Add(ARepository);
+      LArguments.Add(Result);
+    end
+    else
+    begin
+      LArguments.Add('-C');
+      LArguments.Add(Result);
+      LArguments.Add('fetch');
+      LArguments.Add('--all');
+      LArguments.Add('--prune');
+    end;
+    RunGit(LArguments);
+  finally
+    LArguments.Free;
+  end;
+end;
+
+function QueryGitTags(const ARepository: string; out AOutput: string): Boolean;
+var
+  LProcess: TProcess;
+  LOutput: TStringStream;
+  LToken: string;
+  I: Integer;
+begin
+  LProcess := TProcess.Create(nil);
+  LOutput := TStringStream.Create('');
+  try
+    LProcess.Executable := 'git';
+    LProcess.Parameters.Add('ls-remote');
+    LProcess.Parameters.Add('--tags');
+    LProcess.Parameters.Add('--refs');
+    LProcess.Parameters.Add(NormalizeRepositoryUrl(ARepository));
+    LToken := CredentialForRepository(ARepository);
+    if LToken <> '' then
+    begin
+      for I := 1 to GetEnvironmentVariableCount do
+        LProcess.Environment.Add(GetEnvironmentString(I));
+      LProcess.Environment.Add('GIT_CONFIG_COUNT=1');
+      LProcess.Environment.Add('GIT_CONFIG_KEY_0=http.extraHeader');
+      LProcess.Environment.Add('GIT_CONFIG_VALUE_0=Authorization: Bearer ' +
+        LToken);
+    end;
+    LProcess.Options := [poUsePipes, poWaitOnExit];
+    LProcess.Execute;
+    LOutput.CopyFrom(LProcess.Output, 0);
+    AOutput := LOutput.DataString;
+    Result := LProcess.ExitStatus = 0;
+  finally
+    LOutput.Free;
     LProcess.Free;
   end;
 end;
@@ -501,8 +617,7 @@ begin
   LLines := TStringList.Create;
   LVersions := TStringList.Create;
   try
-    if not RunCommand('git', ['ls-remote', '--tags', '--refs', ARepository],
-      LOutput) then
+    if not QueryGitTags(ARepository, LOutput) then
       raise Exception.Create('unable to query versions for ' + ARepository);
     LLines.Text := LOutput;
     LPrefix := 'refs/tags/';
@@ -583,7 +698,9 @@ begin
       LStage := LTarget + '.boss4d-stage';
       if DirectoryExists(LStage) then
         raise Exception.Create('stale install staging directory: ' + LStage);
-      LArguments := BuildCloneArguments(LRepository, LVersion, LStage);
+      LArguments := BuildCachedCloneArguments(
+        NormalizeRepositoryUrl(LRepository), LVersion, LStage,
+        PrepareGitCache(NormalizeRepositoryUrl(LRepository)));
       try
         RunGit(LArguments);
       finally
@@ -681,6 +798,7 @@ begin
             LExistingInstalled, LCreated);
         if not AOptions.FrozenLockfile then
           SaveJsonObject(LLockPath, LLock);
+        LinkDeclaredWorkspaces(ADirectory);
       finally
         LLock.Free;
       end;
