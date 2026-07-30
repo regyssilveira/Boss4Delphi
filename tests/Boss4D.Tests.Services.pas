@@ -88,6 +88,10 @@ type
 
     [Test]
     procedure TestCompiledArtifactCacheIsolation;
+    [Test]
+    procedure TestCompiledTargetCacheRestoresCompleteOutputTree;
+    [Test]
+    procedure TestBuildExecutorCompilesExpandedTargets;
 
     [Test]
     procedure TestCLICommandLineParser;
@@ -208,6 +212,8 @@ uses
   Boss4D.Core.Services.DependencySubmission,
   Boss4D.Core.Services.Publish,
   Boss4D.Core.Services.ArtifactCache,
+  Boss4D.Core.Domain.BuildMatrix,
+  Boss4D.Core.Services.BuildExecutor,
   Boss4D.Core.Services.PackageManifest, Boss4D.IDE.Wizard;
 
 { TTestLogger }
@@ -1260,6 +1266,91 @@ begin
       'Win64', '37.0'), 'Plataformas nao podem compartilhar artefatos.');
     Assert.IsFalse(LService.Restore(LDep, 'source-checksum',
       'Win32', '36.0'), 'Compiladores nao podem compartilhar artefatos.');
+  finally
+    LService.Free;
+    LDep.Free;
+  end;
+end;
+
+procedure TTestsServices.TestBuildExecutorCompilesExpandedTargets;
+var
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+  LDep: TBoss4DDependency;
+  LLock: TBoss4DLock;
+  LCompiler: TCompilerMock;
+  LExecutor: TBoss4DBuildExecutor;
+  LProjectPath: string;
+  LCount: Integer;
+begin
+  LPackage := TBoss4DPackage.Create;
+  LDep := TBoss4DDependency.Create('github.com/example/component', '1.0.0');
+  LLock := TBoss4DLock.Create;
+  LCompiler := TCompilerMock.Create;
+  LExecutor := TBoss4DBuildExecutor.Create(LCompiler);
+  try
+    LPackage.Name := 'component';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Platforms.Add('Win64');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'packages\Component.dproj';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+    LProjectPath := TPath.Combine(FTempDir, LProject.Path);
+    TDirectory.CreateDirectory(TPath.GetDirectoryName(LProjectPath));
+    TFile.WriteAllText(LProjectPath, '<Project/>');
+
+    LCount := LExecutor.Execute(LPackage, LDep, LLock, FTempDir,
+      TBoss4DBuildSelection.All, 'source-checksum');
+
+    Assert.AreEqual<Integer>(2, LCount);
+    Assert.AreEqual<Integer>(2, LCompiler.CompiledProjects.Count);
+    Assert.AreEqual('37.0', LCompiler.LastCompilerVersion);
+    Assert.AreEqual('Win64', LCompiler.LastPlatform);
+    Assert.AreEqual('Release', LCompiler.LastConfiguration);
+  finally
+    LExecutor.Free;
+    LLock.Free;
+    LDep.Free;
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsServices.TestCompiledTargetCacheRestoresCompleteOutputTree;
+var
+  LService: TBoss4DArtifactCacheService;
+  LDep: TBoss4DDependency;
+  LTargetRoot: string;
+  LDcuDir: string;
+  LBplDir: string;
+begin
+  LDep := TBoss4DDependency.Create('github.com/example/component', '1.0.0');
+  LService := TBoss4DArtifactCacheService.Create;
+  try
+    LTargetRoot := TPath.Combine(FTempDir, 'isolated-target');
+    LDcuDir := TPath.Combine(LTargetRoot, FOLDER_DCU);
+    LBplDir := TPath.Combine(LTargetRoot, FOLDER_BPL);
+    TDirectory.CreateDirectory(LDcuDir);
+    TDirectory.CreateDirectory(LBplDir);
+    TFile.WriteAllText(TPath.Combine(LDcuDir, 'Component.dcu'), 'dcu');
+    TFile.WriteAllText(TPath.Combine(LBplDir, 'Component.bpl'), 'bpl');
+
+    LService.Store(LDep, 'target-source', 'Win64', '37.0', 'Release',
+      LTargetRoot);
+    TDirectory.Delete(LTargetRoot, True);
+
+    Assert.IsTrue(LService.Restore(LDep, 'target-source', 'Win64', '37.0',
+      'Release', LTargetRoot));
+    Assert.AreEqual('dcu', TFile.ReadAllText(
+      TPath.Combine(LDcuDir, 'Component.dcu')));
+    Assert.AreEqual('bpl', TFile.ReadAllText(
+      TPath.Combine(LBplDir, 'Component.bpl')));
+
+    TDirectory.Delete(LTargetRoot, True);
+    Assert.IsFalse(LService.Restore(LDep, 'target-source', 'Win64', '37.0',
+      'Debug', LTargetRoot),
+      'Configuracoes nao podem compartilhar a arvore de artefatos.');
   finally
     LService.Free;
     LDep.Free;

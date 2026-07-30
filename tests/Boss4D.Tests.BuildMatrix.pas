@@ -21,15 +21,42 @@ type
     procedure TestDefaultsChooseSingleTarget;
     [Test]
     procedure TestProjectConstraintOutsideMatrixFails;
+    [Test]
+    procedure TestTargetOutputPathsAreCollisionFree;
+    [Test]
+    procedure TestArtifactCacheKeyIncludesCompleteTarget;
   end;
 
 implementation
 
 uses
-  System.SysUtils,
+  System.SysUtils, System.IOUtils,
   Boss4D.Core.Domain.Package,
   Boss4D.Core.Domain.BuildMatrix,
-  Boss4D.Core.Services.BuildMatrix;
+  Boss4D.Core.Services.BuildMatrix,
+  Boss4D.Core.Services.BuildPaths,
+  Boss4D.Core.Services.ArtifactCache;
+
+procedure TTestsBuildMatrix.TestArtifactCacheKeyIncludesCompleteTarget;
+var
+  LBase: string;
+begin
+  LBase := TBoss4DArtifactCacheService.BuildCacheKey(
+    'github.com/example/component', 'source-checksum', '37.0', 'Win32',
+    'Debug');
+  Assert.AreNotEqual(LBase, TBoss4DArtifactCacheService.BuildCacheKey(
+    'github.com/example/other', 'source-checksum', '37.0', 'Win32',
+    'Debug'));
+  Assert.AreNotEqual(LBase, TBoss4DArtifactCacheService.BuildCacheKey(
+    'github.com/example/component', 'source-checksum', '23.0', 'Win32',
+    'Debug'));
+  Assert.AreNotEqual(LBase, TBoss4DArtifactCacheService.BuildCacheKey(
+    'github.com/example/component', 'source-checksum', '37.0', 'Win64',
+    'Debug'));
+  Assert.AreNotEqual(LBase, TBoss4DArtifactCacheService.BuildCacheKey(
+    'github.com/example/component', 'source-checksum', '37.0', 'Win32',
+    'Release'));
+end;
 
 procedure TTestsBuildMatrix.TestDeclarativeMatrixExpandsDeterministically;
 var
@@ -221,6 +248,31 @@ begin
   finally
     LPackage.Free;
   end;
+end;
+
+procedure TTestsBuildMatrix.TestTargetOutputPathsAreCollisionFree;
+var
+  LRoot: string;
+  LWin32Debug: string;
+  LWin64Debug: string;
+  LWin32Release: string;
+  LDelphi12Debug: string;
+begin
+  LRoot := TPath.Combine('C:\workspace', 'modules');
+  LWin32Debug := TBoss4DBuildPaths.OutputDirectory(LRoot,
+    'sample-component', '37.0', 'Win32', 'Debug', 'dcu');
+  LWin64Debug := TBoss4DBuildPaths.OutputDirectory(LRoot,
+    'sample-component', '37.0', 'Win64', 'Debug', 'dcu');
+  LWin32Release := TBoss4DBuildPaths.OutputDirectory(LRoot,
+    'sample-component', '37.0', 'Win32', 'Release', 'dcu');
+  LDelphi12Debug := TBoss4DBuildPaths.OutputDirectory(LRoot,
+    'sample-component', '23.0', 'Win32', 'Debug', 'dcu');
+
+  Assert.AreNotEqual(LWin32Debug, LWin64Debug);
+  Assert.AreNotEqual(LWin32Debug, LWin32Release);
+  Assert.AreNotEqual(LWin32Debug, LDelphi12Debug);
+  Assert.IsTrue(LWin32Debug.EndsWith(TPath.Combine('37.0',
+    TPath.Combine('Win32', TPath.Combine('Debug', 'dcu')))));
 end;
 
 procedure TTestsBuildMatrix.TestInvalidSelectionFailsBeforeBuild;

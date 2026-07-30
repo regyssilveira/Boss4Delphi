@@ -89,6 +89,22 @@ diagnósticos e registro na IDE. Artefatos produzidos por compiladores,
 plataformas ou configurações diferentes nunca poderão compartilhar o mesmo
 diretório final.
 
+Os outputs da matriz usam este layout:
+
+```text
+modules/artifacts/<pacote>/<compilador>/<plataforma>/<configuração>/
+  bin/
+  bpl/
+  dcp/
+  dcu/
+```
+
+A árvore completa do target é armazenada no cache como uma unidade. A chave
+inclui identidade da dependência, checksum dos fontes, compilador, plataforma e
+configuração. Assim, restaurar um target nunca sobrescreve nem satisfaz outro.
+Manifests legados preservam o layout existente até serem compilados
+explicitamente pelo executor da matriz.
+
 ## Precedência esperada
 
 A seleção segue esta ordem:

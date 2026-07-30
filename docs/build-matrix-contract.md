@@ -89,6 +89,22 @@ This identity will drive output directories, fingerprints, cache, diagnostics,
 and IDE registration. Artifacts produced by different compilers, platforms, or
 configurations must never share the same final directory.
 
+Matrix outputs use this layout:
+
+```text
+modules/artifacts/<package>/<compiler>/<platform>/<configuration>/
+  bin/
+  bpl/
+  dcp/
+  dcu/
+```
+
+The complete target tree is cached as one unit. Its cache key includes the
+dependency identity, source checksum, compiler, platform, and configuration.
+Restoring one target can therefore never overwrite or satisfy another target.
+Legacy manifests keep their existing output layout until explicitly built
+through the matrix executor.
+
 ## Expected precedence
 
 Selection follows this order:

@@ -144,7 +144,8 @@ type
     ['{69527D56-F14E-43D4-A746-2D7227D60006}']
     function Compile(const AProjectPath: string; const ADep: TBoss4DDependency;
       const ARootLock: TBoss4DLock; const APlatform: string = '';
-      const ACompilerVersion: string = ''): Boolean;
+      const ACompilerVersion: string = '';
+      const AConfiguration: string = ''): Boolean;
     function BuildSearchPath(const ADep: TBoss4DDependency; const APlatform: string = ''): string;
   end;
 
