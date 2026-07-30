@@ -52,12 +52,14 @@ uses
   Boss4D.Core.Services.Scaffold in '..\src\Core\Services\Boss4D.Core.Services.Scaffold.pas',
   Boss4D.Core.Services.SourceNormalizer in '..\src\Core\Services\Boss4D.Core.Services.SourceNormalizer.pas',
   Boss4D.Core.Services.PackageManifest in '..\src\Core\Services\Boss4D.Core.Services.PackageManifest.pas',
+  Boss4D.Core.Services.LazarusProject in '..\src\Core\Services\Boss4D.Core.Services.LazarusProject.pas',
   Boss4D.CLI.Parser in '..\src\CLI\Boss4D.CLI.Parser.pas',
   Boss4D.Tests.Mocks in 'Boss4D.Tests.Mocks.pas',
   Boss4D.Tests.SemVer in 'Boss4D.Tests.SemVer.pas',
   Boss4D.Tests.Dependency in 'Boss4D.Tests.Dependency.pas',
   Boss4D.Tests.Json in 'Boss4D.Tests.Json.pas',
   Boss4D.Tests.Sbom in 'Boss4D.Tests.Sbom.pas',
+  Boss4D.Tests.LazarusProject in 'Boss4D.Tests.LazarusProject.pas',
   Boss4D.IDE.Wizard in '..\src\IDE\Boss4D.IDE.Wizard.pas',
   Boss4D.Tests.Services in 'Boss4D.Tests.Services.pas';
 
