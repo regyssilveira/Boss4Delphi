@@ -18,6 +18,7 @@ uses
   Boss4D.Core.Domain.Lock in 'Core/Domain/Boss4D.Core.Domain.Lock.pas',
   Boss4D.Core.Domain.Sbom in 'Core/Domain/Boss4D.Core.Domain.Sbom.pas',
   Boss4D.Core.Domain.License in 'Core/Domain/Boss4D.Core.Domain.License.pas',
+  Boss4D.Core.Domain.Progress in 'Core/Domain/Boss4D.Core.Domain.Progress.pas',
   Boss4D.Adapters.Json in 'Adapters/Json/Boss4D.Adapters.Json.pas',
   Boss4D.Adapters.Logger in 'Adapters/Logger/Boss4D.Adapters.Logger.pas',
   Boss4D.Adapters.Http in 'Adapters/Http/Boss4D.Adapters.Http.pas',
@@ -31,6 +32,7 @@ uses
   Boss4D.Core.Services.Init in 'Core/Services/Boss4D.Core.Services.Init.pas',
   Boss4D.Core.Services.Config in 'Core/Services/Boss4D.Core.Services.Config.pas',
   Boss4D.Core.Services.Install in 'Core/Services/Boss4D.Core.Services.Install.pas',
+  Boss4D.Core.Services.Progress in 'Core/Services/Boss4D.Core.Services.Progress.pas',
   Boss4D.Core.Services.Transaction in 'Core/Services/Boss4D.Core.Services.Transaction.pas',
   Boss4D.Core.Services.Dependencies in 'Core/Services/Boss4D.Core.Services.Dependencies.pas',
   Boss4D.Core.Services.Audit in 'Core/Services/Boss4D.Core.Services.Audit.pas',
@@ -107,6 +109,7 @@ begin
     LInitService := TBoss4DInitService.Create(LPackageRepo, LLogger);
     LInstallService := TBoss4DInstallService.Create(
       LPackageRepo, LLockRepo, LGitClient, LHttpClient, LCompiler, LLogger);
+    LInstallService.SetProgressOutput(TBoss4DConsoleProgressOutput.Create);
 
     // Inicializa o Parser de CLI
     LParser := TBoss4DCommandLineParser.Create(LLogger, LInitService, LInstallService, LConfigService, LPackageRepo, LRegistry);

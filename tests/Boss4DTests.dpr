@@ -23,6 +23,7 @@ uses
   Boss4D.Core.Domain.Lock in '..\src\Core\Domain\Boss4D.Core.Domain.Lock.pas',
   Boss4D.Core.Domain.Sbom in '..\src\Core\Domain\Boss4D.Core.Domain.Sbom.pas',
   Boss4D.Core.Domain.License in '..\src\Core\Domain\Boss4D.Core.Domain.License.pas',
+  Boss4D.Core.Domain.Progress in '..\src\Core\Domain\Boss4D.Core.Domain.Progress.pas',
   Boss4D.Core.Ports in '..\src\Core\Ports\Boss4D.Core.Ports.pas',
   Boss4D.Core.Platform in '..\src\Core\Platform\Boss4D.Core.Platform.pas',
   Boss4D.Adapters.Platform.Windows in '..\src\Adapters\Platform\Windows\Boss4D.Adapters.Platform.Windows.pas',
@@ -39,6 +40,7 @@ uses
   Boss4D.Core.Services.Init in '..\src\Core\Services\Boss4D.Core.Services.Init.pas',
   Boss4D.Core.Services.Config in '..\src\Core\Services\Boss4D.Core.Services.Config.pas',
   Boss4D.Core.Services.Install in '..\src\Core\Services\Boss4D.Core.Services.Install.pas',
+  Boss4D.Core.Services.Progress in '..\src\Core\Services\Boss4D.Core.Services.Progress.pas',
   Boss4D.Core.Services.Transaction in '..\src\Core\Services\Boss4D.Core.Services.Transaction.pas',
   Boss4D.Core.Services.Dependencies in '..\src\Core\Services\Boss4D.Core.Services.Dependencies.pas',
   Boss4D.Core.Services.Audit in '..\src\Core\Services\Boss4D.Core.Services.Audit.pas',
@@ -70,6 +72,7 @@ uses
   Boss4D.Tests.Sbom in 'Boss4D.Tests.Sbom.pas',
   Boss4D.Tests.LazarusProject in 'Boss4D.Tests.LazarusProject.pas',
   Boss4D.Tests.Platform in 'Boss4D.Tests.Platform.pas',
+  Boss4D.Tests.Progress in 'Boss4D.Tests.Progress.pas',
   Boss4D.IDE.Wizard in '..\src\IDE\Boss4D.IDE.Wizard.pas',
   Boss4D.Tests.Services in 'Boss4D.Tests.Services.pas';
 

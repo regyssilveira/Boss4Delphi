@@ -5,7 +5,7 @@ interface
 uses
   System.Generics.Collections, System.Threading, System.SyncObjs, Boss4D.Core.Ports,
   Boss4D.Core.Domain.Dependency, Boss4D.Core.Domain.Lock,
-  Boss4D.Core.Domain.Package;
+  Boss4D.Core.Domain.Package, Boss4D.Core.Domain.Progress;
 
 type
   TBoss4DInstallOptions = record
@@ -31,6 +31,8 @@ type
     FGlobalProcessedDeps: TList<string>;
     FOptions: TBoss4DInstallOptions;
     FTrust: TBoss4DPackageTrust;
+    FProgressOutput: IBoss4DProgressOutput;
+    FProgress: IBoss4DProgressReporter;
 
     procedure ProcessDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock;
       const AProcessedDeps: TList<string>);
@@ -69,6 +71,8 @@ type
       const APlatform: string = ''); overload;
     procedure Execute(const AOptions: TBoss4DInstallOptions); overload;
     procedure RunInstallTask(const ADep: TBoss4DDependency; const ALock: TBoss4DLock; const ATasks: TList<ITask>);
+    procedure SetProgressOutput(const AOutput: IBoss4DProgressOutput);
+    procedure SetProgressMode(const AMode: string);
   end;
 
 implementation
@@ -82,7 +86,8 @@ uses
   Boss4D.Core.Services.SourceNormalizer,
   Boss4D.Core.Services.LazarusProject,
   Boss4D.Core.Services.Transaction,
-  Boss4D.Core.Services.ArtifactCache;
+  Boss4D.Core.Services.ArtifactCache,
+  Boss4D.Core.Services.Progress;
 
 { TBoss4DInstallService }
 
@@ -104,6 +109,21 @@ begin
   FLogger := ALogger;
   FGitCriticalSection := TCriticalSection.Create;
   FGlobalProcessedDeps := TList<string>.Create;
+  FProgress := TBoss4DNullProgressReporter.Create;
+end;
+
+procedure TBoss4DInstallService.SetProgressOutput(
+  const AOutput: IBoss4DProgressOutput);
+begin
+  FProgressOutput := AOutput;
+end;
+
+procedure TBoss4DInstallService.SetProgressMode(const AMode: string);
+begin
+  if SameText(AMode, 'quiet') or not Assigned(FProgressOutput) then
+    FProgress := TBoss4DNullProgressReporter.Create
+  else
+    FProgress := TBoss4DProgressReporter.Create(FProgressOutput, AMode);
 end;
 
 destructor TBoss4DInstallService.Destroy;
@@ -222,6 +242,8 @@ begin
   LTargetDir := TPath.Combine(GetModulesDir, ADep.StorageName);
 
   FLogger.Log(TBoss4DLogLevel.Info, 'Resolvendo %s (%s)...', [ADep.Name, ADep.Version]);
+  FProgress.Report(TBoss4DProgressEvent.Create(LDepKey, ADep.Name,
+    TBoss4DProgressPhase.Resolving, 0, 0, ADep.Version));
 
   FGitCriticalSection.Enter;
   try
@@ -234,11 +256,15 @@ begin
           [ADep.Name]);
       FLogger.Log(TBoss4DLogLevel.Debug, 'Clonando no cache global: ' + ADep.Repository);
       FGitClient.CloneCache(ADep, LCacheDir);
+      FProgress.Report(TBoss4DProgressEvent.Create(LDepKey, ADep.Name,
+        TBoss4DProgressPhase.Downloading, 1, 1, 'cache atualizado'));
     end
     else if not FOptions.Offline then
     begin
       FLogger.Log(TBoss4DLogLevel.Debug, 'Atualizando cache existente: ' + ADep.Repository);
       FGitClient.UpdateCache(ADep, LCacheDir);
+      FProgress.Report(TBoss4DProgressEvent.Create(LDepKey, ADep.Name,
+        TBoss4DProgressPhase.Downloading, 1, 1, 'cache atualizado'));
     end;
 
     // 2. Resolve a melhor versao disponivel usando SemVer se a versao informada for um range
@@ -268,6 +294,8 @@ begin
         raise Exception.CreateFmt('Signatario nao autorizado para %s: %s',
           [ADep.Name, LSigner]);
     end;
+    FProgress.Report(TBoss4DProgressEvent.Create(LDepKey, ADep.Name,
+      TBoss4DProgressPhase.Verifying, 1, 1, 'integridade verificada'));
     if Assigned(FTrust) and FTrust.RequireSignedTags and
        not LResolvedVersion.IsEmpty then
     begin
@@ -289,6 +317,8 @@ begin
       FGitClient.Checkout(LCacheDir, LResolvedRevision, LTargetDir)
     else
       FGitClient.Checkout(LCacheDir, LResolvedVersion, LTargetDir);
+    FProgress.Report(TBoss4DProgressEvent.Create(LDepKey, ADep.Name,
+      TBoss4DProgressPhase.Installing, 1, 1, 'fontes instalados'));
 
     // Normaliza antes do checksum: o lock e a SBOM descrevem exatamente o
     // conteudo instalado, sem divergencia entre checkouts LF e CRLF.
@@ -498,12 +528,16 @@ begin
     begin
       FLogger.Log(TBoss4DLogLevel.Info,
         'Artefatos restaurados do cache: ' + ADep.Name);
+      FProgress.Report(TBoss4DProgressEvent.Create(ADep.GetKey, ADep.Name,
+        TBoss4DProgressPhase.Cached, 1, 1, 'artefatos restaurados'));
       Exit;
     end;
   LFiles := ResolveBuildProjects(ADep);
 
   if Length(LFiles) > 0 then
   begin
+    FProgress.Report(TBoss4DProgressEvent.Create(ADep.GetKey, ADep.Name,
+      TBoss4DProgressPhase.Compiling, 0, Length(LFiles), 'compilando'));
     for var LFile in LFiles do
     begin
       var LLowerPath := LFile.ToLower;
@@ -534,6 +568,8 @@ begin
     FLogger.Log(TBoss4DLogLevel.Debug, 'Nenhum projeto dproj encontrado para compilar na dependencia %s.', [ADep.Name]);
   end;
     LArtifactCache.Store(ADep, LChecksum, APlatform, ACompilerVersion);
+    FProgress.Report(TBoss4DProgressEvent.Create(ADep.GetKey, ADep.Name,
+      TBoss4DProgressPhase.Completed, 1, 1, 'concluido'));
   finally
     LArtifactCache.Free;
   end;
@@ -940,7 +976,16 @@ begin
     begin
       LLocalProcessed := TList<string>.Create;
       try
-        ProcessDependency(ADep, ALock, LLocalProcessed);
+        try
+          ProcessDependency(ADep, ALock, LLocalProcessed);
+        except
+          on E: Exception do
+          begin
+            FProgress.Report(TBoss4DProgressEvent.Create(ADep.GetKey,
+              ADep.Name, TBoss4DProgressPhase.Failed, 0, 0, E.Message));
+            raise;
+          end;
+        end;
       finally
         LLocalProcessed.Free;
       end;

@@ -7,6 +7,9 @@
 - Injectable process, platform-environment, and directory-link contracts, with
   Windows adapters and unit coverage as the foundation for portable CLI hosts.
 - Bilingual platform-portability architecture and capability documentation.
+- Thread-safe structured install/CI progress with interactive, plain, JSON
+  Lines, and quiet output modes.
+- Bilingual terminal-progress usage and event-schema documentation.
 
 ## 1.4.0 - 2026-07-30
 

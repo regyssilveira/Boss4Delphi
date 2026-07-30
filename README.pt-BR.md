@@ -129,6 +129,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Templates de Projeto](docs/templates.pt-BR.md)**: Presets Delphi, VCL, FMX, API Horse+Dext, DUnitX, Lazarus e workspace.
 * **[Publicação de Pacotes](docs/publish.pt-BR.md)**: Dry-run, bloqueios de validação, tratamento do token e contrato do registro privado.
 * **[Portabilidade de Plataforma](docs/platform-portability.pt-BR.md)**: Contratos portáveis de processos, ambiente e links de workspace, além do roadmap POSIX.
+* **[Progresso no Terminal](docs/terminal-progress.pt-BR.md)**: Saída de progresso interativa, linear, JSON Lines e silenciosa para instalações e CI.
 * **[Manual de Uso da CLI](docs/usage.pt-BR.md)**: Guia completo detalhado de todos os parâmetros e opções de instalação de dependências.
 * **[Guia de Contribuição](CONTRIBUTING.pt-BR.md)**: Padrões de código e fluxo de desenvolvimento para contribuir com o projeto.
 * **[Guia de Lançamento de Release](RELEASE_GUIDE.md)**: Passos e instruções para compilar com Delphi 13 (37.0) e publicar releases no GitHub.

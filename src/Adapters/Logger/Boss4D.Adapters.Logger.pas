@@ -3,7 +3,7 @@ unit Boss4D.Adapters.Logger;
 interface
 
 uses
-  System.SyncObjs, Boss4D.Core.Ports;
+  System.SyncObjs, Boss4D.Core.Ports, Boss4D.Core.Domain.Progress;
 
 type
   { Adaptador de log colorido e thread-safe para console e arquivo }
@@ -26,10 +26,38 @@ type
     procedure SetDebugMode(const AEnabled: Boolean);
   end;
 
+  TBoss4DConsoleProgressOutput = class(TInterfacedObject,
+    IBoss4DProgressOutput)
+  public
+    procedure Write(const AText: string);
+    procedure WriteLine(const AText: string);
+    function IsInteractive: Boolean;
+  end;
+
 implementation
 
 uses
   System.SysUtils, System.IOUtils, Winapi.Windows;
+
+procedure TBoss4DConsoleProgressOutput.Write(const AText: string);
+begin
+  System.Write(AText);
+end;
+
+procedure TBoss4DConsoleProgressOutput.WriteLine(const AText: string);
+begin
+  System.Writeln(AText);
+end;
+
+function TBoss4DConsoleProgressOutput.IsInteractive: Boolean;
+var
+  LMode: DWORD;
+  LHandle: THandle;
+begin
+  LHandle := GetStdHandle(STD_OUTPUT_HANDLE);
+  Result := (LHandle <> INVALID_HANDLE_VALUE) and
+    GetConsoleMode(LHandle, LMode);
+end;
 
 { TBoss4DConsoleLoggerAdapter }
 
