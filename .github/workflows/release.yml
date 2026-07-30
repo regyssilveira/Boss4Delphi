@@ -48,6 +48,9 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - name: Verify Delphi plugin matrix
+        shell: pwsh
+        run: ./scripts/test-delphi-plugin-matrix.ps1
       - name: Compile and validate release
         shell: cmd
         run: build_release.bat
