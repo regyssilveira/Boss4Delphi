@@ -127,7 +127,7 @@ end;
 
 procedure TBoss4DCommandLineParser.ShowHelp;
 begin
-  FLogger.Log(TBoss4DLogLevel.Info, 'Boss4D - Gerenciador de Dependencias Delphi Nativo (v1.3.0)');
+  FLogger.Log(TBoss4DLogLevel.Info, 'Boss4D - Gerenciador de Dependencias Delphi Nativo (v1.4.0)');
   FLogger.Log(TBoss4DLogLevel.Info, '');
   FLogger.Log(TBoss4DLogLevel.Info, 'Uso:');
   FLogger.Log(TBoss4DLogLevel.Info, '  boss4d [comando] [argumentos] [flags]');
@@ -175,7 +175,7 @@ end;
 
 procedure TBoss4DCommandLineParser.ShowVersion;
 begin
-  FLogger.Log(TBoss4DLogLevel.Info, 'v1.3.0-delphi-native');
+  FLogger.Log(TBoss4DLogLevel.Info, 'v1.4.0-delphi-native');
 end;
 
 procedure TBoss4DCommandLineParser.ParseAndExecute(const AArgs: TArray<string>);
