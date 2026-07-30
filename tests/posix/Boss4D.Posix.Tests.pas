@@ -118,19 +118,6 @@ begin
   end;
 end;
 
-procedure WriteText(const AFileName, AValue: string);
-var
-  LFile: TextFile;
-begin
-  AssignFile(LFile, AFileName);
-  Rewrite(LFile);
-  try
-    Write(LFile, AValue);
-  finally
-    CloseFile(LFile);
-  end;
-end;
-
 procedure TPosixCoreTests.TestPlatform;
 begin
   AssertEquals('linux', PlatformName);
@@ -140,11 +127,17 @@ procedure TPosixCoreTests.TestLegacyManifestCompatibility;
 var
   LDir: string;
   LItems: TStringList;
+  LFixture: TStringList;
 begin
   LDir := NewTempDirectory;
-  WriteText(IncludeTrailingPathDelimiter(LDir) + 'boss.json',
-    '{"name":"legacy","version":"1.0.0","dependencies":' +
-    '{"github.com/hashload/horse":"^3.0.0"}}');
+  LFixture := TStringList.Create;
+  try
+    LFixture.Text := '{"name":"legacy","version":"1.0.0","dependencies":' +
+      '{"github.com/hashload/horse":"^3.0.0"}}';
+    LFixture.SaveToFile(IncludeTrailingPathDelimiter(LDir) + 'boss.json');
+  finally
+    LFixture.Free;
+  end;
   LItems := ListProject(LDir, False);
   try
     AssertEquals(1, LItems.Count);
@@ -182,12 +175,18 @@ end;
 procedure TPosixCoreTests.TestListHonorsProduction;
 var
   LDir: string;
-  LItems: TStringList;
+  LItems, LFixture: TStringList;
 begin
   LDir := NewTempDirectory;
-  WriteText(IncludeTrailingPathDelimiter(LDir) + 'boss.json',
-    '{"name":"app","version":"1.0.0","dependencies":{"runtime":"*"},' +
-    '"devDependencies":{"test":"*"}}');
+  LFixture := TStringList.Create;
+  try
+    LFixture.Text :=
+      '{"name":"app","version":"1.0.0","dependencies":{"runtime":"*"},' +
+      '"devDependencies":{"test":"*"}}';
+    LFixture.SaveToFile(IncludeTrailingPathDelimiter(LDir) + 'boss.json');
+  finally
+    LFixture.Free;
+  end;
   LItems := ListProject(LDir, True);
   try
     AssertEquals(1, LItems.Count);

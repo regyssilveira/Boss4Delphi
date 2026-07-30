@@ -411,23 +411,21 @@ begin
   RemoveDir(ADirectory);
 end;
 
-procedure AddLockEntries(const ADirectory: string; const AManifest,
-  ALockInstalled: TJSONObject; const ASection, AScope: string;
+procedure AddLockEntries(const ADirectory: string;
+  const ALockInstalled, ADependencies: TJSONObject; const AScope: string;
   const AOptions: TBoss4DInstallOptions; const AExisting: TJSONObject;
   const ACreated: TStringList);
 var
   I: Integer;
-  LDependencies: TJSONObject;
   LRepository, LVersion, LTarget, LStage: string;
   LArguments: TStringList;
   LEntry, LExistingEntry: TJSONObject;
 begin
-  LDependencies := FindObject(AManifest, ASection);
-  if not Assigned(LDependencies) then Exit;
-  for I := 0 to LDependencies.Count - 1 do
+  if not Assigned(ADependencies) then Exit;
+  for I := 0 to ADependencies.Count - 1 do
   begin
-    LRepository := LDependencies.Names[I];
-    LVersion := LDependencies.Items[I].AsString;
+    LRepository := ADependencies.Names[I];
+    LVersion := ADependencies.Items[I].AsString;
     LTarget := IncludeTrailingPathDelimiter(ADirectory) + MODULES_DIR +
       DirectorySeparator + DependencyTarget(LRepository);
     LExistingEntry := nil;
@@ -520,11 +518,13 @@ begin
         LLock.Add('root', LRoot);
         LInstalled := TJSONObject.Create;
         LLock.Add('installedModules', LInstalled);
-        AddLockEntries(ADirectory, LManifest, LInstalled, 'dependencies',
-          'runtime', AOptions, LExistingInstalled, LCreated);
+        AddLockEntries(ADirectory, LInstalled,
+          FindObject(LManifest, 'dependencies'), 'runtime', AOptions,
+          LExistingInstalled, LCreated);
         if not AOptions.Production then
-          AddLockEntries(ADirectory, LManifest, LInstalled, 'devDependencies',
-            'development', AOptions, LExistingInstalled, LCreated);
+          AddLockEntries(ADirectory, LInstalled,
+            FindObject(LManifest, 'devDependencies'), 'development', AOptions,
+            LExistingInstalled, LCreated);
         if not AOptions.FrozenLockfile then
           SaveJsonObject(LLockPath, LLock);
       finally
