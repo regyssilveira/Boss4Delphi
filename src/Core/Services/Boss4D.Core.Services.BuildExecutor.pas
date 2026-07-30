@@ -33,6 +33,7 @@ uses
   System.IOUtils,
   Boss4D.Core.Domain.Env,
   Boss4D.Core.Services.BuildMatrix,
+  Boss4D.Core.Services.BuildGraph,
   Boss4D.Core.Services.BuildPaths;
 
 constructor TBoss4DBuildExecutor.Create(const ACompiler: IBoss4DCompiler);
@@ -85,6 +86,7 @@ begin
   Result := 0;
   LTargets := TBoss4DBuildMatrixExpander.Expand(APackage, ASelection);
   try
+    TBoss4DBuildGraph.Sort(LTargets);
     for var LTarget in LTargets do
     begin
       var LProjectPath := ResolveProjectPath(ARootDirectory,
