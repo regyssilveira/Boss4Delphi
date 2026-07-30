@@ -56,7 +56,7 @@ begin
     LRoot.AddPair('job', LJob);
     LDetector := TJSONObject.Create;
     LDetector.AddPair('name', 'Boss4D');
-    LDetector.AddPair('version', '1.3.0');
+    LDetector.AddPair('version', '1.4.0');
     LDetector.AddPair('url', 'https://github.com/regyssilveira/Boss4Delphi');
     LRoot.AddPair('detector', LDetector);
 

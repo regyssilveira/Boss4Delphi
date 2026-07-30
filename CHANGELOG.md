@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.4.0 - 2026-07-30
+
 ### Added
 
 - Transactional `add`, `remove`, `update`, `list`, and `why` dependency

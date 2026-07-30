@@ -1,10 +1,10 @@
 {
   "lockVersion": 3,
-  "hash": "c8e16a29bde3382c811ef2520dc0c428",
-  "updated": "2026-07-21T21:01:33Z",
+  "hash": "2b88c670867f17c34453205d07252847",
+  "updated": "2026-07-30T00:00:00Z",
   "root": {
     "name": "boss4d",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "description": "Native Delphi dependency manager",
     "homepage": "https://github.com/regyssilveira/Boss4Delphi",
     "license": "MIT",

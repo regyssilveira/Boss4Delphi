@@ -101,7 +101,7 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d config git shallow <true/false>`
   Enables or disables shallow clones for faster Git download processes.
 * `boss4d version`
-  Prints the CLI version (`v1.3.0-delphi-native`).
+  Prints the CLI version (`v1.4.0-delphi-native`).
 * `boss4d new <template> <name> [--path <directory>]`
   Creates protected Delphi, VCL, FMX, API (Horse + Dext), DUnitX, Lazarus, or
   workspace projects without overwriting a non-empty directory.
