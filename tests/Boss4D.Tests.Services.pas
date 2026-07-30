@@ -105,6 +105,8 @@ type
     procedure TestCLICommandLineParser;
     [Test]
     procedure TestCLISpecDetectPersistsBuildMatrix;
+    [Test]
+    procedure TestCLIBuildExecutesSelectedMatrix;
 
     [Test]
     procedure TestCompilerAutodetectAndOverride;
@@ -1343,6 +1345,67 @@ begin
     end;
     Assert.IsTrue(LLogger.LastLogMessage.Contains(
       'buildMatrix detectada: 1 projetos, 1 compiladores.'));
+  finally
+    LParser.Free;
+    LConfig.Free;
+    LInstall.Free;
+    LInit.Free;
+  end;
+end;
+
+procedure TTestsServices.TestCLIBuildExecutesSelectedMatrix;
+var
+  LInit: TBoss4DInitService;
+  LInstall: TBoss4DInstallService;
+  LConfig: TBoss4DConfigService;
+  LParser: TBoss4DCommandLineParser;
+  LLogger: TTestLogger;
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LCompiler: TCompilerMock;
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+begin
+  LLogger := TTestLogger.Create;
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LCompiler := TCompilerMock.Create;
+  LInit := TBoss4DInitService.Create(LPackageRepo, LLogger);
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo,
+    TGitClientMock.Create, THttpClientMock.Create, LCompiler, LLogger);
+  LConfig := TBoss4DConfigService.Create(LLogger);
+  LParser := TBoss4DCommandLineParser.Create(LLogger, LInit, LInstall,
+    LConfig, LPackageRepo, TRegistryMock.Create, LCompiler);
+  try
+    TFile.WriteAllText(TPath.Combine(FTempDir, 'Runtime.dproj'),
+      '<Project/>', TEncoding.UTF8);
+    LPackage := TBoss4DPackage.Create;
+    try
+      LPackage.Name := 'cli-build-' + TGUID.NewGuid.ToString;
+      LPackage.Version := '1.0.0';
+      LPackage.BuildMatrix.Compilers.Add('37.0');
+      LPackage.BuildMatrix.Platforms.Add('Win32');
+      LPackage.BuildMatrix.Platforms.Add('Win64');
+      LPackage.BuildMatrix.Configurations.Add('Debug');
+      LPackage.BuildMatrix.Configurations.Add('Release');
+      LProject := TBoss4DBuildProject.Create;
+      LProject.Path := 'Runtime.dproj';
+      LPackage.BuildMatrix.Projects.Add(LProject);
+      LPackageRepo.Save(LPackage, GetBossFile);
+    finally
+      LPackage.Free;
+    end;
+
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'build', '--compiler', 'd13', '--platform', 'Win64',
+      '--configuration', 'Release', '--force', '--jobs', '2',
+      '--explain'));
+
+    Assert.AreEqual<Integer>(1, LCompiler.CompiledProjects.Count);
+    Assert.AreEqual('37.0', LCompiler.LastCompilerVersion);
+    Assert.AreEqual('Win64', LCompiler.LastPlatform);
+    Assert.AreEqual('Release', LCompiler.LastConfiguration);
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('Build: 1 agendados'));
   finally
     LParser.Free;
     LConfig.Free;

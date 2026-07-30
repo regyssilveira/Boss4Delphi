@@ -10,7 +10,8 @@ uses
   Boss4D.Core.Services.Tree, Boss4D.Core.Services.Outdated,
   Boss4D.Core.Services.Tool, Boss4D.Core.Services.IDEIntegration,
   Boss4D.Core.Services.GetIt, Boss4D.Core.Services.Clean,
-  Boss4D.Core.Services.Sbom, Boss4D.Core.Services.Scaffold;
+  Boss4D.Core.Services.Sbom, Boss4D.Core.Services.Scaffold,
+  Boss4D.Core.Services.BuildCommand;
 
 
 type
@@ -35,6 +36,8 @@ type
     FConfigService: TBoss4DConfigService;
     FPackageRepo: IBoss4DPackageRepository;
     FRegistry: IBoss4DRegistryService;
+    FCompiler: IBoss4DCompiler;
+    FRegistrationHandler: TBoss4DIDERegistrationHandler;
 
     procedure ShowHelp;
     procedure ShowVersion;
@@ -69,6 +72,7 @@ type
     procedure HandlePack(const AArgs: TArray<string>);
     procedure HandleConformance(const AArgs: TArray<string>);
     procedure HandleSpec(const AArgs: TArray<string>);
+    procedure HandleBuild(const AArgs: TArray<string>);
     function ParseSbomArguments(
       const AArgs: TArray<string>): TBoss4DSbomCommandOptions;
     procedure HandleSbom(const AArgs: TArray<string>);
@@ -79,7 +83,9 @@ type
       const AInstallService: TBoss4DInstallService;
       const AConfigService: TBoss4DConfigService;
       const APackageRepo: IBoss4DPackageRepository;
-      const ARegistry: IBoss4DRegistryService
+      const ARegistry: IBoss4DRegistryService;
+      const ACompiler: IBoss4DCompiler = nil;
+      const ARegistrationHandler: TBoss4DIDERegistrationHandler = nil
     );
 
     procedure ParseAndExecute(const AArgs: TArray<string>);
@@ -118,7 +124,8 @@ uses
   Boss4D.Core.Services.Conformance,
   Boss4D.Core.Services.RegistryPortal,
   Boss4D.Core.Services.PackageInstall,
-  Boss4D.Core.Services.BuildSpec;
+  Boss4D.Core.Services.BuildSpec,
+  Boss4D.Core.Services.IDERegistration;
 
 { TBoss4DCommandLineParser }
 
@@ -128,7 +135,9 @@ constructor TBoss4DCommandLineParser.Create(
   const AInstallService: TBoss4DInstallService;
   const AConfigService: TBoss4DConfigService;
   const APackageRepo: IBoss4DPackageRepository;
-  const ARegistry: IBoss4DRegistryService
+  const ARegistry: IBoss4DRegistryService;
+  const ACompiler: IBoss4DCompiler;
+  const ARegistrationHandler: TBoss4DIDERegistrationHandler
 );
 begin
   inherited Create;
@@ -138,6 +147,8 @@ begin
   FConfigService := AConfigService;
   FPackageRepo := APackageRepo;
   FRegistry := ARegistry;
+  FCompiler := ACompiler;
+  FRegistrationHandler := ARegistrationHandler;
 end;
 
 procedure TBoss4DCommandLineParser.ShowHelp;
@@ -189,6 +200,8 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  pack [--output arq]  Gera um pacote .b4dpkg deterministico e imutavel.');
   FLogger.Log(TBoss4DLogLevel.Info, '  conformance registry|package <arq> Valida o protocolo publico.');
   FLogger.Log(TBoss4DLogLevel.Info, '  spec --detect [--compiler <versao>] Detecta projetos e gera buildMatrix.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  build                Compila a matriz declarada.');
+  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --compiler, --platform, --configuration, --jobs, --force, --full, --explain, --register.');
   FLogger.Log(TBoss4DLogLevel.Info, '  help, -h, --help     Exibe este menu de ajuda.');
   FLogger.Log(TBoss4DLogLevel.Info, '');
 end;
@@ -274,8 +287,63 @@ begin
     HandleConformance(AArgs)
   else if LCommand = 'spec' then
     HandleSpec(AArgs)
+  else if LCommand = 'build' then
+    HandleBuild(AArgs)
   else if LCommand = 'sbom' then
     HandleSbom(AArgs);
+end;
+
+procedure TBoss4DCommandLineParser.HandleBuild(
+  const AArgs: TArray<string>);
+var
+  LCompiler: IBoss4DCompiler;
+  LLockRepo: IBoss4DLockRepository;
+  LPackage: TBoss4DPackage;
+  LLock: TBoss4DLock;
+  LCommand: TBoss4DBuildCommand;
+  LIDEIntegration: TBoss4DIDEIntegrationService;
+  LHandler: TBoss4DIDERegistrationHandler;
+begin
+  LCompiler := FCompiler;
+  if not Assigned(LCompiler) then
+    LCompiler := TBoss4DDelphiCompilerAdapter.Create(FRegistry, FLogger);
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LPackage := FPackageRepo.Load(GetBossFile);
+  try
+    if LLockRepo.Exists(TPath.Combine(GetCurrentDir, FILE_PACKAGE_LOCK)) then
+      LLock := LLockRepo.Load(TPath.Combine(GetCurrentDir, FILE_PACKAGE_LOCK))
+    else
+      LLock := TBoss4DLock.Create;
+    try
+      LIDEIntegration := nil;
+      LHandler := FRegistrationHandler;
+      if not Assigned(LHandler) then
+      begin
+        LIDEIntegration := TBoss4DIDEIntegrationService.Create(
+          FRegistry, FLogger);
+        LHandler :=
+          procedure(const ARegistration: TBoss4DIDERegistration)
+          begin
+            LIDEIntegration.RegisterTarget(ARegistration);
+          end;
+      end;
+      try
+        LCommand := TBoss4DBuildCommand.Create(LCompiler, FLogger, LHandler);
+        try
+          LCommand.Execute(LPackage, LLock, GetCurrentDir,
+            TBoss4DBuildCommandOptions.Parse(AArgs));
+        finally
+          LCommand.Free;
+        end;
+      finally
+        LIDEIntegration.Free;
+      end;
+    finally
+      LLock.Free;
+    end;
+  finally
+    LPackage.Free;
+  end;
 end;
 
 procedure TBoss4DCommandLineParser.HandleSpec(
