@@ -97,6 +97,8 @@ type
     [Test]
     procedure TestIDERegistrationTargetsOneToolchainAndUnregistersCleanly;
     [Test]
+    procedure TestIDERegistrationAcceptsDelphi10Seattle;
+    [Test]
     procedure TestIDERegistrationRollsBackOnFailure;
     [Test]
     procedure TestIDERegistrationRepairRestoresDrift;
@@ -1780,6 +1782,38 @@ begin
     Assert.AreEqual('', LStore.GetValue(LLibraryKey, 'Debug DCU Path'));
     Assert.AreEqual('', LStore.GetValue(LPackageKey,
       LRegistration.BplPath));
+  finally
+    LRegistration.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDERegistrationAcceptsDelphi10Seattle;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LInventoryPath: string;
+  LPackageKey: string;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LInventoryPath := TPath.Combine(FTempDir, 'ide-inventory-d10.json');
+  LService := TBoss4DIDERegistrationService.Create(LStore, LInventoryPath);
+  LRegistration := TBoss4DIDERegistration.Create;
+  try
+    LRegistration.PackageName := 'LegacySample';
+    LRegistration.Compiler := '17.0';
+    LRegistration.Platform := 'Win32';
+    LRegistration.BplPath := 'C:\artifacts\LegacySample.bpl';
+    LRegistration.Description := 'Delphi 10 design package';
+
+    LService.RegisterTarget(LRegistration);
+
+    LPackageKey := 'Software\Embarcadero\BDS\17.0\Known Packages';
+    Assert.AreEqual('Delphi 10 design package',
+      LStore.GetValue(LPackageKey, LRegistration.BplPath));
+    Assert.AreEqual<Integer>(1,
+      LService.Unregister('LegacySample', '17.0', 'Win32'));
   finally
     LRegistration.Free;
     LService.Free;
