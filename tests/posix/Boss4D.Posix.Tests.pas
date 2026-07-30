@@ -68,6 +68,10 @@ type
     procedure TestCancellation;
     procedure TestInstallHonorsCancellation;
     procedure TestLinuxDoctor;
+    procedure TestCycloneDxLockOnlySbom;
+    procedure TestSpdxLockOnlySbom;
+    procedure TestCycloneDxVex;
+    procedure TestSbomReproducibleAndRejectsSpdxVex;
   end;
 
 implementation
@@ -75,7 +79,7 @@ implementation
 uses
   fpjson, Boss4D.Posix.Core, Boss4D.Posix.Registry, Boss4D.Posix.Config,
   Boss4D.Posix.Package,
-  Boss4D.Posix.Operations;
+  Boss4D.Posix.Operations, Boss4D.Posix.Compliance;
 
 procedure SaveFixture(const APath, AContent: string); forward;
 
@@ -938,6 +942,124 @@ begin
       LResults.IndexOf('ERROR git: not found') < 0, DoctorPassed(LResults));
   finally
     LResults.Free;
+  end;
+end;
+
+function CreateComplianceLock(const ADirectory: string): string;
+begin
+  Result := IncludeTrailingPathDelimiter(ADirectory) + 'boss-lock.json';
+  SaveFixture(Result, '{"lockVersion":3,"hash":"fixture-hash",' +
+    '"updated":"2026-07-30T12:00:00Z","root":{"name":"app",' +
+    '"version":"1.0.0"},"installedModules":{"example.test/demo":{' +
+    '"name":"demo","version":"2.0.0","repository":"example.test/demo",' +
+    '"scope":"development","revision":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",' +
+    '"checksum":"sha256:' + StringOfChar('b', 64) + '"}}}');
+end;
+
+procedure TPosixCoreTests.TestCycloneDxLockOnlySbom;
+var
+  LDir, LLock, LOutput: string;
+  LRoot: TJSONObject;
+  LComponents: TJSONArray;
+  LComponent: TJSONObject;
+begin
+  LDir := NewTempDirectory;
+  LLock := CreateComplianceLock(LDir);
+  LOutput := IncludeTrailingPathDelimiter(LDir) + 'sbom.cdx.json';
+  GenerateLockSbom(LLock, LOutput, sfCycloneDX);
+  LRoot := LoadJsonObject(LOutput);
+  try
+    AssertEquals('CycloneDX', LRoot.Get('bomFormat', ''));
+    AssertEquals('1.7', LRoot.Get('specVersion', ''));
+    LComponents := TJSONArray(LRoot.Find('components'));
+    AssertEquals(1, LComponents.Count);
+    LComponent := TJSONObject(LComponents.Items[0]);
+    AssertEquals('demo', LComponent.Get('name', ''));
+    AssertTrue(Assigned(LComponent.Find('hashes')));
+    AssertTrue(Pos('development', LComponent.AsJSON) > 0);
+  finally
+    LRoot.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestSpdxLockOnlySbom;
+var
+  LDir, LLock, LOutput: string;
+  LRoot: TJSONObject;
+  LPackages: TJSONArray;
+  LPackage: TJSONObject;
+begin
+  LDir := NewTempDirectory;
+  LLock := CreateComplianceLock(LDir);
+  LOutput := IncludeTrailingPathDelimiter(LDir) + 'sbom.spdx.json';
+  GenerateLockSbom(LLock, LOutput, sfSpdx);
+  LRoot := LoadJsonObject(LOutput);
+  try
+    AssertEquals('SPDX-2.3', LRoot.Get('spdxVersion', ''));
+    LPackages := TJSONArray(LRoot.Find('packages'));
+    AssertEquals(1, LPackages.Count);
+    LPackage := TJSONObject(LPackages.Items[0]);
+    AssertEquals('demo', LPackage.Get('name', ''));
+    AssertEquals('boss4d:scope=development', LPackage.Get('comment', ''));
+    AssertTrue(Assigned(LRoot.Find('relationships')));
+  finally
+    LRoot.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestCycloneDxVex;
+var
+  LDir, LLock, LOutput, LVex: string;
+  LRoot: TJSONObject;
+  LVulnerabilities: TJSONArray;
+begin
+  LDir := NewTempDirectory;
+  LLock := CreateComplianceLock(LDir);
+  LVex := IncludeTrailingPathDelimiter(LDir) + 'security.vex.json';
+  SaveFixture(LVex, '{"vulnerabilities":[{"id":"CVE-2099-0001",' +
+    '"component":"boss4d:demo@2.0.0","state":"not_affected",' +
+    '"detail":"code path excluded"}]}');
+  LOutput := IncludeTrailingPathDelimiter(LDir) + 'sbom.vex.cdx.json';
+  GenerateLockSbom(LLock, LOutput, sfCycloneDX, LVex);
+  LRoot := LoadJsonObject(LOutput);
+  try
+    LVulnerabilities := TJSONArray(LRoot.Find('vulnerabilities'));
+    AssertEquals(1, LVulnerabilities.Count);
+    AssertTrue(Pos('"state" : "not_affected"',
+      LVulnerabilities.Items[0].FormatJSON) > 0);
+  finally
+    LRoot.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestSbomReproducibleAndRejectsSpdxVex;
+var
+  LDir, LLock, LFirst, LSecond, LVex: string;
+  LOne, LTwo: TStringList;
+begin
+  LDir := NewTempDirectory;
+  LLock := CreateComplianceLock(LDir);
+  LFirst := IncludeTrailingPathDelimiter(LDir) + 'one.json';
+  LSecond := IncludeTrailingPathDelimiter(LDir) + 'two.json';
+  GenerateLockSbom(LLock, LFirst, sfCycloneDX, '', True);
+  GenerateLockSbom(LLock, LSecond, sfCycloneDX, '', True);
+  LOne := TStringList.Create;
+  LTwo := TStringList.Create;
+  try
+    LOne.LoadFromFile(LFirst);
+    LTwo.LoadFromFile(LSecond);
+    AssertEquals(LOne.Text, LTwo.Text);
+  finally
+    LOne.Free;
+    LTwo.Free;
+  end;
+  LVex := IncludeTrailingPathDelimiter(LDir) + 'vex.json';
+  SaveFixture(LVex, '{"vulnerabilities":[]}');
+  try
+    GenerateLockSbom(LLock, LFirst, sfSpdx, LVex);
+    Fail('SPDX 2.3 VEX should be rejected');
+  except
+    on E: Exception do AssertTrue(Pos('VEX requires CycloneDX', E.Message) > 0);
   end;
 end;
 

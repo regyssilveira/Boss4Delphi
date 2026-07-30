@@ -4,13 +4,14 @@ program boss4d;
 
 uses
   Classes, SysUtils, Boss4D.Posix.Core, Boss4D.Posix.Registry,
-  Boss4D.Posix.Config, Boss4D.Posix.Package, Boss4D.Posix.Operations;
+  Boss4D.Posix.Config, Boss4D.Posix.Package, Boss4D.Posix.Operations,
+  Boss4D.Posix.Compliance;
 
 procedure Help;
 begin
   WriteLn('Boss4D portable CLI');
   WriteLn('Commands: version, platform, init, install, ci, add, remove, list,');
-  WriteLn('          search, info, registry, package, doctor');
+  WriteLn('          search, info, registry, package, doctor, sbom');
   WriteLn('Install options: --locked --frozen-lockfile --offline --production');
   WriteLn('                 --resolution=highest|minimal');
   WriteLn('                 --progress plain|interactive --json --quiet');
@@ -18,6 +19,8 @@ begin
   WriteLn('Registry options: --registry=<index-v1-or-v2-path-or-url>');
   WriteLn('Package: boss4d package install <name> [--platform <name>]');
   WriteLn('         [--compiler <version>] [--no-source-fallback]');
+  WriteLn('SBOM: boss4d sbom --format cyclonedx|spdx --lock-only');
+  WriteLn('      [--output <file>] [--reproducible] [--vex <file>]');
 end;
 
 function OptionValue(const APrefix, ADefault: string): string;
@@ -65,6 +68,8 @@ var
   LOperationId: string;
   LDoctorResults: TStringList;
   LDoctorOk: Boolean;
+  LSbomFormat: TBoss4DSbomFormat;
+  LSbomFormatName, LSbomOutput, LVexPath: string;
   LFoundFlag: Boolean;
   I: Integer;
 begin
@@ -382,6 +387,28 @@ begin
       end;
       if not LDoctorOk then
         raise Exception.Create('doctor found required tools missing');
+    end
+    else if LCommand = 'sbom' then
+    begin
+      LSbomFormatName := LowerCase(OptionValue('--format',
+        OptionValue('--type', 'cyclonedx')));
+      if LSbomFormatName = 'cyclonedx' then
+      begin
+        LSbomFormat := sfCycloneDX;
+        LSbomOutput := OptionValue('--output', 'sbom.cdx.json');
+      end
+      else if LSbomFormatName = 'spdx' then
+      begin
+        LSbomFormat := sfSpdx;
+        LSbomOutput := OptionValue('--output', 'sbom.spdx.json');
+      end
+      else
+        raise Exception.Create('usage: --format must be cyclonedx or spdx');
+      LVexPath := OptionValue('--vex', '');
+      GenerateLockSbom(IncludeTrailingPathDelimiter(GetCurrentDir) +
+        'boss-lock.json', LSbomOutput, LSbomFormat, LVexPath,
+        HasOption('--reproducible'));
+      WriteLn('SBOM generated: ' + ExpandFileName(LSbomOutput));
     end
     else if (LCommand = 'help') or (LCommand = '--help') then
       Help
