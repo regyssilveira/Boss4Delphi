@@ -21,7 +21,7 @@ implementation
 
 uses
   System.SysUtils, System.JSON, System.IOUtils, System.Hash,
-  System.NetEncoding;
+  System.NetEncoding, System.Generics.Collections;
 
 function Sha256(const ABytes: TBytes): string;
 var
@@ -38,6 +38,7 @@ function TBoss4DConformanceService.ValidateRegistryContent(
 var
   LRoot: TJSONObject;
   LPackages: TJSONArray;
+  LNames, LRepositories: TDictionary<string, Byte>;
 begin
   Result := Default(TBoss4DConformanceResult);
   LRoot := TJSONObject.ParseJSONValue(AContent) as TJSONObject;
@@ -58,22 +59,45 @@ begin
       Result.ErrorMessage := 'Registry packages array is required.';
       Exit;
     end;
-    for var LValue in LPackages do
-    begin
-      if not (LValue is TJSONObject) or
-         TJSONObject(LValue).GetValue<string>('name', '').Trim.IsEmpty or
-         TJSONObject(LValue).GetValue<string>('repository', '').Trim.IsEmpty then
+    LNames := TDictionary<string, Byte>.Create;
+    LRepositories := TDictionary<string, Byte>.Create;
+    try
+      for var LValue in LPackages do
       begin
-        Result.ErrorMessage := 'Every package needs name and repository.';
-        Exit;
+        if not (LValue is TJSONObject) or
+           TJSONObject(LValue).GetValue<string>('name', '').Trim.IsEmpty or
+           TJSONObject(LValue).GetValue<string>('repository', '').Trim.IsEmpty then
+        begin
+          Result.ErrorMessage := 'Every package needs name and repository.';
+          Exit;
+        end;
+        var LName := TJSONObject(LValue).GetValue<string>('name', '')
+          .Trim.ToLower;
+        var LRepository := TJSONObject(LValue).GetValue<string>(
+          'repository', '').Trim.ToLower;
+        if LNames.ContainsKey(LName) then
+        begin
+          Result.ErrorMessage := 'Package names must be unique.';
+          Exit;
+        end;
+        if LRepositories.ContainsKey(LRepository) then
+        begin
+          Result.ErrorMessage := 'Package repositories must be unique.';
+          Exit;
+        end;
+        LNames.Add(LName, 0);
+        LRepositories.Add(LRepository, 0);
+        var LArtifact := TJSONObject(LValue).GetValue<string>('artifact', '');
+        var LDigest := TJSONObject(LValue).GetValue<string>('sha256', '');
+        if LArtifact.IsEmpty <> LDigest.IsEmpty then
+        begin
+          Result.ErrorMessage := 'Artifact and sha256 must be declared together.';
+          Exit;
+        end;
       end;
-      var LArtifact := TJSONObject(LValue).GetValue<string>('artifact', '');
-      var LDigest := TJSONObject(LValue).GetValue<string>('sha256', '');
-      if LArtifact.IsEmpty <> LDigest.IsEmpty then
-      begin
-        Result.ErrorMessage := 'Artifact and sha256 must be declared together.';
-        Exit;
-      end;
+    finally
+      LRepositories.Free;
+      LNames.Free;
     end;
     Result.PackageCount := LPackages.Count;
     Result.Passed := True;

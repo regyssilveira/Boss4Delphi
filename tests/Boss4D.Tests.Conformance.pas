@@ -11,6 +11,7 @@ type
   public
     [Test] procedure AcceptsRegistryV1;
     [Test] procedure RejectsPartialArtifactMetadata;
+    [Test] procedure RejectsDuplicateRegistryEntries;
     [Test] procedure AcceptsGeneratedPackage;
     [Test] procedure RejectsTamperedPackage;
   end;
@@ -45,6 +46,25 @@ begin
       '{"schemaVersion":1,"packages":[{"name":"demo",' +
       '"repository":"github.com/example/demo","artifact":"demo.b4dpkg"}]}')
       .Passed);
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DConformanceTests.RejectsDuplicateRegistryEntries;
+var
+  LService: TBoss4DConformanceService;
+begin
+  LService := TBoss4DConformanceService.Create;
+  try
+    Assert.IsFalse(LService.ValidateRegistryContent(
+      '{"schemaVersion":1,"packages":[' +
+      '{"name":"demo","repository":"github.com/example/demo"},' +
+      '{"name":"DEMO","repository":"github.com/example/other"}]}').Passed);
+    Assert.IsFalse(LService.ValidateRegistryContent(
+      '{"schemaVersion":1,"packages":[' +
+      '{"name":"demo","repository":"github.com/example/demo"},' +
+      '{"name":"other","repository":"GITHUB.COM/EXAMPLE/DEMO"}]}').Passed);
   finally
     LService.Free;
   end;
