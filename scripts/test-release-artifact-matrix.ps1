@@ -40,12 +40,13 @@ $windows = @($matrix.artifacts | Where-Object name -eq 'boss4d-windows.zip')[0]
 $pluginVersions = @($windows.components |
   Where-Object kind -eq 'ide-plugin' |
   ForEach-Object delphi)
-foreach ($required in @('10.1', '11', '12', '13')) {
+foreach ($required in @('10', '10.1', '11', '12', '13')) {
   if ($pluginVersions -notcontains $required) {
     throw "Release matrix is missing Delphi plugin: $required"
   }
 }
 $expectedBds = @{
+  '10' = '17.0'
   '10.1' = '18.0'
   '11' = '22.0'
   '12' = '23.0'
