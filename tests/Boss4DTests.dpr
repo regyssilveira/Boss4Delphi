@@ -24,6 +24,8 @@ uses
   Boss4D.Core.Domain.Sbom in '..\src\Core\Domain\Boss4D.Core.Domain.Sbom.pas',
   Boss4D.Core.Domain.License in '..\src\Core\Domain\Boss4D.Core.Domain.License.pas',
   Boss4D.Core.Ports in '..\src\Core\Ports\Boss4D.Core.Ports.pas',
+  Boss4D.Core.Platform in '..\src\Core\Platform\Boss4D.Core.Platform.pas',
+  Boss4D.Adapters.Platform.Windows in '..\src\Adapters\Platform\Windows\Boss4D.Adapters.Platform.Windows.pas',
   Boss4D.Adapters.Json in '..\src\Adapters\Json\Boss4D.Adapters.Json.pas',
   Boss4D.Adapters.Http in '..\src\Adapters\Http\Boss4D.Adapters.Http.pas',
   Boss4D.Adapters.Git in '..\src\Adapters\Git\Boss4D.Adapters.Git.pas',
@@ -67,6 +69,7 @@ uses
   Boss4D.Tests.Json in 'Boss4D.Tests.Json.pas',
   Boss4D.Tests.Sbom in 'Boss4D.Tests.Sbom.pas',
   Boss4D.Tests.LazarusProject in 'Boss4D.Tests.LazarusProject.pas',
+  Boss4D.Tests.Platform in 'Boss4D.Tests.Platform.pas',
   Boss4D.IDE.Wizard in '..\src\IDE\Boss4D.IDE.Wizard.pas',
   Boss4D.Tests.Services in 'Boss4D.Tests.Services.pas';
 
@@ -76,6 +79,7 @@ var
   Logger: ITestLogger;
   NUnitLogger: ITestLogger;
 begin
+  ConfigureWindowsPlatform;
 {$IFDEF TESTINSIGHT}
   TestInsight.DUnitX.RunRegisteredTests;
   Exit;

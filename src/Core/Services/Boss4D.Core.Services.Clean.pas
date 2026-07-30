@@ -18,7 +18,8 @@ type
 implementation
 
 uses
-  System.SysUtils, System.IOUtils, Boss4D.Core.Domain.Consts, Winapi.Windows;
+  System.SysUtils, System.IOUtils, Boss4D.Core.Domain.Consts,
+  Boss4D.Core.Platform;
 
 { TBoss4DCleanService }
 
@@ -36,8 +37,10 @@ var
 begin
   FLogger.Log(TBoss4DLogLevel.Info, 'ðŸ§¹ Iniciando limpeza do projeto...');
 
-  LModulesDir := TPath.Combine(TDirectory.GetCurrentDirectory, FOLDER_DEPENDENCIES);
-  LLockFile := TPath.Combine(TDirectory.GetCurrentDirectory, FILE_PACKAGE_LOCK);
+  LModulesDir := TPath.Combine(
+    Boss4DPlatformEnvironment.CurrentDirectory, FOLDER_DEPENDENCIES);
+  LLockFile := TPath.Combine(
+    Boss4DPlatformEnvironment.CurrentDirectory, FILE_PACKAGE_LOCK);
 
   // 1. Remove a pasta modules
   if TDirectory.Exists(LModulesDir) then
@@ -48,7 +51,7 @@ begin
       LFiles := TDirectory.GetFiles(LModulesDir, '*', TSearchOption.soAllDirectories);
       for var LFile in LFiles do
       begin
-        SetFileAttributes(PChar(LFile), FILE_ATTRIBUTE_NORMAL);
+        Boss4DPlatformEnvironment.MakeFileWritable(LFile);
       end;
 
       TDirectory.Delete(LModulesDir, True);
@@ -68,7 +71,7 @@ begin
   begin
     FLogger.Log(TBoss4DLogLevel.Info, '  Removendo arquivo ' + FILE_PACKAGE_LOCK + '...');
     try
-      SetFileAttributes(PChar(LLockFile), FILE_ATTRIBUTE_NORMAL);
+      Boss4DPlatformEnvironment.MakeFileWritable(LLockFile);
       TFile.Delete(LLockFile);
       FLogger.Log(TBoss4DLogLevel.Info, '  [OK] Arquivo ' + FILE_PACKAGE_LOCK + ' removido.');
     except

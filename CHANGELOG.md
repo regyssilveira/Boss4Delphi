@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added
+
+- Injectable process, platform-environment, and directory-link contracts, with
+  Windows adapters and unit coverage as the foundation for portable CLI hosts.
+- Bilingual platform-portability architecture and capability documentation.
+
 ## 1.4.0 - 2026-07-30
 
 ### Added
