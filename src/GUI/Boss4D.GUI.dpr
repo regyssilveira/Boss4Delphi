@@ -30,6 +30,8 @@ uses
   Boss4D.Core.Services.SelfUpdate in '..\Core\Services\Boss4D.Core.Services.SelfUpdate.pas',
   Boss4D.Core.Services.Pack in '..\Core\Services\Boss4D.Core.Services.Pack.pas',
   Boss4D.Core.Services.Resolver in '..\Core\Services\Boss4D.Core.Services.Resolver.pas',
+  Boss4D.Core.Services.Conformance in '..\Core\Services\Boss4D.Core.Services.Conformance.pas',
+  Boss4D.Core.Services.RegistryPortal in '..\Core\Services\Boss4D.Core.Services.RegistryPortal.pas',
   Boss4D.Core.Services.Progress in '..\Core\Services\Boss4D.Core.Services.Progress.pas',
   Boss4D.Core.Services.Transaction in '..\Core\Services\Boss4D.Core.Services.Transaction.pas',
   Boss4D.Core.Services.Dependencies in '..\Core\Services\Boss4D.Core.Services.Dependencies.pas',

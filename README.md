@@ -143,6 +143,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Legacy Delphi Compatibility](docs/legacy-delphi.md)**: Full modern wizard plus a BDS 17.0-tested Delphi 10.1 integration profile.
 * **[FPC/Linux CLI](docs/posix-cli.md)**: Native Linux build, FPCUnit tests, portable init and Git installation.
 * **[Resolution and Secure Credentials](docs/resolution-and-credentials.md)**: Highest/minimal SemVer policies and native credential storage.
+* **[Conformance and Ecosystem](docs/conformance-and-ecosystem.md)**: Public protocol validation, static registry portal, and deterministic benchmarks.
 * **[CLI Usage Manual](docs/usage.md)**: Detailed step-by-step guide covering all command options and dependency configurations.
 * **[Contribution Guide](CONTRIBUTING.md)**: Coding standards and guidelines for contribution.
 * **[Release Guide](RELEASE_GUIDE.md)**: Steps and instructions to compile with Delphi 13 (37.0) and publish releases on GitHub.

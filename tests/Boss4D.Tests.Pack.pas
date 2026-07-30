@@ -12,6 +12,7 @@ type
     [Test] procedure ProducesDeterministicPackage;
     [Test] procedure ExcludesBuildAndDependencyContent;
     [Test] procedure RequiresManifest;
+    [Test] procedure ExcludesPreviousBenchmarkArtifacts;
   end;
 
 implementation
@@ -92,6 +93,31 @@ begin
   finally
     LService.Free;
     TDirectory.Delete(LRoot, True);
+  end;
+end;
+
+procedure TBoss4DPackTests.ExcludesPreviousBenchmarkArtifacts;
+var
+  LRoot, LOutput, LContent: string;
+  LService: TBoss4DPackService;
+begin
+  LRoot := TPath.Combine(TPath.GetTempPath, TPath.GetRandomFileName);
+  TDirectory.CreateDirectory(TPath.Combine(LRoot, '.benchmark-pack'));
+  TFile.WriteAllText(TPath.Combine(LRoot, 'boss.json'), '{}');
+  TFile.WriteAllText(TPath.Combine(LRoot,
+    '.benchmark-pack\previous.b4dpkg'), 'recursive payload');
+  LOutput := TPath.Combine(TPath.GetTempPath,
+    TPath.GetRandomFileName + '.b4dpkg');
+  LService := TBoss4DPackService.Create;
+  try
+    LService.Execute(LRoot, LOutput);
+    LContent := TFile.ReadAllText(LOutput);
+    Assert.IsFalse(LContent.Contains('previous.b4dpkg'));
+  finally
+    LService.Free;
+    TDirectory.Delete(LRoot, True);
+    TFile.Delete(LOutput);
+    TFile.Delete(LOutput + '.intoto.json');
   end;
 end;
 

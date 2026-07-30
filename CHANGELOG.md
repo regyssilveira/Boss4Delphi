@@ -25,6 +25,8 @@
   longer serialized to `boss.cfg.json`.
 - In-toto package provenance and optional verified OpenPGP detached signatures
   for immutable `.b4dpkg` artifacts.
+- Public registry/package conformance commands, HTML-escaped static registry
+  portal generation, and a deterministic pack benchmark.
 
 ## 1.4.0 - 2026-07-30
 
