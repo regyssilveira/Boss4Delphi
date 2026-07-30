@@ -143,9 +143,13 @@ type
   IBoss4DCompiler = interface
     ['{69527D56-F14E-43D4-A746-2D7227D60006}']
     function Compile(const AProjectPath: string; const ADep: TBoss4DDependency;
-      const ARootLock: TBoss4DLock; const APlatform: string = '';
-      const ACompilerVersion: string = '';
-      const AConfiguration: string = ''): Boolean;
+      const ARootLock: TBoss4DLock): Boolean; overload;
+    function Compile(const AProjectPath: string; const ADep: TBoss4DDependency;
+      const ARootLock: TBoss4DLock; const APlatform,
+      ACompilerVersion: string): Boolean; overload;
+    function Compile(const AProjectPath: string; const ADep: TBoss4DDependency;
+      const ARootLock: TBoss4DLock; const APlatform, ACompilerVersion,
+      AConfiguration: string): Boolean; overload;
     function BuildSearchPath(const ADep: TBoss4DDependency; const APlatform: string = ''): string;
   end;
 

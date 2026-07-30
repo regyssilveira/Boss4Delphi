@@ -190,15 +190,19 @@ var
   LDependency: TBoss4DDependency;
   LExecutor: TBoss4DBuildExecutor;
   LTargets: TBoss4DBuildTargetList;
+  LExecutionOptions: TBoss4DBuildExecutionOptions;
 begin
   Result := Default(TBoss4DBuildCommandResult);
   LDependency := TBoss4DDependency.Create(
     'local/' + APackage.Name, APackage.Version);
   LExecutor := TBoss4DBuildExecutor.Create(FCompiler);
   try
+    LExecutionOptions := TBoss4DBuildExecutionOptions.Create(
+      AOptions.Selection, SourceChecksum(APackage, ARootDirectory));
+    LExecutionOptions.Force := AOptions.Force;
+    LExecutionOptions.Jobs := AOptions.Jobs;
     Result.Scheduled := LExecutor.Execute(APackage, LDependency, ALock,
-      ARootDirectory, AOptions.Selection, SourceChecksum(APackage,
-      ARootDirectory), AOptions.Force, AOptions.Jobs);
+      ARootDirectory, LExecutionOptions);
     Result.Built := LExecutor.BuiltCount;
     Result.Skipped := LExecutor.SkippedCount;
     Result.Restored := LExecutor.RestoredCount;

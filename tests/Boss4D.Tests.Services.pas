@@ -1377,7 +1377,8 @@ begin
     TGitClientMock.Create, THttpClientMock.Create, LCompiler, LLogger);
   LConfig := TBoss4DConfigService.Create(LLogger);
   LParser := TBoss4DCommandLineParser.Create(LLogger, LInit, LInstall,
-    LConfig, LPackageRepo, TRegistryMock.Create, LCompiler);
+    LConfig, LPackageRepo, TRegistryMock.Create,
+    TBoss4DParserRuntime.Create(LCompiler, nil, nil, nil));
   try
     TFile.WriteAllText(TPath.Combine(FTempDir, 'Runtime.dproj'),
       '<Project/>', TEncoding.UTF8);
@@ -1440,20 +1441,21 @@ begin
   LConfig := TBoss4DConfigService.Create(LLogger);
   LRepairCalls := 0;
   LParser := TBoss4DCommandLineParser.Create(LLogger, LInit, LInstall,
-    LConfig, LPackageRepo, TRegistryMock.Create, nil, nil,
-    function(const APackageName, ACompiler,
-      APlatform: string): Integer
-    begin
-      LPackageName := APackageName;
-      LCompiler := ACompiler;
-      LPlatform := APlatform;
-      Result := 1;
-    end,
-    function: Integer
-    begin
-      Inc(LRepairCalls);
-      Result := 2;
-    end);
+    LConfig, LPackageRepo, TRegistryMock.Create,
+    TBoss4DParserRuntime.Create(nil, nil,
+      function(const APackageName, ACompiler,
+        APlatform: string): Integer
+      begin
+        LPackageName := APackageName;
+        LCompiler := ACompiler;
+        LPlatform := APlatform;
+        Result := 1;
+      end,
+      function: Integer
+      begin
+        Inc(LRepairCalls);
+        Result := 2;
+      end));
   try
     LParser.ParseAndExecute(TArray<string>.Create(
       'ide', 'unregister', 'Component370', '--compiler', 'd13',
@@ -1492,6 +1494,7 @@ var
   LExecutor: TBoss4DBuildExecutor;
   LProjectPath: string;
   LCount: Integer;
+  LOptions: TBoss4DBuildExecutionOptions;
 begin
   LPackage := TBoss4DPackage.Create;
   LDep := TBoss4DDependency.Create('github.com/example/component', '1.0.0');
@@ -1511,8 +1514,10 @@ begin
     TDirectory.CreateDirectory(TPath.GetDirectoryName(LProjectPath));
     TFile.WriteAllText(LProjectPath, '<Project/>');
 
-    LCount := LExecutor.Execute(LPackage, LDep, LLock, FTempDir,
-      TBoss4DBuildSelection.All, 'source-checksum', False, 2);
+    LOptions := TBoss4DBuildExecutionOptions.Create(
+      TBoss4DBuildSelection.All, 'source-checksum');
+    LOptions.Jobs := 2;
+    LCount := LExecutor.Execute(LPackage, LDep, LLock, FTempDir, LOptions);
 
     Assert.AreEqual<Integer>(2, LCount);
     Assert.AreEqual<Integer>(2, LCompiler.CompiledProjects.Count);
@@ -1532,8 +1537,7 @@ begin
         'compiled');
     end;
 
-    LCount := LExecutor.Execute(LPackage, LDep, LLock, FTempDir,
-      TBoss4DBuildSelection.All, 'source-checksum', False, 2);
+    LCount := LExecutor.Execute(LPackage, LDep, LLock, FTempDir, LOptions);
     Assert.AreEqual<Integer>(2, LCount);
     Assert.AreEqual<Integer>(2, LCompiler.CompiledProjects.Count,
       'Targets atualizados nao devem invocar o compilador novamente.');
@@ -1541,8 +1545,7 @@ begin
     Assert.IsTrue(LExecutor.LastExplanations[0].Contains('atualizado'));
 
     TFile.WriteAllText(LProjectPath, '<Project><!-- changed --></Project>');
-    LExecutor.Execute(LPackage, LDep, LLock, FTempDir,
-      TBoss4DBuildSelection.All, 'source-checksum', False, 2);
+    LExecutor.Execute(LPackage, LDep, LLock, FTempDir, LOptions);
     Assert.AreEqual<Integer>(4, LCompiler.CompiledProjects.Count);
     Assert.AreEqual<Integer>(2, LExecutor.BuiltCount);
     Assert.IsTrue(LExecutor.LastExplanations[0].Contains('fontes'));

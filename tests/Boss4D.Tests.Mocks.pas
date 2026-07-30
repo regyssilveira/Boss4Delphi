@@ -75,9 +75,13 @@ type
     constructor Create;
     destructor Destroy; override;
     function Compile(const AProjectPath: string; const ADep: TBoss4DDependency;
-      const ARootLock: TBoss4DLock; const APlatform: string = '';
-      const ACompilerVersion: string = '';
-      const AConfiguration: string = ''): Boolean;
+      const ARootLock: TBoss4DLock): Boolean; overload;
+    function Compile(const AProjectPath: string; const ADep: TBoss4DDependency;
+      const ARootLock: TBoss4DLock; const APlatform,
+      ACompilerVersion: string): Boolean; overload;
+    function Compile(const AProjectPath: string; const ADep: TBoss4DDependency;
+      const ARootLock: TBoss4DLock; const APlatform, ACompilerVersion,
+      AConfiguration: string): Boolean; overload;
     function BuildSearchPath(const ADep: TBoss4DDependency; const APlatform: string = ''): string;
     property CompiledProjects: TList<string> read FCompiledProjects;
     property LastPlatform: string read FLastPlatform;
@@ -316,10 +320,23 @@ begin
   inherited Destroy;
 end;
 
+function TCompilerMock.Compile(const AProjectPath: string;
+  const ADep: TBoss4DDependency; const ARootLock: TBoss4DLock): Boolean;
+begin
+  Result := Compile(AProjectPath, ADep, ARootLock, '', '', '');
+end;
+
+function TCompilerMock.Compile(const AProjectPath: string;
+  const ADep: TBoss4DDependency; const ARootLock: TBoss4DLock;
+  const APlatform, ACompilerVersion: string): Boolean;
+begin
+  Result := Compile(AProjectPath, ADep, ARootLock, APlatform,
+    ACompilerVersion, '');
+end;
+
 function TCompilerMock.Compile(const AProjectPath: string; const ADep: TBoss4DDependency;
-  const ARootLock: TBoss4DLock; const APlatform: string = '';
-  const ACompilerVersion: string = '';
-  const AConfiguration: string = ''): Boolean;
+  const ARootLock: TBoss4DLock; const APlatform, ACompilerVersion,
+  AConfiguration: string): Boolean;
 begin
   TMonitor.Enter(FGuard);
   try

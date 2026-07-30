@@ -29,24 +29,29 @@ uses
 
 type
   TDetectedProject = class
+  private
+    FProjectPath: string;
+    FPackageName: string;
+    FKind: string;
+    FRequires: TList<string>;
   public
-    ProjectPath: string;
-    PackageName: string;
-    Kind: string;
-    Requires: TList<string>;
     constructor Create;
     destructor Destroy; override;
+    property ProjectPath: string read FProjectPath write FProjectPath;
+    property PackageName: string read FPackageName write FPackageName;
+    property Kind: string read FKind write FKind;
+    property Requires: TList<string> read FRequires;
   end;
 
 constructor TDetectedProject.Create;
 begin
   inherited Create;
-  Requires := TList<string>.Create;
+  FRequires := TList<string>.Create;
 end;
 
 destructor TDetectedProject.Destroy;
 begin
-  Requires.Free;
+  FRequires.Free;
   inherited Destroy;
 end;
 

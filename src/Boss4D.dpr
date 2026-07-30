@@ -136,7 +136,8 @@ begin
 
     // Inicializa o Parser de CLI
     LParser := TBoss4DCommandLineParser.Create(LLogger, LInitService,
-      LInstallService, LConfigService, LPackageRepo, LRegistry, LCompiler);
+      LInstallService, LConfigService, LPackageRepo, LRegistry,
+      TBoss4DParserRuntime.Create(LCompiler, nil, nil, nil));
     try
       LParser.ParseAndExecute(LArgs);
     finally

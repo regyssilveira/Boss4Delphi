@@ -363,17 +363,11 @@ procedure Rollback(const AStore: IBoss4DIDERegistryStore;
   const ASnapshots: TObjectList<TBoss4DRegistrySnapshot>);
 begin
   for var I := ASnapshots.Count - 1 downto 0 do
-  begin
-    try
-      if ASnapshots[I].FExisted then
-        AStore.WriteValue(ASnapshots[I].FKey, ASnapshots[I].FName,
-          ASnapshots[I].FValue)
-      else
-        AStore.DeleteValue(ASnapshots[I].FKey, ASnapshots[I].FName);
-    except
-      // Preserva a excecao original; o chamador reporta a falha transacional.
-    end;
-  end;
+    if ASnapshots[I].FExisted then
+      AStore.WriteValue(ASnapshots[I].FKey, ASnapshots[I].FName,
+        ASnapshots[I].FValue)
+    else
+      AStore.DeleteValue(ASnapshots[I].FKey, ASnapshots[I].FName);
 end;
 
 procedure WritePathValue(const AStore: IBoss4DIDERegistryStore;

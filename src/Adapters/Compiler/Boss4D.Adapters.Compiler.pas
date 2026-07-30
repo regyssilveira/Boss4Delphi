@@ -27,9 +27,13 @@ type
     function FindRsvarsPath(out ARsvarsPath: string; out APlatform: string;
       const ACompilerVersion: string = ''): Boolean;
     function Compile(const AProjectPath: string; const ADep: TBoss4DDependency;
-      const ARootLock: TBoss4DLock; const APlatform: string = '';
-      const ACompilerVersion: string = '';
-      const AConfiguration: string = ''): Boolean;
+      const ARootLock: TBoss4DLock): Boolean; overload;
+    function Compile(const AProjectPath: string; const ADep: TBoss4DDependency;
+      const ARootLock: TBoss4DLock; const APlatform,
+      ACompilerVersion: string): Boolean; overload;
+    function Compile(const AProjectPath: string; const ADep: TBoss4DDependency;
+      const ARootLock: TBoss4DLock; const APlatform, ACompilerVersion,
+      AConfiguration: string): Boolean; overload;
     function BuildSearchPath(const ADep: TBoss4DDependency; const APlatform: string = ''): string;
   end;
 
@@ -341,9 +345,22 @@ begin
 end;
 
 function TBoss4DDelphiCompilerAdapter.Compile(const AProjectPath: string;
+  const ADep: TBoss4DDependency; const ARootLock: TBoss4DLock): Boolean;
+begin
+  Result := Compile(AProjectPath, ADep, ARootLock, '', '', '');
+end;
+
+function TBoss4DDelphiCompilerAdapter.Compile(const AProjectPath: string;
   const ADep: TBoss4DDependency; const ARootLock: TBoss4DLock;
-  const APlatform: string = ''; const ACompilerVersion: string = '';
-  const AConfiguration: string = ''): Boolean;
+  const APlatform, ACompilerVersion: string): Boolean;
+begin
+  Result := Compile(AProjectPath, ADep, ARootLock, APlatform,
+    ACompilerVersion, '');
+end;
+
+function TBoss4DDelphiCompilerAdapter.Compile(const AProjectPath: string;
+  const ADep: TBoss4DDependency; const ARootLock: TBoss4DLock;
+  const APlatform, ACompilerVersion, AConfiguration: string): Boolean;
 var
   LRsvarsPath, LPlatform: string;
   LAbsDir, LBuildLog, LBuildBat, LCfgPath: string;

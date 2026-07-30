@@ -19,6 +19,26 @@ type
     const APackageName, ACompiler, APlatform: string): Integer;
   TBoss4DIDERepairHandler = reference to function: Integer;
 
+  TBoss4DParserRuntime = record
+  private
+    FCompiler: IBoss4DCompiler;
+    FRegistrationHandler: TBoss4DIDERegistrationHandler;
+    FUnregisterHandler: TBoss4DIDEUnregisterHandler;
+    FRepairHandler: TBoss4DIDERepairHandler;
+  public
+    class function Create(const ACompiler: IBoss4DCompiler;
+      const ARegistrationHandler: TBoss4DIDERegistrationHandler;
+      const AUnregisterHandler: TBoss4DIDEUnregisterHandler;
+      const ARepairHandler: TBoss4DIDERepairHandler): TBoss4DParserRuntime;
+      static;
+    property Compiler: IBoss4DCompiler read FCompiler;
+    property RegistrationHandler: TBoss4DIDERegistrationHandler
+      read FRegistrationHandler;
+    property UnregisterHandler: TBoss4DIDEUnregisterHandler
+      read FUnregisterHandler;
+    property RepairHandler: TBoss4DIDERepairHandler read FRepairHandler;
+  end;
+
   TBoss4DSbomCommandOptions = record
     Options: TBoss4DSbomOptions;
     OutputPath: string;
@@ -90,12 +110,15 @@ type
       const AInstallService: TBoss4DInstallService;
       const AConfigService: TBoss4DConfigService;
       const APackageRepo: IBoss4DPackageRepository;
+      const ARegistry: IBoss4DRegistryService); overload;
+    constructor Create(
+      const ALogger: IBoss4DLogger;
+      const AInitService: TBoss4DInitService;
+      const AInstallService: TBoss4DInstallService;
+      const AConfigService: TBoss4DConfigService;
+      const APackageRepo: IBoss4DPackageRepository;
       const ARegistry: IBoss4DRegistryService;
-      const ACompiler: IBoss4DCompiler = nil;
-      const ARegistrationHandler: TBoss4DIDERegistrationHandler = nil;
-      const AUnregisterHandler: TBoss4DIDEUnregisterHandler = nil;
-      const ARepairHandler: TBoss4DIDERepairHandler = nil
-    );
+      const ARuntime: TBoss4DParserRuntime); overload;
 
     procedure ParseAndExecute(const AArgs: TArray<string>);
   end;
@@ -138,7 +161,34 @@ uses
   Boss4D.Core.Services.BuildDoctor,
   Boss4D.Core.Services.IDERegistration;
 
-{ TBoss4DCommandLineParser }
+class function TBoss4DParserRuntime.Create(const ACompiler: IBoss4DCompiler;
+  const ARegistrationHandler: TBoss4DIDERegistrationHandler;
+  const AUnregisterHandler: TBoss4DIDEUnregisterHandler;
+  const ARepairHandler: TBoss4DIDERepairHandler): TBoss4DParserRuntime;
+begin
+  Result := Default(TBoss4DParserRuntime);
+  Result.FCompiler := ACompiler;
+  Result.FRegistrationHandler := ARegistrationHandler;
+  Result.FUnregisterHandler := AUnregisterHandler;
+  Result.FRepairHandler := ARepairHandler;
+end;
+
+constructor TBoss4DCommandLineParser.Create(
+  const ALogger: IBoss4DLogger;
+  const AInitService: TBoss4DInitService;
+  const AInstallService: TBoss4DInstallService;
+  const AConfigService: TBoss4DConfigService;
+  const APackageRepo: IBoss4DPackageRepository;
+  const ARegistry: IBoss4DRegistryService);
+begin
+  inherited Create;
+  FLogger := ALogger;
+  FInitService := AInitService;
+  FInstallService := AInstallService;
+  FConfigService := AConfigService;
+  FPackageRepo := APackageRepo;
+  FRegistry := ARegistry;
+end;
 
 constructor TBoss4DCommandLineParser.Create(
   const ALogger: IBoss4DLogger;
@@ -147,10 +197,7 @@ constructor TBoss4DCommandLineParser.Create(
   const AConfigService: TBoss4DConfigService;
   const APackageRepo: IBoss4DPackageRepository;
   const ARegistry: IBoss4DRegistryService;
-  const ACompiler: IBoss4DCompiler;
-  const ARegistrationHandler: TBoss4DIDERegistrationHandler;
-  const AUnregisterHandler: TBoss4DIDEUnregisterHandler;
-  const ARepairHandler: TBoss4DIDERepairHandler
+  const ARuntime: TBoss4DParserRuntime
 );
 begin
   inherited Create;
@@ -160,10 +207,10 @@ begin
   FConfigService := AConfigService;
   FPackageRepo := APackageRepo;
   FRegistry := ARegistry;
-  FCompiler := ACompiler;
-  FRegistrationHandler := ARegistrationHandler;
-  FUnregisterHandler := AUnregisterHandler;
-  FRepairHandler := ARepairHandler;
+  FCompiler := ARuntime.Compiler;
+  FRegistrationHandler := ARuntime.RegistrationHandler;
+  FUnregisterHandler := ARuntime.UnregisterHandler;
+  FRepairHandler := ARuntime.RepairHandler;
 end;
 
 procedure TBoss4DCommandLineParser.ShowHelp;
