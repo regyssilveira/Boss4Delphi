@@ -36,6 +36,16 @@ foreach ($required in @(
   }
 }
 
+$windows = @($matrix.artifacts | Where-Object name -eq 'boss4d-windows.zip')[0]
+$pluginVersions = @($windows.components |
+  Where-Object kind -eq 'ide-plugin' |
+  ForEach-Object delphi)
+foreach ($required in @('10.1', '11', '12', '13')) {
+  if ($pluginVersions -notcontains $required) {
+    throw "Release matrix is missing Delphi plugin: $required"
+  }
+}
+
 $updateSource = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\src\Posix\Boss4D.Posix.Update.pas') -Raw
 if (-not $updateSource.Contains('boss4d-linux-x86_64.tar.gz')) {
   throw 'Linux matrix artifact no longer matches the self-update contract.'

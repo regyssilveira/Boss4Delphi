@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry, Boss4D.Posix.Registry,
-  Boss4D.Posix.Publish;
+  Boss4D.Posix.Publish, Boss4D.Posix.Project;
 
 type
   TRegistryFetcherMock = class
@@ -112,6 +112,19 @@ type
     property Url: string read FUrl;
   end;
 
+  TProjectWorkflowMock = class
+  private
+    FCommand: string;
+    FDirectory: string;
+    FSuccess: Boolean;
+  public
+    function Run(const ACommand, ADirectory: string): Boolean;
+    function Latest(const ARepository, AConstraint: string): string;
+    property Command: string read FCommand;
+    property DirectoryName: string read FDirectory;
+    property Success: Boolean read FSuccess write FSuccess;
+  end;
+
   TPosixCoreTests = class(TTestCase)
   published
     procedure TestPlatform;
@@ -172,6 +185,9 @@ type
     procedure TestGlobalToolLifecycle;
     procedure TestPublishDryRunAndImmutableConflict;
     procedure TestPublishRequiresLockEvidence;
+    procedure TestProjectWorkflowCommands;
+    procedure TestUpdateRollback;
+    procedure TestUpdatePreservesRegistryArtifact;
   end;
 
 implementation
@@ -1260,6 +1276,21 @@ begin
   Result := FStatus;
 end;
 
+function TProjectWorkflowMock.Run(const ACommand,
+  ADirectory: string): Boolean;
+begin
+  FCommand := ACommand;
+  FDirectory := ADirectory;
+  Result := FSuccess;
+end;
+
+function TProjectWorkflowMock.Latest(const ARepository,
+  AConstraint: string): string;
+begin
+  if Pos('runtime', ARepository) > 0 then Result := '1.2.0'
+  else Result := '2.0.0';
+end;
+
 function CreateComplianceLock(const ADirectory: string): string;
 begin
   Result := IncludeTrailingPathDelimiter(ADirectory) + 'boss-lock.json';
@@ -1857,6 +1888,110 @@ begin
   finally
     LService.Free;
   end;
+end;
+
+procedure TPosixCoreTests.TestProjectWorkflowCommands;
+var
+  LDir: string;
+  LMock: TProjectWorkflowMock;
+  LItems: TStringList;
+begin
+  LDir := NewTempDirectory;
+  ForceDirectories(LDir);
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'boss.json',
+    '{"name":"workflow","version":"1.0.0","scripts":{"test":"echo ok"},' +
+    '"dependencies":{"example.test/runtime":"^1.0.0"},' +
+    '"devDependencies":{"example.test/dev":"^2.0.0"}}');
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'boss-lock.json',
+    '{"lockVersion":3,"root":{"name":"workflow","version":"1.0.0"},' +
+    '"installedModules":{"example.test/runtime":{"version":"1.1.0",' +
+    '"scope":"runtime"},"example.test/dev":{"version":"2.0.0",' +
+    '"scope":"development"}}}');
+  LItems := DependencyTree(LDir);
+  try
+    AssertEquals(2, LItems.Count);
+    AssertTrue(Pos('runtime@1.1.0', LItems[1]) > 0);
+  finally
+    LItems.Free;
+  end;
+  LItems := WhyDependency(LDir, 'runtime');
+  try
+    AssertEquals(1, LItems.Count);
+    AssertTrue(Pos('root ->', LItems[0]) = 1);
+  finally
+    LItems.Free;
+  end;
+  LMock := TProjectWorkflowMock.Create;
+  try
+    LMock.Success := True;
+    RunProjectScript(LDir, 'test', @LMock.Run);
+    AssertEquals('echo ok', LMock.Command);
+    AssertEquals(LDir, LMock.DirectoryName);
+    LItems := OutdatedDependencies(LDir, @LMock.Latest);
+    try
+      AssertEquals(1, LItems.Count);
+      AssertTrue(Pos('1.1.0 -> 1.2.0', LItems[0]) > 0);
+    finally
+      LItems.Free;
+    end;
+  finally
+    LMock.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestUpdateRollback;
+var
+  LDir, LModules, LMarker, LLock: string;
+  LFailed: Boolean;
+begin
+  LDir := NewTempDirectory;
+  LModules := IncludeTrailingPathDelimiter(LDir) + 'modules';
+  ForceDirectories(LModules);
+  LMarker := IncludeTrailingPathDelimiter(LModules) + 'preserve.txt';
+  LLock := IncludeTrailingPathDelimiter(LDir) + 'boss-lock.json';
+  SaveFixture(LMarker, 'preserve');
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'boss.json', '{invalid');
+  SaveFixture(LLock, '{"lockVersion":3}');
+  LFailed := False;
+  try
+    UpdateProject(LDir);
+  except
+    on E: Exception do LFailed := True;
+  end;
+  AssertTrue('invalid manifest must fail', LFailed);
+  AssertTrue('module marker restored', FileExists(LMarker));
+  AssertTrue('lock restored', FileExists(LLock));
+  AssertFalse('module backup removed',
+    DirectoryExists(LModules + '.boss4d-update-backup'));
+  AssertFalse('lock backup removed',
+    FileExists(LLock + '.boss4d-update-backup'));
+end;
+
+procedure TPosixCoreTests.TestUpdatePreservesRegistryArtifact;
+var
+  LDir, LTarget, LMarker: string;
+begin
+  LDir := NewTempDirectory;
+  LTarget := IncludeTrailingPathDelimiter(LDir) + 'modules' +
+    DirectorySeparator + 'demo';
+  ForceDirectories(LTarget);
+  LMarker := IncludeTrailingPathDelimiter(LTarget) + 'demo.pas';
+  SaveFixture(LMarker, 'unit demo;');
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'boss.json',
+    '{"name":"app","version":"1.0.0",' +
+    '"dependencies":{"example.test/demo":"1.0.0"}}');
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'boss-lock.json',
+    '{"lockVersion":3,"root":{"name":"app","version":"1.0.0"},' +
+    '"installedModules":{"example.test/demo":{"name":"demo",' +
+    '"version":"1.0.0","repository":"example.test/demo",' +
+    '"scope":"runtime","resolvedFrom":"registry-artifact",' +
+    '"checksum":"sha256:' + StringOfChar('a', 64) + '",' +
+    '"target":"modules/demo","dependencies":[]}}}');
+  UpdateProject(LDir);
+  AssertTrue('registry artifact preserved', FileExists(LMarker));
+  AssertFalse('module backup removed',
+    DirectoryExists(IncludeTrailingPathDelimiter(LDir) +
+      'modules.boss4d-update-backup'));
 end;
 
 initialization

@@ -1,63 +1,69 @@
-# Posicionamento competitivo — julho de 2026
+# Posicionamento competitivo — 30 de julho de 2026
 
-Esta análise compara capacidades entregues, não promessas de roadmap.
+Esta análise compara comportamento entregue e testado. Adoção e escala do
+registro são avaliadas separadamente da quantidade de comandos.
 
 | Capacidade | Boss4D | BOSS | DPM | GetIt | Classe Cargo/npm/Composer |
 |---|---|---|---|---|---|
-| Dependências de fontes Delphi | Forte | Forte | Forte | Orientado a catálogo | Não específico para Delphi |
-| Lazarus/FPC | Fluxo Linux nativo, paridade parcial | Suporte consolidado | Foco em Delphi | Não | Específico de cada ecossistema |
-| Descoberta pública | Registry v2 em Git, catálogo com 55 entradas | Atalhos nome/repositório | Fonte hospedada padrão | Catálogo oficial RAD Studio | Grandes registros hospedados |
-| Reprodutibilidade | Lock v3, frozen/offline/CI | SemVer e cache | Modelo pacote/versão | Estado de instalação da IDE | Lock/offline/vendor maduros |
-| Distribuição imutável | `.b4dpkg` verificado com fallback para fontes | Principalmente fontes Git | Pacotes hospedados | Pacotes hospedados | Arquivos de pacote maduros |
-| Evidência de supply chain | CycloneDX, SPDX, VEX, OSV, in-toto e OpenPGP | Não é o foco central | Assinatura de pacotes | Controlado pelo fornecedor | Varia por ecossistema |
-| Variantes compilador/plataforma | Seleção determinística no Registry v2 | Flags no install | Consumo orientado a projeto/plataforma | Catálogo por release RAD Studio | Mecanismos variam |
-| Experiência de IDE | CLI, GUI VCL e plugins RAD Studio | CLI e complemento de IDE | CLI e integração com IDE | Embutido no RAD Studio | Geralmente independente do editor |
+| Dependências Delphi | CLI, GUI e IDE completas | CLI e complemento de IDE | Pacotes e IDE completos | Instalação por catálogo | Não específico para Delphi |
+| Lazarus/FPC/Linux | CLI e release nativas em FPC 3.2.2 | Fluxo Delphi/Lazarus consolidado | Foco Delphi/Windows | Não | Nativo em cada ecossistema |
+| CLI cotidiana | Install, update, tree, why, outdated, run e ferramentas globais | Install, update, dependencies, run e global | Create/push/install/restore no estilo NuGet | Orientado à IDE | Ampla e madura |
+| Descoberta pública | Registry v2 Git com 55 entradas legadas e pacotes sparse | Atalhos de repositório/nome | Fonte hospedada `delphi.dev` | Catálogo do fornecedor | Grandes registros hospedados |
+| Protocolo do Registry | Composição v1/v2, sparse, validadores HTTP, mirrors e revogação | Resolução orientada a Git | Múltiplas fontes locais/hospedadas | Controlado pelo fornecedor | APIs sparse/index e CDNs |
+| Reprodutibilidade | Lock v3, frozen/locked/offline e CI | SemVer e cache | Restore por pacote/versão | Estado da IDE | Locks e modos offline/vendor maduros |
+| Distribuição imutável | `.b4dpkg`, SHA-256, OpenPGP, in-toto e instalação transacional | Principalmente checkout Git | Pacotes hospedados e assinados | Pacotes hospedados | Arquivos imutáveis e checksums |
+| Política de publicação | Dry-run, gates, token seguro, versões imutáveis e publishers revisados | Sem fluxo público equivalente documentado | Fonte central e push de pacotes | Submissão ao fornecedor | Publicação autenticada madura |
+| Evidência de supply chain | CycloneDX, SPDX, VEX, OSV, in-toto e OpenPGP | Sem fluxo SBOM/audit documentado | SBOM e assinatura de autor/repositório | Controlado pelo fornecedor | Varia, geralmente maduro |
+| Matriz compilador/plataforma | Plugins Delphi 10.1/11/12/13; Win32/Win64; Linux x86_64/FPC | Seleção de compilador/plataforma | Delphi XE2–13 e targets suportados | Releases atuais | Mecanismos ricos de target |
+| Autoatualização | Atualização verificada e transacional no Windows/Linux | `upgrade`, inclusive pré-release | Entrega por instalador/pacote | Entrega pelo RAD Studio | Madura por toolchain |
+| Progresso/automação | Plain, interativo, JSON, quiet, cancelamento e exit codes estáveis | Progresso interativo por dependência | Saída CLI convencional | UI da IDE | Automação madura e legível por máquina |
 
-## Onde o Boss4D se diferencia
+## Conclusão
 
-O Boss4D combina dependências Delphi/Lazarus com uma cadeia de evidências de
-conformidade incomum neste ecossistema: artefatos imutáveis, digests externos e
-internos, OpenPGP, in-toto, CycloneDX/SPDX, VEX, auditoria OSV, dependency
-submission e geração estrita de release apenas pelo lock. O Registry v2 pode
-ser mantido em Git, compor índices v1/v2 e distribuir artefatos específicos por
-compilador/plataforma sem alterar o `boss.json` legado.
+Nos critérios trabalhados pelo projeto, o Boss4D atinge paridade técnica com o
+BOSS e o supera em reprodutibilidade, artefatos imutáveis, política de Registry,
+evidências de conformidade, automação estruturada e releases verificadas. O
+BOSS continua sendo referência de CLI compacta e possui adoção histórica maior.
 
-O projeto também valida builds reais de plugins para Delphi 10.1/11/12/13,
-testes Win32 e Win64, build nativo FPC/Linux, empacotamento determinístico e
-instalador completo.
+O DPM permanece à frente em duas dimensões de ecossistema: serviço central
+hospedado em operação e suporte desde o Delphi XE2. Ele também possui assinatura
+de pacotes e geração de SBOM; portanto, esses recursos não devem ser apresentados
+como exclusivos do Boss4D. O Boss4D diferencia-se por VEX/auditoria OSV, dois
+formatos SBOM, proveniência in-toto, escopo revisado de signatários, governança
+Git do Registry e CLI Linux nativa.
 
-## Onde os concorrentes continuam à frente
+O GetIt mantém a posição nativa no RAD Studio. Cargo, npm e Composer continuam
+muito à frente em população de pacotes, escala de CDN, histórico do resolvedor,
+ferramental de terceiros e operação de infraestrutura.
 
-- O BOSS possui base instalada maior e uma experiência de CLI portátil mais
-  madura. Sua CLI documenta progresso, autoatualização, instalação global,
-  seleção entre Git embutido/nativo e flags de compilador/plataforma.
-- O DPM possui fonte de pacotes hospedada por padrão e fluxo convencional de
-  publicação, reduzindo o esforço para descobrir e distribuir pacotes.
-- O GetIt tem presença nativa no RAD Studio e catálogo mantido pelo fornecedor.
-- Cargo, npm e Composer possuem escala de registro, mirrors/CDNs, protocolos
-  incrementais de metadados, políticas maduras de publicação e amplo ferramental.
+## Evidências neste repositório
 
-## Próximos trabalhos de maior valor
+- DUnitX Delphi 13: 143 testes em Win32 e 143 em Win64.
+- FPC 3.2.2/Linux x86_64: 61 testes FPCUnit e smoke tests reais da CLI.
+- Builds reais do plugin: Delphi 10.1, 11, 12 e 13.
+- Arquivos de release Windows/Linux com SHA-256 e proveniência OIDC do GitHub.
+- Checks de submissão: escopo do publisher, fingerprint OpenPGP, versões
+  imutáveis, assinatura e proveniência.
+- Quality gate do Sonar obrigatório com zero issues abertas.
 
-1. Alimentar o Registry v2 com releases `.b4dpkg` reais e assinadas; hoje a
-   maioria das entradas ainda aponta para repositórios Git.
-2. Levar Registry v2, artefatos verificados, SBOM lock-only, auditoria, progresso
-   e credenciais ao host Linux/FPC.
-3. Adicionar metadados sparse por pacote, validação de cache HTTP, mirrors,
-   revogação e retirada controlada de versões.
-4. Automatizar onboarding de publicadores e atualização de metadados assinados
-   por pull requests revisados.
-5. Adicionar macOS e ampliar a matriz de artefatos compilador/plataforma com
-   pacotes gerados por seus mantenedores.
+## Trabalho restante de ecossistema
+
+Estes itens aumentam escala e alcance; não são lacunas da paridade técnica
+definida:
+
+1. Popular o Registry sparse com releases `.b4dpkg` assinadas pelos mantenedores.
+2. Adicionar frontend hospedado de leitura/busca e CDN, mantendo Git revisado
+   como fonte autoritativa.
+3. Adicionar release nativa para macOS e ampliar variantes mantidas.
+4. Publicar benchmarks recorrentes de resolução e cache frio/quente.
+5. Adicionar opcionalmente transparência/Sigstore junto ao OpenPGP.
 
 ## Fontes
 
-- [Repositório e CLI do BOSS](https://github.com/HashLoad/boss)
+- [Repositório e CLI atual do BOSS](https://github.com/HashLoad/boss)
+- [Repositório e capacidades atuais do DPM](https://github.com/DelphiPackageManager/DPM)
 - [Documentação do DPM](https://docs.delphi.dev/)
-- [Fontes de pacotes do DPM](https://docs.delphi.dev/concepts/package-sources.html)
-- [Visão geral do GetIt](https://tp.embarcadero.com/overview/)
-- [Código do Online Package Manager do Lazarus](https://gitlab.com/freepascal.org/lazarus/lazarus/-/tree/main/components/onlinepackagemanager)
-- [Registros do Cargo](https://doc.rust-lang.org/cargo/reference/registries.html)
-- [Índice de registro do Cargo](https://doc.rust-lang.org/cargo/reference/registry-index.html)
+- [Documentação do GetIt](https://docwiki.embarcadero.com/RADStudio/en/GetIt_Package_Manager_Window)
+- [Registries do Cargo](https://doc.rust-lang.org/cargo/reference/registries.html)
+- [Índice sparse e cache do Cargo](https://doc.rust-lang.org/cargo/reference/registry-index.html)
 - [Repositórios do Composer](https://getcomposer.org/doc/05-repositories.md)
-

@@ -19,6 +19,8 @@ mkdir -p .fpc-build/package-smoke/project
 (cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d init && /work/.fpc-build/boss4d package install Demo --registry /work/tests/fixtures/package-posix/index.json --platform linux --no-source-fallback)
 test -f .fpc-build/package-smoke/project/modules/demo/src/verified.pas
 grep -q registry-artifact .fpc-build/package-smoke/project/boss-lock.json
+(cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d dependencies | grep -q 'example.test/demo@1.0.0')
+(cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d why demo | grep -q 'root ->')
 (cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d install --json > progress.json)
 grep -q operationId .fpc-build/package-smoke/project/progress.json
 grep -q completion .fpc-build/package-smoke/project/progress.json

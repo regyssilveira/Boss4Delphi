@@ -11,6 +11,7 @@ $required = @(
   'self-hosted, windows, delphi-13',
   'Boss4DPosixTests',
   'build_release.bat',
+  'test-delphi-plugin-matrix.ps1',
   'boss4d-linux-x86_64.tar.gz',
   'boss4d-windows.zip',
   'SHA256SUMS.txt',

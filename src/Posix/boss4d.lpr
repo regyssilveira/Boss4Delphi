@@ -6,14 +6,16 @@ uses
   Classes, SysUtils, DateUtils, Boss4D.Posix.Core, Boss4D.Posix.Registry,
   Boss4D.Posix.Config, Boss4D.Posix.Package, Boss4D.Posix.Operations,
   Boss4D.Posix.Compliance, Boss4D.Posix.Audit, Boss4D.Posix.Workflows,
-  Boss4D.Posix.Update, Boss4D.Posix.Tools, Boss4D.Posix.Publish;
+  Boss4D.Posix.Update, Boss4D.Posix.Tools, Boss4D.Posix.Publish,
+  Boss4D.Posix.Project;
 
 procedure Help;
 begin
   WriteLn('Boss4D portable CLI');
   WriteLn('Commands: version, platform, init, install, ci, add, remove, list,');
   WriteLn('          search, info, registry, package, doctor, sbom, audit,');
-  WriteLn('          config, cache, self-update, tool, publish');
+  WriteLn('          config, cache, self-update, tool, publish, update,');
+  WriteLn('          dependencies, tree, why, run, outdated');
   WriteLn('Install options: --locked --frozen-lockfile --offline --production');
   WriteLn('                 --resolution=highest|minimal');
   WriteLn('                 --progress plain|interactive --json --quiet');
@@ -188,6 +190,49 @@ begin
       finally
         LItems.Free;
       end;
+    end
+    else if (LCommand = 'dependencies') or (LCommand = 'tree') then
+    begin
+      LItems := DependencyTree(GetCurrentDir);
+      try
+        for I := 0 to LItems.Count - 1 do WriteLn(LItems[I]);
+      finally
+        LItems.Free;
+      end;
+    end
+    else if LCommand = 'why' then
+    begin
+      if ParamCount < 2 then
+        raise Exception.Create('usage: boss4d why <dependency>');
+      LItems := WhyDependency(GetCurrentDir, ParamStr(2));
+      try
+        if LItems.Count = 0 then
+          raise Exception.Create('dependency not found: ' + ParamStr(2));
+        for I := 0 to LItems.Count - 1 do WriteLn(LItems[I]);
+      finally
+        LItems.Free;
+      end;
+    end
+    else if LCommand = 'run' then
+    begin
+      if ParamCount < 2 then
+        raise Exception.Create('usage: boss4d run <script>');
+      RunProjectScript(GetCurrentDir, ParamStr(2));
+    end
+    else if LCommand = 'outdated' then
+    begin
+      LItems := OutdatedDependencies(GetCurrentDir);
+      try
+        if LItems.Count = 0 then WriteLn('all dependencies are current')
+        else for I := 0 to LItems.Count - 1 do WriteLn(LItems[I]);
+      finally
+        LItems.Free;
+      end;
+    end
+    else if LCommand = 'update' then
+    begin
+      UpdateProject(GetCurrentDir);
+      WriteLn('dependencies updated');
     end
     else if (LCommand = 'search') or (LCommand = 'info') then
     begin
@@ -547,7 +592,7 @@ begin
       else
         raise Exception.Create('usage: boss4d cache size|clean|prune');
     end
-    else if LCommand = 'self-update' then
+    else if (LCommand = 'self-update') or (LCommand = 'upgrade') then
     begin
       LUpdateService := TBoss4DPosixUpdateService.Create;
       try

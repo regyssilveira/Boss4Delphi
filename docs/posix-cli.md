@@ -24,6 +24,11 @@ The portable host currently supports:
 - Registry v1/v2 `search` and `info`, including composed indexes;
 - persistent `registry add|remove|list` sources in the shared `boss.cfg.json`;
 - HTTP registry cache with `--offline` and automatic cached fallback.
+- immutable `.b4dpkg` installation, verified mirrors, OpenPGP and provenance;
+- CycloneDX/SPDX SBOM, VEX and OSV audit;
+- secure credentials, cache management, workspaces and global FPC tools;
+- `dependencies`/`tree`, `why`, `outdated`, transactional `update`, and `run`;
+- verified self-update, deterministic packaging and secure publication.
 
 ```console
 boss4d registry add https://packages.example/index-v2.json
@@ -32,6 +37,11 @@ boss4d search horse
 boss4d info Horse
 boss4d search horse --offline
 boss4d search horse --registry=./registry/index-v2.json
+boss4d dependencies
+boss4d why horse
+boss4d outdated
+boss4d update
+boss4d run test
 ```
 
 The original dependency map remains unchanged:
@@ -56,6 +66,7 @@ semantic-version selection. Registry tests cover v1/v2 composition, cycle
 prevention, source persistence, config compatibility, offline cache, and
 network-failure fallback.
 
-The Windows CLI remains the host for IDE/GetIt integration, verified
-`.b4dpkg` installation, SBOM/audit, OpenPGP, toolchain collection, and
-self-update. Windows Registry behavior is not emulated on POSIX.
+The Windows CLI remains the host for RAD Studio IDE/GetIt integration and
+Windows toolchain collection. Windows Registry behavior is not emulated on
+POSIX; dependency, Registry, compliance, publishing, update, and global-tool
+workflows are native on Linux.
