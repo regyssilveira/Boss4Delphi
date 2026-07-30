@@ -4,7 +4,7 @@ Implementadores do protocolo podem validar artefatos públicos com as mesmas
 regras usadas pelo Boss4D:
 
 ```text
-boss4d conformance registry registry/index-v1.json
+boss4d conformance registry registry/index-v2.json
 boss4d conformance package dist/biblioteca.b4dpkg
 ```
 
