@@ -26,17 +26,18 @@ comando é o alvo da portabilidade.
 O host nativo FPC 3.2.2 para Linux x86-64 é compilado e testado em Docker. Ele
 oferece inicialização do manifesto, `add`, `remove`, `list`, instalação Git,
 lock schema v3, escopos runtime/desenvolvimento, modo de produção, instalações
-frozen e offline, modo CI e seleção SemVer highest/minimal. O mapa legado
+frozen e offline, modo CI, seleção SemVer highest/minimal, descoberta em
+Registry v1/v2, fontes persistentes e cache offline do Registry. O mapa legado
 string/string de dependências no `boss.json` possui cobertura FPCUnit.
 
-O host Windows ainda é necessário para descoberta no Registry v2, instalação
-verificada de `.b4dpkg`, comandos SBOM/audit, OpenPGP, armazenamento de
+O host Windows ainda é necessário para instalação verificada de `.b4dpkg`,
+comandos SBOM/audit, OpenPGP, armazenamento de
 credenciais, integração RAD Studio/GetIt, GUI, plugins da IDE e autoatualização.
 Esses limites são explícitos e não são simulados silenciosamente.
 
 ## Próximas etapas de portabilidade
 
-1. Compartilhar com o host FPC o leitor do Registry v2 e de pacotes verificados.
+1. Compartilhar com o host FPC o leitor de pacotes verificados.
 2. Portar geração SBOM lock-only, auditoria OSV e progresso estruturado.
 3. Adicionar adaptadores POSIX de credenciais, links de workspace e cache de
    artefatos.

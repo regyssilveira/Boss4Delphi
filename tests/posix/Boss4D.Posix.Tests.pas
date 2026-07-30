@@ -8,6 +8,18 @@ uses
   Classes, SysUtils, fpcunit, testregistry;
 
 type
+  TRegistryFetcherMock = class
+  private
+    FCalls: Integer;
+    FContent: string;
+    FFail: Boolean;
+  public
+    function Fetch(const ASource: string): string;
+    property Calls: Integer read FCalls;
+    property Content: string read FContent write FContent;
+    property Fail: Boolean read FFail write FFail;
+  end;
+
   TPosixCoreTests = class(TTestCase)
   published
     procedure TestPlatform;
@@ -28,18 +40,149 @@ type
     procedure TestRegistryV2IncludesLegacyV1;
     procedure TestRegistrySearchAndInfo;
     procedure TestRegistryCycleLoadsOnce;
+    procedure TestRegistryConfigurationPersistsSources;
+    procedure TestRegistryConfigurationPreservesExistingFields;
+    procedure TestRegistryOfflineUsesCache;
+    procedure TestRegistryOnlineFallsBackToCache;
   end;
 
 implementation
 
 uses
-  fpjson, Boss4D.Posix.Core, Boss4D.Posix.Registry;
+  fpjson, Boss4D.Posix.Core, Boss4D.Posix.Registry, Boss4D.Posix.Config;
+
+procedure SaveFixture(const APath, AContent: string); forward;
+
+function TRegistryFetcherMock.Fetch(const ASource: string): string;
+begin
+  Inc(FCalls);
+  if FFail then raise Exception.Create('network unavailable');
+  Result := FContent;
+end;
 
 function NewTempDirectory: string;
 begin
   Result := IncludeTrailingPathDelimiter(GetTempDir(False)) +
     'boss4d-posix-' + IntToHex(Random(MaxInt), 8);
   ForceDirectories(Result);
+end;
+
+procedure TPosixCoreTests.TestRegistryOfflineUsesCache;
+var
+  LDir: string;
+  LFetcher: TRegistryFetcherMock;
+  LService: TBoss4DRegistryService;
+  LEntries: TBoss4DRegistryEntries;
+begin
+  LDir := NewTempDirectory;
+  LFetcher := TRegistryFetcherMock.Create;
+  try
+    LFetcher.Content := '{"schemaVersion":1,"packages":[{"name":"Cached",' +
+      '"repository":"example.test/cached"}]}';
+    LService := TBoss4DRegistryService.Create(LDir, @LFetcher.Fetch);
+    try
+      LEntries := LService.Load('https://registry.example/index.json');
+      LEntries.Free;
+      LFetcher.Fail := True;
+      LEntries := LService.Load('https://registry.example/index.json', True);
+      try
+        AssertEquals('Cached', LEntries[0].Name);
+        AssertEquals(1, LFetcher.Calls);
+      finally
+        LEntries.Free;
+      end;
+    finally
+      LService.Free;
+    end;
+  finally
+    LFetcher.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestRegistryOnlineFallsBackToCache;
+var
+  LDir: string;
+  LFetcher: TRegistryFetcherMock;
+  LService: TBoss4DRegistryService;
+  LEntries: TBoss4DRegistryEntries;
+begin
+  LDir := NewTempDirectory;
+  LFetcher := TRegistryFetcherMock.Create;
+  try
+    LFetcher.Content := '{"schemaVersion":1,"packages":[{"name":"Fallback",' +
+      '"repository":"example.test/fallback"}]}';
+    LService := TBoss4DRegistryService.Create(LDir, @LFetcher.Fetch);
+    try
+      LEntries := LService.Load('https://registry.example/index.json');
+      LEntries.Free;
+      LFetcher.Fail := True;
+      LEntries := LService.Load('https://registry.example/index.json');
+      try
+        AssertEquals('Fallback', LEntries[0].Name);
+        AssertEquals(2, LFetcher.Calls);
+      finally
+        LEntries.Free;
+      end;
+    finally
+      LService.Free;
+    end;
+  finally
+    LFetcher.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestRegistryConfigurationPersistsSources;
+var
+  LDir, LPath: string;
+  LConfig: TBoss4DPosixConfig;
+  LRegistries: TStringList;
+begin
+  LDir := NewTempDirectory;
+  LPath := IncludeTrailingPathDelimiter(LDir) + 'boss.cfg.json';
+  LConfig := TBoss4DPosixConfig.Create(LPath);
+  try
+    LConfig.AddRegistry('https://packages.example/index-v2.json');
+    LConfig.AddRegistry('https://packages.example/index-v2.json');
+    LRegistries := LConfig.Registries;
+    try
+      AssertEquals(1, LRegistries.Count);
+    finally
+      LRegistries.Free;
+    end;
+    LConfig.RemoveRegistry('https://packages.example/index-v2.json');
+    LRegistries := LConfig.Registries;
+    try
+      AssertEquals(0, LRegistries.Count);
+    finally
+      LRegistries.Free;
+    end;
+  finally
+    LConfig.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestRegistryConfigurationPreservesExistingFields;
+var
+  LDir, LPath: string;
+  LConfig: TBoss4DPosixConfig;
+  LRoot: TJSONObject;
+begin
+  LDir := NewTempDirectory;
+  LPath := IncludeTrailingPathDelimiter(LDir) + 'boss.cfg.json';
+  SaveFixture(LPath, '{"gitShallow":true,"custom":"keep","registries":[]}');
+  LConfig := TBoss4DPosixConfig.Create(LPath);
+  try
+    LConfig.AddRegistry('local.json');
+  finally
+    LConfig.Free;
+  end;
+  LRoot := LoadJsonObject(LPath);
+  try
+    AssertTrue(LRoot.Get('gitShallow', False));
+    AssertEquals('keep', LRoot.Get('custom', ''));
+  finally
+    LRoot.Free;
+  end;
 end;
 
 procedure SaveFixture(const APath, AContent: string);

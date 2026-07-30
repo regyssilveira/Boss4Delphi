@@ -3,12 +3,13 @@ program boss4d;
 {$mode objfpc}{$H+}
 
 uses
-  Classes, SysUtils, Boss4D.Posix.Core, Boss4D.Posix.Registry;
+  Classes, SysUtils, Boss4D.Posix.Core, Boss4D.Posix.Registry,
+  Boss4D.Posix.Config;
 
 procedure Help;
 begin
   WriteLn('Boss4D portable CLI');
-  WriteLn('Commands: version, platform, init, install, ci, add, remove, list, search, info');
+  WriteLn('Commands: version, platform, init, install, ci, add, remove, list, search, info, registry');
   WriteLn('Install options: --locked --frozen-lockfile --offline --production');
   WriteLn('                 --resolution=highest|minimal');
   WriteLn('Add options: boss4d add <repository> [version] [--dev]');
@@ -40,8 +41,12 @@ var
   LItems: TStringList;
   LRegistry: TBoss4DRegistryService;
   LEntries, LMatches: TBoss4DRegistryEntries;
-  LEntry: TBoss4DRegistryEntry;
   LSource: string;
+  LSources, LConfigured, LSeen: TStringList;
+  LConfig: TBoss4DPosixConfig;
+  J: Integer;
+  LFound: TBoss4DRegistryEntry;
+  LFoundFlag: Boolean;
   I: Integer;
 begin
   try
@@ -101,39 +106,110 @@ begin
         raise Exception.Create('usage: boss4d ' + LCommand + ' <query>');
       LSource := OptionValue('--registry', GetEnvironmentVariable(
         'BOSS4D_REGISTRY'));
-      if LSource = '' then LSource := PublicRegistryUrl;
+      LSources := TStringList.Create;
+      LConfigured := nil;
+      LSeen := TStringList.Create;
+      if LSource <> '' then LSources.Add(LSource)
+      else
+      begin
+        LSources.Add(PublicRegistryUrl);
+        LConfig := TBoss4DPosixConfig.Create;
+        try
+          LConfigured := LConfig.Registries;
+          for I := 0 to LConfigured.Count - 1 do
+            if LSources.IndexOf(LConfigured[I]) < 0 then
+              LSources.Add(LConfigured[I]);
+        finally
+          LConfigured.Free;
+          LConfig.Free;
+        end;
+      end;
       LRegistry := TBoss4DRegistryService.Create;
       try
-        LEntries := LRegistry.Load(LSource);
-        try
-          if LCommand = 'search' then
+        if LCommand = 'search' then
+          for J := 0 to LSources.Count - 1 do
           begin
-            LMatches := LEntries.Search(ParamStr(2));
+            LEntries := LRegistry.Load(LSources[J], HasOption('--offline'));
             try
-              for I := 0 to LMatches.Count - 1 do
-                WriteLn(LMatches[I].Name + #9 + LMatches[I].Version + #9 +
-                  LMatches[I].Repository);
+              LMatches := LEntries.Search(ParamStr(2));
+              try
+                for I := 0 to LMatches.Count - 1 do
+                  if LSeen.IndexOf(LowerCase(LMatches[I].Name)) < 0 then
+                  begin
+                    LSeen.Add(LowerCase(LMatches[I].Name));
+                    WriteLn(LMatches[I].Name + #9 + LMatches[I].Version + #9 +
+                      LMatches[I].Repository);
+                  end;
+              finally
+                LMatches.Free;
+              end;
             finally
-              LMatches.Free;
+              LEntries.Free;
             end;
           end
-          else
+        else
+        begin
+          LFoundFlag := False;
+          for J := 0 to LSources.Count - 1 do
           begin
-            LEntry := LEntries.Find(ParamStr(2));
-            if not Assigned(LEntry) then
-              raise Exception.Create('package not found: ' + ParamStr(2));
-            WriteLn('name: ' + LEntry.Name);
-            WriteLn('version: ' + LEntry.Version);
-            WriteLn('repository: ' + LEntry.Repository);
-            WriteLn('license: ' + LEntry.LicenseName);
-            WriteLn('description: ' + LEntry.Description);
-            WriteLn('source: ' + LEntry.Source);
+            LEntries := LRegistry.Load(LSources[J], HasOption('--offline'));
+            try
+              LFound := LEntries.Find(ParamStr(2));
+              if Assigned(LFound) then
+              begin
+                WriteLn('name: ' + LFound.Name);
+                WriteLn('version: ' + LFound.Version);
+                WriteLn('repository: ' + LFound.Repository);
+                WriteLn('license: ' + LFound.LicenseName);
+                WriteLn('description: ' + LFound.Description);
+                WriteLn('source: ' + LFound.Source);
+                LFoundFlag := True;
+                Break;
+              end;
+            finally
+              LEntries.Free;
+            end;
           end;
-        finally
-          LEntries.Free;
+          if not LFoundFlag then
+            raise Exception.Create('package not found: ' + ParamStr(2));
         end;
       finally
         LRegistry.Free;
+        LSeen.Free;
+        LSources.Free;
+      end;
+    end
+    else if LCommand = 'registry' then
+    begin
+      if ParamCount < 2 then
+        raise Exception.Create('usage: boss4d registry add|remove|list [source]');
+      LConfig := TBoss4DPosixConfig.Create;
+      try
+        if SameText(ParamStr(2), 'add') then
+        begin
+          if ParamCount < 3 then raise Exception.Create('registry source is required');
+          LConfig.AddRegistry(ParamStr(3));
+        end
+        else if SameText(ParamStr(2), 'remove') then
+        begin
+          if ParamCount < 3 then raise Exception.Create('registry source is required');
+          LConfig.RemoveRegistry(ParamStr(3));
+        end
+        else if SameText(ParamStr(2), 'list') then
+        begin
+          LConfigured := LConfig.Registries;
+          try
+            WriteLn(PublicRegistryUrl + #9 + '[public]');
+            for I := 0 to LConfigured.Count - 1 do
+              WriteLn(LConfigured[I] + #9 + '[configured]');
+          finally
+            LConfigured.Free;
+          end;
+        end
+        else
+          raise Exception.Create('unknown registry command: ' + ParamStr(2));
+      finally
+        LConfig.Free;
       end;
     end
     else if (LCommand = 'help') or (LCommand = '--help') then

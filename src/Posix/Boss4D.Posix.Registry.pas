@@ -8,6 +8,8 @@ uses
   Classes, SysUtils, Contnrs;
 
 type
+  TBoss4DRegistryFetcher = function(const ASource: string): string of object;
+
   TBoss4DRegistryEntry = class
   public
     Name: string;
@@ -35,10 +37,17 @@ type
 
   TBoss4DRegistryService = class
   private
+    FCacheDirectory: string;
+    FFetcher: TBoss4DRegistryFetcher;
+    FOffline: Boolean;
+    function ReadSource(const ASource: string): string;
     procedure LoadInternal(const ASource: string;
       const AEntries: TBoss4DRegistryEntries; const AVisited: TStringList);
   public
-    function Load(const ASource: string): TBoss4DRegistryEntries;
+    constructor Create(const ACacheDirectory: string = '';
+      const AFetcher: TBoss4DRegistryFetcher = nil);
+    function Load(const ASource: string;
+      const AOffline: Boolean = False): TBoss4DRegistryEntries;
   end;
 
 function PublicRegistryUrl: string;
@@ -61,7 +70,7 @@ begin
     (Pos('https://', LowerCase(ASource)) = 1);
 end;
 
-function ReadSource(const ASource: string): string;
+function NativeReadSource(const ASource: string): string;
 var
   LStream: TStringStream;
   LClient: TFPHTTPClient;
@@ -82,6 +91,70 @@ begin
     Result := LClient.Get(ASource);
   finally
     LClient.Free;
+  end;
+end;
+
+function RegistryCacheName(const ASource: string): string;
+var
+  I: Integer;
+  LHash: QWord;
+begin
+  LHash := QWord($CBF29CE484222325);
+  for I := 1 to Length(ASource) do
+  begin
+    LHash := LHash xor Ord(ASource[I]);
+    LHash := LHash * QWord($100000001B3);
+  end;
+  Result := LowerCase(IntToHex(LHash, 16)) + '.json';
+end;
+
+constructor TBoss4DRegistryService.Create(const ACacheDirectory: string;
+  const AFetcher: TBoss4DRegistryFetcher);
+var
+  LHome: string;
+begin
+  inherited Create;
+  FFetcher := AFetcher;
+  if ACacheDirectory <> '' then
+    FCacheDirectory := ExpandFileName(ACacheDirectory)
+  else
+  begin
+    LHome := GetEnvironmentVariable('BOSS_HOME');
+    if LHome = '' then
+      LHome := IncludeTrailingPathDelimiter(GetEnvironmentVariable('HOME')) +
+        '.boss';
+    FCacheDirectory := IncludeTrailingPathDelimiter(LHome) + 'registry-cache';
+  end;
+end;
+
+function TBoss4DRegistryService.ReadSource(const ASource: string): string;
+var
+  LCachePath: string;
+  LContent: TStringList;
+begin
+  if not IsHttp(ASource) then Exit(NativeReadSource(ASource));
+  LCachePath := IncludeTrailingPathDelimiter(FCacheDirectory) +
+    RegistryCacheName(ASource);
+  if FOffline then
+  begin
+    if not FileExists(LCachePath) then
+      raise Exception.Create('offline registry cache miss: ' + ASource);
+    Exit(NativeReadSource(LCachePath));
+  end;
+  try
+    if Assigned(FFetcher) then Result := FFetcher(ASource)
+    else Result := NativeReadSource(ASource);
+    ForceDirectories(FCacheDirectory);
+    LContent := TStringList.Create;
+    try
+      LContent.Text := Result;
+      LContent.SaveToFile(LCachePath);
+    finally
+      LContent.Free;
+    end;
+  except
+    if FileExists(LCachePath) then Result := NativeReadSource(LCachePath)
+    else raise;
   end;
 end;
 
@@ -233,11 +306,12 @@ begin
   end;
 end;
 
-function TBoss4DRegistryService.Load(
-  const ASource: string): TBoss4DRegistryEntries;
+function TBoss4DRegistryService.Load(const ASource: string;
+  const AOffline: Boolean): TBoss4DRegistryEntries;
 var
   LVisited: TStringList;
 begin
+  FOffline := AOffline;
   Result := TBoss4DRegistryEntries.Create;
   LVisited := TStringList.Create;
   try
