@@ -25,9 +25,10 @@ type
     FDownloader: TBoss4DUpdateDownloader;
     FExtractor: TBoss4DUpdateExtractor;
   public
-    constructor Create(const AFetcher: TBoss4DUpdateFetcher = nil;
-      const ADownloader: TBoss4DUpdateDownloader = nil;
-      const AExtractor: TBoss4DUpdateExtractor = nil);
+    constructor Create; overload;
+    constructor Create(const AFetcher: TBoss4DUpdateFetcher;
+      const ADownloader: TBoss4DUpdateDownloader;
+      const AExtractor: TBoss4DUpdateExtractor); overload;
     function Execute(const ACurrentVersion,
       AExecutablePath: string): TBoss4DUpdateResult;
   end;
@@ -39,6 +40,11 @@ implementation
 uses
   fpjson, jsonparser, fphttpclient, opensslsockets, process, BaseUnix,
   Boss4D.Posix.Package, Boss4D.Posix.Core;
+
+constructor TBoss4DPosixUpdateService.Create;
+begin
+  Create(nil, nil, nil);
+end;
 
 function VersionPart(const AVersion: string; const AIndex: Integer): Integer;
 var
