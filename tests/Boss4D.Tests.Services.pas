@@ -66,6 +66,9 @@ type
     procedure TestPackageIndexRegistrySearchAndInfo;
 
     [Test]
+    procedure TestGitHubDependencySubmission;
+
+    [Test]
     procedure TestCLICommandLineParser;
 
     [Test]
@@ -178,6 +181,7 @@ uses
   Boss4D.Core.Services.Dependencies,
   Boss4D.Core.Services.Audit,
   Boss4D.Core.Services.PackageIndex,
+  Boss4D.Core.Services.DependencySubmission,
   Boss4D.Core.Services.PackageManifest, Boss4D.IDE.Wizard;
 
 { TTestLogger }
@@ -945,6 +949,53 @@ begin
   finally
     LService.Free;
     LConfig.Free;
+  end;
+end;
+
+procedure TTestsServices.TestGitHubDependencySubmission;
+var
+  LLockRepo: IBoss4DLockRepository;
+  LLock: TBoss4DLock;
+  LRootDep, LChildDep: TBoss4DDependency;
+  LLocked: TBoss4DLockedDependency;
+  LHttp: THttpClientMock;
+  LService: TBoss4DDependencySubmissionService;
+  LPayload, LLockPath: string;
+begin
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LLock := TBoss4DLock.Create;
+  LRootDep := TBoss4DDependency.Create('github.com/example/root', '1.0.0');
+  LChildDep := TBoss4DDependency.Create('github.com/example/child', '2.0.0');
+  LLockPath := TPath.Combine(FTempDir, FILE_PACKAGE_LOCK);
+  try
+    LLock.RootDependencies.Add(LRootDep.GetKey);
+    LLock.AddDependency(LRootDep, '1.0.0', 'root');
+    LLock.AddDependency(LChildDep, '2.0.0', 'child');
+    Assert.IsTrue(LLock.GetInstalled(LRootDep, LLocked));
+    LLocked.Dependencies.Add(LChildDep.GetKey);
+    LLockRepo.Save(LLock, LLockPath);
+
+    LHttp := THttpClientMock.Create;
+    LHttp.AddResponse(
+      'https://api.github.com/repos/example/project/dependency-graph/snapshots',
+      '{"id":1}', 201);
+    LService := TBoss4DDependencySubmissionService.Create(LLockRepo, LHttp);
+    try
+      LPayload := LService.BuildPayload(LLock,
+        StringOfChar('a', 40), 'refs/heads/main', 'unit-test');
+      Assert.IsTrue(LPayload.Contains('"version":0'));
+      Assert.IsTrue(LPayload.Contains('"relationship":"direct"'));
+      Assert.IsTrue(LPayload.Contains('"relationship":"indirect"'));
+      Assert.IsTrue(LPayload.Contains('"scope":"runtime"'));
+      LService.Submit(LLockPath, 'example/project', StringOfChar('a', 40),
+        'refs/heads/main', 'secret-token', 'unit-test');
+    finally
+      LService.Free;
+    end;
+  finally
+    LChildDep.Free;
+    LRootDep.Free;
+    LLock.Free;
   end;
 end;
 

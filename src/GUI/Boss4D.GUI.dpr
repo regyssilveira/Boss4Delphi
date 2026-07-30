@@ -26,6 +26,7 @@ uses
   Boss4D.Core.Services.Dependencies in '..\Core\Services\Boss4D.Core.Services.Dependencies.pas',
   Boss4D.Core.Services.Audit in '..\Core\Services\Boss4D.Core.Services.Audit.pas',
   Boss4D.Core.Services.PackageIndex in '..\Core\Services\Boss4D.Core.Services.PackageIndex.pas',
+  Boss4D.Core.Services.DependencySubmission in '..\Core\Services\Boss4D.Core.Services.DependencySubmission.pas',
   Boss4D.Core.Services.Cache in '..\Core\Services\Boss4D.Core.Services.Cache.pas',
   Boss4D.Core.Services.Run in '..\Core\Services\Boss4D.Core.Services.Run.pas',
   Boss4D.Core.Services.Doctor in '..\Core\Services\Boss4D.Core.Services.Doctor.pas',

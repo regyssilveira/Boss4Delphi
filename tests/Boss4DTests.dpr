@@ -41,6 +41,7 @@ uses
   Boss4D.Core.Services.Dependencies in '..\src\Core\Services\Boss4D.Core.Services.Dependencies.pas',
   Boss4D.Core.Services.Audit in '..\src\Core\Services\Boss4D.Core.Services.Audit.pas',
   Boss4D.Core.Services.PackageIndex in '..\src\Core\Services\Boss4D.Core.Services.PackageIndex.pas',
+  Boss4D.Core.Services.DependencySubmission in '..\src\Core\Services\Boss4D.Core.Services.DependencySubmission.pas',
   Boss4D.Core.Services.Cache in '..\src\Core\Services\Boss4D.Core.Services.Cache.pas',
   Boss4D.Core.Services.Run in '..\src\Core\Services\Boss4D.Core.Services.Run.pas',
   Boss4D.Core.Services.Doctor in '..\src\Core\Services\Boss4D.Core.Services.Doctor.pas',

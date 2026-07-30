@@ -169,6 +169,10 @@ This document details the future planning, new features (backlog), and architect
 ## 🔒 Epic 16: Security and Vulnerability Audit
 *Objective: Protect the Delphi development environment against compromised packages or known security vulnerabilities.*
 
+- [x] **[Story] GitHub Dependency Graph Submission**
+  - Submit the lock v3 graph, dependency scopes, and transitive edges through
+    GitHub's Dependency Submission API.
+
 - [x] **[Story] Audit Command (`boss4d audit`)**
   - Compare dependencies and their versions against a vulnerability database to report active security flaws.
 - [x] **[Story] Digital Signature and Tag Verification**

@@ -19,6 +19,8 @@
   allowed signer enforcement before checkout.
 - Configurable local/HTTP package indexes with `registry`, `search`, and `info`,
   shared by the CLI, standalone GUI catalog, and RAD Studio integration.
+- GitHub Dependency Submission snapshots generated from lock v3 with direct and
+  transitive relationships plus runtime/development scopes.
 
 ## 1.3.0 - 2026-07-29
 

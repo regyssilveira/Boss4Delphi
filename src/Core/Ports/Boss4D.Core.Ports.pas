@@ -91,6 +91,8 @@ type
     function Get(const AURL: string; out AResponse: string): Integer;
     function PostJson(const AURL, ABody: string;
       out AResponse: string): Integer;
+    function PostJsonAuthorized(const AURL, ABody, ABearerToken: string;
+      out AResponse: string): Integer;
   end;
 
   { Contrato para compilacao de dependencias Delphi e search paths }

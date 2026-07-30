@@ -53,6 +53,8 @@ type
     function Get(const AURL: string; out AResponse: string): Integer;
     function PostJson(const AURL, ABody: string;
       out AResponse: string): Integer;
+    function PostJsonAuthorized(const AURL, ABody, ABearerToken: string;
+      out AResponse: string): Integer;
     procedure AddResponse(const AURL, AResponse: string;
       const AStatusCode: Integer = 200);
   end;
@@ -251,6 +253,12 @@ end;
 
 function THttpClientMock.PostJson(const AURL, ABody: string;
   out AResponse: string): Integer;
+begin
+  Result := Get(AURL, AResponse);
+end;
+
+function THttpClientMock.PostJsonAuthorized(const AURL, ABody,
+  ABearerToken: string; out AResponse: string): Integer;
 begin
   Result := Get(AURL, AResponse);
 end;

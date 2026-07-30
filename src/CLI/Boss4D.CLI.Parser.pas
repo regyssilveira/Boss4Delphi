@@ -50,6 +50,7 @@ type
     procedure HandleRegistry(const AArgs: TArray<string>);
     procedure HandleSearch(const AArgs: TArray<string>);
     procedure HandleInfo(const AArgs: TArray<string>);
+    procedure HandleDependency(const AArgs: TArray<string>);
     procedure HandleConfig(const AArgs: TArray<string>);
     procedure HandleCache(const AArgs: TArray<string>);
     procedure HandleRun(const AArgs: TArray<string>);
@@ -99,7 +100,8 @@ uses
   Boss4D.Core.Domain.Consts,
   Boss4D.Core.Services.Dependencies,
   Boss4D.Core.Services.Audit,
-  Boss4D.Core.Services.PackageIndex;
+  Boss4D.Core.Services.PackageIndex,
+  Boss4D.Core.Services.DependencySubmission;
 
 { TBoss4DCommandLineParser }
 
@@ -145,6 +147,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  registry add|remove|list Gerencia indices publicos e privados.');
   FLogger.Log(TBoss4DLogLevel.Info, '  search <termo>       Pesquisa pacotes nos indices configurados.');
   FLogger.Log(TBoss4DLogLevel.Info, '  info <pacote>        Exibe metadados de um pacote indexado.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  dependency submit    Envia snapshot ao GitHub Dependency Graph.');
   FLogger.Log(TBoss4DLogLevel.Info, '  ci [--offline]       Reinstala limpo usando o lock sem altera-lo.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config delphi use <caminho>  Configura o caminho global do compilador Delphi.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config git shallow <true/false> Configura uso de shallow clones globais.');
@@ -210,6 +213,8 @@ begin
     HandleSearch(AArgs)
   else if LCommand = 'info' then
     HandleInfo(AArgs)
+  else if LCommand = 'dependency' then
+    HandleDependency(AArgs)
   else if LCommand = 'config' then
     HandleConfig(AArgs)
   else if LCommand = 'cache' then
@@ -503,6 +508,48 @@ begin
     finally
       LEntry.Free;
     end;
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleDependency(
+  const AArgs: TArray<string>);
+var
+  LRepository, LSha, LRef, LTokenEnv, LJobId: string;
+  LLockRepo: IBoss4DLockRepository;
+  LHttp: IBoss4DHttpClient;
+  LService: TBoss4DDependencySubmissionService;
+  I: Integer;
+begin
+  if (Length(AArgs) < 2) or not SameText(AArgs[1], 'submit') then
+    raise EArgumentException.Create(
+      'Uso: boss4d dependency submit --repo owner/name --sha commit --ref refs/heads/main');
+  LTokenEnv := 'GITHUB_TOKEN';
+  LJobId := FormatDateTime('yyyymmddhhnnss', Now);
+  I := 2;
+  while I < Length(AArgs) do
+  begin
+    if (I + 1 >= Length(AArgs)) or not AArgs[I].StartsWith('--') then
+      raise EArgumentException.Create('Opcao invalida para dependency submit.');
+    if SameText(AArgs[I], '--repo') then LRepository := AArgs[I + 1]
+    else if SameText(AArgs[I], '--sha') then LSha := AArgs[I + 1]
+    else if SameText(AArgs[I], '--ref') then LRef := AArgs[I + 1]
+    else if SameText(AArgs[I], '--token-env') then LTokenEnv := AArgs[I + 1]
+    else if SameText(AArgs[I], '--job-id') then LJobId := AArgs[I + 1]
+    else raise EArgumentException.Create('Opcao desconhecida: ' + AArgs[I]);
+    Inc(I, 2);
+  end;
+  if LRepository.IsEmpty or LSha.IsEmpty or LRef.IsEmpty then
+    raise EArgumentException.Create('--repo, --sha e --ref sao obrigatorios.');
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LHttp := TBoss4DHttpNativeAdapter.Create;
+  LService := TBoss4DDependencySubmissionService.Create(LLockRepo, LHttp);
+  try
+    LService.Submit(TPath.Combine(GetCurrentDir, FILE_PACKAGE_LOCK),
+      LRepository, LSha, LRef, GetEnvironmentVariable(LTokenEnv), LJobId);
+    FLogger.Log(TBoss4DLogLevel.Info,
+      'Snapshot enviado ao GitHub Dependency Graph.');
   finally
     LService.Free;
   end;
