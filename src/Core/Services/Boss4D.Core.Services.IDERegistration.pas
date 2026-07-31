@@ -6,7 +6,8 @@ uses
   System.SysUtils,
   System.Generics.Collections,
   Winapi.Windows,
-  Boss4D.Core.Services.IDEOperationLock;
+  Boss4D.Core.Services.IDEOperationLock,
+  Boss4D.Core.Services.IDEProcessPolicy;
 
 type
   EBoss4DIDERegistrationError = class(Exception);
@@ -41,7 +42,7 @@ type
   end;
 
   TBoss4DIDEConflictPolicy = (Fail, Warn, Adopt, Replace);
-  TBoss4DIDEPlanDisposition = (Ready, Blocked, Adopted);
+  TBoss4DIDEPlanDisposition = (Ready, Blocked, Adopted, Deferred);
   TBoss4DIDERegistryChangeKind = (WriteValue, DeleteValue);
 
   TBoss4DIDERegistryChange = class
@@ -112,6 +113,7 @@ type
     FHelpFiles: TList<string>;
     FRegistryValues: TObjectList<TBoss4DIDEManagedRegistryValue>;
     FConflictPolicy: TBoss4DIDEConflictPolicy;
+    FIDEOpenPolicy: TBoss4DIDEOpenPolicy;
     FDisplacedRegistryValues:
       TObjectList<TBoss4DIDEManagedRegistryValue>;
   public
@@ -138,6 +140,8 @@ type
       read FRegistryValues;
     property ConflictPolicy: TBoss4DIDEConflictPolicy read FConflictPolicy
       write FConflictPolicy;
+    property IDEOpenPolicy: TBoss4DIDEOpenPolicy read FIDEOpenPolicy
+      write FIDEOpenPolicy;
     property DisplacedRegistryValues:
       TObjectList<TBoss4DIDEManagedRegistryValue>
       read FDisplacedRegistryValues;
@@ -151,6 +155,8 @@ type
     FOperationLock: IBoss4DIDEOperationLock;
     FProfileName: string;
     FLockTimeoutMilliseconds: Cardinal;
+    FProcessProbe: IBoss4DIDEProcessProbe;
+    FIDEExecutableName: string;
     function LibraryKey(const ARegistration: TBoss4DIDERegistration): string;
     function PackageKey(const ARegistration: TBoss4DIDERegistration): string;
     function IDEPackageKey(
@@ -170,7 +176,9 @@ type
       const AArtifactRepairHandler: TBoss4DIDEArtifactRepairHandler = nil;
       const AOperationLock: IBoss4DIDEOperationLock = nil;
       const AProfileName: string = 'default';
-      const ALockTimeoutMilliseconds: Cardinal = 30000);
+      const ALockTimeoutMilliseconds: Cardinal = 30000;
+      const AProcessProbe: IBoss4DIDEProcessProbe = nil;
+      const AIDEExecutableName: string = 'bds.exe');
     procedure RegisterTarget(const ARegistration: TBoss4DIDERegistration);
     function DetectConflicts(
       const ARegistration: TBoss4DIDERegistration):
@@ -290,14 +298,14 @@ end;
 
 function TBoss4DIDERegistrationPlan.IsNoOp: Boolean;
 begin
-  Result := (FDisposition <> TBoss4DIDEPlanDisposition.Blocked) and
-    (FDisposition <> TBoss4DIDEPlanDisposition.Adopted) and
+  Result := (FDisposition = TBoss4DIDEPlanDisposition.Ready) and
     not FInventoryChangeRequired and (FChanges.Count = 0);
 end;
 
 constructor TBoss4DIDERegistration.Create;
 begin
   inherited Create;
+  FIDEOpenPolicy := TBoss4DIDEOpenPolicy.Force;
   FArtifacts := TList<string>.Create;
   FHelpFiles := TList<string>.Create;
   FRegistryValues := TObjectList<TBoss4DIDEManagedRegistryValue>.Create(True);
@@ -359,6 +367,7 @@ begin
   for var LValue in FRegistryValues do
     Result.RegistryValues.Add(LValue.Clone);
   Result.ConflictPolicy := FConflictPolicy;
+  Result.IDEOpenPolicy := FIDEOpenPolicy;
   for var LValue in FDisplacedRegistryValues do
     Result.DisplacedRegistryValues.Add(LValue.Clone);
 end;
@@ -534,7 +543,7 @@ var
         end;
         Exit;
       end;
-    if LCurrent <> AValue then
+    if not LExists or (LCurrent <> AValue) then
       LPlan.Changes.Add(TBoss4DIDERegistryChange.Create(
         TBoss4DIDERegistryChangeKind.WriteValue, AKey, AName,
         LCurrent, AValue));
@@ -564,6 +573,10 @@ begin
   LPlan := Result;
   try
     Result.Identity := ARegistration.Identity;
+    if TBoss4DIDEProcessPolicy.Evaluate(FProcessProbe,
+      FIDEExecutableName, ARegistration.IDEOpenPolicy) =
+      TBoss4DIDEOpenDecision.Deferred then
+      Result.Disposition := TBoss4DIDEPlanDisposition.Deferred;
     Result.InventoryChangeRequired := True;
     var LInventory := LoadInventory;
     try
@@ -625,7 +638,9 @@ constructor TBoss4DIDERegistrationService.Create(
   const AArtifactRepairHandler: TBoss4DIDEArtifactRepairHandler;
   const AOperationLock: IBoss4DIDEOperationLock;
   const AProfileName: string;
-  const ALockTimeoutMilliseconds: Cardinal);
+  const ALockTimeoutMilliseconds: Cardinal;
+  const AProcessProbe: IBoss4DIDEProcessProbe;
+  const AIDEExecutableName: string);
 begin
   inherited Create;
   if not Assigned(AStore) then
@@ -643,6 +658,13 @@ begin
       TPath.Combine(TPath.GetDirectoryName(FInventoryPath), '.ide-locks'));
   FProfileName := AProfileName.Trim;
   FLockTimeoutMilliseconds := ALockTimeoutMilliseconds;
+  FProcessProbe := AProcessProbe;
+  if not Assigned(FProcessProbe) then
+    FProcessProbe := TBoss4DWindowsIDEProcessProbe.Create;
+  FIDEExecutableName := AIDEExecutableName.Trim;
+  if FIDEExecutableName.IsEmpty then
+    raise EArgumentException.Create(
+      'IDE executable name nao pode ser vazio.');
 end;
 
 function TBoss4DIDERegistrationService.LibraryKey(
@@ -1044,6 +1066,8 @@ begin
           [TPath.GetFileName(ARegistration.BplPath),
            LPlan.Conflicts[0].ExistingPath]);
     if LPlan.Disposition = TBoss4DIDEPlanDisposition.Adopted then
+      Exit;
+    if LPlan.Disposition = TBoss4DIDEPlanDisposition.Deferred then
       Exit;
     if LPlan.IsNoOp then
       Exit;
