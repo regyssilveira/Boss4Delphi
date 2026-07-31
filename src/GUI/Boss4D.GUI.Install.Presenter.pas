@@ -3,9 +3,18 @@ unit Boss4D.GUI.Install.Presenter;
 interface
 
 uses
-  Boss4D.Core.Ports;
+  System.SysUtils;
 
 type
+  TBoss4DGUICancellationProbe = reference to function: Boolean;
+
+  IBoss4DGUICancellableProcessRunner = interface
+    ['{9D198061-DAB1-4A22-A43D-09178F88FA8E}']
+    function Execute(const ACommandLine, AWorkingDirectory: string;
+      const ACancellation: TBoss4DGUICancellationProbe;
+      out AOutput: string; out ACancelled: Boolean): Boolean;
+  end;
+
   TBoss4DGUIInstallRequest = record
     PackageName: string;
     Version: string;
@@ -27,17 +36,16 @@ type
 
   TBoss4DGUIInstallExecutor = class
   private
-    FRunner: IBoss4DProcessRunner;
+    FRunner: IBoss4DGUICancellableProcessRunner;
   public
-    constructor Create(const ARunner: IBoss4DProcessRunner);
+    constructor Create(const ARunner: IBoss4DGUICancellableProcessRunner);
     function Execute(const AExecutable, AWorkingDirectory: string;
-      const ARequest: TBoss4DGUIInstallRequest): string;
+      const ARequest: TBoss4DGUIInstallRequest;
+      const ACancellation: TBoss4DGUICancellationProbe;
+      out ACancelled: Boolean): string;
   end;
 
 implementation
-
-uses
-  System.SysUtils;
 
 class function TBoss4DGUIInstallPresenter.Quote(
   const AValue: string): string;
@@ -77,7 +85,7 @@ begin
 end;
 
 constructor TBoss4DGUIInstallExecutor.Create(
-  const ARunner: IBoss4DProcessRunner);
+  const ARunner: IBoss4DGUICancellableProcessRunner);
 begin
   inherited Create;
   if not Assigned(ARunner) then
@@ -87,7 +95,9 @@ end;
 
 function TBoss4DGUIInstallExecutor.Execute(const AExecutable,
   AWorkingDirectory: string;
-  const ARequest: TBoss4DGUIInstallRequest): string;
+  const ARequest: TBoss4DGUIInstallRequest;
+  const ACancellation: TBoss4DGUICancellationProbe;
+  out ACancelled: Boolean): string;
 var
   LCommand: string;
 begin
@@ -95,7 +105,8 @@ begin
     raise EArgumentException.Create('Executavel Boss4D nao encontrado.');
   LCommand := '"' + AExecutable + '" ' +
     TBoss4DGUIInstallPresenter.BuildArguments(ARequest);
-  if not FRunner.Execute(LCommand, AWorkingDirectory, Result) then
+  if not FRunner.Execute(LCommand, AWorkingDirectory, ACancellation, Result,
+    ACancelled) and not ACancelled then
     raise Exception.Create('A instalacao falhou.' + sLineBreak + Result);
 end;
 

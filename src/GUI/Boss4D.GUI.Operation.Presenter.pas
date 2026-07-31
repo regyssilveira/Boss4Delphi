@@ -3,7 +3,8 @@ unit Boss4D.GUI.Operation.Presenter;
 interface
 
 type
-  TBoss4DGUIOperationState = (Idle, Running, Succeeded, Failed, Cancelled);
+  TBoss4DGUIOperationState = (GUIIdle, GUIRunning, GUISucceeded, GUIFailed,
+    GUICancelled);
 
   TBoss4DGUIOperationPresenter = class
   private
@@ -35,54 +36,54 @@ uses
 constructor TBoss4DGUIOperationPresenter.Create;
 begin
   inherited Create;
-  FState := Idle;
+  FState := GUIIdle;
 end;
 
 procedure TBoss4DGUIOperationPresenter.Start(const ATick: UInt64);
 begin
-  if FState = Running then
+  if FState = GUIRunning then
     raise EInvalidOpException.Create('Ja existe uma operacao em andamento.');
   Inc(FAttempt);
   FStartedAt := ATick;
   FFinishedAt := 0;
   FErrorMessage := '';
-  FState := Running;
+  FState := GUIRunning;
 end;
 
 procedure TBoss4DGUIOperationPresenter.Complete(const ATick: UInt64);
 begin
-  if FState <> Running then
+  if FState <> GUIRunning then
     raise EInvalidOpException.Create('A operacao nao esta em andamento.');
   FFinishedAt := ATick;
-  FState := Succeeded;
+  FState := GUISucceeded;
 end;
 
 procedure TBoss4DGUIOperationPresenter.Fail(const AMessage: string;
   const ATick: UInt64);
 begin
-  if FState <> Running then
+  if FState <> GUIRunning then
     raise EInvalidOpException.Create('A operacao nao esta em andamento.');
   FFinishedAt := ATick;
   FErrorMessage := AMessage;
-  FState := Failed;
+  FState := GUIFailed;
 end;
 
 procedure TBoss4DGUIOperationPresenter.Cancel(const ATick: UInt64);
 begin
-  if FState <> Running then
+  if FState <> GUIRunning then
     raise EInvalidOpException.Create('A operacao nao esta em andamento.');
   FFinishedAt := ATick;
-  FState := Cancelled;
+  FState := GUICancelled;
 end;
 
 function TBoss4DGUIOperationPresenter.CanCancel: Boolean;
 begin
-  Result := FState = Running;
+  Result := FState = GUIRunning;
 end;
 
 function TBoss4DGUIOperationPresenter.CanRetry: Boolean;
 begin
-  Result := FState in [Failed, Cancelled];
+  Result := FState in [GUIFailed, GUICancelled];
 end;
 
 function TBoss4DGUIOperationPresenter.ElapsedMilliseconds(
@@ -90,9 +91,9 @@ function TBoss4DGUIOperationPresenter.ElapsedMilliseconds(
 var
   LEnd: UInt64;
 begin
-  if FState = Idle then
+  if FState = GUIIdle then
     Exit(0);
-  if FState = Running then
+  if FState = GUIRunning then
     LEnd := ATick
   else
     LEnd := FFinishedAt;

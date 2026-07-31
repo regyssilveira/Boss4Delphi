@@ -29,7 +29,7 @@ begin
     Assert.IsTrue(LPresenter.CanCancel);
     Assert.AreEqual('0:02', LPresenter.ElapsedText(3500));
     LPresenter.Complete(62000);
-    Assert.AreEqual(Succeeded, LPresenter.State);
+    Assert.AreEqual(GUISucceeded, LPresenter.State);
     Assert.AreEqual('1:01', LPresenter.ElapsedText(90000));
   finally
     LPresenter.Free;
@@ -46,7 +46,7 @@ begin
     Assert.AreEqual('network', LPresenter.ErrorMessage);
     LPresenter.Start(30);
     Assert.AreEqual<Integer>(2, LPresenter.Attempt);
-    Assert.AreEqual(Running, LPresenter.State);
+    Assert.AreEqual(GUIRunning, LPresenter.State);
   finally
     LPresenter.Free;
   end;
@@ -58,7 +58,7 @@ begin
   try
     LPresenter.Start(10);
     LPresenter.Cancel(20);
-    Assert.AreEqual(Cancelled, LPresenter.State);
+    Assert.AreEqual(GUICancelled, LPresenter.State);
     Assert.IsTrue(LPresenter.CanRetry);
   finally
     LPresenter.Free;

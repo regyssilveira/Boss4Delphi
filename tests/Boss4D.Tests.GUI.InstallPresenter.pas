@@ -14,31 +14,36 @@ type
     [Test] procedure RejectsIncompleteSelection;
     [Test] procedure ExecutorRunsEquivalentCommandInProject;
     [Test] procedure ExecutorReportsCommandFailure;
+    [Test] procedure ExecutorReturnsCancellationWithoutFailure;
   end;
 
 implementation
 
 uses
   System.SysUtils,
-  Boss4D.Core.Ports,
   Boss4D.GUI.Install.Presenter;
 
 type
-  TProcessRunnerMock = class(TInterfacedObject, IBoss4DProcessRunner)
+  TProcessRunnerMock = class(TInterfacedObject,
+    IBoss4DGUICancellableProcessRunner)
   public
     ShouldSucceed: Boolean;
+    ShouldCancel: Boolean;
     CommandLine: string;
     WorkingDirectory: string;
     function Execute(const ACommandLine, AWorkingDirectory: string;
-      out AOutput: string): Boolean;
+      const ACancellation: TBoss4DGUICancellationProbe;
+      out AOutput: string; out ACancelled: Boolean): Boolean;
   end;
 
 function TProcessRunnerMock.Execute(const ACommandLine,
-  AWorkingDirectory: string; out AOutput: string): Boolean;
+  AWorkingDirectory: string; const ACancellation: TBoss4DGUICancellationProbe;
+  out AOutput: string; out ACancelled: Boolean): Boolean;
 begin
   CommandLine := ACommandLine;
   WorkingDirectory := AWorkingDirectory;
   AOutput := 'output';
+  ACancelled := ShouldCancel;
   Result := ShouldSucceed;
 end;
 
@@ -84,6 +89,8 @@ begin
 end;
 
 procedure TBoss4DGUIInstallPresenterTests.ExecutorRunsEquivalentCommandInProject;
+var
+  LCancelled: Boolean;
 begin
   var LMock := TProcessRunnerMock.Create;
   LMock.ShouldSucceed := True;
@@ -91,7 +98,8 @@ begin
   try
     Assert.AreEqual('output',
       LExecutor.Execute('C:\Boss4D\boss4d.exe', 'C:\Project',
-        CompleteRequest));
+        CompleteRequest, nil, LCancelled));
+    Assert.IsFalse(LCancelled);
     Assert.AreEqual(
       '"C:\Boss4D\boss4d.exe" package install "Horse@3.2.1" ' +
       '--compiler "d13" --platform "Win64"', LMock.CommandLine);
@@ -105,6 +113,7 @@ procedure TBoss4DGUIInstallPresenterTests.ExecutorReportsCommandFailure;
 var
   LMock: TProcessRunnerMock;
   LExecutor: TBoss4DGUIInstallExecutor;
+  LCancelled: Boolean;
 begin
   LMock := TProcessRunnerMock.Create;
   LMock.ShouldSucceed := False;
@@ -113,9 +122,29 @@ begin
     Assert.WillRaise(
       procedure
       begin
-        LExecutor.Execute('boss4d.exe', 'C:\Project', CompleteRequest);
+        LExecutor.Execute('boss4d.exe', 'C:\Project', CompleteRequest,
+          nil, LCancelled);
       end,
       Exception);
+  finally
+    LExecutor.Free;
+  end;
+end;
+
+procedure TBoss4DGUIInstallPresenterTests.ExecutorReturnsCancellationWithoutFailure;
+var
+  LMock: TProcessRunnerMock;
+  LExecutor: TBoss4DGUIInstallExecutor;
+  LCancelled: Boolean;
+begin
+  LMock := TProcessRunnerMock.Create;
+  LMock.ShouldCancel := True;
+  LExecutor := TBoss4DGUIInstallExecutor.Create(LMock);
+  try
+    Assert.AreEqual('output',
+      LExecutor.Execute('boss4d.exe', 'C:\Project', CompleteRequest,
+        nil, LCancelled));
+    Assert.IsTrue(LCancelled);
   finally
     LExecutor.Free;
   end;

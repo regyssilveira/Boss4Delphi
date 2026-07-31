@@ -12,6 +12,7 @@ object FormMain: TFormMain
   Font.Style = []
   Position = poScreenCenter
   OnCreate = FormCreate
+  OnCloseQuery = FormCloseQuery
   OnDestroy = FormDestroy
   TextHeight = 15
   object Splitter1: TSplitter
@@ -672,15 +673,68 @@ object FormMain: TFormMain
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 2
-    object MemoLogs: TMemo
+    object PanelOperation: TPanel
       Left = 0
       Top = 0
       Width = 900
-      Height = 147
+      Height = 34
+      Align = alTop
+      BevelOuter = bvNone
+      TabOrder = 0
+      object LblOperation: TLabel
+        Left = 10
+        Top = 10
+        Width = 89
+        Height = 15
+        Caption = 'Nenhuma operacao'
+      end
+      object ProgressOperation: TProgressBar
+        Left = 260
+        Top = 8
+        Width = 430
+        Height = 18
+        MarqueeInterval = 40
+        Style = pbstMarquee
+        TabOrder = 0
+        Visible = False
+      end
+      object BtnCancelOperation: TButton
+        Left = 700
+        Top = 5
+        Width = 90
+        Height = 25
+        Caption = 'Cancelar'
+        Enabled = False
+        TabOrder = 1
+        OnClick = BtnCancelOperationClick
+      end
+      object BtnRetryOperation: TButton
+        Left = 800
+        Top = 5
+        Width = 90
+        Height = 25
+        Caption = 'Tentar novamente'
+        Enabled = False
+        TabOrder = 2
+        OnClick = BtnRetryOperationClick
+      end
+    end
+    object MemoLogs: TMemo
+      Left = 0
+      Top = 34
+      Width = 900
+      Height = 113
       Align = alClient
       ReadOnly = True
       ScrollBars = ssVertical
-      TabOrder = 0
+      TabOrder = 1
     end
+  end
+  object TimerOperation: TTimer
+    Enabled = False
+    Interval = 500
+    OnTimer = TimerOperationTimer
+    Left = 824
+    Top = 16
   end
 end

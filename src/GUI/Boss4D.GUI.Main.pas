@@ -11,7 +11,8 @@ uses
   Boss4D.Core.Services.IDEManagementQuery,
   Boss4D.GUI.IDE.Presenter,
   Boss4D.GUI.Catalog.Presenter,
-  Boss4D.GUI.Install.Presenter;
+  Boss4D.GUI.Install.Presenter,
+  Boss4D.GUI.Operation.Presenter;
 
 type
   TFormMain = class(TForm, IBoss4DIDEManagementView)
@@ -84,9 +85,16 @@ type
     ListIDETargets: TListBox;
     LblIDEStatus: TLabel;
     PanelLogs: TPanel;
+    PanelOperation: TPanel;
+    LblOperation: TLabel;
+    ProgressOperation: TProgressBar;
+    BtnCancelOperation: TButton;
+    BtnRetryOperation: TButton;
     MemoLogs: TMemo;
+    TimerOperation: TTimer;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure BtnPageProjectClick(Sender: TObject);
     procedure BtnPageCatalogClick(Sender: TObject);
     procedure BtnPageDoctorClick(Sender: TObject);
@@ -122,6 +130,9 @@ type
     procedure BtnIDESnapshotClick(Sender: TObject);
     procedure BtnIDEDiffClick(Sender: TObject);
     procedure BtnIDERestoreSnapshotClick(Sender: TObject);
+    procedure BtnCancelOperationClick(Sender: TObject);
+    procedure BtnRetryOperationClick(Sender: TObject);
+    procedure TimerOperationTimer(Sender: TObject);
   private
     FCurrentProjectDir: string;
     FIDEProfileIds: TStringList;
@@ -133,6 +144,10 @@ type
     FIDEBackend: IBoss4DIDEManagementBackend;
     FIDEPresenter: TBoss4DIDEManagementPresenter;
     FCatalogRows: TArray<TBoss4DGUICatalogRow>;
+    FOperationPresenter: TBoss4DGUIOperationPresenter;
+    FCancelRequested: Integer;
+    FLastInstallRequest: TBoss4DGUIInstallRequest;
+    FHasLastInstallRequest: Boolean;
     procedure InitializeIDEManagement;
     function SelectedIDEPackage: string;
     procedure LoadProjectDependencies(const AProjectDir: string);
@@ -142,6 +157,9 @@ type
     procedure RunAsyncCommand(const ATitle, ACommand: string; const AArgs: string = '');
     procedure RunAsyncGuidedInstall(
       const ARequest: TBoss4DGUIInstallRequest);
+    procedure FinishGuidedInstall(const ACancelled: Boolean;
+      const AOutput, AError, AProjectDirectory: string);
+    procedure UpdateOperationUI;
     function FindBoss4DExecutable: string;
     procedure ClearProfiles;
     procedure AddProfile(const AId, AName, ACompiler,
@@ -166,6 +184,7 @@ implementation
 
 uses
   System.IOUtils, System.Threading, System.JSON, System.StrUtils,
+  System.SyncObjs,
   Boss4D.Adapters.Json,
   Boss4D.Adapters.Http,
   Boss4D.Adapters.Git,
@@ -179,8 +198,8 @@ uses
   Boss4D.Core.Services.Tree,
   Boss4D.Core.Services.Outdated,
   Boss4D.Core.Services.PackageIndex,
-  Boss4D.Core.Platform,
   Boss4D.GUI.Install.Dialog,
+  Boss4D.GUI.Process.Windows,
   Boss4D.Core.Domain.Env,
   Boss4D.Core.Domain.IDEProfile,
   Boss4D.Core.Services.IDERegistration,
@@ -239,6 +258,7 @@ begin
     PageControlMain.Pages[I].TabVisible := False;
 
   PageControlMain.ActivePage := TabProject;
+  FOperationPresenter := TBoss4DGUIOperationPresenter.Create;
   FIDEProfileIds := TStringList.Create;
   InitializeIDEManagement;
   PopulateCatalog;
@@ -247,6 +267,7 @@ end;
 
 procedure TFormMain.FormDestroy(Sender: TObject);
 begin
+  TInterlocked.Exchange(FCancelRequested, 1);
   FIDEPresenter.Free;
   FIDEBackend := nil;
   FIDEQuery.Free;
@@ -255,6 +276,15 @@ begin
   FIDEProfiles.Free;
   FIDEProfileStore.Free;
   FIDEProfileIds.Free;
+  FOperationPresenter.Free;
+end;
+
+procedure TFormMain.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+begin
+  CanClose := FOperationPresenter.State <> GUIRunning;
+  if not CanClose then
+    ShowMessage('Cancele a operacao atual e aguarde sua finalizacao antes ' +
+      'de fechar a GUI.');
 end;
 
 procedure TFormMain.InitializeIDEManagement;
@@ -621,6 +651,11 @@ var
   LProjectDirectory: string;
   LRequest: TBoss4DGUIInstallRequest;
 begin
+  if FOperationPresenter.State = GUIRunning then
+  begin
+    ShowMessage('Aguarde ou cancele a operacao atual.');
+    Exit;
+  end;
   if FCurrentProjectDir = '' then
   begin
     ShowMessage('Por favor, selecione a pasta do projeto local primeiro!');
@@ -634,37 +669,124 @@ begin
   end;
   LProjectDirectory := FCurrentProjectDir;
   LRequest := ARequest;
+  FLastInstallRequest := ARequest;
+  FHasLastInstallRequest := True;
+  TInterlocked.Exchange(FCancelRequested, 0);
+  FOperationPresenter.Start(GetTickCount64);
+  UpdateOperationUI;
   LogMessage('Iniciando: ' +
     TBoss4DGUIInstallPresenter.BuildEquivalentCommand(LRequest));
   TTask.Run(
     procedure
+    var
+      LExecutor: TBoss4DGUIInstallExecutor;
+      LOutput: string;
+      LError: string;
+      LCancelled: Boolean;
     begin
-      var LExecutor := TBoss4DGUIInstallExecutor.Create(
-        Boss4DProcessRunner);
+      LCancelled := False;
+      LError := '';
+      LExecutor := TBoss4DGUIInstallExecutor.Create(
+        TBoss4DGUIWindowsProcessRunner.Create);
       try
         try
-          var LOutput := LExecutor.Execute(LExecutable,
-            LProjectDirectory, LRequest);
-          if LOutput <> '' then
-            LogMessage(LOutput);
-          LogMessage('Instalacao guiada concluida com sucesso.');
-          TThread.Queue(nil,
-            TThreadProcedure(
-              procedure
-              begin
-                LoadProjectDependencies(LProjectDirectory);
-              end
-            )
-          );
+          LOutput := LExecutor.Execute(LExecutable,
+            LProjectDirectory, LRequest,
+            function: Boolean
+            begin
+              Result := TInterlocked.CompareExchange(
+                FCancelRequested, 0, 0) <> 0;
+            end,
+            LCancelled);
         except
           on E: Exception do
-            LogMessage('[ERRO] ' + E.Message);
+            LError := E.Message;
         end;
       finally
         LExecutor.Free;
       end;
+      TThread.Queue(nil,
+        TThreadProcedure(
+          procedure
+          begin
+            FinishGuidedInstall(LCancelled, LOutput, LError,
+              LProjectDirectory);
+          end
+        )
+      );
     end
   );
+end;
+
+procedure TFormMain.FinishGuidedInstall(const ACancelled: Boolean;
+  const AOutput, AError, AProjectDirectory: string);
+begin
+  if AOutput <> '' then
+    LogMessage(AOutput);
+  if ACancelled then
+  begin
+    FOperationPresenter.Cancel(GetTickCount64);
+    LogMessage('Instalacao cancelada pelo usuario.');
+  end
+  else if AError <> '' then
+  begin
+    FOperationPresenter.Fail(AError, GetTickCount64);
+    LogMessage('[ERRO] ' + AError);
+  end
+  else
+  begin
+    FOperationPresenter.Complete(GetTickCount64);
+    LogMessage('Instalacao guiada concluida com sucesso.');
+    LoadProjectDependencies(AProjectDirectory);
+  end;
+  UpdateOperationUI;
+end;
+
+procedure TFormMain.UpdateOperationUI;
+var
+  LState: string;
+begin
+  case FOperationPresenter.State of
+    GUIIdle: LState := 'Nenhuma operacao';
+    GUIRunning: LState := Format('Instalando (tentativa %d) - %s',
+      [FOperationPresenter.Attempt,
+       FOperationPresenter.ElapsedText(GetTickCount64)]);
+    GUISucceeded: LState := 'Instalacao concluida - ' +
+      FOperationPresenter.ElapsedText(GetTickCount64);
+    GUIFailed: LState := 'Instalacao falhou - ' +
+      FOperationPresenter.ElapsedText(GetTickCount64);
+    GUICancelled: LState := 'Instalacao cancelada - ' +
+      FOperationPresenter.ElapsedText(GetTickCount64);
+  else
+    LState := '';
+  end;
+  LblOperation.Caption := LState;
+  ProgressOperation.Visible := FOperationPresenter.State = GUIRunning;
+  BtnCancelOperation.Enabled := FOperationPresenter.CanCancel;
+  BtnRetryOperation.Enabled := FOperationPresenter.CanRetry and
+    FHasLastInstallRequest;
+  TimerOperation.Enabled := FOperationPresenter.State = GUIRunning;
+end;
+
+procedure TFormMain.BtnCancelOperationClick(Sender: TObject);
+begin
+  if FOperationPresenter.CanCancel then
+  begin
+    TInterlocked.Exchange(FCancelRequested, 1);
+    BtnCancelOperation.Enabled := False;
+    LblOperation.Caption := 'Cancelando operacao...';
+  end;
+end;
+
+procedure TFormMain.BtnRetryOperationClick(Sender: TObject);
+begin
+  if FOperationPresenter.CanRetry and FHasLastInstallRequest then
+    RunAsyncGuidedInstall(FLastInstallRequest);
+end;
+
+procedure TFormMain.TimerOperationTimer(Sender: TObject);
+begin
+  UpdateOperationUI;
 end;
 
 procedure TFormMain.BtnProjInitClick(Sender: TObject);
