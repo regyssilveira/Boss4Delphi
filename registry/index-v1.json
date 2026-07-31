@@ -403,15 +403,6 @@
                          "sha256":  ""
                      },
                      {
-                         "name":  "horse-schema-validation",
-                         "repository":  "github.com/regyssilveira/horse-schema-validation",
-                         "description":  "JSON Schema validation middleware for Horse",
-                         "version":  "",
-                         "license":  "Apache-2.0",
-                         "artifact":  "",
-                         "sha256":  ""
-                     },
-                     {
                          "name":  "horse-multipart",
                          "repository":  "github.com/regyssilveira/horse-multipart",
                          "description":  "Multipart form-data and file upload middleware for Horse",

@@ -1,0 +1,22 @@
+{
+    "schemaVersion":  2,
+    "packages":  [
+                     {
+                         "name":  "horse-schema-validation",
+                         "publisher":  "boss4d",
+                         "repository":  "github.com/regyssilveira/horse-schema-validation",
+                         "signerFingerprint":  "A91FA178E7A1DE7FB10148C8308C9045E23B0279",
+                         "description":  "JSON Schema validation middleware for Horse",
+                         "license":  "Apache-2.0",
+                         "versions":  [
+                                          {
+                                              "version":  "1.0.0",
+                                              "artifact":  "https://github.com/regyssilveira/horse-schema-validation/releases/download/v1.0.0/horse-schema-validation-1.0.0.b4dpkg",
+                                              "sha256":  "7f5b0ed7cd1443a876a27286fdce161456dc3c69405a77d0881cdfdfe01272a5",
+                                              "signature":  "https://github.com/regyssilveira/horse-schema-validation/releases/download/v1.0.0/horse-schema-validation-1.0.0.b4dpkg.asc",
+                                              "provenance":  "https://github.com/regyssilveira/horse-schema-validation/releases/download/v1.0.0/horse-schema-validation-1.0.0.b4dpkg.intoto.json"
+                                          }
+                                      ]
+                     }
+                 ]
+}

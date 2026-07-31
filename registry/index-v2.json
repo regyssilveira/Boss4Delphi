@@ -9,7 +9,8 @@
                      "index-v1.json"
                  ],
     "sparse":  [
-                   "packages/boss4delphi.json"
+                   "packages/boss4delphi.json",
+                   "packages/horse-schema-validation.json"
                ],
     "packages":  [
 
