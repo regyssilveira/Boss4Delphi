@@ -39,6 +39,30 @@ seguintes usam exclusivamente `githubOwners`.
 Depois de cadastrar publisher e signatário, gere o documento do pacote e a
 entrada do índice sparse em conjunto:
 
+O caminho recomendado cria o bundle assinado, atualiza um checkout limpo,
+envia um branch dedicado e abre o pull request:
+
+```console
+boss4d publish --official --open-pr \
+  --publisher meu-publisher \
+  --repository github.com/owner/meu-pacote \
+  --fingerprint 0123456789ABCDEF0123456789ABCDEF01234567 \
+  --sign 0123456789ABCDEF0123456789ABCDEF01234567 \
+  --artifact-url https://github.com/owner/meu-pacote/releases/download/v1.0.0/MeuPacote-1.0.0.b4dpkg \
+  --registry-root /src/Boss4Delphi
+```
+
+Para um fork, selecione seu remote Git e informe o head da PR:
+`--registry-remote fork --registry-pr-head owner:branch`. A CLI adiciona ao
+staging somente o arquivo do pacote e `registry/index-v2.json`. Execute antes
+com `--dry-run`; nenhum artefato, alteração no checkout, branch, push ou pull
+request será criado.
+Envie o pacote, assinatura e proveniência gerados para as URLs imutáveis
+declaradas antes do merge do pull request.
+
+O gerador PowerShell continua disponível para mantenedores que precisam
+preparar os metadados sem compilar ou assinar o pacote:
+
 ```powershell
 ./scripts/new-registry-submission.ps1 `
   -PackageName MeuPacote `

@@ -13,6 +13,18 @@
 
 See the [authoritative delivery plan](ide-packages-profiles-gui-plan.md).
 
+## Epic 23: Official Registry ecosystem
+
+- [x] Generate signed schema-v2 submissions from Delphi and POSIX CLIs.
+- [x] Apply new packages and immutable versions transactionally to a checkout.
+- [x] Create an isolated branch, exact-file commit, configurable push, and
+  reviewed GitHub pull request with fork support.
+- [x] Require a clean checkout and restore the original branch when local
+  metadata application fails.
+- [ ] Publish and continuously validate the first curated package set.
+- [ ] Operate hosted search/index delivery with mirrors, backup, and status.
+- [ ] Expose package adoption, maintenance, compatibility, and trust metrics.
+
 ## Epic 21: Portable CLI and distribution foundation
 
 - [x] **[Story] Platform abstraction foundation**

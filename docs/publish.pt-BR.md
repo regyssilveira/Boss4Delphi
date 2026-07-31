@@ -51,11 +51,39 @@ sua proveniência `.intoto.json` e
 `dist/<nome>-<versão>.registry.json`. Use `--artifact-output` e
 `--submission-output` para alterar os caminhos.
 
+Para atualizar um checkout limpo do Registry, criar um branch isolado, commitar
+somente os metadados do pacote e o índice sparse, enviar o branch e abrir o
+pull request revisado em uma única operação:
+
+```console
+boss4d publish --official ^
+  --publisher meu-publisher ^
+  --repository github.com/owner/projeto ^
+  --fingerprint 0123456789ABCDEF0123456789ABCDEF01234567 ^
+  --sign 0123456789ABCDEF0123456789ABCDEF01234567 ^
+  --artifact-url https://github.com/owner/projeto/releases/download/v1.2.3/projeto-1.2.3.b4dpkg ^
+  --registry-root C:\src\Boss4Delphi ^
+  --open-pr
+```
+
+O branch padrão é `boss4d/package-<nome>-<versão>`, o remote é `origin`, o
+branch base é `main` e o repositório da PR é
+`regyssilveira/Boss4Delphi`. Personalize com `--registry-branch`,
+`--registry-remote`, `--registry-base` e `--registry-pr-repo`. Ao enviar para
+um fork, use `--registry-pr-head owner:branch`. Para pacote já existente, use
+`--append-version`.
+
+O checkout precisa começar limpo. Se a aplicação dos metadados falhar, o
+Boss4D restaura os caminhos exatos do índice/pacote, retorna ao branch original
+e remove o branch temporário. Depois que houver commit local ou push remoto,
+uma falha posterior é preservada para inspeção e retomada segura. Arquivos
+alheios nunca entram no staging.
+
 `--dry-run` executa os gates de manifesto, lock, worktree limpo, testes,
 identidade, SemVer, HTTPS, formato do hash e signer sem criar o bundle. O
-comando não envia assets nem modifica o repositório do Registry. Envie as três
-evidências para a URL imutável da release, copie o documento gerado para o
-checkout do Registry e abra a PR revisada. O workflow do Registry verifica
+comando não envia assets, não modifica o checkout do Registry, não cria branch
+e não abre PR. Envie as três evidências para a URL imutável da release antes
+do merge da PR revisada. O workflow do Registry verifica
 novamente ownership, escopo do repositório, fingerprint autorizado,
 imutabilidade, assinatura, proveniência e digest.
 

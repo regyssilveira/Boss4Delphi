@@ -39,6 +39,29 @@ branch. Later changes use `githubOwners` exclusively.
 After the publisher and signer are registered, generate the package document
 and sparse-index entry together:
 
+The recommended path creates the signed bundle, updates a clean checkout,
+pushes a dedicated branch, and opens the pull request:
+
+```console
+boss4d publish --official --open-pr \
+  --publisher my-publisher \
+  --repository github.com/owner/my-package \
+  --fingerprint 0123456789ABCDEF0123456789ABCDEF01234567 \
+  --sign 0123456789ABCDEF0123456789ABCDEF01234567 \
+  --artifact-url https://github.com/owner/my-package/releases/download/v1.0.0/MyPackage-1.0.0.b4dpkg \
+  --registry-root /src/Boss4Delphi
+```
+
+For a fork, select its Git remote and identify the PR head explicitly:
+`--registry-remote fork --registry-pr-head owner:branch`. The CLI stages only
+the package file and `registry/index-v2.json`. Use `--dry-run` first; it
+creates no artifact, checkout change, branch, push, or pull request.
+Upload the generated package, signature, and provenance to the declared
+immutable URLs before the pull request is merged.
+
+The PowerShell generator remains available for maintainers who need to prepare
+metadata without building or signing the package:
+
 ```powershell
 ./scripts/new-registry-submission.ps1 `
   -PackageName MyPackage `

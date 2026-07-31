@@ -163,17 +163,26 @@ the Git-backed public catalog.
 1. Register the publisher and controlled repository prefixes in
    `registry/publishers.json`.
 2. Add a complete OpenPGP fingerprint.
-3. Create package metadata from `registry/package-template.json`.
-4. Add the package include to `registry/index-v2.json`.
-5. Run:
+3. Reserve the immutable release URL for the package evidence.
+4. Run:
 
-```powershell
-./scripts/validate-registry-submission.ps1
-./scripts/test-registry-submission.ps1
+```console
+boss4d publish --official --open-pr \
+  --publisher my-publisher \
+  --repository github.com/owner/my-package \
+  --fingerprint <40-hex-fingerprint> \
+  --sign <key-id> \
+  --artifact-url <immutable-https-url> \
+  --registry-root /src/Boss4Delphi
 ```
 
 **Expected result:** publisher scope, signer fingerprint, immutable metadata,
-artifact evidence, and index composition pass before review.
+artifact evidence, exact-file commit, and index composition pass before review;
+the CLI prints the created pull-request URL.
+
+Upload the generated package, signature, and provenance to the declared URL
+before the pull request is merged; the Registry check validates those external
+assets independently.
 
 **Risk controls:** never edit or remove an existing version object. Add a new
 version or an explicit revocation. Keep publisher and signer ownership
@@ -190,6 +199,7 @@ version is unsafe, submit revocation metadata instead of rewriting history.
 | Inspect configured sources | `boss4d registry list` |
 | Deterministically inspect publication | `boss4d publish --dry-run --output publish.json` |
 | Publish from CI | Environment token plus `boss4d publish --registry <url>` |
+| Open an official Registry submission | `boss4d publish --official --open-pr ...` |
 | Resolve an immutable conflict | Publish a new version; do not overwrite |
 | Handle a compromised release | Revoke it in reviewed Registry metadata |
 
