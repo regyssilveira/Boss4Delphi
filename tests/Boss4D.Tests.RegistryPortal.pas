@@ -50,11 +50,20 @@ begin
     TFile.WriteAllText(TPath.Combine(LRoot, 'legacy.json'),
       '{"schemaVersion":1,"includes":["index.json"],"packages":[' +
       '{"name":"Horse","repository":"github.com/hashload/horse",' +
-      '"version":"3.1.0"}]}', TEncoding.UTF8);
+      '"version":"3.1.0"},{"name":"BossCompat",' +
+      '"repository":"github.com/regyssilveira/compat"}]}', TEncoding.UTF8);
     TFile.WriteAllText(TPath.Combine(LRoot, 'packages\dext.json'),
       '{"schemaVersion":2,"packages":[{"name":"Dext",' +
+      '"publisher":"boss4d","signerFingerprint":' +
+      '"1111111111111111111111111111111111111111",' +
       '"repository":"github.com/regyssilveira/dext","versions":[' +
       '{"version":"1.0.0","sha256":"abc"}]}]}', TEncoding.UTF8);
+    TFile.WriteAllText(TPath.Combine(LRoot, 'publishers.json'),
+      '{"schemaVersion":1,"publishers":[{"id":"boss4d",' +
+      '"displayName":"Boss4D Project","repositories":[' +
+      '"github.com/regyssilveira/"],"allowedSigners":[' +
+      '"1111111111111111111111111111111111111111"]}]}',
+      TEncoding.UTF8);
     TFile.WriteAllText(TPath.Combine(LRoot, 'index.json'),
       '{"schemaVersion":2,"includes":["legacy.json"],' +
       '"sparse":[{"path":"packages/dext.json"}],"revocations":[' +
@@ -67,6 +76,10 @@ begin
       Assert.IsTrue(LHtml.Contains('Horse'));
       Assert.IsTrue(LHtml.Contains('Dext'));
       Assert.IsTrue(LHtml.Contains('1.0.0 (revoked)'));
+      Assert.IsTrue(LHtml.Contains(
+        'authorized publisher: Boss4D Project'));
+      Assert.IsTrue(LHtml.Contains(
+        'registered namespace: Boss4D Project'));
       Assert.AreEqual(1,
         CountOccurrences(LHtml, '<strong>Horse</strong>'),
         'Ciclos de includes devem ser carregados uma unica vez.');

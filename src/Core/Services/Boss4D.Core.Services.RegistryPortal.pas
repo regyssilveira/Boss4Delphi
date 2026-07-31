@@ -20,6 +20,12 @@ type
       const APackages, ARevocations: TJSONArray;
       const AVisited: TDictionary<string, Boolean>);
     procedure ApplyRevocations(const APackages, ARevocations: TJSONArray);
+    function RepositoryMatchesPublisher(const ARepository: string;
+      const APublisher: TJSONObject): Boolean;
+    function SignerMatchesPublisher(const AFingerprint: string;
+      const APublisher: TJSONObject): Boolean;
+    procedure AnnotatePublishers(const APackages: TJSONArray;
+      const APublisherContent: string);
   public
     function Generate(const ARegistryContent: string): string;
     function GenerateFromFile(const ARegistryPath: string): string;
@@ -158,6 +164,89 @@ begin
   end;
 end;
 
+function TBoss4DRegistryPortalService.RepositoryMatchesPublisher(
+  const ARepository: string; const APublisher: TJSONObject): Boolean;
+begin
+  Result := False;
+  var LRepositoriesValue := APublisher.GetValue('repositories');
+  if not (LRepositoriesValue is TJSONArray) then
+    Exit;
+  for var LRepositoryValue in TJSONArray(LRepositoriesValue) do
+    if (LRepositoryValue is TJSONString) and
+       ARepository.StartsWith(LRepositoryValue.Value, True) then
+      Exit(True);
+end;
+
+function TBoss4DRegistryPortalService.SignerMatchesPublisher(
+  const AFingerprint: string; const APublisher: TJSONObject): Boolean;
+begin
+  Result := False;
+  if AFingerprint.Trim.IsEmpty then
+    Exit;
+  var LSignersValue := APublisher.GetValue('allowedSigners');
+  if not (LSignersValue is TJSONArray) then
+    Exit;
+  for var LSignerValue in TJSONArray(LSignersValue) do
+    if (LSignerValue is TJSONString) and
+       SameText(AFingerprint, LSignerValue.Value) then
+      Exit(True);
+end;
+
+procedure TBoss4DRegistryPortalService.AnnotatePublishers(
+  const APackages: TJSONArray; const APublisherContent: string);
+var
+  LRoot: TJSONObject;
+begin
+  LRoot := TJSONObject.ParseJSONValue(APublisherContent) as TJSONObject;
+  if not Assigned(LRoot) then
+    raise EArgumentException.Create('Cadastro de publishers invalido.');
+  try
+    if LRoot.GetValue<Integer>('schemaVersion', 0) <> 1 then
+      raise EArgumentException.Create(
+        'Schema do cadastro de publishers nao suportado.');
+    var LPublishersValue := LRoot.GetValue('publishers');
+    if not (LPublishersValue is TJSONArray) then
+      raise EArgumentException.Create('Cadastro sem publishers.');
+    for var LPackageValue in APackages do
+    begin
+      if not (LPackageValue is TJSONObject) then
+        Continue;
+      var LPackage := TJSONObject(LPackageValue);
+      var LRepository := LPackage.GetValue<string>('repository', '');
+      var LDeclaredPublisher := LPackage.GetValue<string>('publisher', '');
+      var LSelected: TJSONObject := nil;
+      for var LPublisherValue in TJSONArray(LPublishersValue) do
+      begin
+        if not (LPublisherValue is TJSONObject) then
+          Continue;
+        var LPublisher := TJSONObject(LPublisherValue);
+        if (not LDeclaredPublisher.IsEmpty and
+            SameText(LDeclaredPublisher,
+              LPublisher.GetValue<string>('id', ''))) or
+           (LDeclaredPublisher.IsEmpty and
+            RepositoryMatchesPublisher(LRepository, LPublisher)) then
+        begin
+          LSelected := LPublisher;
+          Break;
+        end;
+      end;
+      if not Assigned(LSelected) or
+         not RepositoryMatchesPublisher(LRepository, LSelected) then
+        Continue;
+      LPackage.AddPair('_publisherDisplayName',
+        LSelected.GetValue<string>('displayName',
+          LSelected.GetValue<string>('id', '')));
+      if SignerMatchesPublisher(
+        LPackage.GetValue<string>('signerFingerprint', ''), LSelected) then
+        LPackage.AddPair('_publisherTrust', 'authorized')
+      else
+        LPackage.AddPair('_publisherTrust', 'namespace');
+    end;
+  finally
+    LRoot.Free;
+  end;
+end;
+
 function TBoss4DRegistryPortalService.GenerateFromFile(
   const ARegistryPath: string): string;
 var
@@ -174,6 +263,11 @@ begin
   try
     LoadDocument(TPath.GetDirectoryName(LSource), LSource,
       LPackages, LRevocations, LVisited);
+    var LPublisherPath := TPath.Combine(
+      TPath.GetDirectoryName(LSource), 'publishers.json');
+    if TFile.Exists(LPublisherPath) then
+      AnnotatePublishers(LPackages,
+        TFile.ReadAllText(LPublisherPath, TEncoding.UTF8));
     ApplyRevocations(LPackages, LRevocations);
     LRoot.AddPair('schemaVersion', TJSONNumber.Create(2));
     LRoot.AddPair('packages', LPackages);
@@ -229,6 +323,18 @@ begin
           LPackage.GetValue<string>('repository', '')) + '"><strong>' +
         EscapeHtml(LPackage.GetValue<string>('name', '')) +
         '</strong>';
+      var LPublisherName := LPackage.GetValue<string>(
+        '_publisherDisplayName', '');
+      if not LPublisherName.IsEmpty then
+      begin
+        var LPublisherLabel := 'registered namespace';
+        if SameText(LPackage.GetValue<string>('_publisherTrust', ''),
+          'authorized') then
+          LPublisherLabel := 'authorized publisher';
+        Result := Result + ' <span class="publisher" title="' +
+          EscapeHtml(LPublisherLabel) + '">' +
+          EscapeHtml(LPublisherLabel + ': ' + LPublisherName) + '</span>';
+      end;
       if LSchemaVersion = 1 then
         Result := Result + ' <code>' +
           EscapeHtml(LPackage.GetValue<string>('version', '')) + '</code>'
