@@ -85,6 +85,9 @@ type
     procedure HandleList;
     procedure HandleWhy(const AArgs: TArray<string>);
     procedure HandlePin(const AArgs: TArray<string>; const APin: Boolean);
+    procedure HandleVersionChange(const AArgs: TArray<string>;
+      const AUpgrade: Boolean);
+    procedure HandleVersionRollback(const AArgs: TArray<string>);
     procedure HandleAudit(const AArgs: TArray<string>);
     procedure HandleRegistry(const AArgs: TArray<string>);
     procedure HandleSearch(const AArgs: TArray<string>);
@@ -152,6 +155,7 @@ uses
   Boss4D.Adapters.Sbom.Security,
   Boss4D.Adapters.Security.Gpg,
   Boss4D.Core.Domain.Dependency,
+  Boss4D.Core.Domain.SemVer,
   Boss4D.Core.Domain.Package,
   Boss4D.Core.Domain.Lock,
   Boss4D.Core.Domain.Sbom,
@@ -160,6 +164,7 @@ uses
   Boss4D.Core.Domain.IDEProfile,
   Boss4D.Core.Platform,
   Boss4D.Core.Services.Dependencies,
+  Boss4D.Core.Services.VersionHistory,
   Boss4D.Core.Services.Audit,
   Boss4D.Core.Services.PackageIndex,
   Boss4D.Core.Services.DependencySubmission,
@@ -257,6 +262,8 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  list                 Lista dependencias diretas e transitivas.');
   FLogger.Log(TBoss4DLogLevel.Info, '  why <dep>            Explica por que uma dependencia foi instalada.');
   FLogger.Log(TBoss4DLogLevel.Info, '  pin|unpin <dep>      Fixa no lock ou restaura uma faixa SemVer compativel.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  upgrade|downgrade <dep>@<versao> Troca versao com snapshot transacional.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  rollback             Restaura o ultimo snapshot de versao.');
   FLogger.Log(TBoss4DLogLevel.Info, '  audit               Consulta vulnerabilidades OSV por revisao do lock.');
   FLogger.Log(TBoss4DLogLevel.Info, '  registry add|remove|list Gerencia indices publicos e privados.');
   FLogger.Log(TBoss4DLogLevel.Info, '  search <termo>       Pesquisa pacotes nos indices configurados.');
@@ -353,6 +360,12 @@ begin
     HandlePin(AArgs, True)
   else if LCommand = 'unpin' then
     HandlePin(AArgs, False)
+  else if LCommand = 'upgrade' then
+    HandleVersionChange(AArgs, True)
+  else if LCommand = 'downgrade' then
+    HandleVersionChange(AArgs, False)
+  else if LCommand = 'rollback' then
+    HandleVersionRollback(AArgs)
   else if LCommand = 'audit' then
     HandleAudit(AArgs)
   else if LCommand = 'registry' then
@@ -1560,6 +1573,75 @@ begin
       LService.Unpin(AArgs[1]);
   finally
     LService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleVersionChange(
+  const AArgs: TArray<string>; const AUpgrade: Boolean);
+var
+  LPkg: TBoss4DPackage;
+  LLock: TBoss4DLock;
+  LDependency: TBoss4DDependency;
+  LLocked: TBoss4DLockedDependency;
+  LFromVersion, LAction: string;
+  LHistory: TBoss4DVersionHistoryService;
+begin
+  if Length(AArgs) <> 2 then
+    raise EArgumentException.Create(
+      'Uso: boss4d upgrade|downgrade <dependencia>@<versao-exata>');
+  LDependency := TBoss4DDependency.ParseCommandLine(AArgs[1]);
+  try
+    if not TBoss4DSemVer.Create(LDependency.Version).IsValid then
+      raise EArgumentException.Create('Informe uma versao SemVer exata.');
+    LPkg := FPackageRepo.Load(GetBossFile);
+    try
+      if not LPkg.Dependencies.ContainsKey(LDependency.Repository) and
+         not LPkg.DevDependencies.ContainsKey(LDependency.Repository) then
+        raise EArgumentException.Create(
+          'Dependencia nao declarada: ' + LDependency.Repository);
+    finally
+      LPkg.Free;
+    end;
+    LLock := TBoss4DLockJsonRepository.Create.Load(
+      TPath.Combine(GetCurrentDir, FILE_PACKAGE_LOCK));
+    try
+      if not LLock.Installed.TryGetValue(LDependency.GetKey, LLocked) then
+        raise EArgumentException.Create('Dependencia ausente do lock.');
+      LFromVersion := LLocked.Version;
+    finally
+      LLock.Free;
+    end;
+    if AUpgrade and not (TBoss4DSemVer.Create(LDependency.Version) >
+       TBoss4DSemVer.Create(LFromVersion)) then
+      raise EArgumentException.Create('A versao de upgrade deve ser maior.')
+    else if not AUpgrade and not (TBoss4DSemVer.Create(LDependency.Version) <
+       TBoss4DSemVer.Create(LFromVersion)) then
+      raise EArgumentException.Create('A versao de downgrade deve ser menor.');
+    if AUpgrade then LAction := 'upgrade' else LAction := 'downgrade';
+    LHistory := TBoss4DVersionHistoryService.Create(GetCurrentDir);
+    try
+      LHistory.Capture(LAction, LDependency.Repository, LFromVersion,
+        LDependency.Version);
+      FInstallService.Execute(AArgs[1]);
+    finally
+      LHistory.Free;
+    end;
+  finally
+    LDependency.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleVersionRollback(
+  const AArgs: TArray<string>);
+begin
+  if Length(AArgs) <> 1 then
+    raise EArgumentException.Create('Uso: boss4d rollback');
+  var LHistory := TBoss4DVersionHistoryService.Create(GetCurrentDir);
+  try
+    var LId := LHistory.RestoreLatest;
+    FLogger.Log(TBoss4DLogLevel.Info, 'Snapshot restaurado: ' + LId);
+  finally
+    LHistory.Free;
   end;
 end;
 
