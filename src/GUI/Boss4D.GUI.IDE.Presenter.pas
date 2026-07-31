@@ -4,7 +4,9 @@ interface
 
 uses
   System.Generics.Collections,
-  Boss4D.Core.Services.IDEManagementQuery;
+  Boss4D.Core.Services.IDEManagementQuery,
+  Boss4D.Core.Services.IDERegistration,
+  Boss4D.Core.Services.IDEProcessPolicy;
 
 type
   IBoss4DIDEManagementBackend = interface
@@ -16,6 +18,16 @@ type
       TObjectList<TBoss4DIDETargetView>;
     function UninstallTargets(const AProfileId, APackage: string):
       TObjectList<TBoss4DIDETargetView>;
+    function Install(const AProfileId, APackage: string;
+      const AConflictPolicy: TBoss4DIDEConflictPolicy;
+      const AIDEOpenPolicy: TBoss4DIDEOpenPolicy): Integer;
+    function Uninstall(const AProfileId, APackage: string): Integer;
+    function Repair(const AProfileId: string): Integer;
+    procedure Launch(const AProfileId: string);
+    procedure CreateProfile(const AName, ADescription, ACompiler,
+      AExecutable: string);
+    procedure CloneProfile(const ASourceId, AName: string);
+    procedure RemoveProfile(const AProfileId: string);
   end;
 
   IBoss4DIDEManagementView = interface
@@ -46,6 +58,16 @@ type
     procedure ChooseProfile(const AProfileId: string);
     procedure PreviewInstall(const APackage: string);
     procedure PreviewUninstall(const APackage: string);
+    procedure Install(const APackage: string;
+      const AConflictPolicy: TBoss4DIDEConflictPolicy;
+      const AIDEOpenPolicy: TBoss4DIDEOpenPolicy);
+    procedure Uninstall(const APackage: string);
+    procedure Repair;
+    procedure Launch;
+    procedure CreateProfile(const AName, ADescription, ACompiler,
+      AExecutable: string);
+    procedure CloneProfile(const AName: string);
+    procedure RemoveProfile;
     property SelectedProfile: string read FSelectedProfile;
   end;
 
@@ -178,6 +200,112 @@ begin
     finally
       LTargets.Free;
     end;
+  except
+    on E: Exception do
+      FView.ShowIDEError(E.Message);
+  end;
+end;
+
+procedure TBoss4DIDEManagementPresenter.Install(const APackage: string;
+  const AConflictPolicy: TBoss4DIDEConflictPolicy;
+  const AIDEOpenPolicy: TBoss4DIDEOpenPolicy);
+begin
+  try
+    if FSelectedProfile.IsEmpty or APackage.Trim.IsEmpty then
+      raise EArgumentException.Create(
+        'Selecione um perfil e um package.');
+    var LAffected := FBackend.Install(FSelectedProfile, APackage,
+      AConflictPolicy, AIDEOpenPolicy);
+    LoadPackages;
+    FView.ShowIDEStatus(Format(
+      'Instalacao concluida: %d registro(s) afetado(s).', [LAffected]));
+  except
+    on E: Exception do
+      FView.ShowIDEError(E.Message);
+  end;
+end;
+
+procedure TBoss4DIDEManagementPresenter.Uninstall(
+  const APackage: string);
+begin
+  try
+    if FSelectedProfile.IsEmpty or APackage.Trim.IsEmpty then
+      raise EArgumentException.Create(
+        'Selecione um perfil e um package.');
+    var LAffected := FBackend.Uninstall(FSelectedProfile, APackage);
+    LoadPackages;
+    FView.ShowIDEStatus(Format(
+      'Remocao concluida: %d registro(s) afetado(s).', [LAffected]));
+  except
+    on E: Exception do
+      FView.ShowIDEError(E.Message);
+  end;
+end;
+
+procedure TBoss4DIDEManagementPresenter.Repair;
+begin
+  try
+    if FSelectedProfile.IsEmpty then
+      raise EArgumentException.Create('Selecione um perfil.');
+    var LAffected := FBackend.Repair(FSelectedProfile);
+    LoadPackages;
+    FView.ShowIDEStatus(Format(
+      'Reparo concluido: %d registro(s) corrigido(s).', [LAffected]));
+  except
+    on E: Exception do
+      FView.ShowIDEError(E.Message);
+  end;
+end;
+
+procedure TBoss4DIDEManagementPresenter.Launch;
+begin
+  try
+    if FSelectedProfile.IsEmpty then
+      raise EArgumentException.Create('Selecione um perfil.');
+    FBackend.Launch(FSelectedProfile);
+    FView.ShowIDEStatus('IDE iniciada com o perfil selecionado.');
+  except
+    on E: Exception do
+      FView.ShowIDEError(E.Message);
+  end;
+end;
+
+procedure TBoss4DIDEManagementPresenter.CreateProfile(
+  const AName, ADescription, ACompiler, AExecutable: string);
+begin
+  try
+    FBackend.CreateProfile(AName, ADescription, ACompiler, AExecutable);
+    FSelectedProfile := '';
+    Refresh;
+  except
+    on E: Exception do
+      FView.ShowIDEError(E.Message);
+  end;
+end;
+
+procedure TBoss4DIDEManagementPresenter.CloneProfile(
+  const AName: string);
+begin
+  try
+    if FSelectedProfile.IsEmpty then
+      raise EArgumentException.Create('Selecione um perfil.');
+    FBackend.CloneProfile(FSelectedProfile, AName);
+    FSelectedProfile := '';
+    Refresh;
+  except
+    on E: Exception do
+      FView.ShowIDEError(E.Message);
+  end;
+end;
+
+procedure TBoss4DIDEManagementPresenter.RemoveProfile;
+begin
+  try
+    if FSelectedProfile.IsEmpty then
+      raise EArgumentException.Create('Selecione um perfil.');
+    FBackend.RemoveProfile(FSelectedProfile);
+    FSelectedProfile := '';
+    Refresh;
   except
     on E: Exception do
       FView.ShowIDEError(E.Message);

@@ -89,6 +89,7 @@ uses
   Boss4D.Core.Services.IDEProfileApplication in '..\src\Core\Services\Boss4D.Core.Services.IDEProfileApplication.pas',
   Boss4D.Core.Services.IDEManagementQuery in '..\src\Core\Services\Boss4D.Core.Services.IDEManagementQuery.pas',
   Boss4D.GUI.IDE.Presenter in '..\src\GUI\Boss4D.GUI.IDE.Presenter.pas',
+  Boss4D.GUI.IDE.Backend in '..\src\GUI\Boss4D.GUI.IDE.Backend.pas',
   Boss4D.Core.Services.Tool in '..\src\Core\Services\Boss4D.Core.Services.Tool.pas',
   Boss4D.Core.Services.Workspace in '..\src\Core\Services\Boss4D.Core.Services.Workspace.pas',
   Boss4D.Core.Services.GetIt in '..\src\Core\Services\Boss4D.Core.Services.GetIt.pas',

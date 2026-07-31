@@ -21,12 +21,15 @@ uses
   System.SysUtils,
   System.Generics.Collections,
   Boss4D.Core.Services.IDEManagementQuery,
+  Boss4D.Core.Services.IDERegistration,
+  Boss4D.Core.Services.IDEProcessPolicy,
   Boss4D.GUI.IDE.Presenter;
 
 type
   TBackendMock = class(TInterfacedObject, IBoss4DIDEManagementBackend)
   public
     Fail: Boolean;
+    LastAction: string;
     function Profiles: TObjectList<TBoss4DIDEProfileView>;
     function Packages(const AProfileId: string):
       TObjectList<TBoss4DIDEPackageView>;
@@ -34,6 +37,16 @@ type
       TObjectList<TBoss4DIDETargetView>;
     function UninstallTargets(const AProfileId, APackage: string):
       TObjectList<TBoss4DIDETargetView>;
+    function Install(const AProfileId, APackage: string;
+      const AConflictPolicy: TBoss4DIDEConflictPolicy;
+      const AIDEOpenPolicy: TBoss4DIDEOpenPolicy): Integer;
+    function Uninstall(const AProfileId, APackage: string): Integer;
+    function Repair(const AProfileId: string): Integer;
+    procedure Launch(const AProfileId: string);
+    procedure CreateProfile(const AName, ADescription, ACompiler,
+      AExecutable: string);
+    procedure CloneProfile(const ASourceId, AName: string);
+    procedure RemoveProfile(const AProfileId: string);
   end;
 
   TViewMock = class(TInterfacedObject, IBoss4DIDEManagementView)
@@ -102,6 +115,48 @@ begin
   Result.Add(LTarget);
 end;
 
+function TBackendMock.Install(const AProfileId, APackage: string;
+  const AConflictPolicy: TBoss4DIDEConflictPolicy;
+  const AIDEOpenPolicy: TBoss4DIDEOpenPolicy): Integer;
+begin
+  LastAction := 'install:' + AProfileId + ':' + APackage;
+  Result := 1;
+end;
+
+function TBackendMock.Uninstall(const AProfileId,
+  APackage: string): Integer;
+begin
+  LastAction := 'uninstall:' + AProfileId + ':' + APackage;
+  Result := 1;
+end;
+
+function TBackendMock.Repair(const AProfileId: string): Integer;
+begin
+  LastAction := 'repair:' + AProfileId;
+  Result := 2;
+end;
+
+procedure TBackendMock.Launch(const AProfileId: string);
+begin
+  LastAction := 'launch:' + AProfileId;
+end;
+
+procedure TBackendMock.CreateProfile(const AName, ADescription,
+  ACompiler, AExecutable: string);
+begin
+  LastAction := 'create:' + AName;
+end;
+
+procedure TBackendMock.CloneProfile(const ASourceId, AName: string);
+begin
+  LastAction := 'clone:' + ASourceId + ':' + AName;
+end;
+
+procedure TBackendMock.RemoveProfile(const AProfileId: string);
+begin
+  LastAction := 'remove:' + AProfileId;
+end;
+
 constructor TViewMock.Create;
 begin
   inherited Create;
@@ -167,7 +222,8 @@ end;
 
 procedure TTestsGUIIDEPresenter.TestRefreshSelectionAndPreviewsDriveView;
 begin
-  var LBackend: IBoss4DIDEManagementBackend := TBackendMock.Create;
+  var LBackendObject := TBackendMock.Create;
+  var LBackend: IBoss4DIDEManagementBackend := LBackendObject;
   var LViewObject := TViewMock.Create;
   var LView: IBoss4DIDEManagementView := LViewObject;
   var LPresenter := TBoss4DIDEManagementPresenter.Create(
@@ -183,6 +239,21 @@ begin
       LViewObject.Targets[0]);
     LPresenter.PreviewUninstall('horse');
     Assert.AreEqual('HorseDesign.bpl', LViewObject.Targets[0]);
+    LPresenter.Install('horse', TBoss4DIDEConflictPolicy.Fail,
+      TBoss4DIDEOpenPolicy.Fail);
+    Assert.AreEqual('install:daily:horse', LBackendObject.LastAction);
+    LPresenter.Uninstall('horse');
+    Assert.AreEqual('uninstall:daily:horse', LBackendObject.LastAction);
+    LPresenter.Repair;
+    Assert.AreEqual('repair:daily', LBackendObject.LastAction);
+    LPresenter.Launch;
+    Assert.AreEqual('launch:daily', LBackendObject.LastAction);
+    LPresenter.CloneProfile('Review');
+    Assert.AreEqual('clone:daily:Review', LBackendObject.LastAction);
+    LPresenter.CreateProfile('Clean', '', '37.0', '');
+    Assert.AreEqual('create:Clean', LBackendObject.LastAction);
+    LPresenter.RemoveProfile;
+    Assert.AreEqual('remove:daily', LBackendObject.LastAction);
   finally
     LPresenter.Free;
   end;
