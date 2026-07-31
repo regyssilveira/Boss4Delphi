@@ -385,15 +385,6 @@
                          "sha256":  ""
                      },
                      {
-                         "name":  "horse-opentelemetry",
-                         "repository":  "github.com/regyssilveira/horse-opentelemetry",
-                         "description":  "OpenTelemetry tracing and metrics middleware for Horse",
-                         "version":  "",
-                         "license":  "Apache-2.0",
-                         "artifact":  "",
-                         "sha256":  ""
-                     },
-                     {
                          "name":  "horse-prometheus",
                          "repository":  "github.com/regyssilveira/horse-prometheus",
                          "description":  "Prometheus metrics middleware for Horse and Lazarus",

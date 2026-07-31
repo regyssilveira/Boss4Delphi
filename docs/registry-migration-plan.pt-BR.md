@@ -8,17 +8,17 @@ passarem nos checks do pull request do Registry.
 
 ## Ponto de partida
 
-- 44 pacotes legados v1 pesquisáveis;
+- 43 pacotes legados v1 pesquisáveis;
 - 18 responsáveis por repositórios;
 - 16 pacotes no namespace `regyssilveira`, já cadastrado;
 - 10 pacotes no namespace `HashLoad`;
-- 11 pacotes schema v2 assinados e um fingerprint autorizado;
-- 11 pacotes do publisher publicados pelos gates de reprodutibilidade;
-- 5 pacotes do publisher que precisam de release ou correção da tag;
-- saúde: 55 pacotes, 88 avisos de migração e zero erros estruturais.
+- 12 pacotes schema v2 assinados e um fingerprint autorizado;
+- 12 pacotes do publisher publicados pelos gates de reprodutibilidade;
+- 4 pacotes do publisher que precisam de release ou correção da tag;
+- saúde: 55 pacotes, 86 avisos de migração e zero erros estruturais.
 
 O portal gerado do Registry é o painel público do progresso. No momento ele
-informa 11 pacotes verificados, 44 pacotes legados e 20% de migração verificada.
+informa 12 pacotes verificados, 43 pacotes legados e 22% de migração verificada.
 Cada pacote schema v2 aceito com fingerprint autorizado para o publisher
 incrementa essa métrica automaticamente.
 
@@ -67,7 +67,7 @@ do publisher cadastrado:
 | horse-helmet | v1.0.1 | Publicado; manifesto reparado, 12/12 testes e instalação verificada aprovados |
 | horse-ssl-redirect | v1.0.1 | Publicado; 8/8 testes de integração de redirect e instalação verificada aprovados |
 | horse-request-id | v1.0.1 | Publicado; compatibilidade com Horse 3.2, 4/4 testes de isolamento e instalação verificada aprovados |
-| horse-opentelemetry | v1.0.0 | Bloqueado: dependência legada resolve para `https://horse/` |
+| horse-opentelemetry | v1.0.1 | Publicado; contexto por requisição, 62/62 asserções e instalação verificada aprovados |
 | horse-prometheus | v1.0.0 | Bloqueado: dependência legada resolve para `https://horse/` |
 
 Cada migração deve compilar e testar a tag imutável, produzir `.b4dpkg`,
@@ -138,6 +138,14 @@ isolamento concorrente antes de o bundle assinado de 10 arquivos passar nas
 verificações independentes de assinatura, conformidade e instalação sem
 fallback.
 
+O `horse-opentelemetry` `v1.0.1` veio depois com a correção da identidade da
+dependência Horse e a migração do contexto de trace para sessões isoladas por
+requisição. Quatro execuções completas com 62 asserções, mais uma execução
+limpa após o merge, cobriram criação e recuperação de contexto, parsing W3C de
+`traceparent` e geração de IDs hexadecimais antes de o bundle assinado de 15
+arquivos passar nas verificações independentes de assinatura, conformidade e
+instalação sem fallback.
+
 ### Primeiro lote de publicação
 
 O primeiro lote de publicação foi concluído nesta ordem:
@@ -155,7 +163,7 @@ reutilize a URL de evidência de um pacote em outro.
 ## Onda 2 — pacotes do publisher que precisam de release
 
 `Dext`, `horse-crud` e `horse-sanitize` ainda não possuem tag/release
-publicada. Os dois pacotes bloqueados da Onda 1 também precisam de manifestos,
+publicada. O pacote restante bloqueado da Onda 1 também precisa de manifesto,
 testes ou compatibilidade com Horse corrigidos em novas releases imutáveis.
 Antes da migração esses pacotes precisam de tag SemVer exata, testes, assets
 imutáveis e o mesmo fluxo de publicação assinada.

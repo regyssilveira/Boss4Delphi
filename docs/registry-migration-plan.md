@@ -8,17 +8,17 @@ request checks.
 
 ## Current baseline
 
-- 44 discoverable legacy v1 packages;
+- 43 discoverable legacy v1 packages;
 - 18 repository owners;
 - 16 packages in the already registered `regyssilveira` namespace;
 - 10 packages in the `HashLoad` namespace;
-- 11 signed schema-v2 packages and one authorized signer fingerprint;
-- 11 publisher-controlled packages published through the reproducibility gates;
-- 5 publisher-controlled packages requiring a release or corrected tag;
-- catalog health: 55 packages, 88 migration warnings, zero structural errors.
+- 12 signed schema-v2 packages and one authorized signer fingerprint;
+- 12 publisher-controlled packages published through the reproducibility gates;
+- 4 publisher-controlled packages requiring a release or corrected tag;
+- catalog health: 55 packages, 86 migration warnings, zero structural errors.
 
 The generated Registry portal is the public progress ledger. It currently
-reports 11 verified packages, 44 legacy packages, and 20% verified migration.
+reports 12 verified packages, 43 legacy packages, and 22% verified migration.
 Each accepted schema-v2 package with an authorized publisher fingerprint
 increments that metric automatically.
 
@@ -66,7 +66,7 @@ registered publisher scope:
 | horse-helmet | v1.0.1 | Published; repaired manifest, 12/12 tests and verified installation pass |
 | horse-ssl-redirect | v1.0.1 | Published; 8/8 redirect integration tests and verified installation pass |
 | horse-request-id | v1.0.1 | Published; Horse 3.2 compatibility, 4/4 request-isolation tests and verified installation pass |
-| horse-opentelemetry | v1.0.0 | Blocked: legacy dependency value resolves to `https://horse/` |
+| horse-opentelemetry | v1.0.1 | Published; request-scoped context, 62/62 assertions and verified installation pass |
 | horse-prometheus | v1.0.0 | Blocked: legacy dependency value resolves to `https://horse/` |
 
 Each migration must build and test from the immutable tag, produce `.b4dpkg`,
@@ -130,6 +130,13 @@ post-merge run covered ID generation, request and correlation header
 forwarding, and concurrent isolation before the signed 10-file bundle passed
 independent signature, conformance, and verified no-fallback installation.
 
+`horse-opentelemetry` `v1.0.1` followed by correcting its Horse dependency
+identity and moving trace context into request-scoped Horse sessions. Four
+complete 62-assertion runs plus a clean post-merge run covered context
+creation and retrieval, W3C `traceparent` parsing, and hexadecimal ID
+generation before the signed 15-file bundle passed independent signature,
+conformance, and verified no-fallback installation.
+
 ### First publication batch
 
 The first publication batch completed in this order:
@@ -147,7 +154,7 @@ Never reuse one package's evidence URL for another package.
 ## Wave 2 — publisher-controlled packages needing a release
 
 `Dext`, `horse-crud`, and `horse-sanitize` have no published tag/release.
-The two blocked Wave 1 packages additionally need corrected manifests, tests,
+The remaining blocked Wave 1 package additionally needs a corrected manifest, tests,
 or Horse compatibility in new immutable releases. Before Registry migration
 these packages need an exact SemVer tag, tests, immutable release assets, and
 the same signed publication workflow.
