@@ -28,6 +28,19 @@ passarem nos checks do pull request do Registry.
 
 Chave privada, senha e material de revogação nunca devem ser commitados.
 
+### Primeiro artefato preparado
+
+A tag imutável `v1.6.0` (`e53b8eb`) já foi empacotada com o packer
+determinístico atual:
+
+- artefato: `Boss4Delphi-1.6.0.b4dpkg`;
+- tamanho: 9.166.284 bytes;
+- SHA-256:
+  `903d6c3349fe75892430273a577d1b13f65d81f2f0ebe854b046ba9b4d1bda0b`;
+- digest do subject in-toto: verificado como igual ao digest do artefato;
+- gates restantes: assinatura OpenPGP, fingerprint autorizado, upload do asset
+  e pull request oficial do Registry.
+
 ## Onda 1 — pacotes do publisher com release pronta
 
 Os repositórios abaixo já possuem release GitHub com tag e pertencem ao escopo

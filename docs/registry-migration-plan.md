@@ -27,6 +27,19 @@ request checks.
 
 The private key, passphrase, and revocation material must never be committed.
 
+### Prepared first artifact
+
+The immutable `v1.6.0` tag (`e53b8eb`) has already been packed with the
+current deterministic packer:
+
+- artifact: `Boss4Delphi-1.6.0.b4dpkg`;
+- size: 9,166,284 bytes;
+- SHA-256:
+  `903d6c3349fe75892430273a577d1b13f65d81f2f0ebe854b046ba9b4d1bda0b`;
+- in-toto subject digest: verified equal to the artifact digest;
+- remaining gates: OpenPGP signature, authorized fingerprint, asset upload,
+  and official Registry pull request.
+
 ## Wave 1 — publisher-controlled release-ready packages
 
 The following repositories already have a tagged GitHub release and are in the
