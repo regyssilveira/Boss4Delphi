@@ -3,17 +3,57 @@ unit Boss4D.Core.Services.Doctor;
 interface
 
 uses
+  System.Generics.Collections,
   Boss4D.Core.Ports;
 
 type
-  { Servico de caso de uso para diagnostico de ambiente local (doctor) }
+  TBoss4DEnvironmentHealth = (HealthOk, HealthWarning, HealthError);
+
+  TBoss4DDoctorItem = class
+  private
+    FCode: string;
+    FGroup: string;
+    FHealth: TBoss4DEnvironmentHealth;
+    FMessage: string;
+    FRemediation: string;
+    FFixable: Boolean;
+    FFixed: Boolean;
+  public
+    property Code: string read FCode write FCode;
+    property Group: string read FGroup write FGroup;
+    property Health: TBoss4DEnvironmentHealth read FHealth write FHealth;
+    property Message: string read FMessage write FMessage;
+    property Remediation: string read FRemediation write FRemediation;
+    property Fixable: Boolean read FFixable write FFixable;
+    property Fixed: Boolean read FFixed write FFixed;
+  end;
+
+  TBoss4DDoctorReport = class
+  private
+    FItems: TObjectList<TBoss4DDoctorItem>;
+    function GetPassed: Boolean;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    function HasCode(const ACode: string): Boolean;
+    property Items: TObjectList<TBoss4DDoctorItem> read FItems;
+    property Passed: Boolean read GetPassed;
+  end;
+
+  { Servico de caso de uso para diagnostico de ambiente local (doctor). }
   TBoss4DDoctorService = class
   private
     FRegistry: IBoss4DRegistryService;
     FLogger: IBoss4DLogger;
     function SearchInPath(const AFileName: string): string;
+    procedure AddItem(const AReport: TBoss4DDoctorReport;
+      const ACode, AGroup: string; const AHealth: TBoss4DEnvironmentHealth;
+      const AMessage, ARemediation: string; const AFixable: Boolean = False;
+      const AFixed: Boolean = False);
   public
-    constructor Create(const ARegistry: IBoss4DRegistryService; const ALogger: IBoss4DLogger);
+    constructor Create(const ARegistry: IBoss4DRegistryService;
+      const ALogger: IBoss4DLogger);
+    function Diagnose(const AFix: Boolean): TBoss4DDoctorReport;
     function Check(const AFix: Boolean): Boolean;
   end;
 
@@ -23,20 +63,82 @@ uses
   System.SysUtils, System.IOUtils, Boss4D.Core.Domain.Env,
   Boss4D.Core.Services.Config;
 
-{ TBoss4DDoctorService }
+constructor TBoss4DDoctorReport.Create;
+begin
+  inherited Create;
+  FItems := TObjectList<TBoss4DDoctorItem>.Create(True);
+end;
 
-constructor TBoss4DDoctorService.Create(const ARegistry: IBoss4DRegistryService; const ALogger: IBoss4DLogger);
+destructor TBoss4DDoctorReport.Destroy;
+begin
+  FItems.Free;
+  inherited Destroy;
+end;
+
+function TBoss4DDoctorReport.GetPassed: Boolean;
+begin
+  Result := True;
+  for var LItem in FItems do
+    if LItem.Health = HealthError then
+      Exit(False);
+end;
+
+function TBoss4DDoctorReport.HasCode(const ACode: string): Boolean;
+begin
+  Result := False;
+  for var LItem in FItems do
+    if SameText(LItem.Code, ACode) then
+      Exit(True);
+end;
+
+constructor TBoss4DDoctorService.Create(
+  const ARegistry: IBoss4DRegistryService; const ALogger: IBoss4DLogger);
 begin
   inherited Create;
   FRegistry := ARegistry;
   FLogger := ALogger;
 end;
 
-function TBoss4DDoctorService.Check(const AFix: Boolean): Boolean;
+procedure TBoss4DDoctorService.AddItem(const AReport: TBoss4DDoctorReport;
+  const ACode, AGroup: string; const AHealth: TBoss4DEnvironmentHealth;
+  const AMessage, ARemediation: string; const AFixable, AFixed: Boolean);
+var
+  LItem: TBoss4DDoctorItem;
+  LLevel: TBoss4DLogLevel;
+  LPrefix: string;
+begin
+  LItem := TBoss4DDoctorItem.Create;
+  LItem.Code := ACode;
+  LItem.Group := AGroup;
+  LItem.Health := AHealth;
+  LItem.Message := AMessage;
+  LItem.Remediation := ARemediation;
+  LItem.Fixable := AFixable;
+  LItem.Fixed := AFixed;
+  AReport.Items.Add(LItem);
+  case AHealth of
+    HealthOk:
+      begin
+        LLevel := TBoss4DLogLevel.Info;
+        if AFixed then LPrefix := '[FIX] ' else LPrefix := '[OK] ';
+      end;
+    HealthWarning:
+      begin
+        LLevel := TBoss4DLogLevel.Warning;
+        LPrefix := '[AVISO] ';
+      end;
+  else
+    LLevel := TBoss4DLogLevel.Error;
+    LPrefix := '[ERRO] ';
+  end;
+  FLogger.Log(LLevel, LPrefix + AMessage);
+end;
+
+function TBoss4DDoctorService.Diagnose(
+  const AFix: Boolean): TBoss4DDoctorReport;
 var
   LVersions: TArray<string>;
   LGitVersion: string;
-  LGitSuccess: Boolean;
   LCompilerPath: string;
   LMSBuildPath: string;
   LDelphiVersion: string;
@@ -44,89 +146,98 @@ var
   LConfigService: TBoss4DConfigService;
   LConfig: TBoss4DGlobalConfig;
 begin
-  Result := True;
-  FLogger.Log(TBoss4DLogLevel.Info, 'ðŸ©º Executando auto-diagnostico do Boss4D...');
+  Result := TBoss4DDoctorReport.Create;
+  FLogger.Log(TBoss4DLogLevel.Info,
+    'Executando auto-diagnostico do Boss4D...');
 
-  // 1. Verifica Git CLI
-  LGitSuccess := ExecuteCommandLine('git --version', '', LGitVersion);
-  if LGitSuccess then
-    FLogger.Log(TBoss4DLogLevel.Info, '[OK] Git CLI detectado: ' + LGitVersion)
+  if ExecuteCommandLine('git --version', '', LGitVersion) then
+    AddItem(Result, 'GIT_CLI', 'Ferramentas', HealthOk,
+      'Git CLI detectado: ' + LGitVersion, '')
   else
-  begin
-    FLogger.Log(TBoss4DLogLevel.Error, '[ERRO] Git CLI nao detectado ou nao disponivel no PATH.');
-    Result := False;
-  end;
+    AddItem(Result, 'GIT_CLI', 'Ferramentas', HealthError,
+      'Git CLI nao detectado ou nao disponivel no PATH.',
+      'Instale o Git e adicione git.exe ao PATH.');
 
-  // 2. Verifica Delphi no Registro
   LVersions := FRegistry.GetInstalledDelphiVersions;
   if Length(LVersions) = 0 then
-  begin
-    FLogger.Log(TBoss4DLogLevel.Warning, '[AVISO] Nenhuma instalacao do Delphi foi encontrada no Registro.');
-  end
+    AddItem(Result, 'DELPHI_REGISTRY', 'Delphi', HealthWarning,
+      'Nenhuma instalacao do Delphi foi encontrada no Registro.',
+      'Instale o RAD Studio ou valide as chaves BDS do usuario.')
   else
   begin
-    FLogger.Log(TBoss4DLogLevel.Info, '[OK] Versoes do Delphi encontradas no Registro:');
+    AddItem(Result, 'DELPHI_REGISTRY', 'Delphi', HealthOk,
+      Format('%d instalacao(oes) do Delphi encontrada(s) no Registro.',
+        [Length(LVersions)]), '');
     for LDelphiVersion in LVersions do
     begin
       LDelphiPath := FRegistry.GetDelphiPath(LDelphiVersion);
       if TDirectory.Exists(LDelphiPath) then
-        FLogger.Log(TBoss4DLogLevel.Info, '  -> Delphi %s em %s', [LDelphiVersion, LDelphiPath])
+        AddItem(Result, 'DELPHI_' + LDelphiVersion, 'Delphi', HealthOk,
+          Format('Delphi %s em %s', [LDelphiVersion, LDelphiPath]), '')
       else
-        FLogger.Log(TBoss4DLogLevel.Warning, '  -> Delphi %s (Caminho registrado nao existe: %s)', [LDelphiVersion, LDelphiPath]);
+        AddItem(Result, 'DELPHI_' + LDelphiVersion, 'Delphi',
+          HealthWarning, Format(
+            'Delphi %s possui caminho registrado inexistente: %s',
+            [LDelphiVersion, LDelphiPath]),
+          'Repare a instalacao ou remova a chave BDS obsoleta.');
     end;
   end;
 
-  // 3. Verifica dcc32 no PATH
   LCompilerPath := SearchInPath('dcc32.exe');
   if not LCompilerPath.IsEmpty then
-    FLogger.Log(TBoss4DLogLevel.Info, '[OK] Compilador dcc32 detectado no PATH: ' + LCompilerPath)
+    AddItem(Result, 'DCC32_PATH', 'Compilador', HealthOk,
+      'Compilador dcc32 detectado no PATH: ' + LCompilerPath, '')
   else
-  begin
-    FLogger.Log(TBoss4DLogLevel.Warning, '[AVISO] Compilador dcc32.exe nao encontrado no PATH.');
-    Result := False;
-  end;
+    AddItem(Result, 'DCC32_PATH', 'Compilador', HealthError,
+      'Compilador dcc32.exe nao encontrado no PATH.',
+      'Execute pelo RAD Studio Command Prompt ou configure o ambiente.');
 
-  // 4. Verifica MSBuild no PATH
   LMSBuildPath := SearchInPath('msbuild.exe');
   if not LMSBuildPath.IsEmpty then
-    FLogger.Log(TBoss4DLogLevel.Info, '[OK] MSBuild detectado no PATH: ' + LMSBuildPath)
+    AddItem(Result, 'MSBUILD_PATH', 'Compilador', HealthOk,
+      'MSBuild detectado no PATH: ' + LMSBuildPath, '')
   else
-  begin
-    FLogger.Log(TBoss4DLogLevel.Warning, '[AVISO] MSBuild.exe nao encontrado no PATH. A compilacao automatica do Boss4D pode falhar.');
-    Result := False;
-  end;
+    AddItem(Result, 'MSBUILD_PATH', 'Compilador', HealthError,
+      'MSBuild.exe nao encontrado no PATH.',
+      'Execute pelo RAD Studio Command Prompt ou adicione o MSBuild ao PATH.');
 
-  // 5. Aplicar correcao (Fix) se solicitado
-  if AFix then
+  if AFix and (Length(LVersions) > 0) then
   begin
-    FLogger.Log(TBoss4DLogLevel.Info, 'Tentando aplicar correcoes de configuracao...');
-
-    if (Length(LVersions) > 0) then
+    var LLastVersion := LVersions[Length(LVersions) - 1];
+    var LLastPath := FRegistry.GetDelphiPath(LLastVersion);
+    if TDirectory.Exists(LLastPath) then
     begin
-      var LLastVer := LVersions[Length(LVersions) - 1];
-      var LLastPath := FRegistry.GetDelphiPath(LLastVer);
-      if TDirectory.Exists(LLastPath) then
-      begin
-        LConfigService := TBoss4DConfigService.Create(FLogger);
+      LConfigService := TBoss4DConfigService.Create(FLogger);
+      try
+        LConfig := LConfigService.Load;
         try
-          LConfig := LConfigService.Load;
-          try
-            if LConfig.DelphiPath.IsEmpty then
-            begin
-              LConfig.DelphiPath := LLastPath;
-              LConfigService.Save(LConfig);
-              FLogger.Log(TBoss4DLogLevel.Info, '[FIX] Configuracao global do Boss4D (delphi path) atualizada para: ' + LLastPath);
-            end;
-          finally
-            LConfig.Free;
+          if LConfig.DelphiPath.IsEmpty then
+          begin
+            LConfig.DelphiPath := LLastPath;
+            LConfigService.Save(LConfig);
+            AddItem(Result, 'CONFIG_DELPHI_PATH', 'Configuracao',
+              HealthOk, 'Caminho global do Delphi atualizado para: ' +
+              LLastPath, '', True, True);
           end;
         finally
-          LConfigService.Free;
+          LConfig.Free;
         end;
+      finally
+        LConfigService.Free;
       end;
     end;
+  end;
+end;
 
-    FLogger.Log(TBoss4DLogLevel.Info, 'Dica: Sempre execute o Boss4D a partir do "RAD Studio Command Prompt" para carregar automaticamente o ambiente compilador.');
+function TBoss4DDoctorService.Check(const AFix: Boolean): Boolean;
+var
+  LReport: TBoss4DDoctorReport;
+begin
+  LReport := Diagnose(AFix);
+  try
+    Result := LReport.Passed;
+  finally
+    LReport.Free;
   end;
 end;
 

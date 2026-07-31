@@ -3876,14 +3876,27 @@ procedure TTestsServices.TestDoctorService;
 var
   LRegistryMock: TRegistryMock;
   LDoctorService: TBoss4DDoctorService;
+  LReport: TBoss4DDoctorReport;
 begin
   LRegistryMock := TRegistryMock.Create;
   LDoctorService := TBoss4DDoctorService.Create(LRegistryMock, TTestLogger.Create);
   try
-    // Roda a verificaÃ§Ã£o de auto-diagnÃ³stico sem fix (deve completar com ou sem avisos)
-    LDoctorService.Check(False);
-
-    // Roda a verificaÃ§Ã£o aplicando fix
+    LReport := LDoctorService.Diagnose(False);
+    try
+      Assert.IsTrue(LReport.HasCode('GIT_CLI'));
+      Assert.IsTrue(LReport.HasCode('DELPHI_REGISTRY'));
+      Assert.IsTrue(LReport.HasCode('DCC32_PATH'));
+      Assert.IsTrue(LReport.HasCode('MSBUILD_PATH'));
+      Assert.IsTrue(LReport.Items.Count >= 4);
+      for var LItem in LReport.Items do
+      begin
+        Assert.IsNotEmpty(LItem.Code);
+        Assert.IsNotEmpty(LItem.Group);
+        Assert.IsNotEmpty(LItem.Message);
+      end;
+    finally
+      LReport.Free;
+    end;
     LDoctorService.Check(True);
   finally
     LDoctorService.Free;
