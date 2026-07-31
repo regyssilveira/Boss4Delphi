@@ -314,6 +314,31 @@ begin
       if LProject.Kind.IsEmpty then
         LProject.Kind := 'runtime';
       ParseStringArray(LProjectObject, 'dependsOn', LProject.DependsOn);
+      var LDependenciesArray := ReadArray(LProjectObject, 'dependencies');
+      if Assigned(LDependenciesArray) then
+        for var LDependencyIndex := 0 to
+          LDependenciesArray.Count - 1 do
+          if LDependenciesArray[LDependencyIndex] is TJSONObject then
+          begin
+            var LDependencyObject :=
+              TJSONObject(LDependenciesArray[LDependencyIndex]);
+            var LDependency := TBoss4DBuildDependency.Create;
+            try
+              LDependency.Path := ReadString(LDependencyObject, 'path');
+              LDependency.Optional := ReadBool(LDependencyObject,
+                'optional');
+              ParseStringArray(LDependencyObject, 'compilers',
+                LDependency.Compilers);
+              ParseStringArray(LDependencyObject, 'platforms',
+                LDependency.Platforms);
+              ParseStringArray(LDependencyObject, 'configurations',
+                LDependency.Configurations);
+              LProject.Dependencies.Add(LDependency);
+              LDependency := nil;
+            finally
+              LDependency.Free;
+            end;
+          end;
       ParseStringArray(LProjectObject, 'compilers', LProject.Compilers);
       ParseStringArray(LProjectObject, 'platforms', LProject.Platforms);
       ParseStringArray(LProjectObject, 'configurations',
@@ -577,6 +602,25 @@ begin
         LProjectObject.AddPair('kind', LProject.Kind);
         AddStringArrayIfPresent(LProjectObject, 'dependsOn',
           LProject.DependsOn);
+        if LProject.Dependencies.Count > 0 then
+        begin
+          var LDependenciesArray := TJSONArray.Create;
+          for var LDependency in LProject.Dependencies do
+          begin
+            var LDependencyObject := TJSONObject.Create;
+            LDependencyObject.AddPair('path', LDependency.Path);
+            if LDependency.Optional then
+              LDependencyObject.AddPair('optional', TJSONBool.Create(True));
+            AddStringArrayIfPresent(LDependencyObject, 'compilers',
+              LDependency.Compilers);
+            AddStringArrayIfPresent(LDependencyObject, 'platforms',
+              LDependency.Platforms);
+            AddStringArrayIfPresent(LDependencyObject, 'configurations',
+              LDependency.Configurations);
+            LDependenciesArray.AddElement(LDependencyObject);
+          end;
+          LProjectObject.AddPair('dependencies', LDependenciesArray);
+        end;
         AddStringArrayIfPresent(LProjectObject, 'compilers',
           LProject.Compilers);
         AddStringArrayIfPresent(LProjectObject, 'platforms',

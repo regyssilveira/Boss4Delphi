@@ -54,12 +54,22 @@ $sbom64 = Join-Path $buildRoot 'sbom-win64'
 
 Invoke-DelphiCommand -WorkingDirectory (Join-Path $workspace 'tests') `
   -Command "dcc32 -B -E`"$win32`" -N0`"$win32`" -N1`"$win32`" Boss4DTests.dpr"
-& (Join-Path $win32 'Boss4DTests.exe')
+Push-Location (Join-Path $workspace 'tests')
+try {
+  & (Join-Path $win32 'Boss4DTests.exe')
+} finally {
+  Pop-Location
+}
 if ($LASTEXITCODE -ne 0) { throw 'Testes Win32 falharam.' }
 
 Invoke-DelphiCommand -WorkingDirectory (Join-Path $workspace 'tests') `
   -Command "dcc64 -B -E`"$win64`" -N0`"$win64`" -N1`"$win64`" Boss4DTests.dpr"
-& (Join-Path $win64 'Boss4DTests.exe')
+Push-Location (Join-Path $workspace 'tests')
+try {
+  & (Join-Path $win64 'Boss4DTests.exe')
+} finally {
+  Pop-Location
+}
 if ($LASTEXITCODE -ne 0) { throw 'Testes Win64 falharam.' }
 
 Invoke-DelphiCommand -WorkingDirectory (Join-Path $workspace 'src') `

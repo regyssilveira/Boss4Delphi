@@ -208,6 +208,7 @@ var
   LPackage: TBoss4DPackage;
   LLoaded: TBoss4DPackage;
   LProject: TBoss4DBuildProject;
+  LDependency: TBoss4DBuildDependency;
 begin
   LFilePath := TPath.Combine(FTempDir, 'matrix-boss.json');
   LPackage := TBoss4DPackage.Create;
@@ -239,6 +240,13 @@ begin
     LProject.PalettePage := 'Boss4D Samples';
     LProject.Kind := 'design';
     LProject.DependsOn.Add('packages/runtime.dproj');
+    LDependency := TBoss4DBuildDependency.Create;
+    LDependency.Path := 'packages/optional-runtime.dproj';
+    LDependency.Optional := True;
+    LDependency.Compilers.Add('37.0');
+    LDependency.Platforms.Add('Win32');
+    LDependency.Configurations.Add('Release');
+    LProject.Dependencies.Add(LDependency);
     LProject.Compilers.Add('37.0');
     LProject.Configurations.Add('Release');
     LPackage.BuildMatrix.Projects.Add(LProject);
@@ -270,6 +278,18 @@ begin
       LLoaded.BuildMatrix.Projects[0].DependsOn.Count);
     Assert.AreEqual('packages/runtime.dproj',
       LLoaded.BuildMatrix.Projects[0].DependsOn[0]);
+    Assert.AreEqual<Integer>(1,
+      LLoaded.BuildMatrix.Projects[0].Dependencies.Count);
+    Assert.AreEqual('packages/optional-runtime.dproj',
+      LLoaded.BuildMatrix.Projects[0].Dependencies[0].Path);
+    Assert.IsTrue(
+      LLoaded.BuildMatrix.Projects[0].Dependencies[0].Optional);
+    Assert.AreEqual('37.0',
+      LLoaded.BuildMatrix.Projects[0].Dependencies[0].Compilers[0]);
+    Assert.AreEqual('Win32',
+      LLoaded.BuildMatrix.Projects[0].Dependencies[0].Platforms[0]);
+    Assert.AreEqual('Release',
+      LLoaded.BuildMatrix.Projects[0].Dependencies[0].Configurations[0]);
     Assert.AreEqual('37.0',
       LLoaded.BuildMatrix.Projects[0].Compilers[0]);
     Assert.AreEqual('RuntimePackage',

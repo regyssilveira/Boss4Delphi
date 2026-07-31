@@ -17,6 +17,25 @@ type
       static;
   end;
 
+  TBoss4DBuildDependency = class
+  private
+    FPath: string;
+    FOptional: Boolean;
+    FCompilers: TList<string>;
+    FPlatforms: TList<string>;
+    FConfigurations: TList<string>;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    function AppliesTo(const ACompiler, APlatform,
+      AConfiguration: string): Boolean;
+    property Path: string read FPath write FPath;
+    property Optional: Boolean read FOptional write FOptional;
+    property Compilers: TList<string> read FCompilers;
+    property Platforms: TList<string> read FPlatforms;
+    property Configurations: TList<string> read FConfigurations;
+  end;
+
   TBoss4DBuildProject = class
   private
     FPath: string;
@@ -25,6 +44,7 @@ type
     FPalettePage: string;
     FKind: string;
     FDependsOn: TList<string>;
+    FDependencies: TObjectList<TBoss4DBuildDependency>;
     FCompilers: TList<string>;
     FPlatforms: TList<string>;
     FConfigurations: TList<string>;
@@ -41,6 +61,8 @@ type
     property Kind: string read FKind write FKind;
     property Role: TBoss4DBuildProjectRole read GetRole write SetRole;
     property DependsOn: TList<string> read FDependsOn;
+    property Dependencies: TObjectList<TBoss4DBuildDependency>
+      read FDependencies;
     property Compilers: TList<string> read FCompilers;
     property Platforms: TList<string> read FPlatforms;
     property Configurations: TList<string> read FConfigurations;
@@ -162,6 +184,41 @@ uses
   System.SysUtils,
   System.IOUtils;
 
+function ContainsText(const AValues: TList<string>;
+  const AValue: string): Boolean;
+begin
+  Result := False;
+  for var LItem in AValues do
+    if SameText(LItem, AValue) then
+      Exit(True);
+end;
+
+constructor TBoss4DBuildDependency.Create;
+begin
+  inherited Create;
+  FCompilers := TList<string>.Create;
+  FPlatforms := TList<string>.Create;
+  FConfigurations := TList<string>.Create;
+end;
+
+destructor TBoss4DBuildDependency.Destroy;
+begin
+  FConfigurations.Free;
+  FPlatforms.Free;
+  FCompilers.Free;
+  inherited Destroy;
+end;
+
+function TBoss4DBuildDependency.AppliesTo(const ACompiler, APlatform,
+  AConfiguration: string): Boolean;
+begin
+  Result := ((FCompilers.Count = 0) or
+    ContainsText(FCompilers, ACompiler)) and
+    ((FPlatforms.Count = 0) or ContainsText(FPlatforms, APlatform)) and
+    ((FConfigurations.Count = 0) or
+      ContainsText(FConfigurations, AConfiguration));
+end;
+
 class function TBoss4DBuildProjectRoles.Parse(
   const AValue: string): TBoss4DBuildProjectRole;
 begin
@@ -201,6 +258,7 @@ begin
   inherited Create;
   FKind := 'runtime';
   FDependsOn := TList<string>.Create;
+  FDependencies := TObjectList<TBoss4DBuildDependency>.Create(True);
   FCompilers := TList<string>.Create;
   FPlatforms := TList<string>.Create;
   FConfigurations := TList<string>.Create;
@@ -219,6 +277,7 @@ end;
 
 destructor TBoss4DBuildProject.Destroy;
 begin
+  FDependencies.Free;
   FConfigurations.Free;
   FPlatforms.Free;
   FCompilers.Free;

@@ -155,10 +155,30 @@ begin
         AMatrix.Platforms);
       ValidateSubset(LProject.Path, 'configuracao',
         LProject.Configurations, AMatrix.Configurations);
+      for var LBuildDependency in LProject.Dependencies do
+      begin
+        if LBuildDependency.Path.Trim.IsEmpty then
+          raise EArgumentException.CreateFmt(
+            'Projeto %s declara uma dependencia com path vazio.',
+            [LProject.Path]);
+        ValidateUniqueValues(LBuildDependency.Compilers,
+          'compilers da dependencia ' + LBuildDependency.Path);
+        ValidateUniqueValues(LBuildDependency.Platforms,
+          'platforms da dependencia ' + LBuildDependency.Path);
+        ValidateUniqueValues(LBuildDependency.Configurations,
+          'configurations da dependencia ' + LBuildDependency.Path);
+        ValidateSubset(LProject.Path, 'compilador da dependencia',
+          LBuildDependency.Compilers, AMatrix.Compilers);
+        ValidateSubset(LProject.Path, 'plataforma da dependencia',
+          LBuildDependency.Platforms, AMatrix.Platforms);
+        ValidateSubset(LProject.Path, 'configuracao da dependencia',
+          LBuildDependency.Configurations, AMatrix.Configurations);
+      end;
     end;
 
     for var LProject in AMatrix.Projects do
       if LProject.Role = TBoss4DBuildProjectRole.RuntimePackage then
+      begin
         for var LDependencyPath in LProject.DependsOn do
         begin
           LDependency := nil;
@@ -170,6 +190,18 @@ begin
               'Package runtime %s nao pode depender do package design %s.',
               [LProject.Path, LDependency.Path]);
         end;
+        for var LBuildDependency in LProject.Dependencies do
+        begin
+          LDependency := nil;
+          if LProjectsByPath.TryGetValue(
+            LBuildDependency.Path.ToLower, LDependency) and
+             (LDependency.Role =
+               TBoss4DBuildProjectRole.DesignPackage) then
+            raise EArgumentException.CreateFmt(
+              'Package runtime %s nao pode depender do package design %s.',
+              [LProject.Path, LDependency.Path]);
+        end;
+      end;
   finally
     LProjectsByPath.Free;
     LSeenProjects.Free;
@@ -333,6 +365,37 @@ begin
                             TBoss4DBuildConventions.ExpandPath(
                               LDependencyPath, LCompiler, LPlatform,
                               LConfiguration));
+                        for var LBuildDependency in
+                          LProject.Dependencies do
+                          if LBuildDependency.AppliesTo(LCompiler,
+                            LPlatform, LConfiguration) then
+                          begin
+                            var LExpandedDependency :=
+                              TBoss4DBuildConventions.ExpandPath(
+                                LBuildDependency.Path, LCompiler,
+                                LPlatform, LConfiguration);
+                            var LDependencyExists := False;
+                            for var LCandidate in
+                              APackage.BuildMatrix.Projects do
+                              if SameText(
+                                TBoss4DBuildConventions.ExpandPath(
+                                  LCandidate.Path, LCompiler, LPlatform,
+                                  LConfiguration),
+                                LExpandedDependency) and
+                                 ProjectAllows(LCandidate.Compilers,
+                                   LCompiler) and
+                                 ProjectAllows(LCandidate.Platforms,
+                                   LPlatform) and
+                                 ProjectAllows(LCandidate.Configurations,
+                                   LConfiguration) then
+                              begin
+                                LDependencyExists := True;
+                                Break;
+                              end;
+                            if LDependencyExists or
+                               not LBuildDependency.Optional then
+                              LTarget.DependsOn.Add(LExpandedDependency);
+                          end;
                         Result.Add(LTarget);
                       end;
         finally

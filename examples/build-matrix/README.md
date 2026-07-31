@@ -4,6 +4,11 @@ The adjacent `boss.json` declares runtime and design-time packages across
 Delphi 10, 10.1, 11, 12, and 13. It expands to 23 compatible targets after the
 design package restrictions are applied.
 
+The design package also declares an optional, conditional dependency through
+`dependencies`. Optional targets that are not shipped are ignored; when
+present, they participate in ordering only for matching compiler, platform,
+and configuration values.
+
 From a real component repository, adapt the project paths and run:
 
 ```console
