@@ -568,8 +568,10 @@ begin
 end;
 
 procedure TFormMain.QueueLogEntry(const AEntry: TBoss4DGUILogEntry);
+var
+  LEntry: TBoss4DGUILogEntry;
 begin
-  var LEntry := AEntry;
+  LEntry := AEntry;
   TThread.Queue(nil,
     TThreadProcedure(
       procedure
