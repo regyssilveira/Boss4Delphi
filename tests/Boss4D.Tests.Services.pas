@@ -17,6 +17,16 @@ type
     procedure DeleteSecret(const AName: string);
   end;
 
+  TOfficialPackageSignerMock = class(TInterfacedObject,
+    IBoss4DPackageSigner)
+  private
+    FAccept: Boolean;
+  public
+    constructor Create(const AAccept: Boolean);
+    function Sign(const AArtifactPath, AKeyId: string): string;
+    function Verify(const AArtifactPath, ASignaturePath: string): Boolean;
+  end;
+
   { MockLogger simples para nao poluir o console de testes e capturar saidas }
   TTestLogger = class(TInterfacedObject, IBoss4DLogger)
   private
@@ -50,12 +60,18 @@ type
     procedure TestInstallService;
     [Test]
     procedure TestInstallBuildMatrixTriggersAutomaticIDEInstallation;
+    [Test]
+    procedure TestInstallNoRegisterSkipsLibraryPathIntegration;
+    [Test]
+    procedure TestInstallResolvesRegistryAliasIntoCanonicalLock;
 
     [Test]
     procedure TestInstallBranchDependency;
 
     [Test]
     procedure TestDependencyLifecycleCommands;
+    [Test]
+    procedure TestPinRejectsNonSemVerLockRevision;
 
     [Test]
     procedure TestInstallTransactionRollback;
@@ -82,13 +98,27 @@ type
     [Test]
     procedure TestPackageIndexV2IncludesV1;
     [Test]
+    procedure TestConfiguredRegistryOverridesPublicLegacyEntry;
+    [Test]
+    procedure TestPackageIndexSelectsVersionsDeterministically;
+    [Test]
+    procedure TestPackageIndexSparseRevocationAndMirrorMetadata;
+    [Test]
     procedure TestPublicRegistryIsDefaultSource;
+    [Test]
+    procedure TestPackageIndexUsesLastValidHttpCache;
 
     [Test]
     procedure TestGitHubDependencySubmission;
 
     [Test]
     procedure TestPublishDryRunAndGates;
+    [Test]
+    procedure TestOfficialRegistrySubmissionDocument;
+    [Test]
+    procedure TestOfficialPublishPreparesVerifiedBundleTransactionally;
+    [Test]
+    procedure TestRegistryCheckoutAppliesAndAppendsSubmission;
 
     [Test]
     procedure TestCompiledArtifactCacheIsolation;
@@ -107,6 +137,10 @@ type
     [Test]
     procedure TestIDEUnregisterPreservesPathsOwnedByAnotherPackage;
     [Test]
+    procedure TestIDEUnregisterPreservesArtifactsOwnedByAnotherPackage;
+    [Test]
+    procedure TestIDEUninstallPreviewListsOnlyOwnedMutations;
+    [Test]
     procedure TestIDEUnregisterRemovesOnlyManagedArtifacts;
     [Test]
     procedure TestIDEUnregisterRestoresArtifactsOnRegistryFailure;
@@ -115,7 +149,15 @@ type
     [Test]
     procedure TestIDERegistrationAcceptsModeledLegacyDelphi;
     [Test]
+    procedure TestIDEProfilesIsolateRegistryAndInventory;
+    [Test]
     procedure TestIDERegistrationRollsBackOnFailure;
+    [Test]
+    procedure TestIDERegistrationBatchRollsBackEveryTarget;
+    [Test]
+    procedure TestIDERegistrationPreviewIsMutationFreeAndIdempotent;
+    [Test]
+    procedure TestIDERegistrationPreviewReportsBlockedConflict;
     [Test]
     procedure TestIDERegistrationRepairRestoresDrift;
     [Test]
@@ -137,6 +179,8 @@ type
     procedure TestCLIBuildExecutesSelectedMatrix;
     [Test]
     procedure TestCLIIDEUnregisterAndRepairAreExactlyScoped;
+    [Test]
+    procedure TestCLIIDEProfileLifecycle;
 
     [Test]
     procedure TestCompilerAutodetectAndOverride;
@@ -236,6 +280,7 @@ implementation
 
 uses
   Winapi.Windows, System.SysUtils, System.Classes, System.IOUtils,
+  System.JSON,
   System.RegularExpressions,
   System.Win.Registry,
   Boss4D.Core.Domain.Package, Boss4D.Core.Domain.Lock, Boss4D.Core.Domain.Dependency,
@@ -253,6 +298,9 @@ uses
   Boss4D.Core.Services.PackageIndex,
   Boss4D.Core.Services.DependencySubmission,
   Boss4D.Core.Services.Publish,
+  Boss4D.Core.Services.RegistrySubmission,
+  Boss4D.Core.Services.RegistryCheckout,
+  Boss4D.Core.Services.OfficialPublish,
   Boss4D.Core.Services.ArtifactCache,
   Boss4D.Core.Domain.BuildMatrix,
   Boss4D.Core.Services.BuildExecutor,
@@ -576,7 +624,7 @@ var
   LRootLocked: TBoss4DLockedDependency;
   LTransitive: TBoss4DDependency;
   LPkg: TBoss4DPackage;
-  LRootKey, LTransitiveKey: string;
+  LRootKey, LTransitiveKey, LResolvedVersion: string;
   LRootModulePath: string;
 begin
   LLogger := TTestLogger.Create;
@@ -612,6 +660,8 @@ begin
       LRootKey := LLock.RootDependencies[0];
       Assert.IsTrue(LLock.Installed.TryGetValue(LRootKey, LRootLocked),
         'A dependencia raiz deve existir no lock: ' + LRootKey);
+      LRootLocked.Version := '3.0.0';
+      LResolvedVersion := LRootLocked.Version;
       LRootLocked.Dependencies.Add(LTransitive.GetKey);
       LLockRepo.Save(LLock, TPath.Combine(FTempDir, FILE_PACKAGE_LOCK));
     finally
@@ -631,6 +681,23 @@ begin
     Assert.IsTrue(LLogger.LastLogMessage.Contains(
       LRootKey + ' -> ' + LTransitiveKey),
       'why nao retornou o caminho esperado: ' + LLogger.LastLogMessage);
+
+    LParser.ParseAndExecute(TArray<string>.Create('pin', 'horse'));
+    LPkg := LPackageRepo.Load(GetBossFile);
+    try
+      Assert.AreEqual(LResolvedVersion,
+        LPkg.Dependencies['github.com/hashload/horse']);
+    finally
+      LPkg.Free;
+    end;
+    LParser.ParseAndExecute(TArray<string>.Create('unpin', 'horse'));
+    LPkg := LPackageRepo.Load(GetBossFile);
+    try
+      Assert.AreEqual('^' + LResolvedVersion,
+        LPkg.Dependencies['github.com/hashload/horse']);
+    finally
+      LPkg.Free;
+    end;
 
     LParser.ParseAndExecute(TArray<string>.Create('update', 'horse'));
     var LRootDep := TBoss4DDependency.Create(
@@ -1182,6 +1249,323 @@ begin
   end;
 end;
 
+procedure TTestsServices.TestConfiguredRegistryOverridesPublicLegacyEntry;
+const
+  PUBLIC_URL =
+    'https://raw.githubusercontent.com/regyssilveira/Boss4Delphi/main/registry/index-v2.json';
+var
+  LConfig: TBoss4DConfigService;
+  LHttp: THttpClientMock;
+  LService: TBoss4DPackageIndexService;
+  LIndexPath: string;
+  LEntry: TBoss4DPackageIndexEntry;
+begin
+  LIndexPath := TPath.Combine(FTempDir, 'override-index-v2.json');
+  TFile.WriteAllText(LIndexPath,
+    '{"schemaVersion":2,"packages":[{"name":"MigratedPackage",' +
+    '"repository":"github.com/demo/migrated","versions":[{' +
+    '"version":"1.0.0","artifact":"https://example.test/package.b4dpkg",' +
+    '"sha256":"' + StringOfChar('a', 64) + '"}]}]}', TEncoding.UTF8);
+  LConfig := TBoss4DConfigService.Create(TTestLogger.Create);
+  LHttp := THttpClientMock.Create;
+  LHttp.AddResponse(PUBLIC_URL,
+    '{"schemaVersion":2,"packages":[{"name":"MigratedPackage",' +
+    '"repository":"github.com/demo/migrated"}]}', 200);
+  LService := TBoss4DPackageIndexService.Create(LConfig, LHttp,
+    TTestLogger.Create);
+  try
+    LService.AddRegistry(LIndexPath);
+    LEntry := LService.Info('MigratedPackage');
+    try
+      Assert.IsNotNull(LEntry);
+      Assert.AreEqual<Integer>(1, LEntry.Versions.Count);
+      Assert.AreEqual('1.0.0', LEntry.ResolveVersion('1.0.0').Version);
+      Assert.AreEqual(LIndexPath, LEntry.Source);
+    finally
+      LEntry.Free;
+    end;
+  finally
+    LService.Free;
+    LConfig.Free;
+  end;
+end;
+
+procedure TTestsServices.TestInstallNoRegisterSkipsLibraryPathIntegration;
+var
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LPackage: TBoss4DPackage;
+  LInstall: TBoss4DInstallService;
+  LOptions: TBoss4DInstallOptions;
+  LGit: TGitClientMock;
+  LPathCalls: Integer;
+begin
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'isolated-install';
+    LPackage.Version := '1.0.0';
+    LPackage.AddDependency('github.com/hashload/horse', '^3.1.0');
+    LPackageRepo.Save(LPackage, GetBossFile);
+  finally
+    LPackage.Free;
+  end;
+  LGit := TGitClientMock.Create;
+  LGit.AddMockTags('github.com/hashload/horse',
+    TArray<string>.Create('v3.1.0'));
+  LPathCalls := 0;
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo,
+    LGit, THttpClientMock.Create, TCompilerMock.Create,
+    TTestLogger.Create);
+  try
+    LInstall.SetIDEPathIntegrationHandler(
+      procedure(const APlatform: string)
+      begin
+        Inc(LPathCalls);
+      end);
+    LOptions := Default(TBoss4DInstallOptions);
+    LOptions.InstallIDEs := False;
+    LInstall.Execute(LOptions);
+    Assert.AreEqual(0, LPathCalls,
+      '--no-register nao deve alterar Library Paths globais.');
+  finally
+    LInstall.Free;
+  end;
+end;
+
+procedure TTestsServices.TestInstallResolvesRegistryAliasIntoCanonicalLock;
+var
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LPackage: TBoss4DPackage;
+  LInstall: TBoss4DInstallService;
+  LOptions: TBoss4DInstallOptions;
+  LGit: TGitClientMock;
+  LLock: TBoss4DLock;
+  LCanonical: TBoss4DDependency;
+  LLocked: TBoss4DLockedDependency;
+  LResolverCalls: Integer;
+begin
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'registry-alias-install';
+    LPackage.Version := '1.0.0';
+    LPackage.AddDependency('horse', '^3.1.0');
+    LPackageRepo.Save(LPackage, GetBossFile);
+  finally
+    LPackage.Free;
+  end;
+  LGit := TGitClientMock.Create;
+  LGit.AddMockTags('github.com/hashload/horse',
+    TArray<string>.Create('v3.1.0'));
+  LResolverCalls := 0;
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo,
+    LGit, THttpClientMock.Create, TCompilerMock.Create,
+    TTestLogger.Create);
+  try
+    LInstall.SetDependencyAliasResolver(
+      function(const AAlias: string): string
+      begin
+        Inc(LResolverCalls);
+        Assert.AreEqual('horse', AAlias);
+        Result := 'github.com/hashload/horse';
+      end);
+    LOptions := Default(TBoss4DInstallOptions);
+    LOptions.InstallIDEs := False;
+    LInstall.Execute(LOptions);
+    LLock := LLockRepo.Load(TPath.Combine(FTempDir, FILE_PACKAGE_LOCK));
+    try
+      LCanonical := TBoss4DDependency.Create(
+        'github.com/hashload/horse', '');
+      try
+        Assert.IsTrue(LLock.GetInstalled(LCanonical, LLocked));
+        Assert.IsTrue(LLock.RootDependencies.Contains(
+          LCanonical.GetKey));
+        Assert.IsFalse(LLock.RootDependencies.Contains('https://horse'));
+      finally
+        LCanonical.Free;
+      end;
+    finally
+      LLock.Free;
+    end;
+    Assert.IsTrue(LResolverCalls > 0);
+
+    var LCallsBeforeLocked := LResolverCalls;
+    LOptions.Locked := True;
+    LInstall.Execute(LOptions);
+    Assert.AreEqual(LCallsBeforeLocked, LResolverCalls,
+      'Instalacao congelada deve resolver alias somente pelo lock.');
+  finally
+    LInstall.Free;
+  end;
+end;
+
+constructor TOfficialPackageSignerMock.Create(const AAccept: Boolean);
+begin
+  inherited Create;
+  FAccept := AAccept;
+end;
+
+function TOfficialPackageSignerMock.Sign(const AArtifactPath,
+  AKeyId: string): string;
+begin
+  Result := AArtifactPath + '.asc';
+  TFile.WriteAllText(Result, 'signed-by:' + AKeyId, TEncoding.ASCII);
+end;
+
+function TOfficialPackageSignerMock.Verify(const AArtifactPath,
+  ASignaturePath: string): Boolean;
+begin
+  Result := FAccept and TFile.Exists(AArtifactPath) and
+    TFile.Exists(ASignaturePath);
+end;
+
+procedure TTestsServices.TestPinRejectsNonSemVerLockRevision;
+var
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LPkg: TBoss4DPackage;
+  LLock: TBoss4DLock;
+  LDep: TBoss4DDependency;
+  LService: TBoss4DDependencyService;
+begin
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LPkg := TBoss4DPackage.Create;
+  try
+    LPkg.Name := 'pin-test';
+    LPkg.Version := '1.0.0';
+    LPkg.Dependencies.Add('github.com/example/branch-package', 'master');
+    LPackageRepo.Save(LPkg, GetBossFile);
+  finally
+    LPkg.Free;
+  end;
+  LLock := TBoss4DLock.Create;
+  LDep := TBoss4DDependency.Create(
+    'github.com/example/branch-package', 'master');
+  try
+    LLock.AddDependency(LDep, 'master', 'revision');
+    LLockRepo.Save(LLock, TPath.Combine(FTempDir, FILE_PACKAGE_LOCK));
+  finally
+    LDep.Free;
+    LLock.Free;
+  end;
+  LService := TBoss4DDependencyService.Create(LPackageRepo, LLockRepo,
+    TTestLogger.Create);
+  try
+    Assert.WillRaise(
+      procedure
+      begin
+        LService.Pin('branch-package');
+      end, EArgumentException);
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestPackageIndexSelectsVersionsDeterministically;
+var
+  LConfig: TBoss4DConfigService;
+  LService: TBoss4DPackageIndexService;
+  LIndexPath: string;
+  LEntry: TBoss4DPackageIndexEntry;
+  LVersions: TArray<string>;
+begin
+  LIndexPath := TPath.Combine(FTempDir, 'versioned-index-v2.json');
+  TFile.WriteAllText(LIndexPath,
+    '{"schemaVersion":2,"packages":[{"name":"VersionedPackage",' +
+    '"repository":"git.example.test/versioned","versions":[' +
+    '{"version":"1.5.0","artifact":"https://packages.example/1.5.b4dpkg",' +
+    '"sha256":"sha15"},{"version":"3.0.0","revoked":true,' +
+    '"artifact":"https://packages.example/3.0.b4dpkg","sha256":"sha30"},' +
+    '{"version":"2.0.0","artifact":"https://packages.example/2.0.b4dpkg",' +
+    '"sha256":"sha20","variants":[{"platform":"Win64","compiler":"37.0",' +
+    '"artifact":"https://packages.example/2.0-win64.b4dpkg",' +
+    '"sha256":"sha20win64"}]},{"version":"invalid"}]}]}',
+    TEncoding.UTF8);
+  LConfig := TBoss4DConfigService.Create(TTestLogger.Create);
+  LService := TBoss4DPackageIndexService.Create(LConfig,
+    THttpClientMock.Create, TTestLogger.Create);
+  try
+    LService.AddRegistry(LIndexPath);
+    LEntry := LService.Info('VersionedPackage');
+    try
+      Assert.IsNotNull(LEntry);
+      Assert.AreEqual('2.0.0', LEntry.LatestVersion,
+        'Latest deve ser calculada por SemVer e ignorar versoes revogadas.');
+      Assert.AreEqual('sha20', LEntry.ArtifactDigest);
+      Assert.AreEqual<Integer>(3, LEntry.Versions.Count,
+        'Versoes SemVer validas, inclusive revogadas, devem ser preservadas.');
+      Assert.IsTrue(LEntry.Versions[0].Revoked);
+      Assert.AreEqual('3.0.0', LEntry.Versions[0].Version);
+      Assert.AreEqual('2.0.0',
+        LEntry.ResolveVersion('^2.0.0').Version);
+      Assert.AreEqual('1.5.0',
+        LEntry.ResolveVersion('1.5.0').Version);
+      Assert.IsNull(LEntry.ResolveVersion('3.0.0'),
+        'Uma versao revogada nunca pode ser selecionada.');
+      Assert.AreEqual('https://packages.example/2.0-win64.b4dpkg',
+        LEntry.ResolveVersion('2.0.0').SelectVariant(
+          'Win64', '37.0').ArtifactUrl);
+    finally
+      LEntry.Free;
+    end;
+    LVersions := LService.Versions('VersionedPackage');
+    Assert.AreEqual<Integer>(3, Length(LVersions));
+    Assert.AreEqual('3.0.0 (revoked)', LVersions[0]);
+    Assert.AreEqual('2.0.0', LVersions[1]);
+    Assert.AreEqual('1.5.0', LVersions[2]);
+  finally
+    LService.Free;
+    LConfig.Free;
+  end;
+end;
+
+procedure TTestsServices.TestPackageIndexSparseRevocationAndMirrorMetadata;
+var
+  LConfig: TBoss4DConfigService;
+  LService: TBoss4DPackageIndexService;
+  LRootPath, LSparsePath: string;
+  LEntry: TBoss4DPackageIndexEntry;
+begin
+  LRootPath := TPath.Combine(FTempDir, 'sparse-root.json');
+  LSparsePath := TPath.Combine(FTempDir, 'sparse-package.json');
+  TFile.WriteAllText(LSparsePath,
+    '{"schemaVersion":2,"packages":[{"name":"SparsePackage",' +
+    '"repository":"git.example.test/sparse","versions":[' +
+    '{"version":"2.0.0","artifact":"https://primary/2.b4dpkg",' +
+    '"mirrors":["https://mirror/2.b4dpkg"],"sha256":"sha2"},' +
+    '{"version":"1.0.0","artifact":"https://primary/1.b4dpkg",' +
+    '"sha256":"sha1"}]}]}', TEncoding.UTF8);
+  TFile.WriteAllText(LRootPath,
+    '{"schemaVersion":2,"sparse":["sparse-package.json"],' +
+    '"revocations":[{"name":"SparsePackage","version":"2.0.0",' +
+    '"reason":"security"}],"packages":[]}', TEncoding.UTF8);
+  LConfig := TBoss4DConfigService.Create(TTestLogger.Create);
+  LService := TBoss4DPackageIndexService.Create(LConfig,
+    THttpClientMock.Create, TTestLogger.Create);
+  try
+    LService.AddRegistry(LRootPath);
+    LEntry := LService.Info('SparsePackage');
+    try
+      Assert.IsNotNull(LEntry);
+      Assert.AreEqual('1.0.0', LEntry.LatestVersion);
+      Assert.IsTrue(LEntry.Versions[0].Revoked);
+      Assert.AreEqual<Integer>(1, LEntry.Versions[0].ArtifactMirrors.Count);
+      Assert.AreEqual('https://mirror/2.b4dpkg',
+        LEntry.Versions[0].ArtifactMirrors[0]);
+    finally
+      LEntry.Free;
+    end;
+  finally
+    LService.Free;
+    LConfig.Free;
+  end;
+end;
+
 procedure TTestsServices.TestPublicRegistryIsDefaultSource;
 const
   PUBLIC_URL =
@@ -1335,6 +1719,218 @@ begin
     LDep.Free;
     LLock.Free;
     LPackage.Free;
+  end;
+end;
+
+procedure TTestsServices.TestOfficialRegistrySubmissionDocument;
+var
+  LSubmission: TBoss4DRegistrySubmission;
+  LDocument: string;
+begin
+  LSubmission := Default(TBoss4DRegistrySubmission);
+  LSubmission.PackageName := 'My Package';
+  LSubmission.Publisher := 'my-publisher';
+  LSubmission.Repository := 'github.com/example/my-package';
+  LSubmission.SignerFingerprint := StringOfChar('a', 40);
+  LSubmission.Version := '1.2.3';
+  LSubmission.ArtifactUrl :=
+    'https://github.com/example/my-package/releases/download/v1.2.3/' +
+    'my-package-1.2.3.b4dpkg';
+  LSubmission.Sha256 := StringOfChar('B', 64);
+  LSubmission.SignatureUrl := LSubmission.ArtifactUrl + '.asc';
+  LSubmission.ProvenanceUrl := LSubmission.ArtifactUrl + '.intoto.json';
+  LSubmission.Description := 'Package description';
+  LSubmission.License := 'MIT';
+
+  LDocument :=
+    TBoss4DRegistrySubmissionService.BuildDocument(LSubmission);
+  Assert.AreEqual('my-package',
+    TBoss4DRegistrySubmissionService.PackageSlug(
+      LSubmission.PackageName));
+  Assert.IsTrue(LDocument.Contains('"schemaVersion":2'));
+  Assert.IsTrue(LDocument.Contains('"publisher":"my-publisher"'));
+  Assert.IsTrue(LDocument.Contains('"version":"1.2.3"'));
+  Assert.IsTrue(LDocument.Contains(
+    '"signerFingerprint":"' + StringOfChar('A', 40) + '"'));
+  Assert.IsTrue(LDocument.Contains(
+    '"sha256":"' + StringOfChar('b', 64) + '"'));
+
+  LSubmission.ArtifactUrl := 'http://packages.example/package.b4dpkg';
+  Assert.WillRaise(
+    procedure
+    begin
+      TBoss4DRegistrySubmissionService.BuildDocument(LSubmission);
+    end,
+    EBoss4DRegistrySubmission);
+  LSubmission.ArtifactUrl :=
+    'https://packages.example/package.b4dpkg';
+  LSubmission.SignerFingerprint := 'invalid';
+  Assert.WillRaise(
+    procedure
+    begin
+      TBoss4DRegistrySubmissionService.BuildDocument(LSubmission);
+    end,
+    EBoss4DRegistrySubmission);
+  LSubmission.SignerFingerprint := StringOfChar('a', 40);
+  LSubmission.Version := 'not-semver';
+  Assert.WillRaise(
+    procedure
+    begin
+      TBoss4DRegistrySubmissionService.BuildDocument(LSubmission);
+    end,
+    EBoss4DRegistrySubmission);
+end;
+
+procedure TTestsServices.TestOfficialPublishPreparesVerifiedBundleTransactionally;
+var
+  LProject, LArtifact, LSubmissionPath: string;
+  LOptions: TBoss4DOfficialPublishOptions;
+  LResult: TBoss4DOfficialPublishResult;
+  LService: TBoss4DOfficialPublishService;
+begin
+  LProject := TPath.Combine(FTempDir, 'official-package');
+  TDirectory.CreateDirectory(LProject);
+  TFile.WriteAllText(TPath.Combine(LProject, 'boss.json'),
+    '{"name":"official-package","version":"1.0.0"}', TEncoding.UTF8);
+  TFile.WriteAllText(TPath.Combine(LProject, 'source.pas'),
+    'unit Source; interface implementation end.', TEncoding.UTF8);
+  LArtifact := TPath.Combine(FTempDir,
+    'out\official-package-1.0.0.b4dpkg');
+  LSubmissionPath := TPath.Combine(FTempDir,
+    'out\registry-submission.json');
+  LOptions := Default(TBoss4DOfficialPublishOptions);
+  LOptions.ProjectDirectory := LProject;
+  LOptions.PackageName := 'official-package';
+  LOptions.Publisher := 'official-publisher';
+  LOptions.Repository := 'github.com/example/official-package';
+  LOptions.SignerFingerprint := StringOfChar('a', 40);
+  LOptions.SigningKey := 'release@example.com';
+  LOptions.Version := '1.0.0';
+  LOptions.ArtifactUrl :=
+    'https://github.com/example/official-package/releases/download/' +
+    'v1.0.0/official-package-1.0.0.b4dpkg';
+  LOptions.Description := 'Official package';
+  LOptions.License := 'MIT';
+  LOptions.ArtifactOutput := LArtifact;
+  LOptions.SubmissionOutput := LSubmissionPath;
+
+  LService := TBoss4DOfficialPublishService.Create(
+    TOfficialPackageSignerMock.Create(True));
+  try
+    LResult := LService.Prepare(LOptions);
+    Assert.IsTrue(TFile.Exists(LResult.ArtifactPath));
+    Assert.IsTrue(TFile.Exists(LResult.ProvenancePath));
+    Assert.IsTrue(TFile.Exists(LResult.SignaturePath));
+    Assert.IsTrue(TFile.Exists(LResult.SubmissionPath));
+    Assert.AreEqual(64, LResult.Digest.Length);
+    Assert.IsTrue(TFile.ReadAllText(LResult.SubmissionPath).Contains(
+      '"name":"official-package"'));
+  finally
+    LService.Free;
+  end;
+
+  LOptions.ArtifactOutput := TPath.Combine(FTempDir,
+    'failed\official-package-1.0.0.b4dpkg');
+  LOptions.SubmissionOutput := TPath.Combine(FTempDir,
+    'failed\registry-submission.json');
+  LService := TBoss4DOfficialPublishService.Create(
+    TOfficialPackageSignerMock.Create(False));
+  try
+    Assert.WillRaise(
+      procedure
+      begin
+        LService.Prepare(LOptions);
+      end,
+      EBoss4DRegistrySubmission);
+    Assert.IsFalse(TFile.Exists(LOptions.ArtifactOutput));
+    Assert.IsFalse(TFile.Exists(LOptions.ArtifactOutput + '.asc'));
+    Assert.IsFalse(TFile.Exists(LOptions.ArtifactOutput +
+      '.intoto.json'));
+    Assert.IsFalse(TFile.Exists(LOptions.SubmissionOutput));
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestRegistryCheckoutAppliesAndAppendsSubmission;
+var
+  LRegistryRoot, LRegistryDir, LSubmissionPath, LPackagePath: string;
+  LSubmission: TBoss4DRegistrySubmission;
+  LService: TBoss4DRegistryCheckoutService;
+  LResult: TBoss4DRegistryCheckoutResult;
+  LDocument: TJSONObject;
+  LPackages, LVersions: TJSONArray;
+begin
+  LRegistryRoot := TPath.Combine(FTempDir, 'registry-checkout');
+  LRegistryDir := TPath.Combine(LRegistryRoot, 'registry');
+  TDirectory.CreateDirectory(LRegistryDir);
+  TFile.WriteAllText(TPath.Combine(LRegistryDir, 'publishers.json'),
+    '{"schemaVersion":1,"publishers":[{"id":"test-publisher",' +
+    '"repositories":["github.com/example/"],"allowedSigners":["' +
+    StringOfChar('A', 40) + '"]}]}', TEncoding.UTF8);
+  TFile.WriteAllText(TPath.Combine(LRegistryDir, 'index-v2.json'),
+    '{"schemaVersion":2,"includes":[],"sparse":[],"packages":[]}',
+    TEncoding.UTF8);
+  LSubmission := Default(TBoss4DRegistrySubmission);
+  LSubmission.PackageName := 'Checkout Package';
+  LSubmission.Publisher := 'test-publisher';
+  LSubmission.Repository := 'github.com/example/checkout-package';
+  LSubmission.SignerFingerprint := StringOfChar('a', 40);
+  LSubmission.Version := '1.0.0';
+  LSubmission.ArtifactUrl :=
+    'https://github.com/example/checkout-package/releases/download/' +
+    'v1.0.0/checkout-package-1.0.0.b4dpkg';
+  LSubmission.Sha256 := StringOfChar('b', 64);
+  LSubmission.SignatureUrl := LSubmission.ArtifactUrl + '.asc';
+  LSubmission.ProvenanceUrl := LSubmission.ArtifactUrl + '.intoto.json';
+  LSubmission.License := 'MIT';
+  LSubmissionPath := TPath.Combine(FTempDir, 'submission.json');
+  TFile.WriteAllText(LSubmissionPath,
+    TBoss4DRegistrySubmissionService.BuildDocument(LSubmission),
+    TEncoding.UTF8);
+
+  LService := TBoss4DRegistryCheckoutService.Create;
+  try
+    LResult := LService.Apply(LRegistryRoot, LSubmissionPath, False);
+    Assert.IsFalse(LResult.Appended);
+    Assert.IsTrue(TFile.Exists(LResult.PackagePath));
+    Assert.IsTrue(TFile.ReadAllText(LResult.IndexPath).Contains(
+      'packages/checkout-package.json'));
+    LPackagePath := LResult.PackagePath;
+
+    LSubmission.Version := '1.1.0';
+    LSubmission.ArtifactUrl := LSubmission.ArtifactUrl.Replace(
+      'v1.0.0/checkout-package-1.0.0',
+      'v1.1.0/checkout-package-1.1.0');
+    LSubmission.SignatureUrl := LSubmission.ArtifactUrl + '.asc';
+    LSubmission.ProvenanceUrl :=
+      LSubmission.ArtifactUrl + '.intoto.json';
+    LSubmission.Sha256 := StringOfChar('c', 64);
+    TFile.WriteAllText(LSubmissionPath,
+      TBoss4DRegistrySubmissionService.BuildDocument(LSubmission),
+      TEncoding.UTF8);
+    LResult := LService.Apply(LRegistryRoot, LSubmissionPath, True);
+    Assert.IsTrue(LResult.Appended);
+    LDocument := TJSONObject.ParseJSONValue(
+      TFile.ReadAllText(LPackagePath)) as TJSONObject;
+    try
+      LPackages := LDocument.GetValue<TJSONArray>('packages');
+      LVersions := TJSONObject(LPackages[0])
+        .GetValue<TJSONArray>('versions');
+      Assert.AreEqual(2, LVersions.Count);
+      Assert.AreEqual('1.1.0',
+        TJSONObject(LVersions[1]).GetValue<string>('version'));
+    finally
+      LDocument.Free;
+    end;
+    Assert.WillRaise(
+      procedure
+      begin
+        LService.Apply(LRegistryRoot, LSubmissionPath, True);
+      end,
+      EBoss4DRegistryCheckout);
+  finally
+    LService.Free;
   end;
 end;
 
@@ -1606,6 +2202,108 @@ begin
   end;
 end;
 
+procedure TTestsServices.TestPackageIndexUsesLastValidHttpCache;
+const
+  CACHE_URL = 'https://registry.example/index-v2.json';
+var
+  LConfig: TBoss4DConfigService;
+  LHttp: THttpClientMock;
+  LService: TBoss4DPackageIndexService;
+begin
+  LConfig := TBoss4DConfigService.Create(TTestLogger.Create);
+  LHttp := THttpClientMock.Create;
+  LHttp.AddResponse(CACHE_URL,
+    '{"schemaVersion":2,"packages":[{"name":"CachedPackage",' +
+    '"repository":"example.test/cached","versions":[{"version":"1.0.0"}]}]}',
+    200);
+  LService := TBoss4DPackageIndexService.Create(LConfig, LHttp,
+    TTestLogger.Create);
+  try
+    LService.AddRegistry(CACHE_URL);
+    var LFirst := LService.Info('CachedPackage');
+    try
+      Assert.IsNotNull(LFirst);
+    finally
+      LFirst.Free;
+    end;
+  finally
+    LService.Free;
+  end;
+  LHttp := THttpClientMock.Create;
+  LHttp.AddResponse(CACHE_URL, '{"schemaVersion":999}', 200);
+  LService := TBoss4DPackageIndexService.Create(LConfig, LHttp,
+    TTestLogger.Create);
+  try
+    var LCached := LService.Info('CachedPackage');
+    try
+      Assert.IsNotNull(LCached);
+      Assert.AreEqual('1.0.0', LCached.LatestVersion);
+    finally
+      LCached.Free;
+    end;
+  finally
+    LService.Free;
+    LConfig.Free;
+  end;
+end;
+
+procedure TTestsServices.TestCLIIDEProfileLifecycle;
+var
+  LInit: TBoss4DInitService;
+  LInstall: TBoss4DInstallService;
+  LConfig: TBoss4DConfigService;
+  LParser: TBoss4DCommandLineParser;
+  LLogger: TTestLogger;
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LExportPath: string;
+  LStorePath: string;
+begin
+  LLogger := TTestLogger.Create;
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LInit := TBoss4DInitService.Create(LPackageRepo, LLogger);
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo,
+    TGitClientMock.Create, THttpClientMock.Create, TCompilerMock.Create,
+    LLogger);
+  LConfig := TBoss4DConfigService.Create(LLogger);
+  LParser := TBoss4DCommandLineParser.Create(LLogger, LInit, LInstall,
+    LConfig, LPackageRepo, TRegistryMock.Create);
+  try
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'ide', 'profile', 'create', 'Developer CI',
+      '--compiler', 'd13', '--description', 'isolated profile'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('developer-ci'));
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'ide', 'profile', 'show', 'developer-ci'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('Boss4D-developer-ci'));
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'ide', 'profile', 'target', 'developer-ci',
+      '--platform', 'Win64', '--configuration', 'Debug'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('Win64/Debug'));
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'ide', 'profile', 'clone', 'developer-ci', 'QA'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('qa'));
+    LExportPath := TPath.Combine(FTempDir, 'qa-export.json');
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'ide', 'profile', 'export', 'qa', '--output', LExportPath));
+    Assert.IsTrue(TFile.Exists(LExportPath));
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'ide', 'profile', 'remove', 'developer-ci'));
+    LStorePath := TPath.Combine(GetBossHome, 'ide-profiles.json');
+    var LContent := TFile.ReadAllText(LStorePath, TEncoding.UTF8);
+    Assert.IsFalse(LContent.Contains('"id": "developer-ci"'));
+    Assert.IsTrue(LContent.Contains('"id": "qa"'));
+    Assert.IsTrue(LContent.Contains('"defaultPlatform": "Win64"'));
+    Assert.IsTrue(LContent.Contains('"defaultConfiguration": "Debug"'));
+  finally
+    LParser.Free;
+    LConfig.Free;
+    LInstall.Free;
+    LInit.Free;
+  end;
+end;
+
 procedure TTestsServices.TestBuildExecutorCompilesExpandedTargets;
 var
   LPackage: TBoss4DPackage;
@@ -1846,6 +2544,238 @@ begin
       LStore.GetValue(LLibraryKey, 'Search Path'));
     Assert.IsFalse(TFile.Exists(LInventoryPath),
       'Falha transacional nao pode persistir inventario parcial.');
+  finally
+    LRegistration.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDEProfilesIsolateRegistryAndInventory;
+var
+  LStore: TIDERegistryStoreMock;
+  LDefaultService: TBoss4DIDERegistrationService;
+  LIsolatedService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LValue: string;
+  LDefaultKey: string;
+  LIsolatedKey: string;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LDefaultService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'default-profile-inventory.json'),
+    nil, nil, 'default', 30000, nil, 'bds.exe',
+    'Software\Embarcadero\BDS');
+  LIsolatedService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'isolated-profile-inventory.json'),
+    nil, nil, 'isolated', 30000, nil, 'bds.exe',
+    'Software\Embarcadero\Boss4D-isolated');
+  try
+    LRegistration := TBoss4DIDERegistration.Create;
+    try
+      LRegistration.PackageName := 'ProfileDesign';
+      LRegistration.OwnerPackage := 'DefaultProduct';
+      LRegistration.Compiler := '37.0';
+      LRegistration.Platform := 'Win32';
+      LRegistration.BplPath := 'C:\default\ProfileDesign.bpl';
+      LDefaultService.RegisterTarget(LRegistration);
+    finally
+      LRegistration.Free;
+    end;
+    LRegistration := TBoss4DIDERegistration.Create;
+    try
+      LRegistration.PackageName := 'ProfileDesign';
+      LRegistration.OwnerPackage := 'IsolatedProduct';
+      LRegistration.Compiler := '37.0';
+      LRegistration.Platform := 'Win32';
+      LRegistration.BplPath := 'C:\isolated\ProfileDesign.bpl';
+      var LManaged := TBoss4DIDEManagedRegistryValue.Create;
+      LManaged.Key :=
+        'Software\Embarcadero\BDS\37.0\ComponentVendor';
+      LManaged.Name := 'Profile';
+      LManaged.Value := 'isolated';
+      LRegistration.RegistryValues.Add(LManaged);
+      LIsolatedService.RegisterTarget(LRegistration);
+    finally
+      LRegistration.Free;
+    end;
+
+    LDefaultKey := 'Software\Embarcadero\BDS\37.0\Known Packages';
+    LIsolatedKey :=
+      'Software\Embarcadero\Boss4D-isolated\37.0\Known Packages';
+    Assert.IsTrue(LStore.TryRead(LDefaultKey,
+      'C:\default\ProfileDesign.bpl', LValue));
+    Assert.IsTrue(LStore.TryRead(LIsolatedKey,
+      'C:\isolated\ProfileDesign.bpl', LValue));
+    Assert.AreEqual('isolated', LStore.GetValue(
+      'Software\Embarcadero\Boss4D-isolated\37.0\ComponentVendor',
+      'Profile'));
+    Assert.IsTrue(TFile.Exists(TPath.Combine(FTempDir,
+      'default-profile-inventory.json')));
+    Assert.IsTrue(TFile.Exists(TPath.Combine(FTempDir,
+      'isolated-profile-inventory.json')));
+
+    Assert.AreEqual<Integer>(1,
+      LDefaultService.Uninstall('DefaultProduct'));
+    Assert.IsFalse(LStore.TryRead(LDefaultKey,
+      'C:\default\ProfileDesign.bpl', LValue));
+    Assert.IsTrue(LStore.TryRead(LIsolatedKey,
+      'C:\isolated\ProfileDesign.bpl', LValue),
+      'Remover o perfil default nao pode alterar o perfil isolado.');
+  finally
+    LIsolatedService.Free;
+    LDefaultService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDERegistrationBatchRollsBackEveryTarget;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistrations: TObjectList<TBoss4DIDERegistration>;
+  LRegistration: TBoss4DIDERegistration;
+  LInventoryPath: string;
+  LPackageKey: string;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LInventoryPath := TPath.Combine(FTempDir, 'batch-inventory.json');
+  LService := TBoss4DIDERegistrationService.Create(LStore, LInventoryPath);
+  LRegistrations := TObjectList<TBoss4DIDERegistration>.Create(True);
+  try
+    LPackageKey := 'Software\Embarcadero\BDS\37.0\Known Packages';
+    LRegistration := TBoss4DIDERegistration.Create;
+    LRegistration.PackageName := 'RuntimeSupport';
+    LRegistration.OwnerPackage := 'Product';
+    LRegistration.Compiler := '37.0';
+    LRegistration.Platform := 'Win32';
+    LRegistration.BplPath := 'C:\batch\RuntimeSupport.bpl';
+    LRegistrations.Add(LRegistration);
+    LRegistration := TBoss4DIDERegistration.Create;
+    LRegistration.PackageName := 'DesignSupport';
+    LRegistration.OwnerPackage := 'Product';
+    LRegistration.Compiler := '37.0';
+    LRegistration.Platform := 'Win32';
+    LRegistration.BplPath := 'C:\batch\DesignSupport.bpl';
+    LRegistrations.Add(LRegistration);
+    LStore.FailOnWrite := 2;
+
+    Assert.WillRaise(
+      procedure
+      begin
+        LService.RegisterTargets(LRegistrations);
+      end,
+      EBoss4DIDERegistrationError);
+    Assert.AreEqual('', LStore.GetValue(LPackageKey,
+      'C:\batch\RuntimeSupport.bpl'));
+    Assert.AreEqual('', LStore.GetValue(LPackageKey,
+      'C:\batch\DesignSupport.bpl'));
+    Assert.AreEqual<Integer>(0,
+      Length(LStore.ListValueNames(LPackageKey)));
+    Assert.IsFalse(TFile.Exists(LInventoryPath),
+      'Falha em qualquer target nao pode persistir lote parcial.');
+  finally
+    LRegistrations.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDERegistrationPreviewIsMutationFreeAndIdempotent;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LPlan: TBoss4DIDERegistrationPlan;
+  LEnvironmentChange: TBoss4DIDERegistryChange;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'preview-inventory.json'));
+  LRegistration := TBoss4DIDERegistration.Create;
+  try
+    LRegistration.PackageName := 'PreviewDesign';
+    LRegistration.OwnerPackage := 'PreviewProduct';
+    LRegistration.Compiler := '37.0';
+    LRegistration.Platform := 'Win32';
+    LRegistration.BplPath := 'C:\preview\PreviewDesign.bpl';
+    LRegistration.Description := 'Preview design package';
+    LRegistration.SearchPath := 'C:\preview\dcu';
+    LRegistration.RuntimePath := 'C:\preview\bpl';
+    LRegistration.ToolPath := 'C:\preview\tools';
+
+    LPlan := LService.PlanRegistration(LRegistration);
+    try
+      Assert.AreEqual(TBoss4DIDEPlanDisposition.Ready,
+        LPlan.Disposition);
+      Assert.IsFalse(LPlan.IsNoOp);
+      Assert.IsTrue(LPlan.InventoryChangeRequired);
+      Assert.AreEqual<Integer>(3, LPlan.Changes.Count);
+      Assert.AreEqual<Integer>(0, LStore.WriteCount,
+        'Preview nao pode escrever no Registro.');
+      Assert.IsFalse(TFile.Exists(
+        TPath.Combine(FTempDir, 'preview-inventory.json')),
+        'Preview nao pode persistir inventario.');
+      LEnvironmentChange := nil;
+      for var LChange in LPlan.Changes do
+        if SameText(LChange.Key, 'Environment') and
+           SameText(LChange.Name, 'Path') then
+          LEnvironmentChange := LChange;
+      Assert.IsNotNull(LEnvironmentChange);
+      Assert.AreEqual('C:\preview\bpl;C:\preview\tools',
+        LEnvironmentChange.ProposedValue);
+    finally
+      LPlan.Free;
+    end;
+
+    LService.RegisterTarget(LRegistration);
+    var LWriteCount := LStore.WriteCount;
+    LPlan := LService.PlanRegistration(LRegistration);
+    try
+      Assert.IsTrue(LPlan.IsNoOp,
+        'Repetir uma instalacao identica deve produzir preview vazio.');
+      Assert.IsFalse(LPlan.InventoryChangeRequired);
+    finally
+      LPlan.Free;
+    end;
+    LService.RegisterTarget(LRegistration);
+    Assert.AreEqual(LWriteCount, LStore.WriteCount,
+      'Reinstalacao identica nao pode repetir mutacoes.');
+  finally
+    LRegistration.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDERegistrationPreviewReportsBlockedConflict;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LPlan: TBoss4DIDERegistrationPlan;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'blocked-preview-inventory.json'));
+  LRegistration := TBoss4DIDERegistration.Create;
+  try
+    LStore.SeedValue(
+      'Software\Embarcadero\BDS\37.0\Known Packages',
+      'C:\other\SharedDesign.bpl', 'Other product');
+    LRegistration.PackageName := 'SharedDesign';
+    LRegistration.OwnerPackage := 'CurrentProduct';
+    LRegistration.Compiler := '37.0';
+    LRegistration.Platform := 'Win32';
+    LRegistration.BplPath := 'C:\current\SharedDesign.bpl';
+    LRegistration.ConflictPolicy := TBoss4DIDEConflictPolicy.Fail;
+
+    LPlan := LService.PlanRegistration(LRegistration);
+    try
+      Assert.AreEqual(TBoss4DIDEPlanDisposition.Blocked,
+        LPlan.Disposition);
+      Assert.AreEqual<Integer>(1, LPlan.Conflicts.Count);
+      Assert.AreEqual<Integer>(0, LPlan.Changes.Count);
+      Assert.AreEqual<Integer>(0, LStore.WriteCount);
+    finally
+      LPlan.Free;
+    end;
   finally
     LRegistration.Free;
     LService.Free;
@@ -2339,6 +3269,117 @@ begin
   end;
 end;
 
+procedure TTestsServices.TestIDEUnregisterPreservesArtifactsOwnedByAnotherPackage;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LRoot: string;
+  LSharedArtifact: string;
+begin
+  LRoot := TPath.Combine(FTempDir, 'shared-artifact-root');
+  TDirectory.CreateDirectory(LRoot);
+  LSharedArtifact := TPath.Combine(LRoot, 'SharedRuntime.dll');
+  TFile.WriteAllText(LSharedArtifact, 'shared', TEncoding.UTF8);
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'shared-artifact-inventory.json'));
+  try
+    for var LName in TArray<string>.Create('PackageA', 'PackageB') do
+    begin
+      LRegistration := TBoss4DIDERegistration.Create;
+      try
+        LRegistration.PackageName := LName;
+        LRegistration.OwnerPackage := LName;
+        LRegistration.Compiler := '37.0';
+        LRegistration.Platform := 'Win32';
+        LRegistration.BplPath := TPath.Combine(LRoot, LName + '.bpl');
+        LRegistration.ArtifactRoot := LRoot;
+        LRegistration.Artifacts.Add(LSharedArtifact);
+        LService.RegisterTarget(LRegistration);
+      finally
+        LRegistration.Free;
+      end;
+    end;
+
+    Assert.AreEqual<Integer>(1, LService.Uninstall('PackageA'));
+    Assert.IsTrue(TFile.Exists(LSharedArtifact),
+      'Artefato ainda referenciado por outro produto deve ser preservado.');
+    Assert.AreEqual<Integer>(1, LService.Uninstall('PackageB'));
+    Assert.IsFalse(TFile.Exists(LSharedArtifact),
+      'Ultimo proprietario deve remover o artefato gerenciado.');
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDEUninstallPreviewListsOnlyOwnedMutations;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LPlan: TBoss4DIDERemovalPlan;
+  LRoot: string;
+  LSharedArtifact: string;
+  LOwnedArtifact: string;
+  LWriteCount: Integer;
+begin
+  LRoot := TPath.Combine(FTempDir, 'preview-removal-root');
+  TDirectory.CreateDirectory(LRoot);
+  LSharedArtifact := TPath.Combine(LRoot, 'Shared.dll');
+  LOwnedArtifact := TPath.Combine(LRoot, 'OnlyA.dll');
+  TFile.WriteAllText(LSharedArtifact, 'shared', TEncoding.UTF8);
+  TFile.WriteAllText(LOwnedArtifact, 'owned', TEncoding.UTF8);
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'preview-removal-inventory.json'));
+  try
+    for var LName in TArray<string>.Create('ProductA', 'ProductB') do
+    begin
+      LRegistration := TBoss4DIDERegistration.Create;
+      try
+        LRegistration.PackageName := LName + 'Design';
+        LRegistration.OwnerPackage := LName;
+        LRegistration.Compiler := '37.0';
+        LRegistration.Platform := 'Win32';
+        LRegistration.BplPath := TPath.Combine(LRoot,
+          LName + 'Design.bpl');
+        LRegistration.SearchPath := TPath.Combine(LRoot, 'dcu');
+        LRegistration.ArtifactRoot := LRoot;
+        LRegistration.Artifacts.Add(LSharedArtifact);
+        if SameText(LName, 'ProductA') then
+          LRegistration.Artifacts.Add(LOwnedArtifact);
+        LService.RegisterTarget(LRegistration);
+      finally
+        LRegistration.Free;
+      end;
+    end;
+    LWriteCount := LStore.WriteCount;
+
+    LPlan := LService.PlanUninstall('ProductA');
+    try
+      Assert.IsFalse(LPlan.IsNoOp);
+      Assert.AreEqual<Integer>(1, LPlan.Targets.Count);
+      Assert.AreEqual<Integer>(1, LPlan.Files.Count);
+      Assert.AreEqual(TPath.GetFullPath(LOwnedArtifact), LPlan.Files[0]);
+      Assert.IsFalse(LPlan.Files.Contains(
+        TPath.GetFullPath(LSharedArtifact)));
+      Assert.IsTrue(LPlan.Changes.Count > 0);
+      for var LChange in LPlan.Changes do
+        Assert.IsFalse(SameText(LChange.Name, 'Search Path'),
+          'Path compartilhado nao pode constar na remocao.');
+    finally
+      LPlan.Free;
+    end;
+    Assert.AreEqual(LWriteCount, LStore.WriteCount,
+      'Preview de uninstall nao pode alterar o Registro.');
+    Assert.IsTrue(TFile.Exists(LSharedArtifact));
+    Assert.IsTrue(TFile.Exists(LOwnedArtifact));
+  finally
+    LService.Free;
+  end;
+end;
+
 procedure TTestsServices.TestIDERegistrationTargetsOneToolchainAndUnregistersCleanly;
 var
   LStore: TIDERegistryStoreMock;
@@ -2621,6 +3662,7 @@ begin
       'conformance registry|package'));
     Assert.IsTrue(LLogger.LastLogMessage.Contains(
       'package install <pacote>'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('publish --official'));
     Assert.IsTrue(LLogger.LastLogMessage.Contains('support'));
 
     LLogger.LastLogMessage := '';
@@ -2640,9 +3682,14 @@ begin
     LInit.Execute(True);
     var LSbomLock := TBoss4DLock.Create;
     try
+      var LManifest := LPackageRepo.Load(GetBossFile);
       LSbomLock.HasRootMetadata := True;
-      LSbomLock.RootName := 'cli-test';
-      LSbomLock.RootVersion := '1.0.0';
+      try
+        LSbomLock.RootName := LManifest.Name;
+        LSbomLock.RootVersion := LManifest.Version;
+      finally
+        LManifest.Free;
+      end;
       LLockRepo.Save(LSbomLock, TPath.Combine(FTempDir, FILE_PACKAGE_LOCK));
     finally
       LSbomLock.Free;
@@ -2663,6 +3710,45 @@ begin
       on E: EArgumentException do LInvalidFlagsRaised := True;
     end;
     Assert.IsTrue(LInvalidFlagsRaised, 'Lock-only deve rejeitar coletores de ambiente.');
+
+    LLogger.LastLogMessage := '';
+    LParser.ParseAndExecute(TArray<string>.Create('publish', '--official',
+      '--dry-run', '--allow-dirty', '--skip-tests',
+      '--publisher', 'test-publisher',
+      '--repository', 'github.com/example/cli-test',
+      '--fingerprint', StringOfChar('a', 40),
+      '--sign', 'release@example.com',
+      '--registry-root', TPath.Combine(FTempDir, 'registry-preview'),
+      '--open-pr',
+      '--registry-branch', 'boss4d/package-cli-test-1.0.0',
+      '--registry-remote', 'origin',
+      '--registry-base', 'main',
+      '--registry-pr-repo', 'regyssilveira/Boss4Delphi',
+      '--registry-pr-head', 'regys:boss4d/package-cli-test-1.0.0',
+      '--append-version',
+      '--artifact-url',
+      'https://github.com/example/cli-test/releases/download/v1.0.0/' +
+      'cli-test-1.0.0.b4dpkg'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains(
+      'Dry-run oficial aprovado'));
+    Assert.IsFalse(TDirectory.Exists(TPath.Combine(FTempDir, 'dist')),
+      'Dry-run oficial nao pode criar bundle.');
+    Assert.IsFalse(TDirectory.Exists(TPath.Combine(FTempDir,
+      'registry-preview')), 'Dry-run nao pode alterar checkout.');
+
+    TDirectory.CreateDirectory(TPath.Combine(FTempDir, 'registry'));
+    TFile.WriteAllText(TPath.Combine(FTempDir,
+      'registry\publishers.json'),
+      '{"schemaVersion":1,"publishers":[]}', TEncoding.UTF8);
+    TFile.WriteAllText(TPath.Combine(FTempDir,
+      'registry\index-v2.json'),
+      '{"schemaVersion":2,"includes":[],"sparse":[],"packages":[]}',
+      TEncoding.UTF8);
+    LLogger.LastLogMessage := '';
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'registry', 'health', FTempDir));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains(
+      'packages=0; legacy=0; trusted=0; warnings=0; errors=0'));
   finally
     LParser.Free;
     LConfigService.Free;

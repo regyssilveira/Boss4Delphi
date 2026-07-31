@@ -38,6 +38,8 @@ function NewProgressEvent(const AOperationId, APackageName, APhase,
   AMessage: string; const ACurrent, ATotal: Integer): TBoss4DProgressEvent;
 function ClassifyExitCode(const AMessage: string): Integer;
 function FindExecutable(const AName: string): string;
+function SelectSha256Tool(const ASha256SumPath, AShasumPath: string): string;
+function FindSha256Tool: string;
 function RunDoctor: TStringList;
 function DoctorPassed(const AResults: TStrings): Boolean;
 procedure InstallCancellationHandler;
@@ -176,6 +178,19 @@ begin
   Result := FileSearch(AName, GetEnvironmentVariable('PATH'));
 end;
 
+function SelectSha256Tool(const ASha256SumPath, AShasumPath: string): string;
+begin
+  if ASha256SumPath <> '' then Exit('sha256sum');
+  if AShasumPath <> '' then Exit('shasum');
+  Result := '';
+end;
+
+function FindSha256Tool: string;
+begin
+  Result := SelectSha256Tool(FindExecutable('sha256sum'),
+    FindExecutable('shasum'));
+end;
+
 function CommandVersion(const AName: string;
   const AArguments: array of string): string;
 var
@@ -195,9 +210,9 @@ begin
   LValue := CommandVersion('git', ['--version']);
   if LValue = '' then Result.Add('ERROR git: not found')
   else Result.Add('OK git: ' + LValue);
-  LValue := CommandVersion('sha256sum', ['--version']);
-  if LValue = '' then Result.Add('ERROR sha256sum: not found')
-  else Result.Add('OK sha256sum: available');
+  LValue := FindSha256Tool;
+  if LValue = '' then Result.Add('ERROR sha256: sha256sum/shasum not found')
+  else Result.Add('OK sha256: ' + LValue);
   LValue := CommandVersion('gpg', ['--version']);
   if LValue = '' then Result.Add('WARN gpg: not found; signed packages unavailable')
   else Result.Add('OK gpg: available');

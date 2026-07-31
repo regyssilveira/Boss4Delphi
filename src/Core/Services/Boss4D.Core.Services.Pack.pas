@@ -41,15 +41,30 @@ var
 begin
   LRelative := AFileName.Substring(IncludeTrailingPathDelimiter(ARoot).Length)
     .Replace('\', '/');
-  Result := LRelative.StartsWith('.git/', True) or
+  Result := SameText(LRelative, '.git') or
+    LRelative.StartsWith('.git/', True) or
     LRelative.StartsWith('modules/', True) or
     LRelative.StartsWith('dist/', True) or
+    LRelative.StartsWith('bin/', True) or
     LRelative.StartsWith('.codex-build/', True) or
+    LRelative.StartsWith('.ci-build/', True) or
+    LRelative.StartsWith('.fpc-build/', True) or
+    LRelative.StartsWith('.release/', True) or
+    LRelative.StartsWith('.release-test/', True) or
+    LRelative.StartsWith('.scannerwork/', True) or
     LRelative.StartsWith('.benchmark-pack/', True) or
     LRelative.StartsWith('scratch/', True) or
+    LRelative.StartsWith('tests/scratch/', True) or
+    LRelative.StartsWith('tests/Win32/', True) or
+    LRelative.StartsWith('tests/Win64/', True) or
+    LRelative.StartsWith('src/Win32/', True) or
+    LRelative.StartsWith('src/Win64/', True) or
+    LRelative.StartsWith('installer/Output/', True) or
     LRelative.EndsWith('.dcu', True) or LRelative.EndsWith('.exe', True) or
     LRelative.EndsWith('.bpl', True) or LRelative.EndsWith('.dcp', True) or
-    LRelative.EndsWith('.dsk', True);
+    LRelative.EndsWith('.dsk', True) or LRelative.EndsWith('.map', True) or
+    LRelative.EndsWith('.drc', True) or
+    LRelative.EndsWith('.identcache', True);
 end;
 
 function TBoss4DPackService.Execute(const ARootDirectory,

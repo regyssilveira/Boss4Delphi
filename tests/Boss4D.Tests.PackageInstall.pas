@@ -21,6 +21,8 @@ type
     [Test] procedure InstallsVerifiedArtifactTransactionally;
     [Test] procedure RejectsDigestMismatchWithoutReplacingTarget;
     [Test] procedure RejectsInvalidSignature;
+    [Test] procedure UsesMirrorOnlyWhenDigestMatches;
+    [Test] procedure RetriesTransientArtifactDownload;
   end;
 
 implementation
@@ -97,6 +99,10 @@ begin
     TPackageVerifierMock.Create(True));
   try
     LRequest := Default(TBoss4DPackageInstallRequest);
+    LRequest.PackageName := 'verified';
+    LRequest.Version := '1.0.0';
+    LRequest.Platform := 'Win64';
+    LRequest.Compiler := '37.0';
     LRequest.ArtifactUrl := ARTIFACT_URL;
     LRequest.Sha256 := LPackResult.Digest;
     LRequest.SignatureUrl := SIGNATURE_URL;
@@ -107,6 +113,14 @@ begin
     Assert.AreEqual<Integer>(2, LResult.FileCount);
     Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget, 'boss.json')));
     Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget, 'verified.pas')));
+    var LReceipt := TFile.ReadAllText(TPath.Combine(LTarget,
+      '.boss4d-package.json'), TEncoding.UTF8);
+    Assert.IsTrue(LReceipt.Contains('"version": "1.0.0"'));
+    Assert.IsTrue(LReceipt.Contains('"platform": "Win64"'));
+    Assert.IsTrue(LReceipt.Contains('"compiler": "37.0"'));
+    Assert.IsTrue(LReceipt.Contains(LPackResult.Digest));
+    Assert.IsTrue(LReceipt.Contains('"signatureVerified": true'));
+    Assert.IsTrue(LReceipt.Contains('"provenanceVerified": true'));
   finally
     LService.Free;
     if TDirectory.Exists(LTarget) then TDirectory.Delete(LTarget, True);
@@ -174,6 +188,70 @@ begin
     Assert.IsFalse(TDirectory.Exists(LTarget));
   finally
     LService.Free;
+    DeletePackedFixture(LRoot, LArtifact);
+  end;
+end;
+
+procedure TBoss4DPackageInstallTests.UsesMirrorOnlyWhenDigestMatches;
+const
+  PRIMARY_URL = 'https://primary.example/package.b4dpkg';
+  MIRROR_URL = 'https://mirror.example/package.b4dpkg';
+var
+  LRoot, LArtifact, LTarget: string;
+  LPackResult: TBoss4DPackResult;
+  LHttp: THttpClientMock;
+  LService: TBoss4DPackageInstallService;
+  LRequest: TBoss4DPackageInstallRequest;
+begin
+  CreatePackedFixture(LRoot, LArtifact, LPackResult);
+  LTarget := TPath.Combine(TPath.GetTempPath, TPath.GetRandomFileName);
+  LHttp := THttpClientMock.Create;
+  LHttp.AddResponse(PRIMARY_URL, 'tampered', 200);
+  LHttp.AddResponse(MIRROR_URL, TFile.ReadAllText(LArtifact), 200);
+  LService := TBoss4DPackageInstallService.Create(LHttp);
+  try
+    LRequest := Default(TBoss4DPackageInstallRequest);
+    LRequest.ArtifactUrl := PRIMARY_URL;
+    LRequest.ArtifactMirrors := TArray<string>.Create(MIRROR_URL);
+    LRequest.Sha256 := LPackResult.Digest;
+    LRequest.TargetDirectory := LTarget;
+    Assert.IsTrue(LService.Execute(LRequest).Installed);
+    Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget, 'verified.pas')));
+  finally
+    LService.Free;
+    if TDirectory.Exists(LTarget) then TDirectory.Delete(LTarget, True);
+    DeletePackedFixture(LRoot, LArtifact);
+  end;
+end;
+
+procedure TBoss4DPackageInstallTests.RetriesTransientArtifactDownload;
+const
+  ARTIFACT_URL = 'https://packages.example/transient.b4dpkg';
+var
+  LRoot, LArtifact, LTarget: string;
+  LPackResult: TBoss4DPackResult;
+  LHttp: THttpClientMock;
+  LService: TBoss4DPackageInstallService;
+  LRequest: TBoss4DPackageInstallRequest;
+begin
+  CreatePackedFixture(LRoot, LArtifact, LPackResult);
+  LTarget := TPath.Combine(TPath.GetTempPath, TPath.GetRandomFileName);
+  LHttp := THttpClientMock.Create;
+  LHttp.AddResponse(ARTIFACT_URL, TFile.ReadAllText(LArtifact), 200);
+  LHttp.AddTransientDownloadFailures(ARTIFACT_URL, 2);
+  LService := TBoss4DPackageInstallService.Create(LHttp);
+  try
+    LRequest := Default(TBoss4DPackageInstallRequest);
+    LRequest.PackageName := 'transient';
+    LRequest.Version := '1.0.0';
+    LRequest.ArtifactUrl := ARTIFACT_URL;
+    LRequest.Sha256 := LPackResult.Digest;
+    LRequest.TargetDirectory := LTarget;
+    Assert.IsTrue(LService.Execute(LRequest).Installed);
+    Assert.AreEqual<Integer>(3, LHttp.DownloadAttempts(ARTIFACT_URL));
+  finally
+    LService.Free;
+    if TDirectory.Exists(LTarget) then TDirectory.Delete(LTarget, True);
     DeletePackedFixture(LRoot, LArtifact);
   end;
 end;

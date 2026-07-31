@@ -17,6 +17,7 @@ implementation
 
 uses
   System.SysUtils,
+  System.IOUtils,
   System.Generics.Collections,
   System.Generics.Defaults,
   Boss4D.Core.Services.BuildConventions,
@@ -78,6 +79,8 @@ end;
 procedure ValidateMatrix(const AMatrix: TBoss4DBuildMatrix);
 var
   LSeenProjects: TDictionary<string, Boolean>;
+  LProjectsByPath: TDictionary<string, TBoss4DBuildProject>;
+  LDependency: TBoss4DBuildProject;
 begin
   if AMatrix.Compilers.Count = 0 then
     raise EArgumentException.Create(
@@ -125,24 +128,21 @@ begin
         [LConfiguration]);
 
   LSeenProjects := TDictionary<string, Boolean>.Create;
+  LProjectsByPath :=
+    TDictionary<string, TBoss4DBuildProject>.Create;
   try
     for var LProject in AMatrix.Projects do
     begin
       if LProject.Path.Trim.IsEmpty then
         raise EArgumentException.Create(
           'Um projeto da matriz possui path vazio.');
-      if not SameText(LProject.Kind, 'runtime') and
-         not SameText(LProject.Kind, 'design') and
-         not SameText(LProject.Kind, 'application') and
-         not SameText(LProject.Kind, 'tool') and
-         not SameText(LProject.Kind, 'binary') then
-        raise EArgumentException.CreateFmt(
-          'Tipo de projeto nao suportado: %s.', [LProject.Kind]);
+      TBoss4DBuildProjectRoles.Parse(LProject.Kind);
       var LKey := LProject.Path.ToLower;
       if LSeenProjects.ContainsKey(LKey) then
         raise EArgumentException.CreateFmt(
           'Projeto duplicado na matriz: %s.', [LProject.Path]);
       LSeenProjects.Add(LKey, True);
+      LProjectsByPath.Add(LKey, LProject);
       ValidateUniqueValues(LProject.Compilers,
         'compilers do projeto ' + LProject.Path);
       ValidateUniqueValues(LProject.Platforms,
@@ -155,9 +155,83 @@ begin
         AMatrix.Platforms);
       ValidateSubset(LProject.Path, 'configuracao',
         LProject.Configurations, AMatrix.Configurations);
+      for var LBuildDependency in LProject.Dependencies do
+      begin
+        if LBuildDependency.Path.Trim.IsEmpty then
+          raise EArgumentException.CreateFmt(
+            'Projeto %s declara uma dependencia com path vazio.',
+            [LProject.Path]);
+        ValidateUniqueValues(LBuildDependency.Compilers,
+          'compilers da dependencia ' + LBuildDependency.Path);
+        ValidateUniqueValues(LBuildDependency.Platforms,
+          'platforms da dependencia ' + LBuildDependency.Path);
+        ValidateUniqueValues(LBuildDependency.Configurations,
+          'configurations da dependencia ' + LBuildDependency.Path);
+        ValidateSubset(LProject.Path, 'compilador da dependencia',
+          LBuildDependency.Compilers, AMatrix.Compilers);
+        ValidateSubset(LProject.Path, 'plataforma da dependencia',
+          LBuildDependency.Platforms, AMatrix.Platforms);
+        ValidateSubset(LProject.Path, 'configuracao da dependencia',
+          LBuildDependency.Configurations, AMatrix.Configurations);
+      end;
+    end;
+
+    for var LProject in AMatrix.Projects do
+      if LProject.Role = TBoss4DBuildProjectRole.RuntimePackage then
+      begin
+        for var LDependencyPath in LProject.DependsOn do
+        begin
+          LDependency := nil;
+          if LProjectsByPath.TryGetValue(
+            LDependencyPath.ToLower, LDependency) and
+             (LDependency.Role =
+               TBoss4DBuildProjectRole.DesignPackage) then
+            raise EArgumentException.CreateFmt(
+              'Package runtime %s nao pode depender do package design %s.',
+              [LProject.Path, LDependency.Path]);
+        end;
+        for var LBuildDependency in LProject.Dependencies do
+        begin
+          LDependency := nil;
+          if LProjectsByPath.TryGetValue(
+            LBuildDependency.Path.ToLower, LDependency) and
+             (LDependency.Role =
+               TBoss4DBuildProjectRole.DesignPackage) then
+            raise EArgumentException.CreateFmt(
+              'Package runtime %s nao pode depender do package design %s.',
+              [LProject.Path, LDependency.Path]);
+        end;
+      end;
+  finally
+    LProjectsByPath.Free;
+    LSeenProjects.Free;
+  end;
+end;
+
+procedure ValidateUniquePackageTargets(
+  const ATargets: TBoss4DBuildTargetList);
+var
+  LSeen: TDictionary<string, string>;
+begin
+  LSeen := TDictionary<string, string>.Create;
+  try
+    for var LTarget in ATargets do
+    begin
+      if not LTarget.ComponentNameDeclared then
+        Continue;
+      var LKey := LowerCase(LTarget.PackageName + '|' +
+        LTarget.ComponentName + '|' + LTarget.Compiler + '|' +
+        LTarget.Platform + '|' + LTarget.Configuration);
+      var LExistingProject: string;
+      if LSeen.TryGetValue(LKey, LExistingProject) then
+        raise EArgumentException.CreateFmt(
+          'Package logico duplicado "%s" para %s/%s/%s: %s e %s.',
+          [LTarget.ComponentName, LTarget.Compiler, LTarget.Platform,
+           LTarget.Configuration, LExistingProject, LTarget.ProjectPath]);
+      LSeen.Add(LKey, LTarget.ProjectPath);
     end;
   finally
-    LSeenProjects.Free;
+    LSeen.Free;
   end;
 end;
 
@@ -229,6 +303,8 @@ begin
       begin
         var LTarget := TBoss4DBuildTarget.Create;
         LTarget.PackageName := APackage.Name;
+        LTarget.ComponentName :=
+          TPath.GetFileNameWithoutExtension(LProjectPath);
         LTarget.ProjectPath := LProjectPath;
         LTarget.ProjectKind := 'runtime';
         LTarget.Compiler := LCompiler;
@@ -269,6 +345,16 @@ begin
                           LExpandedProject);
                         var LTarget := TBoss4DBuildTarget.Create;
                         LTarget.PackageName := APackage.Name;
+                        LTarget.ComponentName := LProject.PackageName;
+                        LTarget.ComponentNameDeclared :=
+                          not LProject.PackageName.IsEmpty;
+                        LTarget.IDEPackageDescription :=
+                          LProject.IDEPackageDescription;
+                        LTarget.PalettePage := LProject.PalettePage;
+                        if LTarget.ComponentName.IsEmpty then
+                          LTarget.ComponentName :=
+                            TPath.GetFileNameWithoutExtension(
+                              LExpandedProject);
                         LTarget.ProjectPath := LExpandedProject;
                         LTarget.ProjectKind := LProject.Kind;
                         LTarget.Compiler := LCompiler;
@@ -279,6 +365,37 @@ begin
                             TBoss4DBuildConventions.ExpandPath(
                               LDependencyPath, LCompiler, LPlatform,
                               LConfiguration));
+                        for var LBuildDependency in
+                          LProject.Dependencies do
+                          if LBuildDependency.AppliesTo(LCompiler,
+                            LPlatform, LConfiguration) then
+                          begin
+                            var LExpandedDependency :=
+                              TBoss4DBuildConventions.ExpandPath(
+                                LBuildDependency.Path, LCompiler,
+                                LPlatform, LConfiguration);
+                            var LDependencyExists := False;
+                            for var LCandidate in
+                              APackage.BuildMatrix.Projects do
+                              if SameText(
+                                TBoss4DBuildConventions.ExpandPath(
+                                  LCandidate.Path, LCompiler, LPlatform,
+                                  LConfiguration),
+                                LExpandedDependency) and
+                                 ProjectAllows(LCandidate.Compilers,
+                                   LCompiler) and
+                                 ProjectAllows(LCandidate.Platforms,
+                                   LPlatform) and
+                                 ProjectAllows(LCandidate.Configurations,
+                                   LConfiguration) then
+                              begin
+                                LDependencyExists := True;
+                                Break;
+                              end;
+                            if LDependencyExists or
+                               not LBuildDependency.Optional then
+                              LTarget.DependsOn.Add(LExpandedDependency);
+                          end;
                         Result.Add(LTarget);
                       end;
         finally
@@ -294,6 +411,7 @@ begin
     if Result.Count = 0 then
       raise EArgumentException.Create(
         'A selecao nao produz nenhum target de build.');
+    ValidateUniquePackageTargets(Result);
     Result.Sort(TComparer<TBoss4DBuildTarget>.Construct(
       function(const ALeft, ARight: TBoss4DBuildTarget): Integer
       begin

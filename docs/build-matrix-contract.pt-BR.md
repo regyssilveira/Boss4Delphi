@@ -91,6 +91,30 @@ A seleção padrão expande um target por projeto aplicável. A seleção comple
 expande o produto cartesiano após aplicar as restrições por projeto. O resultado
 é ordenado pela identidade do target e não depende da ordem de declaração.
 
+### Dependencias opcionais e condicionais
+
+`dependsOn` permanece a sintaxe compacta para dependencias obrigatorias
+aplicaveis a todos os targets. Use `dependencies` quando uma aresta for
+opcional ou condicional:
+
+```json
+"dependencies": [
+  {
+    "path": "packages/TelemetryRuntime.dproj",
+    "optional": true,
+    "compilers": ["37.0"],
+    "platforms": ["Win32"],
+    "configurations": ["Release"]
+  }
+]
+```
+
+Uma condicao omitida significa todos os valores daquele eixo. Uma dependencia
+obrigatoria aplicavel deve produzir um target compativel. Uma dependencia
+opcional aplicavel participa da ordenacao quando seu target existe e e ignorada
+caso contrario. Packages runtime nao podem depender de packages design-time em
+nenhuma das duas sintaxes.
+
 ## Identidade de um target
 
 Um target de build é identificado pelo conjunto:

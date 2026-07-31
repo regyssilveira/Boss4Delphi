@@ -1,5 +1,18 @@
 # Backlog de Desenvolvimento do Boss4D
 
+## Épico 22: Instalação de componentes, perfis isolados e GUI
+
+- [x] Identidades runtime/design tipadas e planos determinísticos de instalação.
+- [x] Preview, lock de máquina, política de IDE aberta e rollback completo.
+- [x] Perfis nomeados com Registry branches e inventários isolados.
+- [x] `ide profile` create/show/clone/remove/import/export/install/repair/launch.
+- [x] Serviços de aplicação compartilhados por CLI e GUI.
+- [x] Packages, targets, perfis, preview, instalação, reparo e remoção na GUI.
+- [ ] Visualização interativa do grafo de componentes (melhoria pós-entrega).
+- [x] Exemplos/documentação bilíngues, validação e Sonar limpo.
+
+Veja o [plano oficial da entrega](ide-packages-profiles-gui-plan.pt-BR.md).
+
 ## Épico 21: CLI portável e fundação de distribuição
 
 - [x] **[Story] Fundação de abstração de plataforma**
@@ -18,7 +31,7 @@
 - [x] **[Story] CLI Linux nativa**
   - Oferecer dependências, Registry, conformidade, publicação, atualização,
     workspaces, cache, credenciais e ferramentas globais em Linux x86_64/FPC.
-- [ ] **[Story] Distribuição macOS nativa**
+- [x] **[Story] Distribuição macOS nativa**
   - Adicionar host e artefato macOS testados, mantendo RAD Studio e GetIt
     limitados por capacidade ao Windows.
 
@@ -210,8 +223,11 @@ itens ainda abertos formam o backlog ativo.
 
 - [x] **[Story] Cache Global Seguro de Objetos Git e Binários**
   - Evitar clones físicos repetidos, mantendo os arquivos Git num repositório centralizado e gerando links lógicos (hard links) para a pasta `modules/` de cada projeto.
-- [ ] **[Story] Paralelização de Downloads e MSBuild**
-  - Executar múltiplos downloads em paralelo via Git e disparar compilações em threads assíncronas para módulos sem relação de dependência direta.
+- [x] **[Story] Paralelização de Downloads e MSBuild**
+  - O scheduler de MSBuild executa targets independentes em paralelo, respeita
+    o grafo, limita `--jobs`, cancela e interrompe dependentes após falha. A
+    instalação também limita operações Git concorrentes por `--jobs` e
+    serializa somente operações destinadas à mesma chave de cache.
 
 ---
 
@@ -247,7 +263,7 @@ itens ainda abertos formam o backlog ativo.
   - Disponibilizar `--locked`, `--frozen-lockfile`, `--offline` e um fluxo `ci`
     limpo sem regravar o lock.
 
-- [ ] **[Story] Geração Automatizada de Documentação (`boss4d doc`)**
+- [x] **[Story] Geração Automatizada de Documentação (`boss4d doc`)**
   - Varrer os comentários em PascalDoc/XML Doc de todas as dependências e compilar um site local com a documentação estática de referência das APIs.
 - [x] **[Story] Divisão de Dependências de Desenvolvimento (`devDependencies`)**
   - Suportar dependências exclusivas de desenvolvimento/testes, permitindo instalações limpas de produção com a flag `--production`.

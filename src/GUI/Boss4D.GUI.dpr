@@ -4,6 +4,8 @@ uses
   Vcl.Forms,
 
   Boss4D.GUI.Main in 'Boss4D.GUI.Main.pas' {FormMain},
+  Boss4D.GUI.IDE.Presenter in 'Boss4D.GUI.IDE.Presenter.pas',
+  Boss4D.GUI.IDE.Backend in 'Boss4D.GUI.IDE.Backend.pas',
   Boss4D.Core.Domain.Consts in '..\Core\Domain\Boss4D.Core.Domain.Consts.pas',
   Boss4D.Core.Domain.Env in '..\Core\Domain\Boss4D.Core.Domain.Env.pas',
   Boss4D.Core.Domain.SemVer in '..\Core\Domain\Boss4D.Core.Domain.SemVer.pas',
@@ -14,6 +16,7 @@ uses
   Boss4D.Core.Domain.Sbom in '..\Core\Domain\Boss4D.Core.Domain.Sbom.pas',
   Boss4D.Core.Domain.License in '..\Core\Domain\Boss4D.Core.Domain.License.pas',
   Boss4D.Core.Domain.Progress in '..\Core\Domain\Boss4D.Core.Domain.Progress.pas',
+  Boss4D.Core.Domain.IDEProfile in '..\Core\Domain\Boss4D.Core.Domain.IDEProfile.pas',
   Boss4D.Core.Ports in '..\Core\Ports\Boss4D.Core.Ports.pas',
   Boss4D.Core.Platform in '..\Core\Platform\Boss4D.Core.Platform.pas',
   Boss4D.Adapters.Platform.Windows in '..\Adapters\Platform\Windows\Boss4D.Adapters.Platform.Windows.pas',
@@ -28,6 +31,7 @@ uses
   Boss4D.Core.Services.Init in '..\Core\Services\Boss4D.Core.Services.Init.pas',
   Boss4D.Core.Services.Config in '..\Core\Services\Boss4D.Core.Services.Config.pas',
   Boss4D.Core.Services.Install in '..\Core\Services\Boss4D.Core.Services.Install.pas',
+  Boss4D.Core.Services.OperationGate in '..\Core\Services\Boss4D.Core.Services.OperationGate.pas',
   Boss4D.Core.Services.SelfUpdate in '..\Core\Services\Boss4D.Core.Services.SelfUpdate.pas',
   Boss4D.Core.Services.Pack in '..\Core\Services\Boss4D.Core.Services.Pack.pas',
   Boss4D.Core.Services.Resolver in '..\Core\Services\Boss4D.Core.Services.Resolver.pas',
@@ -36,18 +40,23 @@ uses
   Boss4D.Core.Services.Progress in '..\Core\Services\Boss4D.Core.Services.Progress.pas',
   Boss4D.Core.Services.Transaction in '..\Core\Services\Boss4D.Core.Services.Transaction.pas',
   Boss4D.Core.Services.Dependencies in '..\Core\Services\Boss4D.Core.Services.Dependencies.pas',
+  Boss4D.Core.Services.VersionHistory in '..\Core\Services\Boss4D.Core.Services.VersionHistory.pas',
   Boss4D.Core.Services.Audit in '..\Core\Services\Boss4D.Core.Services.Audit.pas',
   Boss4D.Core.Services.PackageIndex in '..\Core\Services\Boss4D.Core.Services.PackageIndex.pas',
+  Boss4D.GUI.Catalog.Presenter in 'Boss4D.GUI.Catalog.Presenter.pas',
   Boss4D.Core.Services.DependencySubmission in '..\Core\Services\Boss4D.Core.Services.DependencySubmission.pas',
   Boss4D.Core.Services.ArtifactCache in '..\Core\Services\Boss4D.Core.Services.ArtifactCache.pas',
   Boss4D.Core.Services.BuildMatrix in '..\Core\Services\Boss4D.Core.Services.BuildMatrix.pas',
   Boss4D.Core.Services.BuildConventions in '..\Core\Services\Boss4D.Core.Services.BuildConventions.pas',
+  Boss4D.Core.Services.BuildCapabilities in '..\Core\Services\Boss4D.Core.Services.BuildCapabilities.pas',
   Boss4D.Core.Services.BuildSpec in '..\Core\Services\Boss4D.Core.Services.BuildSpec.pas',
   Boss4D.Core.Services.BuildCommand in '..\Core\Services\Boss4D.Core.Services.BuildCommand.pas',
   Boss4D.Core.Services.BuildDoctor in '..\Core\Services\Boss4D.Core.Services.BuildDoctor.pas',
   Boss4D.Core.Services.BuildPaths in '..\Core\Services\Boss4D.Core.Services.BuildPaths.pas',
   Boss4D.Core.Services.BuildExecutor in '..\Core\Services\Boss4D.Core.Services.BuildExecutor.pas',
   Boss4D.Core.Services.BuildGraph in '..\Core\Services\Boss4D.Core.Services.BuildGraph.pas',
+  Boss4D.Core.Services.ComponentPlan in '..\Core\Services\Boss4D.Core.Services.ComponentPlan.pas',
+  Boss4D.Core.Services.ComponentRemoval in '..\Core\Services\Boss4D.Core.Services.ComponentRemoval.pas',
   Boss4D.Core.Services.BuildState in '..\Core\Services\Boss4D.Core.Services.BuildState.pas',
   Boss4D.Core.Services.BuildScheduler in '..\Core\Services\Boss4D.Core.Services.BuildScheduler.pas',
   Boss4D.Core.Services.Cache in '..\Core\Services\Boss4D.Core.Services.Cache.pas',
@@ -58,6 +67,16 @@ uses
   Boss4D.Core.Services.Outdated in '..\Core\Services\Boss4D.Core.Services.Outdated.pas',
   Boss4D.Core.Services.IDEIntegration in '..\Core\Services\Boss4D.Core.Services.IDEIntegration.pas',
   Boss4D.Core.Services.IDERegistration in '..\Core\Services\Boss4D.Core.Services.IDERegistration.pas',
+  Boss4D.Core.Services.IDEProfiles in '..\Core\Services\Boss4D.Core.Services.IDEProfiles.pas',
+  Boss4D.Core.Services.IDEProfileApplication in '..\Core\Services\Boss4D.Core.Services.IDEProfileApplication.pas',
+  Boss4D.Core.Services.IDEManagementQuery in '..\Core\Services\Boss4D.Core.Services.IDEManagementQuery.pas',
+  Boss4D.Core.Services.IDEOperationResult in '..\Core\Services\Boss4D.Core.Services.IDEOperationResult.pas',
+  Boss4D.Core.Services.IDEProcessPolicy in '..\Core\Services\Boss4D.Core.Services.IDEProcessPolicy.pas',
+  Boss4D.Core.Services.IDEOperationLock in '..\Core\Services\Boss4D.Core.Services.IDEOperationLock.pas',
+  Boss4D.Core.Services.BuildInventory in '..\Core\Services\Boss4D.Core.Services.BuildInventory.pas',
+  Boss4D.Core.Services.BuildCoordinator in '..\Core\Services\Boss4D.Core.Services.BuildCoordinator.pas',
+  Boss4D.Core.Services.IDEDiscovery in '..\Core\Services\Boss4D.Core.Services.IDEDiscovery.pas',
+  Boss4D.Core.Services.PackageInstall in '..\Core\Services\Boss4D.Core.Services.PackageInstall.pas',
   Boss4D.Core.Services.Tool in '..\Core\Services\Boss4D.Core.Services.Tool.pas',
   Boss4D.Core.Services.Workspace in '..\Core\Services\Boss4D.Core.Services.Workspace.pas',
   Boss4D.Core.Services.GetIt in '..\Core\Services\Boss4D.Core.Services.GetIt.pas',
@@ -70,9 +89,9 @@ uses
 
 begin
   ConfigureWindowsPlatform;
-  Application.Initialize;
-  Application.MainFormOnTaskBar := True;
+  Vcl.Forms.Application.Initialize;
+  Vcl.Forms.Application.MainFormOnTaskBar := True;
 
-  Application.CreateForm(TFormMain, FormMain);
-  Application.Run;
+  Vcl.Forms.Application.CreateForm(TFormMain, FormMain);
+  Vcl.Forms.Application.Run;
 end.

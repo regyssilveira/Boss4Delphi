@@ -32,6 +32,12 @@
   Registry values; active repair rebuilds missing artifacts.
 - Explicit `fail`, `warn`, `adopt`, and `replace` IDE conflict policies plus
   dependency-safe complete and cascading uninstall.
+- Optional and conditional runtime/design dependencies scoped by compiler,
+  platform, and configuration while preserving legacy `dependsOn`.
+- SHA-256-protected IDE profile snapshots, drift comparison, deterministic
+  restore, project-to-profile binding, and compiler compatibility checks.
+- Automatic pre-operation snapshots and tested undo for completed component
+  installation and removal through both CLI and GUI.
 
 ### Changed
 

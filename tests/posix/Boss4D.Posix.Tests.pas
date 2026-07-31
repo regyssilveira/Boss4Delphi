@@ -112,6 +112,15 @@ type
     property Url: string read FUrl;
   end;
 
+  TOfficialSignerMock = class
+  private
+    FAccept: Boolean;
+  public
+    function Sign(const AArtifactPath, AKeyId: string;
+      out ASignaturePath: string): Boolean;
+    property Accept: Boolean read FAccept write FAccept;
+  end;
+
   TProjectWorkflowMock = class
   private
     FCommand: string;
@@ -125,6 +134,21 @@ type
     property Success: Boolean read FSuccess write FSuccess;
   end;
 
+  TRegistryPullRequestRunnerMock = class
+  private
+    FCommands: TStringList;
+    FDirty: Boolean;
+    FFailAt: Integer;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    function Run(const ACommand, ADirectory: string;
+      out AOutput: string): Boolean;
+    property Commands: TStringList read FCommands;
+    property Dirty: Boolean read FDirty write FDirty;
+    property FailAt: Integer read FFailAt write FFailAt;
+  end;
+
   TPosixCoreTests = class(TTestCase)
   published
     procedure TestPlatform;
@@ -136,6 +160,7 @@ type
     procedure TestAddAndRemoveDependency;
     procedure TestListHonorsProduction;
     procedure TestInstallWritesV3Lock;
+    procedure TestInstallResolvesRegistryAliasWithoutLockedRegistryAccess;
     procedure TestFrozenRejectsManifestDrift;
     procedure TestHighestVersionResolution;
     procedure TestMinimalVersionResolution;
@@ -165,7 +190,9 @@ type
     procedure TestExitCodeClassification;
     procedure TestCancellation;
     procedure TestInstallHonorsCancellation;
-    procedure TestLinuxDoctor;
+    procedure TestPosixDoctor;
+    procedure TestSha256ToolSelection;
+    procedure TestReleaseAssetName;
     procedure TestCycloneDxLockOnlySbom;
     procedure TestSpdxLockOnlySbom;
     procedure TestCycloneDxVex;
@@ -185,9 +212,18 @@ type
     procedure TestGlobalToolLifecycle;
     procedure TestPublishDryRunAndImmutableConflict;
     procedure TestPublishRequiresLockEvidence;
+    procedure TestOfficialPublishBundle;
+    procedure TestRegistryCheckoutApplyAndAppend;
+    procedure TestRegistryPullRequestCommands;
+    procedure TestRegistryPullRequestRejectsDirtyCheckout;
+    procedure TestRegistryPullRequestFailurePreservesMetadata;
+    procedure TestRegistryHealthMixedCatalog;
+    procedure TestRegistryHealthRejectsMissingSparseFile;
     procedure TestProjectWorkflowCommands;
     procedure TestUpdateRollback;
     procedure TestUpdatePreservesRegistryArtifact;
+    procedure TestDocumentationGeneratesSearchableSite;
+    procedure TestDocumentationCanExcludeDependencies;
   end;
 
 implementation
@@ -197,7 +233,9 @@ uses
   Boss4D.Posix.Config,
   Boss4D.Posix.Package,
   Boss4D.Posix.Operations, Boss4D.Posix.Compliance, Boss4D.Posix.Audit,
-  Boss4D.Posix.Workflows, Boss4D.Posix.Update, Boss4D.Posix.Tools;
+  Boss4D.Posix.Workflows, Boss4D.Posix.Update, Boss4D.Posix.Tools,
+  Boss4D.Posix.Documentation, Boss4D.Posix.RegistryCheckout,
+  Boss4D.Posix.RegistryPullRequest, Boss4D.Posix.RegistryHealth;
 
 procedure SaveFixture(const APath, AContent: string); forward;
 
@@ -941,7 +979,15 @@ end;
 
 procedure TPosixCoreTests.TestPlatform;
 begin
+  {$ifdef linux}
   AssertEquals('linux', PlatformName);
+  {$else}
+  {$ifdef darwin}
+  AssertEquals('macos', PlatformName);
+  {$else}
+  AssertEquals('posix', PlatformName);
+  {$endif}
+  {$endif}
 end;
 
 procedure TPosixCoreTests.TestLegacyManifestCompatibility;
@@ -1033,6 +1079,42 @@ begin
     AssertTrue(Assigned(LLock.Find('installedModules')));
   finally
     LLock.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.
+  TestInstallResolvesRegistryAliasWithoutLockedRegistryAccess;
+var
+  LDir, LRegistryPath: string;
+  LOptions: TBoss4DInstallOptions;
+  LExisting, LEntry: TJSONObject;
+begin
+  LDir := NewTempDirectory;
+  LRegistryPath := IncludeTrailingPathDelimiter(LDir) + 'registry.json';
+  SaveFixture(LRegistryPath,
+    '{"schemaVersion":1,"packages":[{"name":"Horse",' +
+    '"repository":"github.com/HashLoad/horse","version":"3.2.0"}]}');
+  FillChar(LOptions, SizeOf(LOptions), 0);
+  LOptions.RegistrySource := LRegistryPath;
+  AssertEquals('github.com/HashLoad/horse',
+    ResolveDependencyRepository('horse', LOptions, nil));
+  AssertEquals('github.com/example/direct',
+    ResolveDependencyRepository('github.com/example/direct',
+      LOptions, nil));
+
+  LExisting := TJSONObject.Create;
+  try
+    LEntry := TJSONObject.Create;
+    LEntry.Add('name', 'horse');
+    LEntry.Add('repository', 'github.com/HashLoad/horse');
+    LExisting.Add('https://github.com/hashload/horse', LEntry);
+    LOptions.Locked := True;
+    LOptions.RegistrySource := IncludeTrailingPathDelimiter(LDir) +
+      'must-not-be-read.json';
+    AssertEquals('github.com/HashLoad/horse',
+      ResolveDependencyRepository('horse', LOptions, LExisting));
+  finally
+    LExisting.Free;
   end;
 end;
 
@@ -1183,16 +1265,18 @@ begin
   end;
 end;
 
-procedure TPosixCoreTests.TestLinuxDoctor;
+procedure TPosixCoreTests.TestPosixDoctor;
 var
   LResults: TStringList;
+  LTool: string;
 begin
-  AssertTrue(FindExecutable('sha256sum') <> '');
+  LTool := FindSha256Tool;
+  AssertTrue('A supported SHA-256 tool is required', LTool <> '');
   AssertEquals('', FindExecutable('boss4d-command-that-does-not-exist'));
   LResults := RunDoctor;
   try
     AssertTrue(LResults.Text,
-      LResults.IndexOf('OK sha256sum: available') >= 0);
+      LResults.IndexOf('OK sha256: ' + LTool) >= 0);
     AssertTrue(LResults.Text, LResults.IndexOf('OK home: writable') >= 0);
     AssertEquals(LResults.Text,
       LResults.IndexOf('ERROR git: not found') < 0, DoctorPassed(LResults));
@@ -1233,7 +1317,7 @@ begin
     LSource := IncludeTrailingPathDelimiter(FDirectory) + 'SHA256SUMS.txt'
   else
     LSource := IncludeTrailingPathDelimiter(FDirectory) +
-      'boss4d-linux-x86_64.tar.gz';
+      PosixReleaseAssetName;
   LInput := TFileStream.Create(LSource, fmOpenRead);
   try
     LOutput := TFileStream.Create(ATarget, fmCreate);
@@ -1276,6 +1360,14 @@ begin
   Result := FStatus;
 end;
 
+function TOfficialSignerMock.Sign(const AArtifactPath, AKeyId: string;
+  out ASignaturePath: string): Boolean;
+begin
+  ASignaturePath := AArtifactPath + '.asc';
+  SaveFixture(ASignaturePath, 'signed-by:' + AKeyId);
+  Result := FAccept;
+end;
+
 function TProjectWorkflowMock.Run(const ACommand,
   ADirectory: string): Boolean;
 begin
@@ -1289,6 +1381,37 @@ function TProjectWorkflowMock.Latest(const ARepository,
 begin
   if Pos('runtime', ARepository) > 0 then Result := '1.2.0'
   else Result := '2.0.0';
+end;
+
+constructor TRegistryPullRequestRunnerMock.Create;
+begin
+  inherited Create;
+  FCommands := TStringList.Create;
+  FFailAt := -1;
+end;
+
+destructor TRegistryPullRequestRunnerMock.Destroy;
+begin
+  FCommands.Free;
+  inherited Destroy;
+end;
+
+function TRegistryPullRequestRunnerMock.Run(const ACommand,
+  ADirectory: string; out AOutput: string): Boolean;
+begin
+  FCommands.Add(ACommand);
+  Result := FCommands.Count <> FFailAt;
+  if ACommand = 'git status --porcelain' then
+  begin
+    if FDirty then AOutput := ' M registry/index-v2.json'
+    else AOutput := '';
+  end
+  else if ACommand = 'git branch --show-current' then
+    AOutput := 'main'
+  else if Pos('gh pr create', ACommand) = 1 then
+    AOutput := 'https://github.com/example/registry/pull/8'
+  else
+    AOutput := '';
 end;
 
 function CreateComplianceLock(const ADirectory: string): string;
@@ -1677,12 +1800,11 @@ var
   LContent: TStringList;
 begin
   LDir := NewTempDirectory;
-  LArchive := IncludeTrailingPathDelimiter(LDir) +
-    'boss4d-linux-x86_64.tar.gz';
+  LArchive := IncludeTrailingPathDelimiter(LDir) + PosixReleaseAssetName;
   SaveFixture(LArchive, 'archive fixture');
   LHash := Sha256File(LArchive);
   SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'SHA256SUMS.txt',
-    LHash + '  boss4d-linux-x86_64.tar.gz');
+    LHash + '  ' + PosixReleaseAssetName);
   LTarget := IncludeTrailingPathDelimiter(LDir) + 'installed/boss4d';
   ForceDirectories(ExtractFileDir(LTarget));
   SaveFixture(LTarget, 'old executable');
@@ -1690,7 +1812,7 @@ begin
   try
     LMock.Directory := LDir;
     LMock.Release := '{"tag_name":"v1.6.0","assets":[' +
-      '{"name":"boss4d-linux-x86_64.tar.gz",' +
+      '{"name":"' + PosixReleaseAssetName + '",' +
       '"browser_download_url":"https://release/archive"},' +
       '{"name":"SHA256SUMS.txt",' +
       '"browser_download_url":"https://release/SHA256SUMS.txt"}]}';
@@ -1822,6 +1944,7 @@ begin
     LPoster.Status := 201;
     LService := TBoss4DPosixPublishService.Create(@LPoster.Post);
     try
+      LOptions := Default(TBoss4DPublishOptions);
       LOptions.RegistryUrl := '';
       LOptions.Token := '';
       LOptions.DryRun := True;
@@ -1871,6 +1994,7 @@ var
 begin
   LDir := NewTempDirectory;
   CreatePublishFixture(LDir, '');
+  LOptions := Default(TBoss4DPublishOptions);
   LOptions.RegistryUrl := '';
   LOptions.Token := '';
   LOptions.DryRun := True;
@@ -1888,6 +2012,346 @@ begin
   finally
     LService.Free;
   end;
+end;
+
+procedure TPosixCoreTests.TestOfficialPublishBundle;
+var
+  LDir, LOutput, LSubmission: string;
+  LSigner: TOfficialSignerMock;
+  LService: TBoss4DPosixPublishService;
+  LOptions: TBoss4DPublishOptions;
+  LResult: TBoss4DOfficialPublishResult;
+  LDocument: TStringList;
+begin
+  LDir := NewTempDirectory;
+  CreatePublishFixture(LDir, 'sha256:' + StringOfChar('b', 64));
+  LOutput := IncludeTrailingPathDelimiter(LDir) +
+    'dist/publish-test-1.0.0.b4dpkg';
+  LSubmission := IncludeTrailingPathDelimiter(LDir) +
+    'dist/publish-test-1.0.0.registry.json';
+  LOptions := Default(TBoss4DPublishOptions);
+  LOptions.Publisher := 'test-publisher';
+  LOptions.Repository := 'github.com/example/publish-test';
+  LOptions.SignerFingerprint := StringOfChar('a', 40);
+  LOptions.SigningKey := 'release@example.com';
+  LOptions.ArtifactUrl :=
+    'https://github.com/example/publish-test/releases/download/v1.0.0/' +
+    'publish-test-1.0.0.b4dpkg';
+  LOptions.ArtifactOutput := LOutput;
+  LOptions.SubmissionOutput := LSubmission;
+  LSigner := TOfficialSignerMock.Create;
+  try
+    LSigner.Accept := True;
+    LService := TBoss4DPosixPublishService.Create(nil, @LSigner.Sign);
+    try
+      LResult := LService.PrepareOfficial(LDir, LOptions);
+      AssertTrue(FileExists(LResult.ArtifactPath));
+      AssertTrue(FileExists(LResult.ProvenancePath));
+      AssertTrue(FileExists(LResult.SignaturePath));
+      AssertTrue(FileExists(LResult.SubmissionPath));
+      AssertEquals(64, Length(LResult.Digest));
+      LDocument := TStringList.Create;
+      try
+        LDocument.LoadFromFile(LResult.SubmissionPath);
+        AssertTrue(Pos('"schemaVersion" : 2', LDocument.Text) > 0);
+        AssertTrue(Pos('"publisher" : "test-publisher"',
+          LDocument.Text) > 0);
+      finally
+        LDocument.Free;
+      end;
+    finally
+      LService.Free;
+    end;
+
+    LOptions.ArtifactOutput := IncludeTrailingPathDelimiter(LDir) +
+      'failed/package.b4dpkg';
+    LOptions.SubmissionOutput := IncludeTrailingPathDelimiter(LDir) +
+      'failed/submission.json';
+    LSigner.Accept := False;
+    LService := TBoss4DPosixPublishService.Create(nil, @LSigner.Sign);
+    try
+      try
+        LService.PrepareOfficial(LDir, LOptions);
+        Fail('Rejected signature must fail');
+      except
+        on E: Exception do
+          AssertTrue(Pos('signature', E.Message) > 0);
+      end;
+      AssertFalse(FileExists(LOptions.ArtifactOutput));
+      AssertFalse(FileExists(LOptions.ArtifactOutput + '.asc'));
+      AssertFalse(FileExists(LOptions.ArtifactOutput + '.intoto.json'));
+      AssertFalse(FileExists(LOptions.SubmissionOutput));
+    finally
+      LService.Free;
+    end;
+  finally
+    LSigner.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestRegistryCheckoutApplyAndAppend;
+var
+  LRoot, LRegistry, LSubmission, LPackage: string;
+  LResult: TBoss4DRegistryCheckoutResult;
+  LData: TJSONData;
+  LStream: TFileStream;
+  LDocument, LPackageEntry: TJSONObject;
+  LPackages, LVersions: TJSONArray;
+begin
+  LRoot := NewTempDirectory;
+  LRegistry := IncludeTrailingPathDelimiter(LRoot) + 'registry';
+  ForceDirectories(LRegistry);
+  SaveFixture(IncludeTrailingPathDelimiter(LRegistry) + 'publishers.json',
+    '{"schemaVersion":1,"publishers":[{"id":"test-publisher",' +
+    '"repositories":["github.com/example/"],"allowedSigners":["' +
+    StringOfChar('A', 40) + '"]}]}');
+  SaveFixture(IncludeTrailingPathDelimiter(LRegistry) + 'index-v2.json',
+    '{"schemaVersion":2,"includes":[],"sparse":[],"packages":[]}');
+  LSubmission := IncludeTrailingPathDelimiter(LRoot) + 'submission.json';
+  SaveFixture(LSubmission,
+    '{"schemaVersion":2,"packages":[{"name":"Checkout Package",' +
+    '"publisher":"test-publisher","repository":' +
+    '"github.com/example/checkout-package","signerFingerprint":"' +
+    StringOfChar('A', 40) + '","description":"demo","license":"MIT",' +
+    '"versions":[{"version":"1.0.0","artifact":' +
+    '"https://packages.example/1.0.0.b4dpkg","sha256":"' +
+    StringOfChar('b', 64) + '","signature":' +
+    '"https://packages.example/1.0.0.b4dpkg.asc","provenance":' +
+    '"https://packages.example/1.0.0.b4dpkg.intoto.json"}]}]}');
+  LResult := ApplyRegistrySubmission(LRoot, LSubmission, False);
+  AssertFalse(LResult.Appended);
+  AssertTrue(FileExists(LResult.PackagePath));
+  LPackage := LResult.PackagePath;
+  with TStringList.Create do
+  try
+    LoadFromFile(LResult.IndexPath);
+    AssertTrue(Pos('packages/checkout-package.json', Text) > 0);
+  finally
+    Free;
+  end;
+
+  SaveFixture(LSubmission,
+    '{"schemaVersion":2,"packages":[{"name":"Checkout Package",' +
+    '"publisher":"test-publisher","repository":' +
+    '"github.com/example/checkout-package","signerFingerprint":"' +
+    StringOfChar('A', 40) + '","description":"demo","license":"MIT",' +
+    '"versions":[{"version":"1.1.0","artifact":' +
+    '"https://packages.example/1.1.0.b4dpkg","sha256":"' +
+    StringOfChar('c', 64) + '","signature":' +
+    '"https://packages.example/1.1.0.b4dpkg.asc","provenance":' +
+    '"https://packages.example/1.1.0.b4dpkg.intoto.json"}]}]}');
+  LResult := ApplyRegistrySubmission(LRoot, LSubmission, True);
+  AssertTrue(LResult.Appended);
+  LStream := TFileStream.Create(LPackage, fmOpenRead);
+  try
+    LData := GetJSON(LStream);
+  finally
+    LStream.Free;
+  end;
+  try
+    LDocument := TJSONObject(LData);
+    LPackages := TJSONArray(LDocument.Find('packages'));
+    LPackageEntry := TJSONObject(LPackages.Items[0]);
+    LVersions := TJSONArray(LPackageEntry.Find('versions'));
+    AssertEquals(2, LVersions.Count);
+    AssertEquals('1.1.0',
+      TJSONObject(LVersions.Items[1]).Get('version', ''));
+  finally
+    LData.Free;
+  end;
+  try
+    ApplyRegistrySubmission(LRoot, LSubmission, True);
+    Fail('Duplicate immutable version must fail');
+  except
+    on E: Exception do AssertTrue(Pos('immutable', E.Message) > 0);
+  end;
+end;
+
+procedure TPosixCoreTests.TestRegistryPullRequestCommands;
+var
+  LRoot, LPackage, LIndex: string;
+  LRunner: TRegistryPullRequestRunnerMock;
+  LService: TBoss4DPosixRegistryPullRequestService;
+  LOptions: TBoss4DRegistryPullRequestOptions;
+  LSession: TBoss4DRegistryPullRequestSession;
+  LResult: TBoss4DRegistryPullRequestResult;
+begin
+  LRoot := NewTempDirectory;
+  ForceDirectories(IncludeTrailingPathDelimiter(LRoot) +
+    'registry/packages');
+  LPackage := IncludeTrailingPathDelimiter(LRoot) +
+    'registry/packages/horse.json';
+  LIndex := IncludeTrailingPathDelimiter(LRoot) +
+    'registry/index-v2.json';
+  SaveFixture(LPackage, '{}');
+  SaveFixture(LIndex, '{}');
+  LOptions := Default(TBoss4DRegistryPullRequestOptions);
+  LOptions.RegistryRoot := LRoot;
+  LOptions.PackageName := 'Horse';
+  LOptions.Version := '3.2.1';
+  LOptions.Branch :=
+    TBoss4DPosixRegistryPullRequestService.DefaultBranch(
+      LOptions.PackageName, LOptions.Version);
+  LOptions.PushRemote := 'fork';
+  LOptions.BaseBranch := 'main';
+  LOptions.PullRequestRepository := 'regyssilveira/Boss4Delphi';
+  LOptions.PullRequestHead := 'regys:' + LOptions.Branch;
+  LRunner := TRegistryPullRequestRunnerMock.Create;
+  try
+    LService := TBoss4DPosixRegistryPullRequestService.Create(
+      @LRunner.Run);
+    try
+      LSession := LService.Start(LOptions);
+      LResult := LService.Submit(LOptions, LSession,
+        LPackage, LIndex);
+      AssertEquals('https://github.com/example/registry/pull/8',
+        LResult.PullRequestUrl);
+      AssertTrue(Pos('git add -- ''registry/index-v2.json'' ' +
+        '''registry/packages/horse.json''', LRunner.Commands[3]) = 1);
+      AssertTrue(Pos('git add .', LRunner.Commands[3]) = 0);
+      AssertTrue(Pos('--head ''regys:boss4d/package-horse-3.2.1''',
+        LRunner.Commands[6]) > 0);
+    finally
+      LService.Free;
+    end;
+  finally
+    LRunner.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestRegistryPullRequestRejectsDirtyCheckout;
+var
+  LRoot: string;
+  LRunner: TRegistryPullRequestRunnerMock;
+  LService: TBoss4DPosixRegistryPullRequestService;
+  LOptions: TBoss4DRegistryPullRequestOptions;
+begin
+  LRoot := NewTempDirectory;
+  LOptions := Default(TBoss4DRegistryPullRequestOptions);
+  LOptions.RegistryRoot := LRoot;
+  LOptions.Branch := 'boss4d/package-test-1.0.0';
+  LOptions.PushRemote := 'origin';
+  LOptions.BaseBranch := 'main';
+  LOptions.PullRequestRepository := 'regyssilveira/Boss4Delphi';
+  LOptions.PullRequestHead := LOptions.Branch;
+  LRunner := TRegistryPullRequestRunnerMock.Create;
+  LRunner.Dirty := True;
+  try
+    LService := TBoss4DPosixRegistryPullRequestService.Create(
+      @LRunner.Run);
+    try
+      try
+        LService.Start(LOptions);
+        Fail('Dirty Registry checkout must be rejected');
+      except
+        on E: Exception do
+          AssertTrue(Pos('local changes', E.Message) > 0);
+      end;
+    finally
+      LService.Free;
+    end;
+  finally
+    LRunner.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestRegistryPullRequestFailurePreservesMetadata;
+var
+  LRoot, LPackage, LIndex: string;
+  LRunner: TRegistryPullRequestRunnerMock;
+  LService: TBoss4DPosixRegistryPullRequestService;
+  LOptions: TBoss4DRegistryPullRequestOptions;
+  LSession: TBoss4DRegistryPullRequestSession;
+begin
+  LRoot := NewTempDirectory;
+  ForceDirectories(IncludeTrailingPathDelimiter(LRoot) +
+    'registry/packages');
+  LPackage := IncludeTrailingPathDelimiter(LRoot) +
+    'registry/packages/horse.json';
+  LIndex := IncludeTrailingPathDelimiter(LRoot) +
+    'registry/index-v2.json';
+  SaveFixture(LPackage, '{}');
+  SaveFixture(LIndex, '{}');
+  LOptions := Default(TBoss4DRegistryPullRequestOptions);
+  LOptions.RegistryRoot := LRoot;
+  LOptions.PackageName := 'Horse';
+  LOptions.Version := '3.2.1';
+  LOptions.Branch := 'boss4d/package-horse-3.2.1';
+  LOptions.PushRemote := 'origin';
+  LOptions.BaseBranch := 'main';
+  LOptions.PullRequestRepository := 'regyssilveira/Boss4Delphi';
+  LOptions.PullRequestHead := LOptions.Branch;
+  LRunner := TRegistryPullRequestRunnerMock.Create;
+  try
+    LService := TBoss4DPosixRegistryPullRequestService.Create(
+      @LRunner.Run);
+    try
+      LSession := LService.Start(LOptions);
+      LRunner.FailAt := 6;
+      try
+        LService.Submit(LOptions, LSession, LPackage, LIndex);
+        Fail('Push failure must be reported');
+      except
+        on E: Exception do
+          AssertTrue(Pos('push', E.Message) > 0);
+      end;
+      AssertTrue(FileExists(LPackage));
+      AssertTrue(FileExists(LIndex));
+    finally
+      LService.Free;
+    end;
+  finally
+    LRunner.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestRegistryHealthMixedCatalog;
+var
+  LRoot, LRegistry: string;
+  LResult: TBoss4DRegistryHealthResult;
+begin
+  LRoot := NewTempDirectory;
+  LRegistry := IncludeTrailingPathDelimiter(LRoot) + 'registry';
+  ForceDirectories(IncludeTrailingPathDelimiter(LRegistry) + 'packages');
+  SaveFixture(IncludeTrailingPathDelimiter(LRegistry) + 'publishers.json',
+    '{"schemaVersion":1,"publishers":[{"id":"demo",' +
+    '"repositories":["github.com/demo/"],"allowedSigners":["' +
+    StringOfChar('A', 40) + '"]}]}');
+  SaveFixture(IncludeTrailingPathDelimiter(LRegistry) + 'index-v2.json',
+    '{"schemaVersion":2,"includes":["index-v1.json"],' +
+    '"sparse":["packages/secure.json"],"packages":[]}');
+  SaveFixture(IncludeTrailingPathDelimiter(LRegistry) + 'index-v1.json',
+    '{"schemaVersion":1,"packages":[{"name":"Legacy",' +
+    '"repository":"github.com/demo/legacy"}]}');
+  SaveFixture(IncludeTrailingPathDelimiter(LRegistry) +
+    'packages/secure.json',
+    '{"schemaVersion":2,"packages":[{"name":"Secure",' +
+    '"publisher":"demo","repository":"github.com/demo/secure",' +
+    '"signerFingerprint":"' + StringOfChar('A', 40) +
+    '","versions":[{"version":"1.0.0"}]}]}');
+  LResult := AuditRegistryHealth(LRoot);
+  AssertTrue(LResult.Passed);
+  AssertEquals(2, LResult.PackageCount);
+  AssertEquals(1, LResult.LegacyPackageCount);
+  AssertEquals(1, LResult.TrustedPackageCount);
+end;
+
+procedure TPosixCoreTests.TestRegistryHealthRejectsMissingSparseFile;
+var
+  LRoot, LRegistry: string;
+  LResult: TBoss4DRegistryHealthResult;
+begin
+  LRoot := NewTempDirectory;
+  LRegistry := IncludeTrailingPathDelimiter(LRoot) + 'registry';
+  ForceDirectories(LRegistry);
+  SaveFixture(IncludeTrailingPathDelimiter(LRegistry) + 'publishers.json',
+    '{"schemaVersion":1,"publishers":[]}');
+  SaveFixture(IncludeTrailingPathDelimiter(LRegistry) + 'index-v2.json',
+    '{"schemaVersion":2,"includes":[],' +
+    '"sparse":["packages/missing.json"],"packages":[]}');
+  LResult := AuditRegistryHealth(LRoot);
+  AssertFalse(LResult.Passed);
+  AssertEquals(1, LResult.ErrorCount);
 end;
 
 procedure TPosixCoreTests.TestProjectWorkflowCommands;
@@ -1992,6 +2456,115 @@ begin
   AssertFalse('module backup removed',
     DirectoryExists(IncludeTrailingPathDelimiter(LDir) +
       'modules.boss4d-update-backup'));
+end;
+
+procedure TPosixCoreTests.TestDocumentationGeneratesSearchableSite;
+var
+  LDir, LModules, LOutput, LHtml, LJson: string;
+  LResult: TBoss4DDocumentationResult;
+  LRoot: TJSONData;
+  LContent: TStringList;
+begin
+  LDir := NewTempDirectory;
+  LModules := IncludeTrailingPathDelimiter(LDir) + 'modules' +
+    DirectorySeparator + 'demo';
+  ForceDirectories(LModules);
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'Sample.pas',
+    'unit Sample;' + LineEnding + 'interface' + LineEnding +
+    '/// <summary>Greets a user.</summary>' + LineEnding +
+    'procedure Greet;' + LineEnding +
+    '{** Stores a person. }' + LineEnding +
+    'TPerson = class' + LineEnding + 'end;' + LineEnding +
+    'implementation' + LineEnding + 'end.');
+  SaveFixture(IncludeTrailingPathDelimiter(LModules) + 'Dependency.pp',
+    'unit Dependency;' + LineEnding + 'interface' + LineEnding +
+    '/// Dependency API' + LineEnding + 'function Resolve: Boolean;' +
+    LineEnding + 'implementation' + LineEnding + 'end.');
+  LOutput := IncludeTrailingPathDelimiter(LDir) + 'docs-api';
+  LResult := GenerateDocumentation(LDir, LOutput, True);
+  AssertEquals(2, LResult.Files);
+  AssertEquals(3, LResult.Symbols);
+  LContent := TStringList.Create;
+  try
+    LContent.LoadFromFile(IncludeTrailingPathDelimiter(LOutput) + 'index.html');
+    LHtml := LContent.Text;
+    AssertTrue(Pos('id="api-search"', LHtml) > 0);
+    AssertTrue(Pos('Greet', LHtml) > 0);
+    AssertTrue(Pos('TPerson', LHtml) > 0);
+    AssertTrue(Pos('Resolve', LHtml) > 0);
+    LContent.LoadFromFile(IncludeTrailingPathDelimiter(LOutput) +
+      'search-index.json');
+    LJson := LContent.Text;
+  finally
+    LContent.Free;
+  end;
+  LRoot := GetJSON(LJson);
+  try
+    AssertEquals(3, LRoot.FindPath('symbolCount').AsInteger);
+  finally
+    LRoot.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestSha256ToolSelection;
+begin
+  AssertEquals('sha256sum', SelectSha256Tool('/usr/bin/sha256sum',
+    '/usr/bin/shasum'));
+  AssertEquals('shasum', SelectSha256Tool('', '/usr/bin/shasum'));
+  AssertEquals('', SelectSha256Tool('', ''));
+end;
+
+procedure TPosixCoreTests.TestReleaseAssetName;
+var
+  LExpectedArchitecture: string;
+begin
+  {$ifdef cpuaarch64}
+  LExpectedArchitecture := 'arm64';
+  {$else}
+  {$ifdef cpux86_64}
+  LExpectedArchitecture := 'x86_64';
+  {$else}
+  LExpectedArchitecture := 'unknown';
+  {$endif}
+  {$endif}
+  AssertEquals('boss4d-' + PlatformName + '-' + LExpectedArchitecture +
+    '.tar.gz', PosixReleaseAssetName);
+end;
+
+procedure TPosixCoreTests.TestDocumentationCanExcludeDependencies;
+var
+  LDir, LModules, LOutput, LHtml: string;
+  LResult: TBoss4DDocumentationResult;
+  LContent: TStringList;
+begin
+  LDir := NewTempDirectory;
+  LModules := IncludeTrailingPathDelimiter(LDir) + 'modules' +
+    DirectorySeparator + 'demo';
+  ForceDirectories(LModules);
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'Safe.pas',
+    'unit Safe;' + LineEnding + 'interface' + LineEnding +
+    '/// Safe & searchable <script>alert(1)</script>' + LineEnding +
+    'procedure LocalApi;' + LineEnding + 'implementation' + LineEnding +
+    'end.');
+  SaveFixture(IncludeTrailingPathDelimiter(LModules) + 'Dependency.pas',
+    'unit Dependency;' + LineEnding + 'interface' + LineEnding +
+    '/// Dependency API' + LineEnding + 'procedure RemoteApi;' + LineEnding +
+    'implementation' + LineEnding + 'end.');
+  LOutput := IncludeTrailingPathDelimiter(LDir) + 'site';
+  LResult := GenerateDocumentation(LDir, LOutput, False);
+  AssertEquals(1, LResult.Files);
+  AssertEquals(1, LResult.Symbols);
+  LContent := TStringList.Create;
+  try
+    LContent.LoadFromFile(IncludeTrailingPathDelimiter(LOutput) + 'index.html');
+    LHtml := LContent.Text;
+  finally
+    LContent.Free;
+  end;
+  AssertTrue(Pos('LocalApi', LHtml) > 0);
+  AssertTrue(Pos('RemoteApi', LHtml) = 0);
+  AssertTrue(Pos('<script>alert(1)</script>', LHtml) = 0);
+  AssertTrue(Pos('alert(1)', LHtml) > 0);
 end;
 
 initialization

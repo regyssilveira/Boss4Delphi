@@ -1,0 +1,64 @@
+name: POSIX CI
+
+on:
+  pull_request:
+    paths:
+      - "src/Posix/**"
+      - "tests/posix/**"
+      - "registry/**"
+      - "scripts/ci-fpc-linux.ps1"
+      - "scripts/test-posix-workflow.ps1"
+      - ".github/workflows/posix-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "src/Posix/**"
+      - "tests/posix/**"
+      - "registry/**"
+      - "scripts/ci-fpc-linux.ps1"
+      - "scripts/test-posix-workflow.ps1"
+      - ".github/workflows/posix-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.name }} / FPC
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x86_64
+            runner: ubuntu-24.04
+            install: >-
+              sudo apt-get update &&
+              sudo apt-get install --yes build-essential fp-compiler
+              fp-units-fcl fp-units-net
+          - name: macOS native
+            runner: macos-15
+            install: brew install fpc
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Free Pascal
+        run: ${{ matrix.install }}
+      - name: Compile CLI and unit tests
+        run: |
+          mkdir -p .posix-ci
+          fpc -B -Fu./src/Posix -FE./.posix-ci -oboss4d ./src/Posix/boss4d.lpr
+          fpc -B -Fu./src/Posix -Fu./tests/posix -FE./.posix-ci ./tests/posix/Boss4DPosixTests.lpr
+      - name: Run unit tests
+        run: ./.posix-ci/Boss4DPosixTests --all --format=plain
+      - name: Verify native host behavior
+        run: |
+          expected=linux
+          if [ "$(uname -s)" = "Darwin" ]; then expected=macos; fi
+          test "$(./.posix-ci/boss4d platform)" = "$expected"
+          ./.posix-ci/boss4d doctor > .posix-ci/doctor.txt 2>&1 || true
+          grep -q '^OK sha256:' .posix-ci/doctor.txt
+          ./.posix-ci/boss4d registry health . |
+            grep -q 'errors=0'

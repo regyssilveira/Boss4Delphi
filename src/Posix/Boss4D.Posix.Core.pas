@@ -14,6 +14,7 @@ type
     Offline: Boolean;
     Production: Boolean;
     Resolution: string;
+    RegistrySource: string;
   end;
 
 function Boss4DVersion: string;
@@ -33,6 +34,9 @@ function SelectVersion(const AConstraint: string; const AVersions: TStrings;
   const AStrategy: string): string;
 function ResolveLatestVersion(const ARepository,
   AConstraint: string): string;
+function ResolveDependencyRepository(const ARepository: string;
+  const AOptions: TBoss4DInstallOptions;
+  const AExisting: TJSONObject): string;
 function ListProject(const ADirectory: string; const AProduction: Boolean): TStringList;
 procedure InitProject(const ADirectory: string);
 procedure AddDependency(const ADirectory, ARepository, AVersion: string;
@@ -48,7 +52,7 @@ implementation
 
 uses
   jsonparser, process, Boss4D.Posix.Operations, Boss4D.Posix.Package,
-  Boss4D.Posix.Workflows;
+  Boss4D.Posix.Workflows, Boss4D.Posix.Registry;
 
 const
   MANIFEST_FILE = 'boss.json';
@@ -646,6 +650,70 @@ begin
   Result := ResolveGitVersion(ARepository, AConstraint, 'highest');
 end;
 
+function IsRegistryAlias(const ARepository: string): Boolean;
+begin
+  Result := (ARepository <> '') and
+    (Pos('/', ARepository) = 0) and
+    (Pos('\', ARepository) = 0) and
+    (Pos(':', ARepository) = 0) and
+    (Pos('@', ARepository) = 0) and
+    (Pos('.', ARepository) = 0);
+end;
+
+function ResolveDependencyRepository(const ARepository: string;
+  const AOptions: TBoss4DInstallOptions;
+  const AExisting: TJSONObject): string;
+var
+  I, LMatches: Integer;
+  LEntry: TJSONObject;
+  LSource: string;
+  LRegistry: TBoss4DRegistryService;
+  LEntries: TBoss4DRegistryEntries;
+  LRegistryEntry: TBoss4DRegistryEntry;
+begin
+  Result := ARepository;
+  if not IsRegistryAlias(ARepository) then Exit;
+  if AOptions.Locked then
+  begin
+    Result := '';
+    LMatches := 0;
+    if Assigned(AExisting) then
+      for I := 0 to AExisting.Count - 1 do
+        if AExisting.Items[I] is TJSONObject then
+        begin
+          LEntry := TJSONObject(AExisting.Items[I]);
+          if not SameText(LEntry.Get('name', ''), ARepository) then Continue;
+          Inc(LMatches);
+          if (Result <> '') and
+             not SameText(Result, LEntry.Get('repository', '')) then
+            raise Exception.Create('ambiguous registry alias in lock: ' +
+              ARepository);
+          Result := LEntry.Get('repository', '');
+        end;
+    if (LMatches = 0) or (Result = '') then
+      raise Exception.Create('registry alias is missing from lock: ' +
+        ARepository);
+    Exit;
+  end;
+  LSource := AOptions.RegistrySource;
+  if LSource = '' then LSource := PublicRegistryUrl;
+  LRegistry := TBoss4DRegistryService.Create;
+  try
+    LEntries := LRegistry.Load(LSource, AOptions.Offline);
+    try
+      LRegistryEntry := LEntries.Find(ARepository);
+      if not Assigned(LRegistryEntry) or
+         (LRegistryEntry.Repository = '') then
+        raise Exception.Create('registry alias not found: ' + ARepository);
+      Result := LRegistryEntry.Repository;
+    finally
+      LEntries.Free;
+    end;
+  finally
+    LRegistry.Free;
+  end;
+end;
+
 procedure DeleteDirectoryTree(const ADirectory: string);
 var
   LSearch: TSearchRec;
@@ -684,6 +752,8 @@ begin
     CheckCancelled;
     LRepository := ADependencies.Names[I];
     LVersion := ADependencies.Items[I].AsString;
+    LRepository := ResolveDependencyRepository(LRepository, AOptions,
+      AExisting);
     LTarget := IncludeTrailingPathDelimiter(ADirectory) + MODULES_DIR +
       DirectorySeparator + DependencyTarget(LRepository);
     LExistingEntry := nil;

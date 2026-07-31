@@ -1,5 +1,31 @@
 # Boss4D Development Backlog
 
+## Epic 22: Component installation, isolated IDE profiles, and GUI
+
+- [x] First-class runtime/design package identities and deterministic install plans.
+- [x] Transaction preview, machine lock, open-IDE policy, and complete rollback.
+- [x] Named isolated profiles with alternate Registry branches and inventories.
+- [x] `ide profile` create/show/clone/remove/import/export/install/repair/launch.
+- [x] Shared application services for CLI and GUI.
+- [x] GUI packages, targets, profiles, preview, install, repair, and removal.
+- [ ] Interactive component graph visualization (post-delivery enhancement).
+- [x] Bilingual examples/documentation, compiler validation, and clean Sonar gate.
+
+See the [authoritative delivery plan](ide-packages-profiles-gui-plan.md).
+
+## Epic 23: Official Registry ecosystem
+
+- [x] Generate signed schema-v2 submissions from Delphi and POSIX CLIs.
+- [x] Apply new packages and immutable versions transactionally to a checkout.
+- [x] Create an isolated branch, exact-file commit, configurable push, and
+  reviewed GitHub pull request with fork support.
+- [x] Require a clean checkout and restore the original branch when local
+  metadata application fails.
+- [x] Audit the complete v1/v2 catalog on Delphi, Linux, and macOS CI.
+- [ ] Publish and continuously validate the first curated package set.
+- [ ] Operate hosted search/index delivery with mirrors, backup, and status.
+- [ ] Expose package adoption, maintenance, compatibility, and trust metrics.
+
 ## Epic 21: Portable CLI and distribution foundation
 
 - [x] **[Story] Platform abstraction foundation**
@@ -17,7 +43,7 @@
 - [x] **[Story] Native Linux CLI**
   - Provide dependency, Registry, compliance, publishing, update, workspace,
     cache, credential, and global-tool workflows on Linux x86_64/FPC.
-- [ ] **[Story] Native macOS distribution**
+- [x] **[Story] Native macOS distribution**
   - Add a tested macOS host and release artifact while keeping RAD Studio and
     GetIt features capability-gated to Windows.
 
@@ -209,8 +235,12 @@ items form the active backlog.
 
 - [x] **[Story] Safe Global Git Object and Binary Cache**
   - Avoid duplicate physical repository clones by maintaining a central cache and generating logical hard links to each project's `modules/` folder.
-- [ ] **[Story] Parallel Downloads and MSBuild**
-  - Execute multiple package downloads in parallel via Git and dispatch asynchronous compiler builds for independent modules.
+- [x] **[Story] Parallel Downloads and MSBuild**
+  - The MSBuild scheduler runs independent targets concurrently, observes the
+    dependency graph, limits `--jobs`, supports cancellation, and blocks
+    dependents after failure. Installation also bounds concurrent Git
+    operations by `--jobs` and serializes only operations against the same
+    cache key.
 
 ---
 
@@ -249,7 +279,7 @@ items form the active backlog.
   - Provide thread-safe interactive, plain, JSON Lines, and quiet progress
     modes for installation and CI automation.
 
-- [ ] **[Story] Automated Documentation Generation (`boss4d doc`)**
+- [x] **[Story] Automated Documentation Generation (`boss4d doc`)**
   - Parse PascalDoc/XML Doc comments across all dependencies and compile a local static website of API references.
 - [x] **[Story] Split Development Dependencies (`devDependencies`)**
   - Support developer-only dependencies (e.g., test/mock suites), enabling clean production deployments using the `--production` flag.

@@ -27,6 +27,8 @@ type
     constructor Create(const APackageRepo: IBoss4DPackageRepository;
       const ALockRepo: IBoss4DLockRepository; const ALogger: IBoss4DLogger);
     procedure Remove(const ADependency: string);
+    procedure Pin(const ADependency: string);
+    procedure Unpin(const ADependency: string);
     function List: TArray<TBoss4DDependencyInfo>;
     function Why(const ADependency: string): TArray<string>;
   end;
@@ -36,8 +38,99 @@ implementation
 uses
   System.SysUtils, System.IOUtils,
   Boss4D.Core.Domain.Dependency, Boss4D.Core.Domain.Package,
+  Boss4D.Core.Domain.SemVer,
   Boss4D.Core.Domain.Consts, Boss4D.Core.Domain.Env,
   Boss4D.Core.Services.Transaction;
+
+procedure TBoss4DDependencyService.Pin(const ADependency: string);
+var
+  LPkg: TBoss4DPackage;
+  LLock: TBoss4DLock;
+  LKey, LResolvedVersion: string;
+  LLocked: TBoss4DLockedDependency;
+  LIsDevelopment: Boolean;
+begin
+  LPkg := FPackageRepo.Load(GetBossFile);
+  try
+    LKey := ResolveDeclaredKey(ADependency, LPkg.Dependencies);
+    LIsDevelopment := False;
+    if LKey.IsEmpty then
+    begin
+      LKey := ResolveDeclaredKey(ADependency, LPkg.DevDependencies);
+      LIsDevelopment := not LKey.IsEmpty;
+    end;
+    if LKey.IsEmpty then
+      raise EArgumentException.Create('Dependencia nao declarada: ' + ADependency);
+    LLock := FLockRepo.Load(TPath.Combine(GetCurrentDir, FILE_PACKAGE_LOCK));
+    try
+      var LDeclaredVersion := '';
+      if LIsDevelopment then
+        LDeclaredVersion := LPkg.DevDependencies[LKey]
+      else
+        LDeclaredVersion := LPkg.Dependencies[LKey];
+      var LDep := TBoss4DDependency.Parse(LKey, LDeclaredVersion);
+      try
+        if not LLock.Installed.TryGetValue(LDep.GetKey, LLocked) then
+          raise EArgumentException.Create(
+            'Dependencia nao encontrada no lock: ' + ADependency);
+        LResolvedVersion := LLocked.Version;
+        if not TBoss4DSemVer.Create(LResolvedVersion).IsValid then
+          raise EArgumentException.Create(
+            'Pin exige uma versao SemVer exata no lock: ' + LResolvedVersion);
+        if LIsDevelopment then
+          LPkg.DevDependencies.AddOrSetValue(LKey, LResolvedVersion)
+        else
+          LPkg.Dependencies.AddOrSetValue(LKey, LResolvedVersion);
+      finally
+        LDep.Free;
+      end;
+    finally
+      LLock.Free;
+    end;
+    FPackageRepo.Save(LPkg, GetBossFile);
+    FLogger.Log(TBoss4DLogLevel.Info,
+      Format('Dependencia fixada: %s@%s', [LKey, LResolvedVersion]));
+  finally
+    LPkg.Free;
+  end;
+end;
+
+procedure TBoss4DDependencyService.Unpin(const ADependency: string);
+var
+  LPkg: TBoss4DPackage;
+  LKey, LVersion: string;
+  LIsDevelopment: Boolean;
+begin
+  LPkg := FPackageRepo.Load(GetBossFile);
+  try
+    LKey := ResolveDeclaredKey(ADependency, LPkg.Dependencies);
+    LIsDevelopment := False;
+    if LKey.IsEmpty then
+    begin
+      LKey := ResolveDeclaredKey(ADependency, LPkg.DevDependencies);
+      LIsDevelopment := not LKey.IsEmpty;
+    end;
+    if LKey.IsEmpty then
+      raise EArgumentException.Create('Dependencia nao declarada: ' + ADependency);
+    if LIsDevelopment then
+      LVersion := LPkg.DevDependencies[LKey]
+    else
+      LVersion := LPkg.Dependencies[LKey];
+    if not TBoss4DSemVer.Create(LVersion).IsValid then
+      raise EArgumentException.Create(
+        'Somente uma versao SemVer exata pode ser desafixada: ' + LVersion);
+    LVersion := '^' + LVersion;
+    if LIsDevelopment then
+      LPkg.DevDependencies.AddOrSetValue(LKey, LVersion)
+    else
+      LPkg.Dependencies.AddOrSetValue(LKey, LVersion);
+    FPackageRepo.Save(LPkg, GetBossFile);
+    FLogger.Log(TBoss4DLogLevel.Info,
+      Format('Dependencia desafixada: %s@%s', [LKey, LVersion]));
+  finally
+    LPkg.Free;
+  end;
+end;
 
 constructor TBoss4DDependencyService.Create(
   const APackageRepo: IBoss4DPackageRepository;

@@ -1,0 +1,22 @@
+{
+    "schemaVersion":  2,
+    "packages":  [
+                     {
+                         "name":  "horse-opentelemetry",
+                         "publisher":  "boss4d",
+                         "repository":  "github.com/regyssilveira/horse-opentelemetry",
+                         "signerFingerprint":  "A91FA178E7A1DE7FB10148C8308C9045E23B0279",
+                         "description":  "OpenTelemetry trace context middleware for Horse",
+                         "license":  "Apache-2.0",
+                         "versions":  [
+                                          {
+                                              "version":  "1.0.1",
+                                              "artifact":  "https://github.com/regyssilveira/horse-opentelemetry/releases/download/v1.0.1/horse-opentelemetry-1.0.1.b4dpkg",
+                                              "sha256":  "672a3d99c4144134f9cca50c4db8c1c4816fb2902ff84892f7428e9e63a27401",
+                                              "signature":  "https://github.com/regyssilveira/horse-opentelemetry/releases/download/v1.0.1/horse-opentelemetry-1.0.1.b4dpkg.asc",
+                                              "provenance":  "https://github.com/regyssilveira/horse-opentelemetry/releases/download/v1.0.1/horse-opentelemetry-1.0.1.b4dpkg.intoto.json"
+                                          }
+                                      ]
+                     }
+                 ]
+}

@@ -7,7 +7,12 @@ uses
 
 type
   TBoss4DPackageInstallRequest = record
+    PackageName: string;
+    Version: string;
+    Platform: string;
+    Compiler: string;
     ArtifactUrl: string;
+    ArtifactMirrors: TArray<string>;
     Sha256: string;
     SignatureUrl: string;
     ProvenanceUrl: string;
@@ -24,6 +29,7 @@ type
   private
     FHttp: IBoss4DHttpClient;
     FSigner: IBoss4DPackageSigner;
+    function DownloadWithRetry(const AUrl, ATargetPath: string): Integer;
     function VerifyProvenance(const APath, AExpectedDigest: string): Boolean;
   public
     constructor Create(const AHttp: IBoss4DHttpClient;
@@ -35,7 +41,8 @@ type
 implementation
 
 uses
-  System.SysUtils, System.IOUtils, System.JSON, System.Hash,
+  System.SysUtils, System.IOUtils, System.JSON, System.Hash, System.Classes,
+  System.Generics.Collections,
   System.NetEncoding, Boss4D.Core.Services.Conformance;
 
 function FileSha256(const APath: string): string;
@@ -61,6 +68,19 @@ begin
     raise EArgumentNilException.Create('AHttp');
   FHttp := AHttp;
   FSigner := ASigner;
+end;
+
+function TBoss4DPackageInstallService.DownloadWithRetry(const AUrl,
+  ATargetPath: string): Integer;
+begin
+  for var LAttempt := 1 to 3 do
+  begin
+    Result := FHttp.DownloadToFile(AUrl, ATargetPath);
+    if (Result >= 200) and (Result < 300) then
+      Exit;
+    if LAttempt < 3 then
+      TThread.Sleep(200 * LAttempt);
+  end;
 end;
 
 function TBoss4DPackageInstallService.VerifyProvenance(const APath,
@@ -96,8 +116,10 @@ function TBoss4DPackageInstallService.Execute(
 var
   LTempRoot, LArtifact, LSignature, LProvenance, LStage, LBackup: string;
   LRoot: TJSONObject;
+  LStatus: Integer;
 begin
   Result := Default(TBoss4DPackageInstallResult);
+  LStatus := 0;
   if ARequest.ArtifactUrl.Trim.IsEmpty or ARequest.Sha256.Trim.IsEmpty then
     raise EArgumentException.Create('Artifact URL and SHA-256 are required.');
   if ARequest.TargetDirectory.Trim.IsEmpty then
@@ -114,13 +136,31 @@ begin
   DeleteIfExists(LStage);
   DeleteIfExists(LBackup);
   try
-    var LStatus := FHttp.DownloadToFile(ARequest.ArtifactUrl, LArtifact);
-    if (LStatus < 200) or (LStatus >= 300) then
-      raise Exception.CreateFmt('Artifact download failed with HTTP %d.',
-        [LStatus]);
-    Result.Digest := FileSha256(LArtifact);
-    if not SameText(Result.Digest, ARequest.Sha256) then
-      raise Exception.Create('Artifact SHA-256 mismatch.');
+    var LCandidates := TList<string>.Create;
+    try
+      LCandidates.Add(ARequest.ArtifactUrl);
+      LCandidates.AddRange(ARequest.ArtifactMirrors);
+      var LDownloaded := False;
+      for var LCandidate in LCandidates do
+      begin
+        LStatus := DownloadWithRetry(LCandidate, LArtifact);
+        if (LStatus < 200) or (LStatus >= 300) then
+          Continue;
+        Result.Digest := FileSha256(LArtifact);
+        if SameText(Result.Digest, ARequest.Sha256) then
+        begin
+          LDownloaded := True;
+          Break;
+        end;
+      end;
+      if not LDownloaded then
+        raise Exception.CreateFmt(
+          'No artifact source returned the expected SHA-256 ' +
+          '(last HTTP status %d, received %s, expected %s).',
+          [LStatus, Result.Digest, ARequest.Sha256]);
+    finally
+      LCandidates.Free;
+    end;
 
     var LConformance := TBoss4DConformanceService.Create;
     try
@@ -136,15 +176,26 @@ begin
     begin
       if not Assigned(FSigner) then
         raise Exception.Create('Package signature was declared but no verifier is available.');
-      LStatus := FHttp.DownloadToFile(ARequest.SignatureUrl, LSignature);
-      if (LStatus < 200) or (LStatus >= 300) or
-         not FSigner.Verify(LArtifact, LSignature) then
-        raise Exception.Create('Package signature verification failed.');
+      LStatus := DownloadWithRetry(ARequest.SignatureUrl, LSignature);
+      if (LStatus < 200) or (LStatus >= 300) then
+        raise Exception.CreateFmt(
+          'Package signature download failed with HTTP status %d.',
+          [LStatus]);
+      if not FSigner.Verify(LArtifact, LSignature) then
+      begin
+        var LDetails: IBoss4DPackageVerificationDetails;
+        var LVerificationError := '';
+        if Supports(FSigner, IBoss4DPackageVerificationDetails, LDetails) then
+          LVerificationError := LDetails.LastVerificationError;
+        raise Exception.CreateFmt(
+          'Package signature verification failed (signature SHA-256 %s): %s',
+          [FileSha256(LSignature), LVerificationError]);
+      end;
     end;
 
     if not ARequest.ProvenanceUrl.Trim.IsEmpty then
     begin
-      LStatus := FHttp.DownloadToFile(ARequest.ProvenanceUrl, LProvenance);
+      LStatus := DownloadWithRetry(ARequest.ProvenanceUrl, LProvenance);
       if (LStatus < 200) or (LStatus >= 300) or
          not VerifyProvenance(LProvenance, Result.Digest) then
         raise Exception.Create('Package provenance verification failed.');
@@ -170,6 +221,27 @@ begin
       end;
     finally
       LRoot.Free;
+    end;
+
+    var LReceipt := TJSONObject.Create;
+    try
+      LReceipt.AddPair('schemaVersion', TJSONNumber.Create(1));
+      LReceipt.AddPair('name', ARequest.PackageName);
+      LReceipt.AddPair('version', ARequest.Version);
+      LReceipt.AddPair('platform', ARequest.Platform);
+      LReceipt.AddPair('compiler', ARequest.Compiler);
+      LReceipt.AddPair('artifact', ARequest.ArtifactUrl);
+      LReceipt.AddPair('sha256', Result.Digest);
+      LReceipt.AddPair('signature', ARequest.SignatureUrl);
+      LReceipt.AddPair('provenance', ARequest.ProvenanceUrl);
+      LReceipt.AddPair('signatureVerified',
+        TJSONBool.Create(not ARequest.SignatureUrl.Trim.IsEmpty));
+      LReceipt.AddPair('provenanceVerified',
+        TJSONBool.Create(not ARequest.ProvenanceUrl.Trim.IsEmpty));
+      TFile.WriteAllText(TPath.Combine(LStage, '.boss4d-package.json'),
+        LReceipt.Format(2), TEncoding.UTF8);
+    finally
+      LReceipt.Free;
     end;
 
     if TDirectory.Exists(ARequest.TargetDirectory) then

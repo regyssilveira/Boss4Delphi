@@ -48,6 +48,10 @@ type
     [Test]
     procedure TestExecutesSelectedTargetsAndPlansIDERegistration;
     [Test]
+    procedure TestPreflightPlansTargetsAndFilesWithoutMutation;
+    [Test]
+    procedure TestRegistersProductThroughSingleBatchHandler;
+    [Test]
     procedure TestRejectsIDEAssetOutsidePackageRoot;
     [Test]
     procedure TestRejectsInvalidJobs;
@@ -280,6 +284,123 @@ begin
     end;
   finally
     LInventory.Free;
+    LLock.Free;
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsBuildCommand.TestPreflightPlansTargetsAndFilesWithoutMutation;
+var
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+  LCompiler: TBuildCommandCompilerMock;
+  LCommand: TBoss4DBuildCommand;
+  LOptions: TBoss4DBuildCommandOptions;
+  LPlan: TBoss4DBuildCommandPlan;
+  LAssetPath: string;
+begin
+  TFile.WriteAllText(TPath.Combine(FRoot, 'Design.dproj'),
+    '<Project/>', TEncoding.UTF8);
+  TDirectory.CreateDirectory(TPath.Combine(FRoot, 'ide'));
+  LAssetPath := TPath.Combine(FRoot, 'ide\tool.exe');
+  TFile.WriteAllText(LAssetPath, 'tool', TEncoding.UTF8);
+  LPackage := TBoss4DPackage.Create;
+  LCompiler := TBuildCommandCompilerMock.Create;
+  try
+    LPackage.Name := 'preview-component';
+    LPackage.Version := '1.0.0';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'Design.dproj';
+    LProject.Role := TBoss4DBuildProjectRole.DesignPackage;
+    LPackage.BuildMatrix.Projects.Add(LProject);
+    LPackage.IDEAssets.Tools.Add('ide/tool.exe');
+    LOptions := TBoss4DBuildCommandOptions.Parse(TArray<string>.Create(
+      'build', '--register', '--configuration', 'Release'));
+    LCommand := TBoss4DBuildCommand.Create(LCompiler, nil);
+    try
+      LPlan := LCommand.Plan(LPackage, FRoot, LOptions);
+      try
+        Assert.AreEqual<Integer>(1, LPlan.Targets.Count);
+        Assert.AreEqual<Integer>(1, LPlan.Files.Count);
+        Assert.AreEqual(TPath.GetFullPath(LAssetPath),
+          LPlan.Files[0].Source);
+        Assert.AreEqual('tools', LPlan.Files[0].Category);
+        Assert.IsFalse(TFile.Exists(LPlan.Files[0].Destination));
+        Assert.AreEqual<Integer>(0, LCompiler.Calls.Count);
+      finally
+        LPlan.Free;
+      end;
+
+      LPackage.IDEAssets.Tools[0] := '../outside.exe';
+      Assert.WillRaise(
+        procedure
+        var
+          LUnsafePlan: TBoss4DBuildCommandPlan;
+        begin
+          LUnsafePlan := LCommand.Plan(LPackage, FRoot, LOptions);
+          LUnsafePlan.Free;
+        end,
+        EArgumentException);
+      Assert.AreEqual<Integer>(0, LCompiler.Calls.Count,
+        'Preflight invalido deve falhar antes do compilador.');
+    finally
+      LCommand.Free;
+    end;
+  finally
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsBuildCommand.TestRegistersProductThroughSingleBatchHandler;
+var
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+  LLock: TBoss4DLock;
+  LCommand: TBoss4DBuildCommand;
+  LOptions: TBoss4DBuildCommandOptions;
+  LBatchCalls: Integer;
+  LBatchSize: Integer;
+  LResult: TBoss4DBuildCommandResult;
+begin
+  TFile.WriteAllText(TPath.Combine(FRoot, 'Design.dproj'),
+    '<Project/>', TEncoding.UTF8);
+  LPackage := TBoss4DPackage.Create;
+  LLock := TBoss4DLock.Create;
+  try
+    LPackage.Name := 'batch-component';
+    LPackage.Version := '1.0.0';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'Design.dproj';
+    LProject.Role := TBoss4DBuildProjectRole.DesignPackage;
+    LPackage.BuildMatrix.Projects.Add(LProject);
+    LOptions := TBoss4DBuildCommandOptions.Parse(TArray<string>.Create(
+      'build', '--register', '--force', '--configuration', 'Release'));
+    LBatchCalls := 0;
+    LBatchSize := 0;
+    LCommand := TBoss4DBuildCommand.Create(
+      TBuildCommandCompilerMock.Create, nil, nil, nil,
+      function(const ARegistrations:
+        TObjectList<TBoss4DIDERegistration>): Integer
+      begin
+        Inc(LBatchCalls);
+        LBatchSize := ARegistrations.Count;
+        Result := ARegistrations.Count;
+      end);
+    try
+      LResult := LCommand.Execute(LPackage, LLock, FRoot, LOptions);
+      Assert.AreEqual<Integer>(1, LBatchCalls);
+      Assert.AreEqual<Integer>(1, LBatchSize);
+      Assert.AreEqual<Integer>(1, LResult.Registered);
+    finally
+      LCommand.Free;
+    end;
+  finally
     LLock.Free;
     LPackage.Free;
   end;

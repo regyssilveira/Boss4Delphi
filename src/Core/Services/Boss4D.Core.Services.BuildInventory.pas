@@ -17,6 +17,7 @@ type
   public
     constructor Create;
     destructor Destroy; override;
+    function Clone: TBoss4DInstalledBuild;
     property Name: string read FName write FName;
     property RootDirectory: string read FRootDirectory write FRootDirectory;
     property Dependencies: TList<string> read FDependencies;
@@ -38,6 +39,7 @@ type
     procedure RemovePackage(const AName: string);
     function Contains(const AName: string): Boolean;
     function GetPackage(const AName: string): TBoss4DInstalledBuild;
+    function ListPackages: TObjectList<TBoss4DInstalledBuild>;
     function DependentsOf(const AName: string;
       const ATransitive: Boolean = True): TArray<string>;
     function BuildOrder(const ANames: TArray<string>): TArray<string>;
@@ -60,6 +62,14 @@ destructor TBoss4DInstalledBuild.Destroy;
 begin
   FDependencies.Free;
   inherited Destroy;
+end;
+
+function TBoss4DInstalledBuild.Clone: TBoss4DInstalledBuild;
+begin
+  Result := TBoss4DInstalledBuild.Create;
+  Result.Name := FName;
+  Result.RootDirectory := FRootDirectory;
+  Result.Dependencies.AddRange(FDependencies);
 end;
 
 constructor TBoss4DBuildInventory.Create(const APath: string);
@@ -152,6 +162,21 @@ begin
   if not FPackages.TryGetValue(NormalizeName(AName), Result) then
     raise EBoss4DBuildInventoryError.CreateFmt(
       'Pacote nao registrado no inventario de build: %s.', [AName]);
+end;
+
+function TBoss4DBuildInventory.ListPackages:
+  TObjectList<TBoss4DInstalledBuild>;
+begin
+  Result := TObjectList<TBoss4DInstalledBuild>.Create(True);
+  var LNames := TList<string>.Create;
+  try
+    LNames.AddRange(FPackages.Keys.ToArray);
+    LNames.Sort;
+    for var LName in LNames do
+      Result.Add(FPackages[LName].Clone);
+  finally
+    LNames.Free;
+  end;
 end;
 
 procedure TBoss4DBuildInventory.Validate;

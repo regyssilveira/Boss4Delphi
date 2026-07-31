@@ -8,8 +8,9 @@
 
 **Boss4D** is a modern native dependency manager for Delphi and Lazarus
 projects. The Windows CLI is built with Delphi 13, the IDE plugin targets
-Delphi 10/10.1 and is validated locally with Delphi 10, 11, 12, and 13, and the Linux
-x86-64 CLI is built natively with FPC 3.2.2.
+Delphi 10/10.1 and is validated locally with Delphi 10, 11, 12, and 13. Native
+FPC 3.2.2 command-line releases are built and tested for Linux x86-64 and
+macOS arm64.
 
 ---
 
@@ -113,24 +114,35 @@ cd /d d:\Projetos\BossDelphi
   Manages and inspects the complete dependency lifecycle with automatic rollback
   of `boss.json`, `boss-lock.json`, and `modules/` on failure. See the
   [dependency lifecycle guide](docs/dependency-lifecycle.md).
-* `boss4d ci` / `boss4d install --locked|--frozen-lockfile|--offline|--production`
+* `boss4d package versions`, `pin|unpin`, `upgrade|downgrade`, and `rollback`
+  Provides deterministic SemVer selection, exact pins, durable version-history
+  snapshots, and transactional recovery. See
+  [version management](docs/version-management.md).
+* `boss4d ci` / `boss4d install --locked|--frozen-lockfile|--offline|--production [--jobs <n>]`
   Runs reproducible installs with clean CI, offline cache, and production-only
   dependency support.
 * `boss4d dependencies|tree|why|outdated` and `boss4d run <script>`
   Inspects the graph, explains dependencies, discovers updates, and runs
   manifest scripts.
-* `boss4d registry add|remove|list`, `search`, and `info`
-  Manages public/private Registry v1/v2 sources and package discovery.
+* `boss4d registry add|remove|list|health`, `search`, and `info`
+  Manages public/private Registry v1/v2 sources, audits the complete catalog,
+  and provides package discovery.
 * `boss4d package install <name>@<version>` and `boss4d pack`
   Installs or creates deterministic `.b4dpkg` files with compiler/platform
   selection, SHA-256, OpenPGP, and in-toto provenance.
-* `boss4d publish [--dry-run]` and `boss4d conformance registry|package <file>`
-  Publishes immutable versions and validates public Registry/package contracts.
+* `boss4d publish [--dry-run]`, `boss4d publish --official --open-pr`, and
+  `boss4d conformance registry|package <file>`
+  Publishes to HTTP registries or prepares a signed, verified bundle, updates
+  a clean Registry checkout, and opens the reviewed public Registry PR.
 * `boss4d audit [--fail-on <severity>]`
   Queries OSV for locked revisions, with offline cache and VEX support.
 * `boss4d doctor`, `cache`, `tool`, `plugin`, `getit`, and `license report`
   Covers diagnostics, cache maintenance, global tools, Windows integrations,
   and license reports.
+* `boss4d doc [-o <folder>] [--no-dependencies]`
+  Generates a searchable API site from PascalDoc/XML Doc comments in the
+  project and installed dependencies. See the
+  [static API documentation guide](docs/api-documentation.md).
 * `boss4d spec --detect [--compiler <version>]`
   Detects `.dproj`/`.dpk` files, runtime/design directives, and local package
   dependencies, then persists a deterministic `buildMatrix`.
@@ -146,6 +158,11 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d ide unregister <package> --compiler <version> --platform <platform>`
   and `boss4d ide repair`
   Remove one exact registration or reconcile registry drift transactionally.
+* `boss4d ide profile list|create|show|target|clone|remove|export|import|launch`
+  and `preview-install|install|repair|preview-uninstall|uninstall`
+  Manages isolated RAD Studio Registry branches and performs previewable,
+  transactional product installation. See the
+  [IDE profile and component guide](docs/ide-component-management.md).
 * `boss4d config delphi use <path_or_release_version>`
   Sets the global path or the release version (e.g. "23.0", "22.0") of the Delphi installation directory for MSBuild. If not specified, the compiler adapter will automatically detect the latest installed Delphi version.
 * `boss4d config git shallow <true/false>`
@@ -179,6 +196,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Deterministic Build Improvements](docs/build-improvements.md)**: Collision-free paths, toolchains, declared projects, Lazarus, scaffolding, and normalization.
 * **[Build Matrix Guide and Contract](docs/build-matrix-contract.md)**: Schema, CLI workflow, compiler conventions, migration, diagnostics, troubleshooting, and acceptance rules for multi-version Delphi builds.
 * **[Component Build and IDE Lifecycle](docs/component-build-and-ide.md)**: Complete guide to project kinds, support levels, shared cache, IDE assets, conflicts, active repair, and safe removal.
+* **[IDE Profiles and Component Management](docs/ide-component-management.md)**: Isolated Registry branches, runtime/design products, project bindings, snapshots, drift, restore/undo, CLI/GUI workflows, and everyday examples.
 * **[Dependency Lifecycle](docs/dependency-lifecycle.md)**: Transactional add, update, and remove plus graph-aware list and why commands.
 * **[Reproducible Installation](docs/reproducible-install.md)**: Frozen locks, offline cache behavior, CI clean installs, and rollback guarantees.
 * **[Dependency Scopes](docs/dependency-scopes.md)**: `devDependencies`, production installs, lock v3, and SBOM scope evidence.
@@ -189,15 +207,18 @@ cd /d d:\Projetos\BossDelphi
 * **[Cache Strategy](docs/cache-strategy.md)**: Safe Git object reuse and platform/compiler-isolated executable artifacts.
 * **[Project Templates](docs/templates.md)**: Delphi, VCL, FMX, Horse+Dext API, DUnitX, Lazarus, and workspace presets.
 * **[Package Publishing](docs/publish.md)**: Dry-run, validation gates, token handling, and public/private registry contracts.
-* **[Platform Portability](docs/platform-portability.md)**: Portable contracts, current Linux parity, and the next POSIX targets.
+* **[Version Management](docs/version-management.md)**: Registry versions, revocation, pin/unpin, upgrade/downgrade, mirrors, and rollback.
+* **[Platform Portability](docs/platform-portability.md)**: Portable contracts, native Linux/macOS coverage, and explicit Windows capability boundaries.
 * **[Terminal Progress](docs/terminal-progress.md)**: Interactive, plain, JSON Lines, and quiet progress output for installs and CI.
 * **[Secure Self-update](docs/self-update.md)**: Release discovery, SHA-256 verification, staging, and installer handoff.
-* **[Release Artifact Matrix](docs/release-artifact-matrix.md)**: Windows/Linux builders, checksums, OIDC provenance, and tag promotion gates.
-* **[Publisher Onboarding](docs/publisher-onboarding.md)**: Public Registry identity, signer, immutable metadata, and review workflow.
+* **[Release Artifact Matrix](docs/release-artifact-matrix.md)**: Windows/Linux/macOS builders, checksums, OIDC provenance, and tag promotion gates.
+* **[Publisher Onboarding](docs/publisher-onboarding.md)**: Open community proposals, maintainer approval, publisher identity, signer onboarding, and immutable metadata.
+* **[Registry Migration Plan](docs/registry-migration-plan.md)**: Curated waves for moving legacy discovery entries to signed schema-v2 packages.
 * **[Parity Completion Audit](docs/parity-audit-2026-07-30.md)**: Requirement-by-requirement implementation and verification evidence.
 * **[Immutable Package Format](docs/package-format.md)**: Deterministic `.b4dpkg`, verified installation, OpenPGP/in-toto evidence, source fallback, and compiler/platform variants.
 * **[Legacy Delphi Compatibility](docs/legacy-delphi.md)**: Full modern wizard plus legacy integration profiles for Delphi 10 Seattle/BDS 17.0 and Delphi 10.1 Berlin/BDS 18.0.
-* **[FPC/Linux CLI](docs/posix-cli.md)**: Native Linux build, dependency lifecycle, lock v3, frozen/offline CI, SemVer resolution, and FPCUnit tests.
+* **[FPC/POSIX CLI](docs/posix-cli.md)**: Native Linux/macOS builds, dependency lifecycle, lock v3, frozen/offline CI, SemVer resolution, and FPCUnit tests.
+* **[Static API Documentation](docs/api-documentation.md)**: Motivation, syntax, supported declarations, safe scanning, CI workflows, and current limits.
 * **[Competitive Positioning](docs/competitive-positioning.md)**: Evidence-based comparison with BOSS, DPM, GetIt, Lazarus OPM, and mature package ecosystems.
 * **[Resolution and Secure Credentials](docs/resolution-and-credentials.md)**: Highest/minimal SemVer policies and native credential storage.
 * **[Conformance and Ecosystem](docs/conformance-and-ecosystem.md)**: Public protocol validation, static registry portal, and deterministic benchmarks.

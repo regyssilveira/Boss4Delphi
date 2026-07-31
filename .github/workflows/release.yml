@@ -42,6 +42,36 @@ jobs:
             .release/artifact-matrix.json
           if-no-files-found: error
 
+  macos:
+    name: macOS arm64 / FPC
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Free Pascal
+        run: brew install fpc
+      - name: Compile and test
+        run: |
+          mkdir -p .release/macos
+          fpc -B -Fu./src/Posix -FE./.release/macos -oboss4d ./src/Posix/boss4d.lpr
+          fpc -B -Fu./src/Posix -Fu./tests/posix -FE./.release/macos ./tests/posix/Boss4DPosixTests.lpr
+          ./.release/macos/Boss4DPosixTests --all --format=plain
+          test "$(./.release/macos/boss4d platform)" = "macos"
+      - name: Package macOS CLI
+        run: |
+          chmod 755 .release/macos/boss4d
+          archive="boss4d-macos-$(uname -m).tar.gz"
+          tar -C .release/macos -czf ".release/$archive" boss4d
+          cd .release
+          shasum -a 256 "$archive" > SHA256SUMS-macos.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-macos-arm64
+          path: |
+            .release/boss4d-macos-*.tar.gz
+            .release/SHA256SUMS-macos.txt
+          if-no-files-found: error
+
   windows:
     name: Delphi 13 / Win32 + Win64
     runs-on: [self-hosted, windows, delphi-13]
@@ -65,13 +95,28 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             throw 'Inno Setup compilation failed.'
           }
+      - name: Build immutable Boss4D package
+        shell: pwsh
+        run: |
+          $version = (Get-Content boss.json -Raw | ConvertFrom-Json).version
+          $packageName = "boss4d-$version.b4dpkg"
+          New-Item -ItemType Directory -Force .release | Out-Null
+          & dist\bin\boss4d.exe pack --output "dist\$packageName"
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Boss4D package generation failed.'
+          }
+          Move-Item "dist\$packageName" ".release\$packageName"
+          Move-Item "dist\$packageName.intoto.json" `
+            ".release\$packageName.intoto.json"
       - name: Archive Windows distribution
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force .release | Out-Null
           Compress-Archive -Path dist\* -DestinationPath .release\boss4d-windows.zip
           Copy-Item installer\Output\Boss4D_Setup.exe .release\Boss4D_Setup.exe
-          @('boss4d-windows.zip', 'Boss4D_Setup.exe') | ForEach-Object {
+          $artifacts = @('boss4d-windows.zip', 'Boss4D_Setup.exe') +
+            @(Get-ChildItem .release -Filter *.b4dpkg | Select-Object -ExpandProperty Name)
+          $artifacts | ForEach-Object {
             $hash = (Get-FileHash (Join-Path .release $_) -Algorithm SHA256).Hash.ToLowerInvariant()
             "$hash  $_"
           } | Set-Content -Encoding ascii .release\SHA256SUMS-windows.txt
@@ -82,13 +127,15 @@ jobs:
             .release/boss4d-windows.zip
             .release/Boss4D_Setup.exe
             .release/SHA256SUMS-windows.txt
+            .release/*.b4dpkg
+            .release/*.b4dpkg.intoto.json
             dist/sbom/*
           if-no-files-found: error
 
   publish:
     name: Publish immutable release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [linux, windows]
+    needs: [linux, macos, windows]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -103,22 +150,30 @@ jobs:
       - name: Create combined checksums
         working-directory: release
         run: |
-          sha256sum boss4d-linux-x86_64.tar.gz boss4d-windows.zip Boss4D_Setup.exe > SHA256SUMS.txt
+          # shellcheck disable=SC2035
+          sha256sum boss4d-linux-x86_64.tar.gz boss4d-macos-*.tar.gz \
+            boss4d-windows.zip \
+            Boss4D_Setup.exe *.b4dpkg > SHA256SUMS.txt
       - name: Attest release archives
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
             release/boss4d-linux-x86_64.tar.gz
+            release/boss4d-macos-*.tar.gz
             release/boss4d-windows.zip
             release/Boss4D_Setup.exe
+            release/*.b4dpkg
       - name: Publish GitHub release assets
         uses: softprops/action-gh-release@v2
         with:
           fail_on_unmatched_files: true
           files: |
             release/boss4d-linux-x86_64.tar.gz
+            release/boss4d-macos-*.tar.gz
             release/boss4d-windows.zip
             release/Boss4D_Setup.exe
             release/SHA256SUMS.txt
             release/artifact-matrix.json
+            release/*.b4dpkg
+            release/*.b4dpkg.intoto.json
             release/*.json

@@ -1,0 +1,22 @@
+{
+    "schemaVersion":  2,
+    "packages":  [
+                     {
+                         "name":  "horse-dto",
+                         "publisher":  "boss4d",
+                         "repository":  "github.com/regyssilveira/horse-dto",
+                         "signerFingerprint":  "A91FA178E7A1DE7FB10148C8308C9045E23B0279",
+                         "description":  "DTO binding and declarative validation middleware for Horse",
+                         "license":  "Apache-2.0",
+                         "versions":  [
+                                          {
+                                              "version":  "1.0.1",
+                                              "artifact":  "https://github.com/regyssilveira/horse-dto/releases/download/v1.0.1/horse-dto-1.0.1.b4dpkg",
+                                              "sha256":  "534594c4dddb8a02196c8ede7eb433afb9ff02f6b86a0e574ff8309d01275691",
+                                              "signature":  "https://github.com/regyssilveira/horse-dto/releases/download/v1.0.1/horse-dto-1.0.1.b4dpkg.asc",
+                                              "provenance":  "https://github.com/regyssilveira/horse-dto/releases/download/v1.0.1/horse-dto-1.0.1.b4dpkg.intoto.json"
+                                          }
+                                      ]
+                     }
+                 ]
+}

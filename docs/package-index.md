@@ -1,5 +1,15 @@
 # Package indexes and discovery
 
+## Catalog health
+
+Run `boss4d registry health [checkout-root]` before publishing Registry
+changes. The audit follows local v2 includes and sparse documents, rejects
+missing or duplicated references, detects duplicate package identities,
+validates required repository metadata, and verifies publisher scope and
+signer authorization for schema-v2 packages. Legacy v1 entries remain
+installable but are counted as migration warnings; missing legacy versions add
+another warning. Any structural or trust error returns a failing exit code.
+
 Boss4D queries the official public registry by default and can merge any number
 of private, HTTP, or local JSON indexes. If the public registry is temporarily
 unavailable, search remains usable through the built-in offline starter catalog
@@ -11,8 +21,26 @@ boss4d registry add C:\company\boss4d-index.json
 boss4d registry list
 boss4d search database
 boss4d info InternalLib
+boss4d package versions InternalLib
+boss4d package install InternalLib@^2.0.0
 boss4d registry remove C:\company\boss4d-index.json
 ```
+
+Bare dependency names in `boss.json` are Registry aliases:
+
+```json
+{
+  "dependencies": {
+    "Horse": "^3.0.0"
+  }
+}
+```
+
+During the first install, Boss4D resolves the exact package name through the
+configured catalogs and writes the canonical repository identity to the lock.
+`--locked` and `--offline` then recover that mapping exclusively from the lock;
+they do not need Registry access. Values that already identify a URL, host,
+path, or scoped repository are never rewritten as aliases.
 
 The official entry point uses schema v2 and is stored in Git. Version 2 can
 compose catalogs with relative references, which makes it possible to maintain
@@ -116,8 +144,18 @@ their immutable SHA-256 digest, including entries inside `versions`.
 The standalone GUI catalog and RAD Studio search action use the same index
 service as the CLI.
 
-HTTP metadata is cached with its `ETag` and `Last-Modified` validators. Online
-requests send `If-None-Match` and `If-Modified-Since`; a `304 Not Modified`
-reuses the cached bytes. Network failures fall back to the last valid cache,
-while `--offline` performs no HTTP request and fails clearly when no cached
-copy exists.
+For static hosting and external discovery services, generate a consolidated
+snapshot:
+
+```text
+boss4d registry search-index registry/index-v2.json registry/search-index.json
+```
+
+The snapshot resolves local `includes` and `sparse` metadata, applies
+revocations, and exposes normalized publisher identity without replacing the
+protocol entry point.
+
+HTTP metadata is persisted after every valid response. Network or server
+failures fall back to the last valid cache. The POSIX client additionally uses
+`ETag` and `Last-Modified` conditional requests and supports strict
+`--offline` cache-only resolution.

@@ -1,7 +1,7 @@
-# CLI FPC/Linux
+# CLI FPC/POSIX
 
-O Boss4D inclui um host nativo em FPC 3.2.2, compilado e testado no Linux, em
-vez de apenas cross-compilado no Windows:
+O Boss4D inclui um host nativo em FPC 3.2.2, compilado e testado no Linux
+x86-64 e macOS arm64, em vez de apenas cross-compilado no Windows:
 
 ```powershell
 ./scripts/ci-fpc-linux.ps1
@@ -9,6 +9,12 @@ vez de apenas cross-compilado no Windows:
 
 O script usa a imagem Docker existente `fpc-test:latest`, gera um executável
 Linux x86-64, executa a suíte FPCUnit e valida comandos reais da CLI.
+
+O workflow `POSIX CI` repete a suíte completa no runner macOS 15 arm64 do
+GitHub. As releases publicam `boss4d-linux-x86_64.tar.gz` e
+`boss4d-macos-arm64.tar.gz`; a autoatualização verificada seleciona o arquivo
+correto pela plataforma e CPU em execução. No macOS, o fallback nativo
+`shasum -a 256` é usado quando `sha256sum` não está disponível.
 
 O host portável oferece:
 
@@ -27,6 +33,7 @@ O host portável oferece:
 - SBOM CycloneDX/SPDX, VEX e auditoria OSV;
 - credenciais seguras, cache, workspaces e ferramentas globais FPC;
 - `dependencies`/`tree`, `why`, `outdated`, `update` transacional e `run`;
+- documentação estática pesquisável de APIs com `doc`;
 - autoatualização verificada, empacotamento determinístico e publicação segura.
 
 ```console
@@ -41,6 +48,7 @@ boss4d why horse
 boss4d outdated
 boss4d update
 boss4d run test
+boss4d doc --output docs-api
 ```
 
 O mapa original de dependências não muda:

@@ -3,6 +3,7 @@ unit Boss4D.Core.Services.BuildCommand;
 interface
 
 uses
+  System.Generics.Collections,
   Boss4D.Core.Ports,
   Boss4D.Core.Domain.Package,
   Boss4D.Core.Domain.Lock,
@@ -11,8 +12,33 @@ uses
   Boss4D.Core.Services.BuildInventory;
 
 type
+  TBoss4DPlannedFile = class
+  private
+    FSource: string;
+    FDestination: string;
+    FCategory: string;
+  public
+    constructor Create(const ASource, ADestination, ACategory: string);
+    property Source: string read FSource;
+    property Destination: string read FDestination;
+    property Category: string read FCategory;
+  end;
+
+  TBoss4DBuildCommandPlan = class
+  private
+    FTargets: TList<string>;
+    FFiles: TObjectList<TBoss4DPlannedFile>;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    property Targets: TList<string> read FTargets;
+    property Files: TObjectList<TBoss4DPlannedFile> read FFiles;
+  end;
+
   TBoss4DIDERegistrationHandler = reference to procedure(
     const ARegistration: TBoss4DIDERegistration);
+  TBoss4DIDERegistrationBatchHandler = reference to function(
+    const ARegistrations: TObjectList<TBoss4DIDERegistration>): Integer;
 
   TBoss4DBuildCommandOptions = record
     Selection: TBoss4DBuildSelection;
@@ -42,6 +68,7 @@ type
     FCompiler: IBoss4DCompiler;
     FLogger: IBoss4DLogger;
     FRegistrationHandler: TBoss4DIDERegistrationHandler;
+    FRegistrationBatchHandler: TBoss4DIDERegistrationBatchHandler;
     FInventory: TBoss4DBuildInventory;
     function SourceChecksum(const APackage: TBoss4DPackage;
       const ARootDirectory: string): string;
@@ -49,7 +76,12 @@ type
     constructor Create(const ACompiler: IBoss4DCompiler;
       const ALogger: IBoss4DLogger;
       const ARegistrationHandler: TBoss4DIDERegistrationHandler = nil;
-      const AInventory: TBoss4DBuildInventory = nil);
+      const AInventory: TBoss4DBuildInventory = nil;
+      const ARegistrationBatchHandler:
+        TBoss4DIDERegistrationBatchHandler = nil);
+    function Plan(const APackage: TBoss4DPackage;
+      const ARootDirectory: string;
+      const AOptions: TBoss4DBuildCommandOptions): TBoss4DBuildCommandPlan;
     function Execute(const APackage: TBoss4DPackage;
       const ALock: TBoss4DLock; const ARootDirectory: string;
       const AOptions: TBoss4DBuildCommandOptions): TBoss4DBuildCommandResult;
@@ -61,7 +93,7 @@ uses
   System.SysUtils,
   System.IOUtils,
   System.Hash,
-  System.Generics.Collections,
+  System.Generics.Defaults,
   Boss4D.Core.Domain.Dependency,
   Boss4D.Core.Domain.Env,
   Boss4D.Core.Domain.Consts,
@@ -70,6 +102,29 @@ uses
   Boss4D.Core.Services.BuildExecutor,
   Boss4D.Core.Services.BuildMatrix,
   Boss4D.Core.Services.BuildPaths;
+
+constructor TBoss4DPlannedFile.Create(
+  const ASource, ADestination, ACategory: string);
+begin
+  inherited Create;
+  FSource := ASource;
+  FDestination := ADestination;
+  FCategory := ACategory;
+end;
+
+constructor TBoss4DBuildCommandPlan.Create;
+begin
+  inherited Create;
+  FTargets := TList<string>.Create;
+  FFiles := TObjectList<TBoss4DPlannedFile>.Create(True);
+end;
+
+destructor TBoss4DBuildCommandPlan.Destroy;
+begin
+  FFiles.Free;
+  FTargets.Free;
+  inherited Destroy;
+end;
 
 class function TBoss4DBuildCommandOptions.Parse(
   const AArgs: TArray<string>): TBoss4DBuildCommandOptions;
@@ -199,7 +254,8 @@ end;
 constructor TBoss4DBuildCommand.Create(const ACompiler: IBoss4DCompiler;
   const ALogger: IBoss4DLogger;
   const ARegistrationHandler: TBoss4DIDERegistrationHandler;
-  const AInventory: TBoss4DBuildInventory);
+  const AInventory: TBoss4DBuildInventory;
+  const ARegistrationBatchHandler: TBoss4DIDERegistrationBatchHandler);
 begin
   inherited Create;
   if not Assigned(ACompiler) then
@@ -207,7 +263,97 @@ begin
   FCompiler := ACompiler;
   FLogger := ALogger;
   FRegistrationHandler := ARegistrationHandler;
+  FRegistrationBatchHandler := ARegistrationBatchHandler;
   FInventory := AInventory;
+end;
+
+function TBoss4DBuildCommand.Plan(const APackage: TBoss4DPackage;
+  const ARootDirectory: string;
+  const AOptions: TBoss4DBuildCommandOptions): TBoss4DBuildCommandPlan;
+var
+  LTargets: TBoss4DBuildTargetList;
+  LDependency: TBoss4DDependency;
+
+  procedure AddAsset(const ADeclaredPath, ACategory,
+    ATargetRoot: string);
+  begin
+    if ADeclaredPath.Trim.IsEmpty or ADeclaredPath.Contains('*') or
+       ADeclaredPath.Contains('?') then
+      raise EArgumentException.CreateFmt(
+        'Ativo IDE deve declarar um caminho literal: %s.',
+        [ADeclaredPath]);
+    var LSourceRoot := IncludeTrailingPathDelimiter(
+      TPath.GetFullPath(ARootDirectory));
+    var LSource := TPath.GetFullPath(TPath.Combine(
+      ARootDirectory, ADeclaredPath));
+    if not LSource.StartsWith(LSourceRoot, True) then
+      raise EArgumentException.CreateFmt(
+        'Ativo IDE fora da raiz do pacote: %s.', [ADeclaredPath]);
+    var LDestination := TPath.Combine(
+      TPath.Combine(ATargetRoot, ACategory),
+      TPath.GetFileName(ExcludeTrailingPathDelimiter(LSource)));
+    if TFile.Exists(LSource) then
+      Result.Files.Add(TBoss4DPlannedFile.Create(
+        LSource, LDestination, ACategory))
+    else if TDirectory.Exists(LSource) then
+    begin
+      for var LFile in TDirectory.GetFiles(LSource, '*',
+        TSearchOption.soAllDirectories) do
+      begin
+        var LRelative := LFile.Substring(
+          IncludeTrailingPathDelimiter(LSource).Length);
+        Result.Files.Add(TBoss4DPlannedFile.Create(LFile,
+          TPath.Combine(LDestination, LRelative), ACategory));
+      end;
+    end
+    else
+      raise EFileNotFoundException.CreateFmt(
+        'Ativo IDE declarado nao encontrado: %s.', [ADeclaredPath]);
+  end;
+
+begin
+  if not Assigned(APackage) then
+    raise EArgumentNilException.Create('APackage');
+  if ARootDirectory.Trim.IsEmpty then
+    raise EArgumentException.Create(
+      'A raiz do pacote e obrigatoria para o plano de build.');
+  Result := TBoss4DBuildCommandPlan.Create;
+  LTargets := nil;
+  LDependency := TBoss4DDependency.Create(
+    'local/' + APackage.Name, APackage.Version);
+  try
+    LTargets := TBoss4DBuildMatrixExpander.Expand(APackage,
+      AOptions.Selection);
+    for var LTarget in LTargets do
+    begin
+      Result.Targets.Add(LTarget.Identity);
+      if AOptions.RegisterTargets and
+         (LTarget.Role = TBoss4DBuildProjectRole.DesignPackage) then
+      begin
+        var LTargetRoot := TBoss4DBuildPaths.TargetRoot(TPath.Combine(
+          ARootDirectory, FOLDER_DEPENDENCIES),
+          LDependency.StorageName, LTarget.Compiler, LTarget.Platform,
+          LTarget.Configuration);
+        for var LTool in APackage.IDEAssets.Tools do
+          AddAsset(LTool, 'tools', LTargetRoot);
+        for var LTemplate in APackage.IDEAssets.Templates do
+          AddAsset(LTemplate, 'templates', LTargetRoot);
+      end;
+    end;
+    Result.Targets.Sort;
+    Result.Files.Sort(TComparer<TBoss4DPlannedFile>.Construct(
+      function(const ALeft, ARight: TBoss4DPlannedFile): Integer
+      begin
+        Result := CompareText(ALeft.Destination, ARight.Destination);
+      end));
+  except
+    LTargets.Free;
+    LDependency.Free;
+    Result.Free;
+    raise;
+  end;
+  LTargets.Free;
+  LDependency.Free;
 end;
 
 function TBoss4DBuildCommand.SourceChecksum(const APackage: TBoss4DPackage;
@@ -233,6 +379,7 @@ var
   LDependency: TBoss4DDependency;
   LExecutor: TBoss4DBuildExecutor;
   LTargets: TBoss4DBuildTargetList;
+  LRegistrations: TObjectList<TBoss4DIDERegistration>;
   LExecutionOptions: TBoss4DBuildExecutionOptions;
   procedure CopyIDEAsset(const ADeclaredPath, ACategory,
     ATargetRoot: string);
@@ -295,6 +442,8 @@ var
       'templates'), [rfReplaceAll, rfIgnoreCase]);
   end;
 begin
+  var LPreflight := Plan(APackage, ARootDirectory, AOptions);
+  LPreflight.Free;
   Result := Default(TBoss4DBuildCommandResult);
   LDependency := TBoss4DDependency.Create(
     'local/' + APackage.Name, APackage.Version);
@@ -316,11 +465,14 @@ begin
 
     if AOptions.RegisterTargets then
     begin
-      if not Assigned(FRegistrationHandler) then
+      if not Assigned(FRegistrationHandler) and
+         not Assigned(FRegistrationBatchHandler) then
         raise EInvalidOpException.Create(
           'O registro na IDE nao esta disponivel neste ambiente.');
       LTargets := TBoss4DBuildMatrixExpander.Expand(APackage,
         AOptions.Selection);
+      LRegistrations :=
+        TObjectList<TBoss4DIDERegistration>.Create(True);
       try
         for var LTarget in LTargets do
           if SameText(LTarget.ProjectKind, 'design') then
@@ -404,14 +556,24 @@ begin
                     LRegistration.RegistryValues.Add(LManagedValue);
                   end;
                 end;
-                FRegistrationHandler(LRegistration);
-                Inc(Result.Registered);
+                if Assigned(FRegistrationBatchHandler) then
+                  LRegistrations.Add(LRegistration.Clone)
+                else
+                begin
+                  FRegistrationHandler(LRegistration);
+                  Inc(Result.Registered);
+                end;
               finally
                 LRegistration.Free;
               end;
             end;
           end;
+        if Assigned(FRegistrationBatchHandler) and
+           (LRegistrations.Count > 0) then
+          Inc(Result.Registered,
+            FRegistrationBatchHandler(LRegistrations));
       finally
+        LRegistrations.Free;
         LTargets.Free;
       end;
     end;

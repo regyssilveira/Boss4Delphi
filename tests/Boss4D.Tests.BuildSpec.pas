@@ -72,12 +72,16 @@ begin
       Assert.AreEqual<Integer>(2, LPackage.BuildMatrix.Projects.Count);
       Assert.AreEqual('Design/Design.dproj',
         LPackage.BuildMatrix.Projects[0].Path);
+      Assert.AreEqual('Design',
+        LPackage.BuildMatrix.Projects[0].PackageName);
       Assert.AreEqual('design', LPackage.BuildMatrix.Projects[0].Kind);
       Assert.AreEqual<Integer>(1,
         LPackage.BuildMatrix.Projects[0].DependsOn.Count);
       Assert.AreEqual('Runtime/Runtime.dproj',
         LPackage.BuildMatrix.Projects[0].DependsOn[0]);
       Assert.AreEqual('runtime', LPackage.BuildMatrix.Projects[1].Kind);
+      Assert.AreEqual('Runtime',
+        LPackage.BuildMatrix.Projects[1].PackageName);
     finally
       LPackage.Free;
     end;

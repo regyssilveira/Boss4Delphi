@@ -23,10 +23,12 @@ already exist in the global Boss4D cache; a cache miss fails the command.
 
 `ci` and `restore --ci` are the release/automation mode. They enforce the
 frozen lock, clean `modules/`, and disable IDE registration at the service
-boundary. `install --build-only` also suppresses registration. Because the
-operation is transactional, a failed clean install restores the previous
-manifest, lock, and module tree. `--remote-cache` shares verified compiled
-targets without weakening those isolation rules.
+boundary. The `install --build-only` and `--no-register` boundary covers both
+design-time package registration and global Delphi Library Path changes.
+Because the operation is
+transactional, a failed clean install restores the previous manifest, lock,
+and module tree. `--remote-cache` shares verified compiled targets without
+weakening those isolation rules.
 
 Recommended CI sequence:
 

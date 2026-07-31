@@ -3,11 +3,14 @@ program boss4d;
 {$mode objfpc}{$H+}
 
 uses
-  Classes, SysUtils, DateUtils, Boss4D.Posix.Core, Boss4D.Posix.Registry,
+  Classes, SysUtils, DateUtils, fpjson, Boss4D.Posix.Core, Boss4D.Posix.Registry,
   Boss4D.Posix.Config, Boss4D.Posix.Package, Boss4D.Posix.Operations,
   Boss4D.Posix.Compliance, Boss4D.Posix.Audit, Boss4D.Posix.Workflows,
   Boss4D.Posix.Update, Boss4D.Posix.Tools, Boss4D.Posix.Publish,
-  Boss4D.Posix.Project;
+  Boss4D.Posix.RegistryCheckout, Boss4D.Posix.Project,
+  Boss4D.Posix.RegistryPullRequest,
+  Boss4D.Posix.RegistryHealth,
+  Boss4D.Posix.Documentation;
 
 procedure Help;
 begin
@@ -15,12 +18,13 @@ begin
   WriteLn('Commands: version, platform, init, install, ci, add, remove, list,');
   WriteLn('          search, info, registry, package, doctor, sbom, audit,');
   WriteLn('          config, cache, self-update, tool, publish, update,');
-  WriteLn('          dependencies, tree, why, run, outdated');
+  WriteLn('          dependencies, tree, why, run, outdated, doc');
   WriteLn('Install options: --locked --frozen-lockfile --offline --production');
   WriteLn('                 --resolution=highest|minimal');
   WriteLn('                 --progress plain|interactive --json --quiet');
   WriteLn('Add options: boss4d add <repository> [version] [--dev]');
   WriteLn('Registry options: --registry=<index-v1-or-v2-path-or-url>');
+  WriteLn('Registry health: boss4d registry health [checkout-root]');
   WriteLn('Package: boss4d package install <name> [--platform <name>]');
   WriteLn('         [--compiler <version>] [--no-source-fallback]');
   WriteLn('SBOM: boss4d sbom --format cyclonedx|spdx --lock-only');
@@ -35,6 +39,13 @@ begin
   WriteLn('       boss4d tool update <name> <source>|uninstall <name>|list');
   WriteLn('Publish: boss4d publish --dry-run [--output <file>]');
   WriteLn('         boss4d publish --registry <url> [--allow-dirty]');
+  WriteLn('         boss4d publish --official --publisher <id>');
+  WriteLn('           --repository <host/owner/name> --fingerprint <hex>');
+  WriteLn('           --sign <key> --artifact-url <https-url>');
+  WriteLn('           [--registry-root <checkout>] [--append-version]');
+  WriteLn('           [--open-pr] [--registry-remote <remote>]');
+  WriteLn('           [--registry-pr-repo <owner/name>]');
+  WriteLn('Docs: boss4d doc [-o <folder>] [--no-dependencies]');
 end;
 
 function OptionValue(const APrefix, ADefault: string): string;
@@ -119,8 +130,19 @@ var
   LTools: TStringList;
   LPublishService: TBoss4DPosixPublishService;
   LPublishOptions: TBoss4DPublishOptions;
+  LOfficialPublishResult: TBoss4DOfficialPublishResult;
+  LRegistryCheckoutResult: TBoss4DRegistryCheckoutResult;
+  LRegistryHealthResult: TBoss4DRegistryHealthResult;
+  LRegistryPullRequestOptions: TBoss4DRegistryPullRequestOptions;
+  LRegistryPullRequestSession: TBoss4DRegistryPullRequestSession;
+  LRegistryPullRequestResult: TBoss4DRegistryPullRequestResult;
+  LRegistryPullRequestService: TBoss4DPosixRegistryPullRequestService;
   LPublishPayload, LPublishOutput, LTokenEnvironment: string;
+  LPublishManifest: TJSONObject;
+  LOfficialDryRun, LKeepOfficialOutputs: Boolean;
   LFoundFlag: Boolean;
+  LDocumentationResult: TBoss4DDocumentationResult;
+  LDocumentationOutput: string;
   I: Integer;
 begin
   InstallCancellationHandler;
@@ -150,6 +172,10 @@ begin
       LOptions.Offline := HasOption('--offline');
       LOptions.Production := HasOption('--production');
       LOptions.Resolution := OptionValue('--resolution', 'highest');
+      LOptions.RegistrySource := OptionValue('--registry',
+        GetEnvironmentVariable('BOSS4D_REGISTRY'));
+      if LOptions.RegistrySource = '' then
+        LOptions.RegistrySource := PublicRegistryUrl;
       if not SameText(LOptions.Resolution, 'highest') and
          not SameText(LOptions.Resolution, 'minimal') then
         raise Exception.Create('resolution must be highest or minimal');
@@ -233,6 +259,18 @@ begin
     begin
       UpdateProject(GetCurrentDir);
       WriteLn('dependencies updated');
+    end
+    else if LCommand = 'doc' then
+    begin
+      LDocumentationOutput := OptionValue('--output',
+        OptionValue('-o', 'docs-api'));
+      if Trim(LDocumentationOutput) = '' then
+        raise Exception.Create('documentation output directory cannot be empty');
+      LDocumentationResult := GenerateDocumentation(GetCurrentDir,
+        LDocumentationOutput, not HasOption('--no-dependencies'));
+      WriteLn(Format('%d documented symbols from %d source files written to %s',
+        [LDocumentationResult.Symbols, LDocumentationResult.Files,
+         LDocumentationResult.OutputDirectory]));
     end
     else if (LCommand = 'search') or (LCommand = 'info') then
     begin
@@ -318,7 +356,8 @@ begin
     else if LCommand = 'registry' then
     begin
       if ParamCount < 2 then
-        raise Exception.Create('usage: boss4d registry add|remove|list [source]');
+        raise Exception.Create(
+          'usage: boss4d registry add|remove|list|health [source]');
       LConfig := TBoss4DPosixConfig.Create;
       try
         if SameText(ParamStr(2), 'add') then
@@ -341,6 +380,15 @@ begin
           finally
             LConfigured.Free;
           end;
+        end
+        else if SameText(ParamStr(2), 'health') then
+        begin
+          if ParamCount >= 3 then LSource := ParamStr(3)
+          else LSource := GetCurrentDir;
+          LRegistryHealthResult := AuditRegistryHealth(LSource);
+          WriteLn('Registry health: ' + LRegistryHealthResult.Summary);
+          if not LRegistryHealthResult.Passed then
+            raise Exception.Create('Registry health audit failed');
         end
         else
           raise Exception.Create('unknown registry command: ' + ParamStr(2));
@@ -655,10 +703,91 @@ begin
     end
     else if LCommand = 'publish' then
     begin
+      LKeepOfficialOutputs := False;
+      LPublishOptions := Default(TBoss4DPublishOptions);
       LPublishOptions.RegistryUrl := OptionValue('--registry', '');
-      LPublishOptions.DryRun := HasOption('--dry-run');
+      LOfficialDryRun := HasOption('--dry-run');
+      LPublishOptions.DryRun := LOfficialDryRun;
       LPublishOptions.RequireCleanGit := not HasOption('--allow-dirty');
       LPublishOptions.RunTests := not HasOption('--skip-tests');
+      LPublishOptions.Official := HasOption('--official');
+      LPublishOptions.Publisher := OptionValue('--publisher', '');
+      LPublishOptions.Repository := OptionValue('--repository', '');
+      LPublishOptions.SignerFingerprint :=
+        OptionValue('--fingerprint', '');
+      LPublishOptions.SigningKey := OptionValue('--sign', '');
+      LPublishOptions.ArtifactUrl := OptionValue('--artifact-url', '');
+      LPublishOptions.ArtifactOutput :=
+        OptionValue('--artifact-output', '');
+      LPublishOptions.SubmissionOutput :=
+        OptionValue('--submission-output', '');
+      LPublishOptions.RegistryRoot := OptionValue('--registry-root', '');
+      LPublishOptions.AppendVersion := HasOption('--append-version');
+      LPublishOptions.OpenPullRequest := HasOption('--open-pr');
+      LPublishOptions.RegistryBranch :=
+        OptionValue('--registry-branch', '');
+      LPublishOptions.RegistryRemote :=
+        OptionValue('--registry-remote', 'origin');
+      LPublishOptions.RegistryBase :=
+        OptionValue('--registry-base', 'main');
+      LPublishOptions.RegistryPullRequestRepository :=
+        OptionValue('--registry-pr-repo',
+          'regyssilveira/Boss4Delphi');
+      LPublishOptions.RegistryPullRequestHead :=
+        OptionValue('--registry-pr-head', '');
+      if LPublishOptions.OpenPullRequest and
+         not LPublishOptions.Official then
+        raise Exception.Create('--open-pr requires --official');
+      if LPublishOptions.OpenPullRequest and
+         (LPublishOptions.RegistryRoot = '') then
+        raise Exception.Create('--open-pr requires --registry-root');
+      if LPublishOptions.Official then
+      begin
+        LPublishManifest := LoadJsonObject(IncludeTrailingPathDelimiter(
+          GetCurrentDir) + 'boss.json');
+        try
+          if LPublishOptions.ArtifactOutput = '' then
+            LPublishOptions.ArtifactOutput :=
+              IncludeTrailingPathDelimiter(GetCurrentDir) + 'dist/' +
+              LPublishManifest.Get('name', 'package') + '-' +
+              LPublishManifest.Get('version', '0.0.0') + '.b4dpkg';
+          if LPublishOptions.SubmissionOutput = '' then
+            LPublishOptions.SubmissionOutput :=
+              IncludeTrailingPathDelimiter(GetCurrentDir) + 'dist/' +
+              LPublishManifest.Get('name', 'package') + '-' +
+              LPublishManifest.Get('version', '0.0.0') +
+              '.registry.json';
+          if LPublishOptions.RegistryBranch = '' then
+            LPublishOptions.RegistryBranch :=
+              TBoss4DPosixRegistryPullRequestService.DefaultBranch(
+                LPublishManifest.Get('name', ''),
+                LPublishManifest.Get('version', ''));
+          if LPublishOptions.RegistryPullRequestHead = '' then
+            LPublishOptions.RegistryPullRequestHead :=
+              LPublishOptions.RegistryBranch;
+          LRegistryPullRequestOptions :=
+            Default(TBoss4DRegistryPullRequestOptions);
+          LRegistryPullRequestOptions.RegistryRoot :=
+            LPublishOptions.RegistryRoot;
+          LRegistryPullRequestOptions.PackageName :=
+            LPublishManifest.Get('name', '');
+          LRegistryPullRequestOptions.Version :=
+            LPublishManifest.Get('version', '');
+          LRegistryPullRequestOptions.Branch :=
+            LPublishOptions.RegistryBranch;
+          LRegistryPullRequestOptions.PushRemote :=
+            LPublishOptions.RegistryRemote;
+          LRegistryPullRequestOptions.BaseBranch :=
+            LPublishOptions.RegistryBase;
+          LRegistryPullRequestOptions.PullRequestRepository :=
+            LPublishOptions.RegistryPullRequestRepository;
+          LRegistryPullRequestOptions.PullRequestHead :=
+            LPublishOptions.RegistryPullRequestHead;
+        finally
+          LPublishManifest.Free;
+        end;
+        LPublishOptions.DryRun := True;
+      end;
       LTokenEnvironment := OptionValue('--token-env',
         'BOSS4D_PUBLISH_TOKEN');
       LPublishOptions.Token := GetEnvironmentVariable(LTokenEnvironment);
@@ -681,7 +810,96 @@ begin
       try
         LPublishPayload := LPublishService.Execute(GetCurrentDir,
           LPublishOptions);
-        if LPublishOutput <> '' then
+        if LPublishOptions.Official then
+        begin
+          if LPublishOptions.SigningKey = '' then
+            raise Exception.Create('signing key is required');
+          LPublishService.BuildOfficialDocument(GetCurrentDir,
+            StringOfChar('0', 64), LPublishOptions);
+          if LOfficialDryRun then
+            WriteLn('official dry-run approved: artifact=' +
+              ExpandFileName(LPublishOptions.ArtifactOutput) +
+              '; submission=' +
+              ExpandFileName(LPublishOptions.SubmissionOutput))
+          else
+          begin
+            LOfficialPublishResult := LPublishService.PrepareOfficial(
+              GetCurrentDir, LPublishOptions);
+            try
+              if LPublishOptions.RegistryRoot <> '' then
+              begin
+                LRegistryPullRequestService := nil;
+                LRegistryPullRequestSession :=
+                  Default(TBoss4DRegistryPullRequestSession);
+                if LPublishOptions.OpenPullRequest then
+                begin
+                  LRegistryPullRequestService :=
+                    TBoss4DPosixRegistryPullRequestService.Create;
+                  LRegistryPullRequestSession :=
+                    LRegistryPullRequestService.Start(
+                      LRegistryPullRequestOptions);
+                end;
+                try
+                  try
+                    LRegistryCheckoutResult := ApplyRegistrySubmission(
+                      LPublishOptions.RegistryRoot,
+                      LOfficialPublishResult.SubmissionPath,
+                      LPublishOptions.AppendVersion);
+                  except
+                    if Assigned(LRegistryPullRequestService) then
+                      LRegistryPullRequestService.Cancel(
+                        LRegistryPullRequestOptions,
+                        LRegistryPullRequestSession,
+                        IncludeTrailingPathDelimiter(
+                          LPublishOptions.RegistryRoot) +
+                          'registry/packages/' +
+                          RegistryPackageSlug(
+                            LRegistryPullRequestOptions.PackageName) +
+                          '.json',
+                        IncludeTrailingPathDelimiter(
+                          LPublishOptions.RegistryRoot) +
+                          'registry/index-v2.json');
+                    raise;
+                  end;
+                  if Assigned(LRegistryPullRequestService) then
+                  begin
+                    LKeepOfficialOutputs := True;
+                    LRegistryPullRequestResult :=
+                      LRegistryPullRequestService.Submit(
+                        LRegistryPullRequestOptions,
+                        LRegistryPullRequestSession,
+                        LRegistryCheckoutResult.PackagePath,
+                        LRegistryCheckoutResult.IndexPath);
+                    WriteLn('pull request created: ' +
+                      LRegistryPullRequestResult.PullRequestUrl);
+                  end;
+                finally
+                  LRegistryPullRequestService.Free;
+                end;
+                WriteLn('Registry checkout updated: ' +
+                  LRegistryCheckoutResult.PackagePath);
+              end;
+              WriteLn('official bundle prepared: ' +
+                LOfficialPublishResult.ArtifactPath);
+              WriteLn('registry PR document: ' +
+                LOfficialPublishResult.SubmissionPath);
+            except
+              if not LKeepOfficialOutputs then
+              begin
+                if FileExists(LOfficialPublishResult.SubmissionPath) then
+                  DeleteFile(LOfficialPublishResult.SubmissionPath);
+                if FileExists(LOfficialPublishResult.SignaturePath) then
+                  DeleteFile(LOfficialPublishResult.SignaturePath);
+                if FileExists(LOfficialPublishResult.ProvenancePath) then
+                  DeleteFile(LOfficialPublishResult.ProvenancePath);
+                if FileExists(LOfficialPublishResult.ArtifactPath) then
+                  DeleteFile(LOfficialPublishResult.ArtifactPath);
+              end;
+              raise;
+            end;
+          end;
+        end
+        else if LPublishOutput <> '' then
         begin
           LItems := TStringList.Create;
           try

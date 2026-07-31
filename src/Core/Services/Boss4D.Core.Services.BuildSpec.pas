@@ -235,6 +235,7 @@ begin
     begin
       var LBuildProject := TBoss4DBuildProject.Create;
       LBuildProject.Path := LDetectedProject.ProjectPath;
+      LBuildProject.PackageName := LDetectedProject.PackageName;
       LBuildProject.Kind := LDetectedProject.Kind;
       for var LRequired in LDetectedProject.Requires do
       begin

@@ -41,6 +41,19 @@
           }
         }
       ]
+    },
+    {
+      "name": "boss4d-macos-arm64.tar.gz",
+      "targets": [
+        {
+          "os": "macos",
+          "architecture": "arm64",
+          "compiler": {
+            "family": "fpc",
+            "version": "3.2.2"
+          }
+        }
+      ]
     }
   ]
 }

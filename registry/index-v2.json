@@ -1,13 +1,32 @@
 {
-  "schemaVersion": 2,
-  "registry": {
-    "name": "Boss4D Public Registry",
-    "protocol": "boss4d-registry",
-    "url": "https://github.com/regyssilveira/Boss4Delphi/tree/main/registry"
-  },
-  "includes": [
-    "index-v1.json"
-  ],
-  "sparse": [],
-  "packages": []
+    "schemaVersion":  2,
+    "registry":  {
+                     "name":  "Boss4D Public Registry",
+                     "protocol":  "boss4d-registry",
+                     "url":  "https://github.com/regyssilveira/Boss4Delphi/tree/main/registry"
+                 },
+    "includes":  [
+                     "index-v1.json"
+                 ],
+    "sparse":  [
+                   "packages/boss4delphi.json",
+                   "packages/dext.json",
+                   "packages/horse-compression-v2.json",
+                   "packages/horse-crud.json",
+                   "packages/horse-dto.json",
+                   "packages/horse-helmet.json",
+                   "packages/horse-multipart.json",
+                   "packages/horse-opentelemetry.json",
+                   "packages/horse-prometheus.json",
+                   "packages/horse-rate-limit.json",
+                   "packages/horse-rbac.json",
+                   "packages/horse-request-id.json",
+                   "packages/horse-sanitize.json",
+                   "packages/horse-schema-validation.json",
+                   "packages/horse-ssl-redirect.json",
+                   "packages/horse-static.json"
+               ],
+    "packages":  [
+
+                 ]
 }

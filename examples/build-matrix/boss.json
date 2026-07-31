@@ -35,6 +35,15 @@
         "dependsOn": [
           "packages/ComponentRuntime.dproj"
         ],
+        "dependencies": [
+          {
+            "path": "packages/ComponentTelemetry.dproj",
+            "optional": true,
+            "compilers": ["37.0"],
+            "platforms": ["Win32"],
+            "configurations": ["Release"]
+          }
+        ],
         "compilers": [
           "22.0",
           "23.0",

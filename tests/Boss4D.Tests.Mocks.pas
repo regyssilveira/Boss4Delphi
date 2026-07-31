@@ -46,6 +46,8 @@ type
   private
     FResponses: TDictionary<string, string>;
     FResponseCodes: TDictionary<string, Integer>;
+    FDownloadFailures: TDictionary<string, Integer>;
+    FDownloadAttempts: TDictionary<string, Integer>;
     FAuthorizedPostCount: Integer;
   public
     constructor Create;
@@ -59,6 +61,9 @@ type
     function DownloadToFile(const AURL, ATargetPath: string): Integer;
     procedure AddResponse(const AURL, AResponse: string;
       const AStatusCode: Integer = 200);
+    procedure AddTransientDownloadFailures(const AURL: string;
+      const ACount: Integer);
+    function DownloadAttempts(const AURL: string): Integer;
     property AuthorizedPostCount: Integer read FAuthorizedPostCount;
   end;
 
@@ -241,10 +246,14 @@ begin
   inherited Create;
   FResponses := TDictionary<string, string>.Create;
   FResponseCodes := TDictionary<string, Integer>.Create;
+  FDownloadFailures := TDictionary<string, Integer>.Create;
+  FDownloadAttempts := TDictionary<string, Integer>.Create;
 end;
 
 destructor THttpClientMock.Destroy;
 begin
+  FDownloadAttempts.Free;
+  FDownloadFailures.Free;
   FResponseCodes.Free;
   FResponses.Free;
   inherited Destroy;
@@ -266,9 +275,32 @@ function THttpClientMock.DownloadToFile(const AURL,
 var
   LResponse: string;
 begin
+  var LKey := AURL.ToLower;
+  var LAttempts := 0;
+  FDownloadAttempts.TryGetValue(LKey, LAttempts);
+  FDownloadAttempts.AddOrSetValue(LKey, LAttempts + 1);
+  var LFailures := 0;
+  if FDownloadFailures.TryGetValue(LKey, LFailures) and
+     (LFailures > 0) then
+  begin
+    FDownloadFailures.AddOrSetValue(LKey, LFailures - 1);
+    Exit(500);
+  end;
   Result := Get(AURL, LResponse);
   if (Result >= 200) and (Result < 300) then
     TFile.WriteAllBytes(ATargetPath, TEncoding.UTF8.GetBytes(LResponse));
+end;
+
+procedure THttpClientMock.AddTransientDownloadFailures(const AURL: string;
+  const ACount: Integer);
+begin
+  FDownloadFailures.AddOrSetValue(AURL.ToLower, ACount);
+end;
+
+function THttpClientMock.DownloadAttempts(const AURL: string): Integer;
+begin
+  Result := 0;
+  FDownloadAttempts.TryGetValue(AURL.ToLower, Result);
 end;
 
 function TGitClientMock.VerifyCommit(const ACacheDir, ARevision: string;

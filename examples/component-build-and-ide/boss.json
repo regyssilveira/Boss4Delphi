@@ -2,6 +2,7 @@
   "name": "acme-controls",
   "description": "Complete Boss4D component lifecycle example",
   "version": "2.0.0",
+  "ideProfile": "default",
   "buildMatrix": {
     "compilers": ["17.0", "22.0", "37.0"],
     "platforms": ["Win32", "Win64"],

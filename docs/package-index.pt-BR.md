@@ -1,5 +1,16 @@
 # Índices e descoberta de pacotes
 
+## Saúde do catálogo
+
+Execute `boss4d registry health [raiz-do-checkout]` antes de publicar mudanças
+no Registry. A auditoria percorre includes locais e documentos sparse v2,
+rejeita referências ausentes ou duplicadas, detecta identidades de pacote
+duplicadas, valida os metadados obrigatórios do repositório e verifica escopo
+do publisher e autorização do signatário nos pacotes schema v2. Entradas v1
+continuam instaláveis, mas são contabilizadas como avisos de migração; versões
+legadas ausentes adicionam outro aviso. Qualquer erro estrutural ou de
+confiança retorna código de saída de falha.
+
 O Boss4D consulta o registro público oficial por padrão e combina múltiplos
 índices privados, HTTP ou arquivos JSON locais. Se o registro público estiver
 temporariamente indisponível, a busca continua funcionando com o catálogo
@@ -11,8 +22,26 @@ boss4d registry add C:\empresa\boss4d-index.json
 boss4d registry list
 boss4d search database
 boss4d info InternalLib
+boss4d package versions InternalLib
+boss4d package install InternalLib@^2.0.0
 boss4d registry remove C:\empresa\boss4d-index.json
 ```
+
+Nomes simples de dependência no `boss.json` são aliases do Registry:
+
+```json
+{
+  "dependencies": {
+    "Horse": "^3.0.0"
+  }
+}
+```
+
+Na primeira instalação, o Boss4D resolve o nome exato nos catálogos
+configurados e grava no lock a identidade canônica do repositório. Depois,
+`--locked` e `--offline` recuperam esse mapeamento exclusivamente do lock, sem
+precisar acessar o Registry. Valores que já identificam URL, host, caminho ou
+repositório com escopo nunca são reescritos como aliases.
 
 O ponto de entrada oficial usa o schema v2 e fica versionado no Git. A versão
 2 compõe catálogos por referências relativas, permitindo manter famílias de
@@ -117,8 +146,18 @@ inclusive dentro de `versions`.
 
 O catálogo da GUI e a busca do RAD Studio usam o mesmo serviço da CLI.
 
-Metadados HTTP são armazenados com seus validadores `ETag` e `Last-Modified`.
-As consultas online enviam `If-None-Match` e `If-Modified-Since`; uma resposta
-`304 Not Modified` reutiliza os bytes do cache. Falhas de rede usam a última
-cópia válida, enquanto `--offline` não realiza chamadas HTTP e informa
-claramente quando ainda não existe uma cópia local.
+Para hospedagem estática e serviços externos de descoberta, gere um snapshot
+consolidado:
+
+```text
+boss4d registry search-index registry/index-v2.json registry/search-index.json
+```
+
+O snapshot resolve `includes` e metadados `sparse` locais, aplica revogações e
+expõe identidade normalizada de publishers sem substituir a entrada oficial do
+protocolo.
+
+Metadados HTTP são persistidos após cada resposta válida. Falhas de rede ou do
+servidor usam a última cópia válida. O cliente POSIX também utiliza requisições
+condicionais com `ETag` e `Last-Modified` e oferece resolução estrita somente
+por cache com `--offline`.

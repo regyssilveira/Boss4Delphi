@@ -12,6 +12,18 @@ type
     [Test]
     procedure TestDeclarativeMatrixExpandsDeterministically;
     [Test]
+    procedure TestProjectRolesAreTypedAndBackwardCompatible;
+    [Test]
+    procedure TestComponentPackageIdentityIncludesRoleAndProfile;
+    [Test]
+    procedure TestRuntimePackageCannotDependOnDesignPackage;
+    [Test]
+    procedure TestConditionalDependencyOnlyAppliesToMatchingTarget;
+    [Test]
+    procedure TestOptionalDependencyCanBeAbsent;
+    [Test]
+    procedure TestDuplicateLogicalPackageTargetIsRejected;
+    [Test]
     procedure TestExplicitSelectionFiltersTargets;
     [Test]
     procedure TestSelectionCanExpandAxesIndependently;
@@ -76,6 +88,229 @@ uses
   Boss4D.Core.Services.BuildGraph,
   Boss4D.Core.Services.BuildScheduler,
   Boss4D.Adapters.Compiler;
+
+procedure TTestsBuildMatrix.TestConditionalDependencyOnlyAppliesToMatchingTarget;
+var
+  LPackage: TBoss4DPackage;
+  LRuntime: TBoss4DBuildProject;
+  LDesign: TBoss4DBuildProject;
+  LDependency: TBoss4DBuildDependency;
+  LTargets: TBoss4DBuildTargetList;
+begin
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'conditional-component';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Platforms.Add('Win64');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LRuntime := TBoss4DBuildProject.Create;
+    LRuntime.Path := 'Runtime.dproj';
+    LRuntime.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Projects.Add(LRuntime);
+    LDesign := TBoss4DBuildProject.Create;
+    LDesign.Path := 'Design.dproj';
+    LDesign.Role := TBoss4DBuildProjectRole.DesignPackage;
+    LDependency := TBoss4DBuildDependency.Create;
+    LDependency.Path := 'Runtime.dproj';
+    LDependency.Platforms.Add('Win32');
+    LDesign.Dependencies.Add(LDependency);
+    LPackage.BuildMatrix.Projects.Add(LDesign);
+
+    LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+      TBoss4DBuildSelection.All);
+    try
+      Assert.AreEqual<Integer>(3, LTargets.Count);
+      for var LTarget in LTargets do
+        if SameText(LTarget.ProjectPath, 'Design.dproj') then
+          if SameText(LTarget.Platform, 'Win32') then
+            Assert.AreEqual<Integer>(1, LTarget.DependsOn.Count)
+          else
+            Assert.AreEqual<Integer>(0, LTarget.DependsOn.Count);
+    finally
+      LTargets.Free;
+    end;
+  finally
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsBuildMatrix.TestOptionalDependencyCanBeAbsent;
+var
+  LPackage: TBoss4DPackage;
+  LDesign: TBoss4DBuildProject;
+  LDependency: TBoss4DBuildDependency;
+  LTargets: TBoss4DBuildTargetList;
+begin
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'optional-component';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LDesign := TBoss4DBuildProject.Create;
+    LDesign.Path := 'Design.dproj';
+    LDesign.Role := TBoss4DBuildProjectRole.DesignPackage;
+    LDependency := TBoss4DBuildDependency.Create;
+    LDependency.Path := 'OptionalRuntime.dproj';
+    LDependency.Optional := True;
+    LDesign.Dependencies.Add(LDependency);
+    LPackage.BuildMatrix.Projects.Add(LDesign);
+
+    LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+      TBoss4DBuildSelection.All);
+    try
+      Assert.AreEqual<Integer>(1, LTargets.Count);
+      Assert.AreEqual<Integer>(0, LTargets[0].DependsOn.Count);
+      TBoss4DBuildGraph.Sort(LTargets);
+    finally
+      LTargets.Free;
+    end;
+  finally
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsBuildMatrix.TestProjectRolesAreTypedAndBackwardCompatible;
+var
+  LProject: TBoss4DBuildProject;
+  LTarget: TBoss4DBuildTarget;
+  LRaised: Boolean;
+begin
+  LProject := TBoss4DBuildProject.Create;
+  LTarget := TBoss4DBuildTarget.Create;
+  try
+    Assert.AreEqual(TBoss4DBuildProjectRole.RuntimePackage,
+      LProject.Role);
+    LProject.Role := TBoss4DBuildProjectRole.DesignPackage;
+    Assert.AreEqual('design', LProject.Kind);
+    LProject.Kind := 'APPLICATION';
+    Assert.AreEqual(TBoss4DBuildProjectRole.Application, LProject.Role);
+
+    LTarget.Role := TBoss4DBuildProjectRole.Binary;
+    Assert.AreEqual('binary', LTarget.ProjectKind);
+    LTarget.ProjectKind := 'tool';
+    Assert.AreEqual(TBoss4DBuildProjectRole.Tool, LTarget.Role);
+
+    LRaised := False;
+    try
+      TBoss4DBuildProjectRoles.Parse('unknown-role');
+    except
+      on E: EArgumentException do
+        LRaised := E.Message.Contains('unknown-role');
+    end;
+    Assert.IsTrue(LRaised);
+  finally
+    LTarget.Free;
+    LProject.Free;
+  end;
+end;
+
+procedure TTestsBuildMatrix.TestComponentPackageIdentityIncludesRoleAndProfile;
+var
+  LTarget: TBoss4DBuildTarget;
+  LIdentity: TBoss4DComponentPackageIdentity;
+begin
+  LTarget := TBoss4DBuildTarget.Create;
+  try
+    LTarget.PackageName := 'Owner';
+    LTarget.ComponentName := 'DesignPackage';
+    LTarget.Role := TBoss4DBuildProjectRole.DesignPackage;
+    LTarget.Compiler := '37.0';
+    LTarget.Platform := 'Win32';
+    LTarget.Configuration := 'Release';
+    LIdentity := TBoss4DComponentPackageIdentity.FromTarget(
+      LTarget, 'CI-Isolated');
+    Assert.AreEqual('Owner', LIdentity.OwnerPackage);
+    Assert.AreEqual('DesignPackage', LIdentity.PackageName);
+    Assert.AreEqual(TBoss4DBuildProjectRole.DesignPackage, LIdentity.Role);
+    Assert.AreEqual('CI-Isolated', LIdentity.Profile);
+    Assert.AreEqual(
+      'owner|designpackage|design|37.0|win32|release|ci-isolated',
+      LIdentity.Key);
+
+    LTarget.ComponentName := '';
+    LTarget.ProjectPath := 'packages\RuntimeFallback.dproj';
+    LTarget.Role := TBoss4DBuildProjectRole.RuntimePackage;
+    LIdentity := TBoss4DComponentPackageIdentity.FromTarget(LTarget, '');
+    Assert.AreEqual('RuntimeFallback', LIdentity.PackageName);
+    Assert.AreEqual('default', LIdentity.Profile);
+  finally
+    LTarget.Free;
+  end;
+end;
+
+procedure TTestsBuildMatrix.TestRuntimePackageCannotDependOnDesignPackage;
+var
+  LPackage: TBoss4DPackage;
+  LRuntime: TBoss4DBuildProject;
+  LDesign: TBoss4DBuildProject;
+begin
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'invalid-dependency';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Configurations.Add('Debug');
+    LDesign := TBoss4DBuildProject.Create;
+    LDesign.Path := 'Design.dproj';
+    LDesign.Role := TBoss4DBuildProjectRole.DesignPackage;
+    LPackage.BuildMatrix.Projects.Add(LDesign);
+    LRuntime := TBoss4DBuildProject.Create;
+    LRuntime.Path := 'Runtime.dproj';
+    LRuntime.Role := TBoss4DBuildProjectRole.RuntimePackage;
+    LRuntime.DependsOn.Add('Design.dproj');
+    LPackage.BuildMatrix.Projects.Add(LRuntime);
+
+    Assert.WillRaise(
+      procedure
+      var
+        LTargets: TBoss4DBuildTargetList;
+      begin
+        LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+          TBoss4DBuildSelection.All);
+        LTargets.Free;
+      end,
+      EArgumentException);
+  finally
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsBuildMatrix.TestDuplicateLogicalPackageTargetIsRejected;
+var
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+begin
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'duplicate-output';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'RuntimeOne.dproj';
+    LProject.PackageName := 'SharedPackage';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'RuntimeTwo.dproj';
+    LProject.PackageName := 'sharedpackage';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+
+    Assert.WillRaise(
+      procedure
+      var
+        LTargets: TBoss4DBuildTargetList;
+      begin
+        LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+          TBoss4DBuildSelection.All);
+        LTargets.Free;
+      end,
+      EArgumentException);
+  finally
+    LPackage.Free;
+  end;
+end;
 
 procedure TTestsBuildMatrix.TestDelphiConventionsCoverSupportedCompilers;
 var

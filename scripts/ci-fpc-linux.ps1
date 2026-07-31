@@ -14,6 +14,7 @@ fpc -B -Fu./src/Posix -Fu./tests/posix -FE./.fpc-build -FU./.fpc-build ./tests/p
 ./.fpc-build/boss4d platform | grep -qx linux
 ./.fpc-build/boss4d search Dext --registry=./registry/index-v2.json | grep -q Dext
 ./.fpc-build/boss4d info Horse --registry=./registry/index-v2.json | grep -q 'name: Horse'
+./.fpc-build/boss4d registry health . | grep -q 'packages=55; legacy=55; trusted=0; warnings=109; errors=0'
 rm -rf .fpc-build/package-smoke
 mkdir -p .fpc-build/package-smoke/project
 (cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d init && /work/.fpc-build/boss4d package install Demo --registry /work/tests/fixtures/package-posix/index.json --platform linux --no-source-fallback)
@@ -27,14 +28,22 @@ grep -q completion .fpc-build/package-smoke/project/progress.json
 ./.fpc-build/boss4d unknown-command >/dev/null 2>&1 || test $? -eq 2
 ./.fpc-build/boss4d doctor > .fpc-build/doctor.txt 2>&1 || true
 grep -q git .fpc-build/doctor.txt
-grep -q sha256sum .fpc-build/doctor.txt
+grep -q 'OK sha256:' .fpc-build/doctor.txt
 (cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d sbom --format cyclonedx --lock-only --strict --validate --reproducible --vex /work/tests/fixtures/package-posix/vex.json --output sbom.cdx.json)
 (cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d sbom --format spdx --lock-only --strict --validate --reproducible --output sbom.spdx.json)
+(cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d publish --official --dry-run --allow-dirty --skip-tests --publisher smoke-publisher --repository github.com/example/demo --fingerprint aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --sign test-key --artifact-url https://github.com/example/demo/releases/download/v1.0.0/demo-1.0.0.b4dpkg --registry-root registry-preview --open-pr --registry-remote fork --registry-pr-repo regyssilveira/Boss4Delphi --registry-pr-head regys:boss4d/package-demo-1.0.0 > official-publish.txt)
+grep -q 'official dry-run approved' .fpc-build/package-smoke/project/official-publish.txt
+test ! -e .fpc-build/package-smoke/project/dist/demo-1.0.0.b4dpkg
+test ! -e .fpc-build/package-smoke/project/registry-preview
 grep -q CycloneDX .fpc-build/package-smoke/project/sbom.cdx.json
 grep -q CVE-2099-0001 .fpc-build/package-smoke/project/sbom.cdx.json
 grep -q SPDX-2.3 .fpc-build/package-smoke/project/sbom.spdx.json
 (cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d audit --offline > audit.txt)
 grep -q 'audited packages' .fpc-build/package-smoke/project/audit.txt
+(cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d doc --no-dependencies -o docs-api > doc.txt)
+test -f .fpc-build/package-smoke/project/docs-api/index.html
+test -f .fpc-build/package-smoke/project/docs-api/search-index.json
+grep -q 'documented symbols' .fpc-build/package-smoke/project/doc.txt
 (cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d publish --dry-run --allow-dirty --skip-tests --output publish.json)
 grep -q '"artifact"' .fpc-build/package-smoke/project/publish.json
 grep -q '"content"' .fpc-build/package-smoke/project/publish.json

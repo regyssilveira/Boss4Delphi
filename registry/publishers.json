@@ -4,10 +4,16 @@
     {
       "id": "boss4d",
       "displayName": "Boss4D Project",
+      "githubOwners": [
+        "regyssilveira"
+      ],
       "repositories": [
         "github.com/regyssilveira/"
       ],
-      "allowedSigners": []
+      "publicKey": "keys/boss4d-release.asc",
+      "allowedSigners": [
+        "A91FA178E7A1DE7FB10148C8308C9045E23B0279"
+      ]
     }
   ]
 }

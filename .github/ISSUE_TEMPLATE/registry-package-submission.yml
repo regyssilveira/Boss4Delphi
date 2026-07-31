@@ -1,0 +1,76 @@
+name: Registry package submission
+description: Propose a Delphi or Lazarus package for maintainer review.
+title: "[Registry] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Community proposals are welcome, but opening this issue does not publish a package.
+        Only reviewed, signed, immutable releases that pass the Registry checks can enter the trusted catalog.
+        Never include tokens, passwords, private keys, signing passphrases, or other secrets.
+  - type: input
+    id: package
+    attributes:
+      label: Package name
+      description: The stable package name users will reference.
+      placeholder: MyDelphiPackage
+    validations:
+      required: true
+  - type: input
+    id: repository
+    attributes:
+      label: Public source repository
+      description: HTTPS URL of the repository owned or maintained by the publisher.
+      placeholder: https://github.com/owner/repository
+    validations:
+      required: true
+  - type: input
+    id: publisher
+    attributes:
+      label: Publisher GitHub account
+      description: Account that controls the repository and will own the Registry namespace.
+      placeholder: owner
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version and immutable tag
+      description: Semantic version and the corresponding immutable release tag.
+      placeholder: 1.2.3 / v1.2.3
+    validations:
+      required: true
+  - type: input
+    id: license
+    attributes:
+      label: License
+      description: SPDX license identifier declared by the project.
+      placeholder: Apache-2.0
+    validations:
+      required: true
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Delphi, Lazarus and platform compatibility
+      description: List tested compilers, targets and any design-time/runtime packages.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Test and release evidence
+      description: Link to passing tests, release assets, SBOM/provenance, and the public OpenPGP fingerprint when available.
+    validations:
+      required: true
+  - type: checkboxes
+    id: attestations
+    attributes:
+      label: Submission attestations
+      options:
+        - label: I am authorized to represent this repository or have identified its maintainer for confirmation.
+          required: true
+        - label: I understand that the proposal requires automated checks and explicit maintainer approval before publication.
+          required: true
+        - label: I have not included tokens, passwords, private keys, passphrases, or other secrets.
+          required: true
+

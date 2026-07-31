@@ -156,17 +156,26 @@ revisada pelo fluxo Git.
 
 1. Cadastre publisher e prefixos controlados em `registry/publishers.json`.
 2. Adicione fingerprint OpenPGP completo.
-3. Crie metadados a partir de `registry/package-template.json`.
-4. Inclua o pacote em `registry/index-v2.json`.
-5. Execute:
+3. Reserve a URL imutável da release para as evidências do pacote.
+4. Execute:
 
-```powershell
-./scripts/validate-registry-submission.ps1
-./scripts/test-registry-submission.ps1
+```console
+boss4d publish --official --open-pr \
+  --publisher meu-publisher \
+  --repository github.com/owner/meu-pacote \
+  --fingerprint <fingerprint-hex-40> \
+  --sign <id-da-chave> \
+  --artifact-url <url-https-imutavel> \
+  --registry-root /src/Boss4Delphi
 ```
 
 **Resultado esperado:** escopo, fingerprint, imutabilidade, evidência do
-artefato e composição do índice passam antes da revisão.
+artefato, commit limitado aos arquivos esperados e composição do índice passam
+antes da revisão; a CLI mostra a URL do pull request criado.
+
+Envie o pacote, assinatura e proveniência gerados para a URL declarada antes
+do merge; o check do Registry valida esses assets externos de forma
+independente.
 
 **Controles de risco:** nunca edite ou remova objeto de versão existente.
 Adicione nova versão ou revogação explícita. Preserve propriedade de publisher
@@ -183,6 +192,7 @@ publicada for insegura, envie revogação em vez de reescrever o histórico.
 | Inspecionar fontes configuradas | `boss4d registry list` |
 | Inspecionar publicação deterministicamente | `boss4d publish --dry-run --output publish.json` |
 | Publicar pela CI | Token de ambiente e `boss4d publish --registry <url>` |
+| Abrir submissão oficial | `boss4d publish --official --open-pr ...` |
 | Resolver conflito imutável | Publicar versão nova; não sobrescrever |
 | Tratar release comprometida | Revogar em metadados revisados do Registry |
 

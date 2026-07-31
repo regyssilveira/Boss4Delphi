@@ -103,23 +103,30 @@ cd /d d:\Projetos\BossDelphi
   Gerencia e consulta todo o ciclo de vida das dependências, com rollback
   automático de `boss.json`, `boss-lock.json` e `modules/` em caso de falha.
   Consulte o [guia do ciclo de vida](docs/dependency-lifecycle.pt-BR.md).
-* `boss4d ci` / `boss4d install --locked|--frozen-lockfile|--offline|--production`
+* `boss4d ci` / `boss4d install --locked|--frozen-lockfile|--offline|--production [--jobs <n>]`
   Executa instalações reproduzíveis com CI limpo, cache offline e dependências
   somente de produção.
 * `boss4d dependencies|tree|why|outdated` e `boss4d run <script>`
   Inspeciona o grafo, explica dependências, encontra atualizações e executa
   scripts do manifesto.
-* `boss4d registry add|remove|list`, `search` e `info`
-  Gerencia fontes públicas/privadas e consulta o catálogo Registry v1/v2.
+* `boss4d registry add|remove|list|health`, `search` e `info`
+  Gerencia fontes públicas/privadas, audita o catálogo Registry v1/v2 completo
+  e consulta seus pacotes.
 * `boss4d package install <nome>@<versão>` e `boss4d pack`
   Instala ou produz `.b4dpkg` determinísticos com seleção por compilador e
   plataforma, SHA-256, OpenPGP e proveniência in-toto.
-* `boss4d publish [--dry-run]` e `boss4d conformance registry|package <arquivo>`
-  Publica versões imutáveis e valida os contratos públicos do Registry e pacote.
+* `boss4d publish [--dry-run]`, `boss4d publish --official --open-pr` e
+  `boss4d conformance registry|package <arquivo>`
+  Publica versões imutáveis, atualiza um checkout limpo e abre a PR revisada
+  do Registry público.
 * `boss4d audit [--fail-on <severidade>]`
   Consulta vulnerabilidades OSV das revisões travadas, com cache offline e VEX.
 * `boss4d doctor`, `cache`, `tool`, `plugin`, `getit` e `license report`
   Cobre diagnóstico, cache, ferramentas globais, integrações Windows e licenças.
+* `boss4d doc [-o <diretório>] [--no-dependencies]`
+  Gera um site pesquisável usando comentários PascalDoc/XML Doc do projeto e
+  das dependências instaladas. Consulte o
+  [guia de documentação estática de APIs](docs/api-documentation.pt-BR.md).
 * `boss4d spec --detect [--compiler <versão>]`
   Detecta `.dproj`/`.dpk`, diretivas runtime/design e dependências locais,
   persistindo uma `buildMatrix` determinística.
@@ -135,6 +142,11 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d ide unregister <pacote> --compiler <versão> --platform <plataforma>`
   e `boss4d ide repair`
   Removem um registro exato ou reconciliam divergências transacionalmente.
+* `boss4d ide profile list|create|show|target|clone|remove|export|import|launch`
+  e `preview-install|install|repair|preview-uninstall|uninstall`
+  Gerencia Registry branches isolados do RAD Studio e executa instalação
+  transacional de produtos com preview. Consulte o
+  [guia de perfis e componentes](docs/ide-component-management.pt-BR.md).
 * `boss4d config delphi use <caminho_ou_versao>`
   Configura o caminho global do Delphi ou a versão de release (ex: "23.0", "22.0") para a compilação do MSBuild. Se não configurado, o resolvedor autodetecta dinamicamente a versão mais recente instalada.
 * `boss4d config git shallow <true/false>`
@@ -169,6 +181,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Melhorias de Build Determinístico](docs/build-improvements.pt-BR.md)**: Paths sem colisão, toolchains, projetos declarados, Lazarus, scaffolding e normalização.
 * **[Guia e Contrato da Matriz de Build](docs/build-matrix-contract.pt-BR.md)**: Schema, fluxo da CLI, convenções, migração, diagnóstico, troubleshooting e critérios para builds Delphi multiversão.
 * **[Build de Componentes e Ciclo de Vida da IDE](docs/component-build-and-ide.pt-BR.md)**: Guia completo de tipos, níveis de suporte, cache compartilhado, ativos da IDE, conflitos, reparo ativo e remoção segura.
+* **[Perfis da IDE e Gerenciamento de Componentes](docs/ide-component-management.pt-BR.md)**: Registry branches isolados, produtos runtime/design, vínculo por projeto, snapshots, drift, restauração/undo, fluxos CLI/GUI e exemplos cotidianos.
 * **[Ciclo de Vida de Dependências](docs/dependency-lifecycle.pt-BR.md)**: Add, update e remove transacionais, além de list e why baseados no grafo.
 * **[Instalação Reproduzível](docs/reproducible-install.pt-BR.md)**: Lock congelado, cache offline, instalação limpa em CI e garantias de rollback.
 * **[Escopos de Dependências](docs/dependency-scopes.pt-BR.md)**: `devDependencies`, instalação de produção, lock v3 e escopo no SBOM.
@@ -184,10 +197,12 @@ cd /d d:\Projetos\BossDelphi
 * **[Autoatualização Segura](docs/self-update.pt-BR.md)**: Descoberta de release, verificação SHA-256, staging e início do instalador.
 * **[Matriz de Artefatos da Release](docs/release-artifact-matrix.pt-BR.md)**: Builders Windows/Linux, checksums, proveniência OIDC e gates de promoção.
 * **[Onboarding de Publishers](docs/publisher-onboarding.pt-BR.md)**: Identidade, signatários e metadados imutáveis do Registry público.
+* **[Plano de Migração do Registry](docs/registry-migration-plan.pt-BR.md)**: Ondas curadas para migrar descoberta legada para pacotes schema v2 assinados.
 * **[Auditoria Final de Paridade](docs/parity-audit-2026-07-30.pt-BR.md)**: Evidência de implementação e verificação para cada requisito.
 * **[Formato de Pacote Imutável](docs/package-format.pt-BR.md)**: `.b4dpkg` determinístico, instalação verificada, evidências OpenPGP/in-toto, fallback para fontes e variantes por compilador/plataforma.
 * **[Compatibilidade com Delphi Legado](docs/legacy-delphi.pt-BR.md)**: Wizard moderno completo e perfis legados para Delphi 10 Seattle/BDS 17.0 e Delphi 10.1 Berlin/BDS 18.0.
 * **[CLI FPC/Linux](docs/posix-cli.pt-BR.md)**: Build Linux nativo, ciclo de dependências, lock v3, CI frozen/offline, resolução SemVer e testes FPCUnit.
+* **[Documentação Estática de APIs](docs/api-documentation.pt-BR.md)**: Motivação, sintaxe, declarações suportadas, varredura segura, uso em CI e limites atuais.
 * **[Posicionamento competitivo](docs/competitive-positioning.pt-BR.md)**: Comparação baseada em evidências com BOSS, DPM, GetIt, OPM do Lazarus e ecossistemas maduros.
 * **[Resolução e Credenciais Seguras](docs/resolution-and-credentials.pt-BR.md)**: Políticas SemVer highest/minimal e armazenamento nativo de segredos.
 * **[Conformidade e Ecossistema](docs/conformance-and-ecosystem.pt-BR.md)**: Validação pública do protocolo, portal estático e benchmarks determinísticos.

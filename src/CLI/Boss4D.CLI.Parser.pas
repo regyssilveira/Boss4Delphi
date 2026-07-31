@@ -84,6 +84,10 @@ type
     procedure HandleUpdate(const AArgs: TArray<string>);
     procedure HandleList;
     procedure HandleWhy(const AArgs: TArray<string>);
+    procedure HandlePin(const AArgs: TArray<string>; const APin: Boolean);
+    procedure HandleVersionChange(const AArgs: TArray<string>;
+      const AUpgrade: Boolean);
+    procedure HandleVersionRollback(const AArgs: TArray<string>);
     procedure HandleAudit(const AArgs: TArray<string>);
     procedure HandleRegistry(const AArgs: TArray<string>);
     procedure HandleSearch(const AArgs: TArray<string>);
@@ -95,6 +99,7 @@ type
     procedure HandleCache(const AArgs: TArray<string>);
     procedure HandleRun(const AArgs: TArray<string>);
     procedure HandleDoctor(const AArgs: TArray<string>);
+    procedure HandleDoc(const AArgs: TArray<string>);
     procedure HandleLicense(const AArgs: TArray<string>);
     procedure HandleTree(const AArgs: TArray<string>);
     procedure HandleOutdated(const AArgs: TArray<string>);
@@ -110,6 +115,7 @@ type
     procedure HandleBuild(const AArgs: TArray<string>);
     procedure HandleSupport(const AArgs: TArray<string>);
     procedure HandleIDEUninstall(const AArgs: TArray<string>);
+    procedure HandleIDEProfile(const AArgs: TArray<string>);
     procedure HandleIDE(const AArgs: TArray<string>);
     function ParseSbomArguments(
       const AArgs: TArray<string>): TBoss4DSbomCommandOptions;
@@ -150,28 +156,41 @@ uses
   Boss4D.Adapters.Sbom.Security,
   Boss4D.Adapters.Security.Gpg,
   Boss4D.Core.Domain.Dependency,
+  Boss4D.Core.Domain.SemVer,
   Boss4D.Core.Domain.Package,
   Boss4D.Core.Domain.Lock,
   Boss4D.Core.Domain.Sbom,
   Boss4D.Core.Domain.Env,
   Boss4D.Core.Domain.Consts,
+  Boss4D.Core.Domain.IDEProfile,
   Boss4D.Core.Platform,
   Boss4D.Core.Services.Dependencies,
+  Boss4D.Core.Services.VersionHistory,
   Boss4D.Core.Services.Audit,
   Boss4D.Core.Services.PackageIndex,
   Boss4D.Core.Services.DependencySubmission,
   Boss4D.Core.Services.Publish,
+  Boss4D.Core.Services.OfficialPublish,
+  Boss4D.Core.Services.RegistrySubmission,
+  Boss4D.Core.Services.RegistryCheckout,
+  Boss4D.Core.Services.RegistryPullRequest,
+  Boss4D.Core.Services.RegistryHealth,
   Boss4D.Core.Services.SelfUpdate,
   Boss4D.Core.Services.Pack,
   Boss4D.Core.Services.Resolver,
   Boss4D.Core.Services.Conformance,
   Boss4D.Core.Services.RegistryPortal,
+  Boss4D.Core.Services.Documentation,
   Boss4D.Core.Services.PackageInstall,
   Boss4D.Core.Services.BuildSpec,
   Boss4D.Core.Services.BuildConventions,
   Boss4D.Core.Services.BuildCapabilities,
   Boss4D.Core.Services.BuildDoctor,
-  Boss4D.Core.Services.IDERegistration;
+  Boss4D.Core.Services.IDERegistration,
+  Boss4D.Core.Services.IDEProfiles,
+  Boss4D.Core.Services.IDEProfileApplication,
+  Boss4D.Core.Services.IDEOperationResult,
+  Boss4D.Core.Services.IDEProcessPolicy;
 
 class function TBoss4DParserRuntime.Create(const ACompiler: IBoss4DCompiler;
   const ARegistrationHandler: TBoss4DIDERegistrationHandler;
@@ -241,7 +260,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -q, --quiet (modo silencioso).');
   FLogger.Log(TBoss4DLogLevel.Info, '  install              Instala todas as dependencias declaradas no boss.json.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -p, --platform <plataforma> (Win32, Win64, Linux64, etc.).');
-  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --locked, --frozen-lockfile, --offline, --production, --no-register, --progress plain|interactive, --json, --quiet.');
+  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --locked, --frozen-lockfile, --offline, --production, --jobs n, --no-register, --progress plain|interactive, --json, --quiet.');
   FLogger.Log(TBoss4DLogLevel.Info, '  install <dep>        Instala uma dependencia especifica.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Exemplo: boss4d install github.com/hashload/horse@^3.0.0');
   FLogger.Log(TBoss4DLogLevel.Info, '  add <dep> [--dev]    Adiciona dependencia de runtime ou desenvolvimento.');
@@ -249,14 +268,21 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  update [dep]         Atualiza uma ou todas as dependencias.');
   FLogger.Log(TBoss4DLogLevel.Info, '  list                 Lista dependencias diretas e transitivas.');
   FLogger.Log(TBoss4DLogLevel.Info, '  why <dep>            Explica por que uma dependencia foi instalada.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  pin|unpin <dep>      Fixa no lock ou restaura uma faixa SemVer compativel.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  upgrade|downgrade <dep>@<versao> Troca versao com snapshot transacional.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  rollback             Restaura o ultimo snapshot de versao.');
   FLogger.Log(TBoss4DLogLevel.Info, '  audit               Consulta vulnerabilidades OSV por revisao do lock.');
-  FLogger.Log(TBoss4DLogLevel.Info, '  registry add|remove|list Gerencia indices publicos e privados.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  doc [-o pasta] [--no-dependencies] Gera site estatico da API Pascal.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  registry add|remove|list|health Gerencia e audita indices.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  registry portal|search-index <entrada> <saida> Gera artefatos estaticos do catalogo.');
   FLogger.Log(TBoss4DLogLevel.Info, '  search <termo>       Pesquisa pacotes nos indices configurados.');
   FLogger.Log(TBoss4DLogLevel.Info, '  info <pacote>        Exibe metadados de um pacote indexado.');
-  FLogger.Log(TBoss4DLogLevel.Info, '  package install <pacote> Instala .b4dpkg verificado; aceita --platform e --compiler.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  package install <pacote>[@range] Instala .b4dpkg versionado e verificado.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  package versions <pacote> Lista versoes publicadas e revogadas.');
   FLogger.Log(TBoss4DLogLevel.Info, '  dependency submit    Envia snapshot ao GitHub Dependency Graph.');
   FLogger.Log(TBoss4DLogLevel.Info, '  publish              Publica pacote com validacoes; use --dry-run para inspecionar.');
-  FLogger.Log(TBoss4DLogLevel.Info, '  ci [--offline]       Reinstala limpo usando o lock sem altera-lo; aceita --progress, --json e --quiet.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  publish --official [--registry-root dir] [--open-pr] Publica bundle assinado no Registry.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  ci [--offline]       Reinstala limpo usando o lock sem altera-lo; aceita --jobs, --progress, --json e --quiet.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config delphi use <caminho>  Configura o caminho global do compilador Delphi.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config git shallow <true/false> Configura uso de shallow clones globais.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config auth <github/gitlab> <token> Configura tokens de autenticacao global.');
@@ -340,6 +366,16 @@ begin
     HandleList
   else if LCommand = 'why' then
     HandleWhy(AArgs)
+  else if LCommand = 'pin' then
+    HandlePin(AArgs, True)
+  else if LCommand = 'unpin' then
+    HandlePin(AArgs, False)
+  else if LCommand = 'upgrade' then
+    HandleVersionChange(AArgs, True)
+  else if LCommand = 'downgrade' then
+    HandleVersionChange(AArgs, False)
+  else if LCommand = 'rollback' then
+    HandleVersionRollback(AArgs)
   else if LCommand = 'audit' then
     HandleAudit(AArgs)
   else if LCommand = 'registry' then
@@ -362,6 +398,8 @@ begin
     HandleRun(AArgs)
   else if LCommand = 'doctor' then
     HandleDoctor(AArgs)
+  else if LCommand = 'doc' then
+    HandleDoc(AArgs)
   else if LCommand = 'license' then
     HandleLicense(AArgs)
   else if LCommand = 'tree' then
@@ -526,6 +564,451 @@ begin
     'Pacote removido de todas as IDEs: %d registros.', [LCount]);
 end;
 
+procedure TBoss4DCommandLineParser.HandleIDEProfile(
+  const AArgs: TArray<string>);
+var
+  LStore: TBoss4DIDEProfileStore;
+  LService: TBoss4DIDEProfileService;
+  LProfile: TBoss4DIDEProfile;
+  LCompiler: string;
+  LDescription: string;
+  LExecutable: string;
+  LBuildInventory: TBoss4DBuildInventory;
+  LApplication: TBoss4DIDEProfileApplication;
+  LCompilerService: IBoss4DCompiler;
+  LLockRepository: IBoss4DLockRepository;
+  I: Integer;
+begin
+  if Length(AArgs) < 3 then
+    raise EArgumentException.Create(
+      'Uso: boss4d ide profile list|create|show|target|clone|remove|' +
+      'export|import|snapshot|diff|restore|project|history|undo|launch|' +
+      'preview-install|install|' +
+      'preview-uninstall|uninstall|repair.');
+  LStore := TBoss4DIDEProfileStore.Create(TPath.Combine(
+    GetBossHome, 'ide-profiles.json'));
+  LService := TBoss4DIDEProfileService.Create(LStore,
+    TPath.Combine(GetBossHome, 'ide-profiles'));
+  LBuildInventory := TBoss4DBuildInventory.Create(TPath.Combine(
+    GetBossHome, 'build-inventory.json'));
+  LBuildInventory.Load;
+  LCompilerService := FCompiler;
+  if not Assigned(LCompilerService) then
+    LCompilerService := TBoss4DDelphiCompilerAdapter.Create(
+      FRegistry, FLogger);
+  LLockRepository := TBoss4DLockJsonRepository.Create;
+  LApplication := TBoss4DIDEProfileApplication.Create(
+    LService, LBuildInventory, FPackageRepo, LLockRepository,
+    LCompilerService, FLogger,
+    function(const AProfile: TBoss4DIDEProfile):
+      TBoss4DIDERegistrationService
+    begin
+      Result := TBoss4DIDERegistrationService.Create(
+        TBoss4DWindowsIDERegistryStore.Create,
+        AProfile.InventoryPath, nil, nil, AProfile.Id, 30000,
+        nil, AProfile.Executable, AProfile.RegistryRoot);
+    end,
+    TBoss4DJsonIDEOperationResultStore.Create(TPath.Combine(
+      GetBossHome, 'ide-operation-results')));
+  try
+    if SameText(AArgs[2], 'list') then
+    begin
+      var LProfiles := LService.List;
+      try
+        for LProfile in LProfiles do
+          FLogger.Log(TBoss4DLogLevel.Info,
+            '%s  %s  Delphi %s  %s',
+            [LProfile.Id, LProfile.Name, LProfile.Compiler,
+             LProfile.RegistryBranch]);
+      finally
+        LProfiles.Free;
+      end;
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'create') then
+    begin
+      if Length(AArgs) < 4 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile create <nome> --compiler <versao>.');
+      I := 4;
+      while I < Length(AArgs) do
+      begin
+        if I + 1 >= Length(AArgs) then
+          raise EArgumentException.Create(
+            'Informe um valor para ' + AArgs[I] + '.');
+        if SameText(AArgs[I], '--compiler') then
+          LCompiler := AArgs[I + 1]
+        else if SameText(AArgs[I], '--description') then
+          LDescription := AArgs[I + 1]
+        else if SameText(AArgs[I], '--executable') then
+          LExecutable := AArgs[I + 1]
+        else
+          raise EArgumentException.Create(
+            'Opcao desconhecida para ide profile create: ' + AArgs[I]);
+        Inc(I, 2);
+      end;
+      if LCompiler.Trim.IsEmpty then
+        raise EArgumentException.Create('--compiler e obrigatorio.');
+      LCompiler := TBoss4DBuildConventions.ResolveCompiler(
+        LCompiler).BDSVersion;
+      if LExecutable.Trim.IsEmpty then
+      begin
+        var LIDEPath := FRegistry.GetDelphiPath(LCompiler);
+        if not LIDEPath.Trim.IsEmpty then
+          LExecutable := TPath.Combine(LIDEPath, 'bin\bds.exe');
+      end;
+      LProfile := LService.CreateProfile(AArgs[3], LDescription,
+        LCompiler, LExecutable);
+      try
+        FLogger.Log(TBoss4DLogLevel.Info,
+          'Perfil IDE criado: %s (%s).',
+          [LProfile.Id, LProfile.RegistryBranch]);
+      finally
+        LProfile.Free;
+      end;
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'show') then
+    begin
+      if Length(AArgs) <> 4 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile show <perfil>.');
+      LProfile := LService.Get(AArgs[3]);
+      try
+        FLogger.Log(TBoss4DLogLevel.Info,
+          '%s | Delphi %s | branch %s | packages: %s',
+          [LProfile.Name, LProfile.Compiler, LProfile.RegistryBranch,
+           string.Join(', ', LProfile.Packages.ToArray)]);
+      finally
+        LProfile.Free;
+      end;
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'clone') then
+    begin
+      if Length(AArgs) <> 5 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile clone <origem> <novo-nome>.');
+      LProfile := LService.CloneProfile(AArgs[3], AArgs[4]);
+      try
+        FLogger.Log(TBoss4DLogLevel.Info,
+          'Perfil IDE clonado: %s.', [LProfile.Id]);
+      finally
+        LProfile.Free;
+      end;
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'target') then
+    begin
+      if Length(AArgs) <> 8 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile target <perfil> ' +
+          '--platform <plataforma> --configuration <configuracao>.');
+      var LPlatform := '';
+      var LConfiguration := '';
+      I := 4;
+      while I < Length(AArgs) do
+      begin
+        if I + 1 >= Length(AArgs) then
+          raise EArgumentException.Create(
+            'Informe um valor para ' + AArgs[I] + '.');
+        if SameText(AArgs[I], '--platform') then
+          LPlatform := AArgs[I + 1]
+        else if SameText(AArgs[I], '--configuration') then
+          LConfiguration := AArgs[I + 1]
+        else
+          raise EArgumentException.Create(
+            'Opcao desconhecida para ide profile target: ' + AArgs[I]);
+        Inc(I, 2);
+      end;
+      LService.ConfigureTarget(AArgs[3], LPlatform, LConfiguration);
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Target do perfil %s: %s/%s.',
+        [AArgs[3], LPlatform, LConfiguration]);
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'remove') then
+    begin
+      if Length(AArgs) <> 4 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile remove <perfil>.');
+      LService.Remove(AArgs[3]);
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Perfil IDE removido: %s.', [AArgs[3]]);
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'export') then
+    begin
+      if (Length(AArgs) <> 6) or
+         not SameText(AArgs[4], '--output') then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile export <perfil> --output <arquivo>.');
+      LService.ExportProfile(AArgs[3], AArgs[5]);
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'import') then
+    begin
+      if Length(AArgs) <> 4 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile import <arquivo>.');
+      LProfile := LService.ImportProfile(AArgs[3]);
+      try
+        FLogger.Log(TBoss4DLogLevel.Info,
+          'Perfil IDE importado: %s.', [LProfile.Id]);
+      finally
+        LProfile.Free;
+      end;
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'snapshot') then
+    begin
+      if (Length(AArgs) <> 6) or
+         not SameText(AArgs[4], '--output') then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile snapshot <perfil> --output <arquivo>.');
+      LService.CreateSnapshot(AArgs[3], AArgs[5]);
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Snapshot do perfil %s criado em %s.', [AArgs[3], AArgs[5]]);
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'diff') then
+    begin
+      if Length(AArgs) <> 5 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile diff <perfil> <snapshot>.');
+      var LDrift := LService.CompareSnapshot(AArgs[3], AArgs[4]);
+      try
+        if LDrift.Count = 0 then
+          FLogger.Log(TBoss4DLogLevel.Info,
+            'Perfil %s corresponde ao snapshot.', [AArgs[3]])
+        else
+          FLogger.Log(TBoss4DLogLevel.Warning,
+            'Drift no perfil %s: %s.',
+            [AArgs[3], string.Join(', ', LDrift.ToArray)]);
+      finally
+        LDrift.Free;
+      end;
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'restore') then
+    begin
+      if Length(AArgs) <> 4 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile restore <snapshot>.');
+      LProfile := LService.RestoreSnapshot(AArgs[3]);
+      try
+        FLogger.Log(TBoss4DLogLevel.Info,
+          'Perfil restaurado: %s.', [LProfile.Id]);
+      finally
+        LProfile.Free;
+      end;
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'project') then
+    begin
+      if Length(AArgs) > 4 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile project [boss.json].');
+      var LManifestPath := TPath.Combine(
+        TDirectory.GetCurrentDirectory, 'boss.json');
+      if Length(AArgs) = 4 then
+        LManifestPath := AArgs[3];
+      var LProjectPackage := FPackageRepo.Load(
+        TPath.GetFullPath(LManifestPath));
+      try
+        LProfile := LService.ResolveForPackage(LProjectPackage);
+        try
+          FLogger.Log(TBoss4DLogLevel.Info,
+            'Perfil do projeto: %s (Delphi %s, %s/%s).',
+            [LProfile.Id, LProfile.Compiler, LProfile.DefaultPlatform,
+             LProfile.DefaultConfiguration]);
+        finally
+          LProfile.Free;
+        end;
+      finally
+        LProjectPackage.Free;
+      end;
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'undo') then
+    begin
+      if Length(AArgs) <> 3 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile undo.');
+      var LSummary := LApplication.UndoLatest;
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Ultima operacao IDE desfeita: %d alteracoes, %d builds.',
+        [LSummary.Affected, LSummary.Built + LSummary.Restored]);
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'history') then
+    begin
+      if Length(AArgs) <> 3 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile history.');
+      var LHistoryStore := TBoss4DJsonIDEOperationResultStore.Create(
+        TPath.Combine(GetBossHome, 'ide-operation-results'));
+      try
+        var LHistory := LHistoryStore.History;
+        try
+          for var LItem in LHistory do
+            FLogger.Log(TBoss4DLogLevel.Info,
+              '%s  %s  %s  %s  %s',
+              [LItem.StartedAt,
+               TBoss4DIDEOperationStatuses.NameOf(LItem.Status),
+               LItem.Kind, LItem.Profile, LItem.Target]);
+          FLogger.Log(TBoss4DLogLevel.Info,
+            '%d operacao(oes) no historico.', [LHistory.Count]);
+        finally
+          LHistory.Free;
+        end;
+      finally
+        LHistoryStore.Free;
+      end;
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'launch') then
+    begin
+      if Length(AArgs) <> 4 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile launch <perfil>.');
+      LService.Launch(AArgs[3]);
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'preview-install') then
+    begin
+      if Length(AArgs) <> 5 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile preview-install <perfil> <produto>.');
+      var LPlan := LApplication.PreviewInstall(AArgs[3], AArgs[4]);
+      try
+        FLogger.Log(TBoss4DLogLevel.Info,
+          'Preview: %d targets, %d copias de arquivo.',
+          [LPlan.Targets.Count, LPlan.Files.Count]);
+      finally
+        LPlan.Free;
+      end;
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'install') then
+    begin
+      if Length(AArgs) < 5 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile install <perfil> <produto> ' +
+          '[--conflict fail|warn|adopt|replace] ' +
+          '[--ide-open fail|defer|force].');
+      var LConflictPolicy := TBoss4DIDEConflictPolicy.Fail;
+      var LOpenPolicy := TBoss4DIDEOpenPolicy.Fail;
+      I := 5;
+      while I < Length(AArgs) do
+      begin
+        if I + 1 >= Length(AArgs) then
+          raise EArgumentException.Create(
+            'Informe um valor para ' + AArgs[I] + '.');
+        if SameText(AArgs[I], '--conflict') then
+        begin
+          if SameText(AArgs[I + 1], 'fail') then
+            LConflictPolicy := TBoss4DIDEConflictPolicy.Fail
+          else if SameText(AArgs[I + 1], 'warn') then
+            LConflictPolicy := TBoss4DIDEConflictPolicy.Warn
+          else if SameText(AArgs[I + 1], 'adopt') then
+            LConflictPolicy := TBoss4DIDEConflictPolicy.Adopt
+          else if SameText(AArgs[I + 1], 'replace') then
+            LConflictPolicy := TBoss4DIDEConflictPolicy.Replace
+          else
+            raise EArgumentException.Create(
+              'Politica de conflito invalida: ' + AArgs[I + 1]);
+        end
+        else if SameText(AArgs[I], '--ide-open') then
+        begin
+          if SameText(AArgs[I + 1], 'fail') then
+            LOpenPolicy := TBoss4DIDEOpenPolicy.Fail
+          else if SameText(AArgs[I + 1], 'defer') then
+            LOpenPolicy := TBoss4DIDEOpenPolicy.Defer
+          else if SameText(AArgs[I + 1], 'force') then
+            LOpenPolicy := TBoss4DIDEOpenPolicy.Force
+          else
+            raise EArgumentException.Create(
+              'Politica de IDE aberta invalida: ' + AArgs[I + 1]);
+        end
+        else
+          raise EArgumentException.Create(
+            'Opcao desconhecida para profile install: ' + AArgs[I]);
+        Inc(I, 2);
+      end;
+      var LSummary := LApplication.Install(AArgs[3], AArgs[4],
+        LConflictPolicy, LOpenPolicy);
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Perfil instalado: %d builds, %d restaurados, %d registros.',
+        [LSummary.Built, LSummary.Restored, LSummary.Affected]);
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'preview-uninstall') then
+    begin
+      if Length(AArgs) <> 5 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile preview-uninstall <perfil> <produto>.');
+      var LPlan := LApplication.PreviewUninstall(AArgs[3], AArgs[4]);
+      try
+        FLogger.Log(TBoss4DLogLevel.Info,
+          'Preview: %d targets, %d arquivos, %d valores de Registro.',
+          [LPlan.Targets.Count, LPlan.Files.Count, LPlan.Changes.Count]);
+      finally
+        LPlan.Free;
+      end;
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'uninstall') then
+    begin
+      if Length(AArgs) <> 5 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile uninstall <perfil> <produto>.');
+      var LSummary := LApplication.Uninstall(AArgs[3], AArgs[4]);
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Perfil atualizado: %d registros removidos.',
+        [LSummary.Affected]);
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'repair') then
+    begin
+      if Length(AArgs) <> 4 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile repair <perfil>.');
+      var LSummary := LApplication.Repair(AArgs[3]);
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Perfil reparado: %d registros.', [LSummary.Affected]);
+      Exit;
+    end;
+
+    raise EArgumentException.Create(
+      'Comando ide profile desconhecido: ' + AArgs[2]);
+  finally
+    LApplication.Free;
+    LBuildInventory.Free;
+    LService.Free;
+    LStore.Free;
+  end;
+end;
+
 procedure TBoss4DCommandLineParser.HandleIDE(
   const AArgs: TArray<string>);
 var
@@ -546,6 +1029,11 @@ begin
   LRegistrationService := nil;
   LInventory := nil;
   try
+    if SameText(AArgs[1], 'profile') then
+    begin
+      HandleIDEProfile(AArgs);
+      Exit;
+    end;
     if SameText(AArgs[1], 'repair') then
     begin
       if Length(AArgs) <> 2 then
@@ -880,7 +1368,12 @@ var
   LService: TBoss4DPublishService;
   LLockRepo: IBoss4DLockRepository;
   LHttp: IBoss4DHttpClient;
-  LPayload, LOutputPath, LTokenEnvironment: string;
+  LPayload, LOutputPath, LTokenEnvironment, LPublisher, LRepository,
+    LFingerprint, LSigningKey, LArtifactUrl, LArtifactOutput,
+    LSubmissionOutput, LRegistryRoot, LRegistryBranch, LRegistryRemote,
+    LRegistryBase, LRegistryPrRepository, LRegistryPrHead: string;
+  LOfficial, LUserDryRun, LAppendVersion, LOpenPr,
+    LKeepOfficialOutputs: Boolean;
   I: Integer;
   LEncoding: TEncoding;
 begin
@@ -888,18 +1381,48 @@ begin
   LOptions.RequireCleanGit := True;
   LOptions.RunTests := True;
   LTokenEnvironment := 'BOSS4D_PUBLISH_TOKEN';
+  LOfficial := False;
+  LUserDryRun := False;
+  LAppendVersion := False;
+  LOpenPr := False;
+  LKeepOfficialOutputs := False;
+  LRegistryRemote := 'origin';
+  LRegistryBase := 'main';
+  LRegistryPrRepository := 'regyssilveira/Boss4Delphi';
   I := 1;
   while I < Length(AArgs) do
   begin
     if SameText(AArgs[I], '--dry-run') then
-      LOptions.DryRun := True
+    begin
+      LOptions.DryRun := True;
+      LUserDryRun := True;
+    end
+    else if SameText(AArgs[I], '--official') then
+      LOfficial := True
+    else if SameText(AArgs[I], '--append-version') then
+      LAppendVersion := True
+    else if SameText(AArgs[I], '--open-pr') then
+      LOpenPr := True
     else if SameText(AArgs[I], '--allow-dirty') then
       LOptions.RequireCleanGit := False
     else if SameText(AArgs[I], '--skip-tests') then
       LOptions.RunTests := False
     else if SameText(AArgs[I], '--registry') or
             SameText(AArgs[I], '--token-env') or
-            SameText(AArgs[I], '--output') then
+            SameText(AArgs[I], '--output') or
+            SameText(AArgs[I], '--publisher') or
+            SameText(AArgs[I], '--repository') or
+            SameText(AArgs[I], '--fingerprint') or
+            SameText(AArgs[I], '--sign') or
+            SameText(AArgs[I], '--artifact-url') or
+            SameText(AArgs[I], '--artifact-output') or
+            SameText(AArgs[I], '--submission-output') or
+            SameText(AArgs[I], '--registry-root') or
+            SameText(AArgs[I], '--registry-branch') or
+            SameText(AArgs[I], '--registry-remote') or
+            SameText(AArgs[I], '--registry-base') or
+            SameText(AArgs[I], '--registry-pr-repo') or
+            SameText(AArgs[I], '--registry-pr-head') then
     begin
       if I + 1 >= Length(AArgs) then
         raise EArgumentException.Create('Informe um valor para ' + AArgs[I]);
@@ -908,6 +1431,32 @@ begin
         LOptions.RegistryUrl := AArgs[I]
       else if SameText(AArgs[I - 1], '--token-env') then
         LTokenEnvironment := AArgs[I]
+      else if SameText(AArgs[I - 1], '--publisher') then
+        LPublisher := AArgs[I]
+      else if SameText(AArgs[I - 1], '--repository') then
+        LRepository := AArgs[I]
+      else if SameText(AArgs[I - 1], '--fingerprint') then
+        LFingerprint := AArgs[I]
+      else if SameText(AArgs[I - 1], '--sign') then
+        LSigningKey := AArgs[I]
+      else if SameText(AArgs[I - 1], '--artifact-url') then
+        LArtifactUrl := AArgs[I]
+      else if SameText(AArgs[I - 1], '--artifact-output') then
+        LArtifactOutput := AArgs[I]
+      else if SameText(AArgs[I - 1], '--submission-output') then
+        LSubmissionOutput := AArgs[I]
+      else if SameText(AArgs[I - 1], '--registry-root') then
+        LRegistryRoot := AArgs[I]
+      else if SameText(AArgs[I - 1], '--registry-branch') then
+        LRegistryBranch := AArgs[I]
+      else if SameText(AArgs[I - 1], '--registry-remote') then
+        LRegistryRemote := AArgs[I]
+      else if SameText(AArgs[I - 1], '--registry-base') then
+        LRegistryBase := AArgs[I]
+      else if SameText(AArgs[I - 1], '--registry-pr-repo') then
+        LRegistryPrRepository := AArgs[I]
+      else if SameText(AArgs[I - 1], '--registry-pr-head') then
+        LRegistryPrHead := AArgs[I]
       else
         LOutputPath := AArgs[I];
     end
@@ -916,6 +1465,13 @@ begin
         'Opcao desconhecida para publish: ' + AArgs[I]);
     Inc(I);
   end;
+  if LOfficial then
+    LOptions.DryRun := True;
+  if LOpenPr and not LOfficial then
+    raise EArgumentException.Create('--open-pr exige --official.');
+  if LOpenPr and LRegistryRoot.IsEmpty then
+    raise EArgumentException.Create(
+      '--open-pr exige --registry-root.');
   LOptions.Token := GetEnvironmentVariable(LTokenEnvironment);
   LLockRepo := TBoss4DLockJsonRepository.Create;
   LHttp := TBoss4DHttpNativeAdapter.Create;
@@ -924,6 +1480,146 @@ begin
   try
     LPayload := LService.Execute(GetBossFile,
       TPath.Combine(GetCurrentDir, FILE_PACKAGE_LOCK), LOptions);
+    if LOfficial then
+    begin
+      var LPackage := FPackageRepo.Load(GetBossFile);
+      try
+        if LArtifactOutput.IsEmpty then
+          LArtifactOutput := TPath.Combine(GetCurrentDir,
+            Format('dist\%s-%s.b4dpkg',
+              [LPackage.Name, LPackage.Version]));
+        if LSubmissionOutput.IsEmpty then
+          LSubmissionOutput := TPath.Combine(GetCurrentDir,
+            Format('dist\%s-%s.registry.json',
+              [LPackage.Name, LPackage.Version]));
+        var LOfficialOptions := Default(TBoss4DOfficialPublishOptions);
+        LOfficialOptions.ProjectDirectory := GetCurrentDir;
+        LOfficialOptions.PackageName := LPackage.Name;
+        LOfficialOptions.Publisher := LPublisher;
+        LOfficialOptions.Repository := LRepository;
+        LOfficialOptions.SignerFingerprint := LFingerprint;
+        LOfficialOptions.SigningKey := LSigningKey;
+        LOfficialOptions.Version := LPackage.Version;
+        LOfficialOptions.ArtifactUrl := LArtifactUrl;
+        LOfficialOptions.Description := LPackage.Description;
+        LOfficialOptions.License := LPackage.License;
+        LOfficialOptions.ArtifactOutput := LArtifactOutput;
+        LOfficialOptions.SubmissionOutput := LSubmissionOutput;
+        TBoss4DOfficialPublishService.ValidateOptions(LOfficialOptions);
+        if LRegistryBranch.IsEmpty then
+          LRegistryBranch :=
+            TBoss4DRegistryPullRequestService.DefaultBranch(
+              LPackage.Name, LPackage.Version);
+        if LRegistryPrHead.IsEmpty then
+          LRegistryPrHead := LRegistryBranch;
+        var LPullRequestOptions :=
+          Default(TBoss4DRegistryPullRequestOptions);
+        LPullRequestOptions.RegistryRoot := LRegistryRoot;
+        LPullRequestOptions.PackageName := LPackage.Name;
+        LPullRequestOptions.Version := LPackage.Version;
+        LPullRequestOptions.Branch := LRegistryBranch;
+        LPullRequestOptions.PushRemote := LRegistryRemote;
+        LPullRequestOptions.BaseBranch := LRegistryBase;
+        LPullRequestOptions.PullRequestRepository :=
+          LRegistryPrRepository;
+        LPullRequestOptions.PullRequestHead := LRegistryPrHead;
+        if LUserDryRun then
+        begin
+          FLogger.Log(TBoss4DLogLevel.Info,
+            'Dry-run oficial aprovado: artefato=%s; submissao=%s',
+            [TPath.GetFullPath(LArtifactOutput),
+             TPath.GetFullPath(LSubmissionOutput)]);
+          Exit;
+        end;
+        var LOfficialService := TBoss4DOfficialPublishService.Create(
+          TBoss4DGpgPackageSigner.Create(Boss4DProcessRunner));
+        try
+          var LResult := LOfficialService.Prepare(LOfficialOptions);
+          try
+            if not LRegistryRoot.IsEmpty then
+            begin
+              var LPullRequestService:
+                TBoss4DRegistryPullRequestService := nil;
+              var LPullRequestSession :=
+                Default(TBoss4DRegistryPullRequestSession);
+              if LOpenPr then
+              begin
+                LPullRequestService :=
+                  TBoss4DRegistryPullRequestService.Create(
+                    Boss4DProcessRunner);
+                LPullRequestSession :=
+                  LPullRequestService.Start(LPullRequestOptions);
+              end;
+              var LCheckoutService :=
+                TBoss4DRegistryCheckoutService.Create;
+              try
+                var LCheckoutResult:
+                  TBoss4DRegistryCheckoutResult;
+                try
+                  LCheckoutResult := LCheckoutService.Apply(
+                    LRegistryRoot, LResult.SubmissionPath,
+                    LAppendVersion);
+                except
+                  if Assigned(LPullRequestService) then
+                  begin
+                    var LExpectedPackage := TPath.Combine(
+                      LRegistryRoot, 'registry\packages\' +
+                      TBoss4DRegistrySubmissionService.PackageSlug(
+                        LPackage.Name) + '.json');
+                    var LExpectedIndex := TPath.Combine(
+                      LRegistryRoot, 'registry\index-v2.json');
+                    LPullRequestService.Cancel(
+                      LPullRequestOptions, LPullRequestSession,
+                      LExpectedPackage, LExpectedIndex);
+                  end;
+                  raise;
+                end;
+                FLogger.Log(TBoss4DLogLevel.Info,
+                  'Checkout do Registry atualizado: ' +
+                  LCheckoutResult.PackagePath);
+                if Assigned(LPullRequestService) then
+                begin
+                  LKeepOfficialOutputs := True;
+                  var LPullRequestResult :=
+                    LPullRequestService.Submit(
+                      LPullRequestOptions, LPullRequestSession,
+                      LCheckoutResult.PackagePath,
+                      LCheckoutResult.IndexPath);
+                  FLogger.Log(TBoss4DLogLevel.Info,
+                    'Pull request criado: ' +
+                    LPullRequestResult.PullRequestUrl);
+                end;
+              finally
+                LCheckoutService.Free;
+                LPullRequestService.Free;
+              end;
+            end;
+            FLogger.Log(TBoss4DLogLevel.Info,
+              'Bundle oficial preparado: ' + LResult.ArtifactPath);
+            FLogger.Log(TBoss4DLogLevel.Info,
+              'Submissao para PR: ' + LResult.SubmissionPath);
+          except
+            if not LKeepOfficialOutputs then
+            begin
+              if TFile.Exists(LResult.SubmissionPath) then
+                TFile.Delete(LResult.SubmissionPath);
+              if TFile.Exists(LResult.SignaturePath) then
+                TFile.Delete(LResult.SignaturePath);
+              if TFile.Exists(LResult.ProvenancePath) then
+                TFile.Delete(LResult.ProvenancePath);
+              if TFile.Exists(LResult.ArtifactPath) then
+                TFile.Delete(LResult.ArtifactPath);
+            end;
+            raise;
+          end;
+        finally
+          LOfficialService.Free;
+        end;
+      finally
+        LPackage.Free;
+      end;
+      Exit;
+    end;
     if LOutputPath.IsEmpty then
     begin
       if LOptions.DryRun then
@@ -1081,6 +1777,94 @@ begin
   end;
 end;
 
+procedure TBoss4DCommandLineParser.HandlePin(const AArgs: TArray<string>;
+  const APin: Boolean);
+var
+  LService: TBoss4DDependencyService;
+begin
+  if Length(AArgs) <> 2 then
+    raise EArgumentException.Create('Uso: boss4d pin|unpin <dependencia>');
+  LService := TBoss4DDependencyService.Create(FPackageRepo,
+    TBoss4DLockJsonRepository.Create, FLogger);
+  try
+    if APin then
+      LService.Pin(AArgs[1])
+    else
+      LService.Unpin(AArgs[1]);
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleVersionChange(
+  const AArgs: TArray<string>; const AUpgrade: Boolean);
+var
+  LPkg: TBoss4DPackage;
+  LLock: TBoss4DLock;
+  LDependency: TBoss4DDependency;
+  LLocked: TBoss4DLockedDependency;
+  LFromVersion, LAction: string;
+  LHistory: TBoss4DVersionHistoryService;
+begin
+  if Length(AArgs) <> 2 then
+    raise EArgumentException.Create(
+      'Uso: boss4d upgrade|downgrade <dependencia>@<versao-exata>');
+  LDependency := TBoss4DDependency.ParseCommandLine(AArgs[1]);
+  try
+    if not TBoss4DSemVer.Create(LDependency.Version).IsValid then
+      raise EArgumentException.Create('Informe uma versao SemVer exata.');
+    LPkg := FPackageRepo.Load(GetBossFile);
+    try
+      if not LPkg.Dependencies.ContainsKey(LDependency.Repository) and
+         not LPkg.DevDependencies.ContainsKey(LDependency.Repository) then
+        raise EArgumentException.Create(
+          'Dependencia nao declarada: ' + LDependency.Repository);
+    finally
+      LPkg.Free;
+    end;
+    LLock := TBoss4DLockJsonRepository.Create.Load(
+      TPath.Combine(GetCurrentDir, FILE_PACKAGE_LOCK));
+    try
+      if not LLock.Installed.TryGetValue(LDependency.GetKey, LLocked) then
+        raise EArgumentException.Create('Dependencia ausente do lock.');
+      LFromVersion := LLocked.Version;
+    finally
+      LLock.Free;
+    end;
+    if AUpgrade and not (TBoss4DSemVer.Create(LDependency.Version) >
+       TBoss4DSemVer.Create(LFromVersion)) then
+      raise EArgumentException.Create('A versao de upgrade deve ser maior.')
+    else if not AUpgrade and not (TBoss4DSemVer.Create(LDependency.Version) <
+       TBoss4DSemVer.Create(LFromVersion)) then
+      raise EArgumentException.Create('A versao de downgrade deve ser menor.');
+    if AUpgrade then LAction := 'upgrade' else LAction := 'downgrade';
+    LHistory := TBoss4DVersionHistoryService.Create(GetCurrentDir);
+    try
+      LHistory.Capture(LAction, LDependency.Repository, LFromVersion,
+        LDependency.Version);
+      FInstallService.Execute(AArgs[1]);
+    finally
+      LHistory.Free;
+    end;
+  finally
+    LDependency.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleVersionRollback(
+  const AArgs: TArray<string>);
+begin
+  if Length(AArgs) <> 1 then
+    raise EArgumentException.Create('Uso: boss4d rollback');
+  var LHistory := TBoss4DVersionHistoryService.Create(GetCurrentDir);
+  try
+    var LId := LHistory.RestoreLatest;
+    FLogger.Log(TBoss4DLogLevel.Info, 'Snapshot restaurado: ' + LId);
+  finally
+    LHistory.Free;
+  end;
+end;
+
 procedure TBoss4DCommandLineParser.HandleAudit(const AArgs: TArray<string>);
 var
   LOptions: TBoss4DAuditOptions;
@@ -1142,17 +1926,50 @@ var
 begin
   if Length(AArgs) < 2 then
     raise EArgumentException.Create(
-      'Uso: boss4d registry add|remove|list [origem]');
+      'Uso: boss4d registry add|remove|list|health [origem]');
+  if SameText(AArgs[1], 'health') and (Length(AArgs) in [2, 3]) then
+  begin
+    var LRoot := GetCurrentDir;
+    if Length(AArgs) = 3 then
+      LRoot := AArgs[2];
+    var LHealthService := TBoss4DRegistryHealthService.Create;
+    try
+      var LHealth := LHealthService.Audit(LRoot);
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Saude do Registry: ' + LHealth.Summary);
+      if not LHealth.Passed then
+        raise Exception.Create(
+          'Auditoria de saude do Registry falhou.');
+    finally
+      LHealthService.Free;
+    end;
+    Exit;
+  end;
   if (Length(AArgs) = 4) and SameText(AArgs[1], 'portal') then
   begin
     var LPortal := TBoss4DRegistryPortalService.Create;
     try
-      var LHtml := LPortal.Generate(TFile.ReadAllText(
-        TPath.GetFullPath(AArgs[2]), TEncoding.UTF8));
+      var LHtml := LPortal.GenerateFromFile(
+        TPath.GetFullPath(AArgs[2]));
       TFile.WriteAllText(TPath.GetFullPath(AArgs[3]), LHtml,
         TEncoding.UTF8);
       FLogger.Log(TBoss4DLogLevel.Info,
         'Portal de registry gerado: ' + TPath.GetFullPath(AArgs[3]));
+    finally
+      LPortal.Free;
+    end;
+    Exit;
+  end;
+  if (Length(AArgs) = 4) and SameText(AArgs[1], 'search-index') then
+  begin
+    var LPortal := TBoss4DRegistryPortalService.Create;
+    try
+      var LIndex := LPortal.GenerateSearchIndexFromFile(
+        TPath.GetFullPath(AArgs[2]));
+      TFile.WriteAllText(TPath.GetFullPath(AArgs[3]), LIndex,
+        TEncoding.UTF8);
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Indice de busca gerado: ' + TPath.GetFullPath(AArgs[3]));
     finally
       LPortal.Free;
     end;
@@ -1171,7 +1988,7 @@ begin
       LService.RemoveRegistry(AArgs[2])
     else
       raise EArgumentException.Create(
-        'Uso: boss4d registry add|remove|list [origem]');
+        'Uso: boss4d registry add|remove|list|health [origem]');
   finally
     LService.Free;
   end;
@@ -1239,14 +2056,41 @@ var
   LRequest: TBoss4DPackageInstallRequest;
   LDependency: TBoss4DDependency;
   LAllowFallback: Boolean;
-  LPlatform, LCompiler: string;
+  LPlatform, LCompiler, LPackageName, LVersionRange: string;
 begin
+  if (Length(AArgs) = 3) and SameText(AArgs[1], 'versions') then
+  begin
+    LIndex := TBoss4DPackageIndexService.Create(FConfigService,
+      TBoss4DHttpNativeAdapter.Create, FLogger);
+    try
+      var LVersions := LIndex.Versions(AArgs[2]);
+      if Length(LVersions) = 0 then
+        raise EArgumentException.Create('Pacote nao encontrado: ' + AArgs[2]);
+      for var LVersion in LVersions do
+        FLogger.Log(TBoss4DLogLevel.Info, LVersion);
+      Exit;
+    finally
+      LIndex.Free;
+    end;
+  end;
   if (Length(AArgs) < 3) or not SameText(AArgs[1], 'install') then
     raise EArgumentException.Create(
-      'Uso: boss4d package install <pacote> [--no-source-fallback].');
+      'Uso: boss4d package install <pacote[@range]> [--no-source-fallback] ' +
+      '[--platform <plataforma>] [--compiler <versao>] ou ' +
+      'boss4d package versions <pacote>.');
   LAllowFallback := True;
   LPlatform := '';
   LCompiler := '';
+  LPackageName := AArgs[2];
+  LVersionRange := '*';
+  var LAt := LPackageName.LastIndexOf('@');
+  if LAt > 0 then
+  begin
+    LVersionRange := LPackageName.Substring(LAt + 1);
+    LPackageName := LPackageName.Substring(0, LAt);
+    if LVersionRange.IsEmpty then
+      raise EArgumentException.Create('A faixa de versao nao pode ser vazia.');
+  end;
   var I := 3;
   while I < Length(AArgs) do
   begin
@@ -1267,11 +2111,21 @@ begin
   LIndex := TBoss4DPackageIndexService.Create(FConfigService,
     TBoss4DHttpNativeAdapter.Create, FLogger);
   try
-    LEntry := LIndex.Info(AArgs[2]);
+    LEntry := LIndex.Info(LPackageName);
     try
       if not Assigned(LEntry) then
-        raise EArgumentException.Create('Pacote nao encontrado: ' + AArgs[2]);
-      var LVariant := LEntry.SelectVariant(LPlatform, LCompiler);
+        raise EArgumentException.Create('Pacote nao encontrado: ' + LPackageName);
+      var LSelectedVersion := LEntry.ResolveVersion(LVersionRange);
+      if not Assigned(LSelectedVersion) then
+        raise EArgumentException.CreateFmt(
+          'Nenhuma versao nao revogada de %s atende %s.',
+          [LPackageName, LVersionRange]);
+      LEntry.LatestVersion := LSelectedVersion.Version;
+      LEntry.ArtifactUrl := LSelectedVersion.ArtifactUrl;
+      LEntry.ArtifactDigest := LSelectedVersion.ArtifactDigest;
+      LEntry.SignatureUrl := LSelectedVersion.SignatureUrl;
+      LEntry.ProvenanceUrl := LSelectedVersion.ProvenanceUrl;
+      var LVariant := LSelectedVersion.SelectVariant(LPlatform, LCompiler);
       if Assigned(LVariant) then
       begin
         LEntry.ArtifactUrl := LVariant.ArtifactUrl;
@@ -1279,7 +2133,7 @@ begin
         LEntry.SignatureUrl := LVariant.SignatureUrl;
         LEntry.ProvenanceUrl := LVariant.ProvenanceUrl;
       end
-      else if LEntry.Variants.Count > 0 then
+      else if LSelectedVersion.Variants.Count > 0 then
       begin
         LEntry.ArtifactUrl := '';
         LEntry.ArtifactDigest := '';
@@ -1293,12 +2147,21 @@ begin
           LEntry.LatestVersion);
         try
           LRequest := Default(TBoss4DPackageInstallRequest);
+          LRequest.PackageName := LEntry.Name;
+          LRequest.Version := LEntry.LatestVersion;
+          LRequest.Platform := LPlatform;
+          LRequest.Compiler := LCompiler;
           LRequest.ArtifactUrl := LEntry.ArtifactUrl;
           LRequest.Sha256 := LEntry.ArtifactDigest;
           LRequest.SignatureUrl := LEntry.SignatureUrl;
           LRequest.ProvenanceUrl := LEntry.ProvenanceUrl;
           LRequest.TargetDirectory := TPath.Combine(GetModulesDir,
             LDependency.StorageName);
+          if Assigned(LVariant) then
+            LRequest.ArtifactMirrors := LVariant.ArtifactMirrors.ToArray
+          else
+            LRequest.ArtifactMirrors :=
+              LSelectedVersion.ArtifactMirrors.ToArray;
           LInstaller := TBoss4DPackageInstallService.Create(
             TBoss4DHttpNativeAdapter.Create,
             TBoss4DGpgPackageSigner.Create(Boss4DProcessRunner));
@@ -1399,6 +2262,8 @@ var
   LOptions: TBoss4DInstallOptions;
   I: Integer;
   LProgressMode: string;
+  LIndex: TBoss4DPackageIndexService;
+  LHttp: IBoss4DHttpClient;
 begin
   LDepToInstall := '';
   LOptions := Default(TBoss4DInstallOptions);
@@ -1448,6 +2313,15 @@ begin
       LOptions.RemoteCachePath := AArgs[I + 1];
       Inc(I, 2);
     end
+    else if SameText(AArgs[I], '--jobs') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create('Informe a quantidade de jobs.');
+      LOptions.Jobs := StrToInt(AArgs[I + 1]);
+      if LOptions.Jobs < 1 then
+        raise EArgumentException.Create('--jobs deve ser maior que zero.');
+      Inc(I, 2);
+    end
     else if SameText(AArgs[I], '--resolution') then
     begin
       if I + 1 >= Length(AArgs) then
@@ -1493,7 +2367,27 @@ begin
       '--locked instala somente o grafo completo declarado no lock.');
   FInstallService.SetProgressMode(LProgressMode);
   LOptions.InstallSingle := LDepToInstall;
-  FInstallService.Execute(LOptions);
+  LHttp := TBoss4DHttpNativeAdapter.Create;
+  LIndex := TBoss4DPackageIndexService.Create(
+    FConfigService, LHttp, FLogger);
+  try
+    FInstallService.SetDependencyAliasResolver(
+      function(const AAlias: string): string
+      begin
+        Result := '';
+        var LEntry := LIndex.Info(AAlias);
+        try
+          if Assigned(LEntry) then
+            Result := LEntry.Repository;
+        finally
+          LEntry.Free;
+        end;
+      end);
+    FInstallService.Execute(LOptions);
+  finally
+    FInstallService.SetDependencyAliasResolver(nil);
+    LIndex.Free;
+  end;
 end;
 
 procedure TBoss4DCommandLineParser.HandleCI(const AArgs: TArray<string>);
@@ -1530,6 +2424,15 @@ begin
           'Informe o caminho do cache remoto.');
       Inc(I);
       LOptions.RemoteCachePath := AArgs[I];
+    end
+    else if SameText(AArgs[I], '--jobs') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create('Informe a quantidade de jobs.');
+      Inc(I);
+      LOptions.Jobs := StrToInt(AArgs[I]);
+      if LOptions.Jobs < 1 then
+        raise EArgumentException.Create('--jobs deve ser maior que zero.');
     end
     else if SameText(AArgs[I], '--json') then
       LProgressMode := 'json'
@@ -1660,6 +2563,23 @@ begin
     LRunService.Execute(AArgs[1]);
   finally
     LRunService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleDoc(
+  const AArgs: TArray<string>);
+begin
+  var LOptions := TBoss4DDocumentationCommandOptions.Parse(AArgs);
+  var LService := TBoss4DDocumentationService.Create;
+  try
+    var LResult := LService.Generate(GetCurrentDir,
+      TPath.GetFullPath(LOptions.OutputDirectory),
+      LOptions.IncludeDependencies);
+    FLogger.Log(TBoss4DLogLevel.Info,
+      'Documentacao gerada em %s: %d arquivo(s), %d simbolo(s).',
+      [LResult.OutputDirectory, LResult.Files, LResult.Symbols]);
+  finally
+    LService.Free;
   end;
 end;
 

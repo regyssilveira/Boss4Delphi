@@ -6,11 +6,15 @@ uses
   System.Generics.Collections, System.Threading, System.SyncObjs, Boss4D.Core.Ports,
   Boss4D.Core.Domain.Dependency, Boss4D.Core.Domain.Lock,
   Boss4D.Core.Domain.Package, Boss4D.Core.Domain.Progress,
-  Boss4D.Core.Services.Resolver;
+  Boss4D.Core.Services.Resolver, Boss4D.Core.Services.OperationGate;
 
 type
   TBoss4DIDEInstallHandler = reference to procedure(
     const APackage: TBoss4DPackage);
+  TBoss4DIDEPathIntegrationHandler = reference to procedure(
+    const APlatform: string);
+  TBoss4DDependencyAliasResolver = reference to function(
+    const AAlias: string): string;
 
   TBoss4DInstallOptions = record
     Platform: string;
@@ -24,6 +28,7 @@ type
     CIMode: Boolean;
     RemoteCachePath: string;
     ResolutionStrategy: TBoss4DResolutionStrategy;
+    Jobs: Integer;
   end;
 
   { Servico de caso de uso para instalacao e atualizacao de dependencias (boss install) }
@@ -42,6 +47,9 @@ type
     FProgressOutput: IBoss4DProgressOutput;
     FProgress: IBoss4DProgressReporter;
     FIDEInstallHandler: TBoss4DIDEInstallHandler;
+    FIDEPathIntegrationHandler: TBoss4DIDEPathIntegrationHandler;
+    FDependencyAliasResolver: TBoss4DDependencyAliasResolver;
+    FOperationGate: TBoss4DKeyedOperationGate;
 
     procedure ProcessDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock;
       const AProcessedDeps: TList<string>);
@@ -64,6 +72,8 @@ type
       const ALock: TBoss4DLock);
     procedure ApplyLockScopes(const ALock: TBoss4DLock);
     function SignerAllowed(const ASigner: string): Boolean;
+    procedure ResolveDependencyAlias(const ADependency: TBoss4DDependency;
+      const ALock: TBoss4DLock = nil);
   public
     constructor Create(
       const APackageRepo: IBoss4DPackageRepository;
@@ -83,6 +93,10 @@ type
     procedure RunInstallTask(const ADep: TBoss4DDependency; const ALock: TBoss4DLock; const ATasks: TList<ITask>);
     procedure SetProgressOutput(const AOutput: IBoss4DProgressOutput);
     procedure SetProgressMode(const AMode: string);
+    procedure SetIDEPathIntegrationHandler(
+      const AHandler: TBoss4DIDEPathIntegrationHandler);
+    procedure SetDependencyAliasResolver(
+      const AResolver: TBoss4DDependencyAliasResolver);
   end;
 
 implementation
@@ -237,7 +251,9 @@ var
   LResolvedRevision: string;
   LSubDeps: TArray<TBoss4DDependency>;
   LExistingLocked: TBoss4DLockedDependency;
+  LHasExisting: Boolean;
 begin
+  ResolveDependencyAlias(ADep, ALock);
   var LDepKey := ADep.GetKey;
 
   // 1. Evita loop de dependencias circulares na ramificacao
@@ -258,12 +274,18 @@ begin
 
   LCacheDir := TPath.Combine(GetCacheDir, ADep.HashName);
   LTargetDir := TPath.Combine(GetModulesDir, ADep.StorageName);
+  FGitCriticalSection.Enter;
+  try
+    LHasExisting := ALock.GetInstalled(ADep, LExistingLocked);
+  finally
+    FGitCriticalSection.Leave;
+  end;
 
   FLogger.Log(TBoss4DLogLevel.Info, 'Resolvendo %s (%s)...', [ADep.Name, ADep.Version]);
   FProgress.Report(TBoss4DProgressEvent.Create(LDepKey, ADep.Name,
     TBoss4DProgressPhase.Resolving, 0, 0, ADep.Version));
 
-  FGitCriticalSection.Enter;
+  FOperationGate.Enter(LCacheDir);
   try
     // 1. Garante que o repositorio de cache existe
     if not TDirectory.Exists(LCacheDir) then
@@ -288,7 +310,7 @@ begin
     // 2. Resolve a melhor versao disponivel usando SemVer se a versao informada for um range
     if FOptions.Locked then
     begin
-      if not ALock.GetInstalled(ADep, LExistingLocked) then
+      if not LHasExisting then
         raise Exception.CreateFmt(
           'Dependencia %s nao existe no lock congelado.', [ADep.Name]);
       LResolvedVersion := LExistingLocked.Version;
@@ -346,7 +368,7 @@ begin
     var LChecksum := CalculateDirectoryChecksum(LTargetDir);
 
     // Se a dependÃªncia jÃ¡ constava no arquivo lock existente, validar se o checksum atual bate!
-    if ALock.GetInstalled(ADep, LExistingLocked) then
+    if LHasExisting then
     begin
       if (FOptions.Locked or
           SameText(LExistingLocked.Revision, LResolvedRevision)) and
@@ -365,16 +387,21 @@ begin
     // 4. Adiciona no arquivo lock com a sobrecarga de checksum
     if not FOptions.Locked then
     begin
-      ALock.AddDependency(ADep, LResolvedVersion, ADep.HashName, LChecksum);
-      if ALock.GetInstalled(ADep, LExistingLocked) then
-      begin
-        LExistingLocked.Revision := LResolvedRevision;
-        LExistingLocked.ResolvedFrom := LResolvedVersion;
-        LExistingLocked.ChecksumAlgorithm := 'SHA-256';
+      FGitCriticalSection.Enter;
+      try
+        ALock.AddDependency(ADep, LResolvedVersion, ADep.HashName, LChecksum);
+        if ALock.GetInstalled(ADep, LExistingLocked) then
+        begin
+          LExistingLocked.Revision := LResolvedRevision;
+          LExistingLocked.ResolvedFrom := LResolvedVersion;
+          LExistingLocked.ChecksumAlgorithm := 'SHA-256';
+        end;
+      finally
+        FGitCriticalSection.Leave;
       end;
     end;
   finally
-    FGitCriticalSection.Leave;
+    FOperationGate.Leave(LCacheDir);
   end;
 
   // 5. Recursividade: Analisa subdependencias do modulo recem-baixado
@@ -406,6 +433,8 @@ begin
     var LSubPackage := FPackageRepo.Load(LPkgPath);
     try
       LSubDeps := LSubPackage.GetParsedDependencies;
+      for var LSubDep in LSubDeps do
+        ResolveDependencyAlias(LSubDep);
 
       FGitCriticalSection.Enter;
       try
@@ -600,15 +629,52 @@ end;
 procedure TBoss4DInstallService.Execute(const AInstallSingle: string;
   const APlatform: string);
 var
-  LTransaction: TBoss4DProjectTransaction;
+  LOptions: TBoss4DInstallOptions;
 begin
-  LTransaction := TBoss4DProjectTransaction.Create(GetCurrentDir);
-  try
-    ExecuteCore(AInstallSingle, APlatform);
-    LTransaction.Commit;
-  finally
-    LTransaction.Free;
+  LOptions := Default(TBoss4DInstallOptions);
+  LOptions.InstallSingle := AInstallSingle;
+  LOptions.Platform := APlatform;
+  Execute(LOptions);
+end;
+
+procedure TBoss4DInstallService.ResolveDependencyAlias(
+  const ADependency: TBoss4DDependency; const ALock: TBoss4DLock);
+begin
+  if not Assigned(ADependency) then
+    Exit;
+  var LAlias := ADependency.Repository.Trim;
+  if LAlias.IsEmpty or LAlias.Contains('/') or LAlias.Contains('\') or
+     LAlias.Contains(':') or LAlias.Contains('@') or LAlias.Contains('.') then
+    Exit;
+  if FOptions.Locked then
+  begin
+    var LMatchedRepository := '';
+    if Assigned(ALock) then
+      for var LLocked in ALock.Installed.Values do
+        if SameText(LLocked.Name, LAlias) then
+        begin
+          if not LMatchedRepository.IsEmpty and
+             not SameText(LMatchedRepository, LLocked.Repository) then
+            raise Exception.CreateFmt(
+              'Alias %s e ambiguo no lock congelado.', [LAlias]);
+          LMatchedRepository := LLocked.Repository;
+        end;
+    if LMatchedRepository.IsEmpty then
+      raise Exception.CreateFmt(
+        'Alias %s nao possui identidade canonica no lock congelado.',
+        [LAlias]);
+    ADependency.Repository := LMatchedRepository;
+    Exit;
   end;
+  if not Assigned(FDependencyAliasResolver) then
+    Exit;
+  var LRepository := FDependencyAliasResolver(LAlias).Trim;
+  if LRepository.IsEmpty then
+    Exit;
+  ADependency.Repository := LRepository;
+  FLogger.Log(TBoss4DLogLevel.Debug,
+    'Alias de Registry %s resolvido para %s.',
+    [LAlias, LRepository]);
 end;
 
 function TBoss4DInstallService.SignerAllowed(const ASigner: string): Boolean;
@@ -635,9 +701,13 @@ begin
       FOptions.CleanModules := True;
       FOptions.InstallIDEs := False;
     end;
+    if FOptions.Jobs <= 0 then
+      FOptions.Jobs := 4;
+    FOperationGate := TBoss4DKeyedOperationGate.Create(FOptions.Jobs);
     ExecuteCore(FOptions.InstallSingle, FOptions.Platform);
     LTransaction.Commit;
   finally
+    FreeAndNil(FOperationGate);
     FOptions := Default(TBoss4DInstallOptions);
     LTransaction.Free;
   end;
@@ -659,6 +729,7 @@ begin
     begin
       LDep := TBoss4DDependency.Parse(LPair.Key, LPair.Value);
       try
+        ResolveDependencyAlias(LDep, ALock);
         LDeclared.Add(LDep.GetKey);
       finally
         LDep.Free;
@@ -679,6 +750,7 @@ begin
       begin
         LDep := TBoss4DDependency.Parse(LPair.Key, LPair.Value);
         try
+          ResolveDependencyAlias(LDep, ALock);
           LDeclared.Add(LDep.GetKey);
         finally
           LDep.Free;
@@ -757,6 +829,7 @@ var
     var LDeclaredDependencies := LPkg.GetParsedDependencies;
     for var LDeclaredDependency in LDeclaredDependencies do
       try
+        ResolveDependencyAlias(LDeclaredDependency, LLock);
         LLock.RootDependencies.Add(LDeclaredDependency.GetKey);
       finally
         LDeclaredDependency.Free;
@@ -766,6 +839,7 @@ var
     var LDeclaredDevDependencies := LPkg.GetParsedDevDependencies;
     for var LDeclaredDevDependency in LDeclaredDevDependencies do
       try
+        ResolveDependencyAlias(LDeclaredDevDependency, LLock);
         LLock.RootDevDependencies.Add(LDeclaredDevDependency.GetKey);
       finally
         LDeclaredDevDependency.Free;
@@ -1014,14 +1088,21 @@ begin
     FLogger.Log(TBoss4DLogLevel.Info, 'Instalacao concluida com sucesso!');
 
     // Sem dependencias nao ha Library Paths a registrar; evita mutacao desnecessaria da IDE.
-    if LLock.Installed.Count > 0 then
+    if FOptions.InstallIDEs and (LLock.Installed.Count > 0) then
     begin
-      var LRegistry: IBoss4DRegistryService := TBoss4DWindowsRegistryAdapter.Create;
-      var LIDEIntegration := TBoss4DIDEIntegrationService.Create(LRegistry, FLogger);
-      try
-        LIDEIntegration.IntegrateLibraryPaths(LEffectivePlatform);
-      finally
-        LIDEIntegration.Free;
+      if Assigned(FIDEPathIntegrationHandler) then
+        FIDEPathIntegrationHandler(LEffectivePlatform)
+      else
+      begin
+        var LRegistry: IBoss4DRegistryService :=
+          TBoss4DWindowsRegistryAdapter.Create;
+        var LIDEIntegration := TBoss4DIDEIntegrationService.Create(
+          LRegistry, FLogger);
+        try
+          LIDEIntegration.IntegrateLibraryPaths(LEffectivePlatform);
+        finally
+          LIDEIntegration.Free;
+        end;
       end;
     end;
   finally
@@ -1031,6 +1112,18 @@ begin
     LLock.Free;
     LPkg.Free;
   end;
+end;
+
+procedure TBoss4DInstallService.SetIDEPathIntegrationHandler(
+  const AHandler: TBoss4DIDEPathIntegrationHandler);
+begin
+  FIDEPathIntegrationHandler := AHandler;
+end;
+
+procedure TBoss4DInstallService.SetDependencyAliasResolver(
+  const AResolver: TBoss4DDependencyAliasResolver);
+begin
+  FDependencyAliasResolver := AResolver;
 end;
 
 procedure TBoss4DInstallService.RunInstallTask(const ADep: TBoss4DDependency; const ALock: TBoss4DLock;

@@ -302,10 +302,43 @@ begin
     var LProject := TBoss4DBuildProject.Create;
     try
       LProject.Path := ReadString(LProjectObject, 'path');
+      LProject.PackageName := ReadString(LProjectObject, 'packageName');
+      var LIDEObject := ReadObject(LProjectObject, 'ide');
+      if Assigned(LIDEObject) then
+      begin
+        LProject.IDEPackageDescription :=
+          ReadString(LIDEObject, 'description');
+        LProject.PalettePage := ReadString(LIDEObject, 'palettePage');
+      end;
       LProject.Kind := ReadString(LProjectObject, 'kind');
       if LProject.Kind.IsEmpty then
         LProject.Kind := 'runtime';
       ParseStringArray(LProjectObject, 'dependsOn', LProject.DependsOn);
+      var LDependenciesArray := ReadArray(LProjectObject, 'dependencies');
+      if Assigned(LDependenciesArray) then
+        for var LDependencyIndex := 0 to
+          LDependenciesArray.Count - 1 do
+          if LDependenciesArray[LDependencyIndex] is TJSONObject then
+          begin
+            var LDependencyObject :=
+              TJSONObject(LDependenciesArray[LDependencyIndex]);
+            var LDependency := TBoss4DBuildDependency.Create;
+            try
+              LDependency.Path := ReadString(LDependencyObject, 'path');
+              LDependency.Optional := ReadBool(LDependencyObject,
+                'optional');
+              ParseStringArray(LDependencyObject, 'compilers',
+                LDependency.Compilers);
+              ParseStringArray(LDependencyObject, 'platforms',
+                LDependency.Platforms);
+              ParseStringArray(LDependencyObject, 'configurations',
+                LDependency.Configurations);
+              LProject.Dependencies.Add(LDependency);
+              LDependency := nil;
+            finally
+              LDependency.Free;
+            end;
+          end;
       ParseStringArray(LProjectObject, 'compilers', LProject.Compilers);
       ParseStringArray(LProjectObject, 'platforms', LProject.Platforms);
       ParseStringArray(LProjectObject, 'configurations',
@@ -553,9 +586,41 @@ begin
       begin
         var LProjectObject := TJSONObject.Create;
         LProjectObject.AddPair('path', LProject.Path);
+        if not LProject.PackageName.IsEmpty then
+          LProjectObject.AddPair('packageName', LProject.PackageName);
+        if not LProject.IDEPackageDescription.IsEmpty or
+           not LProject.PalettePage.IsEmpty then
+        begin
+          var LIDEObject := TJSONObject.Create;
+          if not LProject.IDEPackageDescription.IsEmpty then
+            LIDEObject.AddPair('description',
+              LProject.IDEPackageDescription);
+          if not LProject.PalettePage.IsEmpty then
+            LIDEObject.AddPair('palettePage', LProject.PalettePage);
+          LProjectObject.AddPair('ide', LIDEObject);
+        end;
         LProjectObject.AddPair('kind', LProject.Kind);
         AddStringArrayIfPresent(LProjectObject, 'dependsOn',
           LProject.DependsOn);
+        if LProject.Dependencies.Count > 0 then
+        begin
+          var LDependenciesArray := TJSONArray.Create;
+          for var LDependency in LProject.Dependencies do
+          begin
+            var LDependencyObject := TJSONObject.Create;
+            LDependencyObject.AddPair('path', LDependency.Path);
+            if LDependency.Optional then
+              LDependencyObject.AddPair('optional', TJSONBool.Create(True));
+            AddStringArrayIfPresent(LDependencyObject, 'compilers',
+              LDependency.Compilers);
+            AddStringArrayIfPresent(LDependencyObject, 'platforms',
+              LDependency.Platforms);
+            AddStringArrayIfPresent(LDependencyObject, 'configurations',
+              LDependency.Configurations);
+            LDependenciesArray.AddElement(LDependencyObject);
+          end;
+          LProjectObject.AddPair('dependencies', LDependenciesArray);
+        end;
         AddStringArrayIfPresent(LProjectObject, 'compilers',
           LProject.Compilers);
         AddStringArrayIfPresent(LProjectObject, 'platforms',
@@ -682,6 +747,7 @@ begin
       Result.Description := ReadString(LJSONObj, 'description');
       Result.Version := ReadString(LJSONObj, 'version');
       Result.Homepage := ReadString(LJSONObj, 'homepage');
+      Result.IDEProfile := ReadString(LJSONObj, 'ideProfile');
       Result.License := ReadString(LJSONObj, 'license');
       Result.MainSrc := ReadString(LJSONObj, 'mainsrc');
       Result.BrowsingPath := ReadString(LJSONObj, 'browsingpath');
@@ -718,6 +784,8 @@ begin
     LJSONObj.AddPair('description', APackage.Description);
     LJSONObj.AddPair('version', APackage.Version);
     LJSONObj.AddPair('homepage', APackage.Homepage);
+    if not APackage.IDEProfile.IsEmpty then
+      LJSONObj.AddPair('ideProfile', APackage.IDEProfile);
 
     if not APackage.License.IsEmpty then
       LJSONObj.AddPair('license', APackage.License);

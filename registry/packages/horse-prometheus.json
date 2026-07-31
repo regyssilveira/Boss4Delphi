@@ -1,0 +1,22 @@
+{
+    "schemaVersion":  2,
+    "packages":  [
+                     {
+                         "name":  "horse-prometheus",
+                         "publisher":  "boss4d",
+                         "repository":  "github.com/regyssilveira/horse-prometheus",
+                         "signerFingerprint":  "A91FA178E7A1DE7FB10148C8308C9045E23B0279",
+                         "description":  "Prometheus metrics middleware for Horse",
+                         "license":  "Apache-2.0",
+                         "versions":  [
+                                          {
+                                              "version":  "1.0.1",
+                                              "artifact":  "https://github.com/regyssilveira/horse-prometheus/releases/download/v1.0.1/horse-prometheus-1.0.1.b4dpkg",
+                                              "sha256":  "29838e3268bd4fb06610d3a8c8e3cba1ad60ed49990b2497bc952294aafdc6cc",
+                                              "signature":  "https://github.com/regyssilveira/horse-prometheus/releases/download/v1.0.1/horse-prometheus-1.0.1.b4dpkg.asc",
+                                              "provenance":  "https://github.com/regyssilveira/horse-prometheus/releases/download/v1.0.1/horse-prometheus-1.0.1.b4dpkg.intoto.json"
+                                          }
+                                      ]
+                     }
+                 ]
+}

@@ -112,13 +112,23 @@ boss4d install
   Instalacao concluida com sucesso!
   ```
 
-This reads the `boss.json`, resolves the full dependency graph recursively, downloads all packages concurrently, and generates/updates the **`boss-lock.json`** file to lock the exact versions resolved.
+This reads the `boss.json`, resolves the full dependency graph recursively,
+downloads packages concurrently, and generates/updates **`boss-lock.json`** to
+lock the exact resolved versions. Use `--jobs <n>` to bound concurrent Git
+operations (default: 4). Different repositories may progress in parallel, while
+operations targeting the same global cache remain serialized.
+
+```bash
+boss4d install --jobs 8
+boss4d ci --jobs 4
+```
 
 If the root manifest declares `buildMatrix`, the same command discovers
 installed Delphi versions and their Win32/Win64 compilers, builds only
 compatible targets, and registers the resulting design-time BPLs in the exact
 IDE that produced them. Use `boss4d install --no-register` when restoring only
-dependencies or preparing an isolated CI environment.
+dependencies or preparing an isolated CI environment; it suppresses both
+design-time registration and global Delphi Library Path changes.
 
 ---
 
@@ -650,7 +660,16 @@ The **Boss4D** graphical user interface (**`Boss4D.GUI.exe`**) provides a modern
    * **Search Packages**: A visual catalogue showing the most popular libraries in the Delphi community (Horse, RESTRequest4Delphi, mORMot, Skia, etc.) allowing for filtered search and single-click silent in-process installation.
    * **Boss4D Doctor**: Run environmental diagnostics and auto-fixes for Delphi compiler installations without writing command lines.
    * **Manage Cache**: Displays global cache disk usage and provides options to clean (`Clean`) or prune (`Otimizar Cache`) stale downloaded versions.
+   * **Components and IDEs**: Manage isolated IDE profiles, their default
+     compiler targets, available/installed component products, install/remove
+     previews, conflict and open-IDE policies, transactional installation,
+     repair, removal, and launch through an alternate Registry branch.
 2. **Integrated Log Console**: The bottom area prints real-time logs, compilation outputs, and concurrent download tasks running in background threads (via PPL) in a thread-safe UI component.
+
+The GUI component screen and `boss4d ide profile` commands share the same
+application services and inventories. See the
+[IDE component management guide](ide-component-management.md) for the complete
+workflow and recovery rules.
 
 ---
 
@@ -746,3 +765,43 @@ boss4d ide uninstall Component --cascade
 paths, output/unit collisions, and IDE registry drift. See the
 [complete build matrix guide](build-matrix-contract.md) and the
 [complete component lifecycle guide](component-build-and-ide.md).
+
+## 20. Static API documentation (`doc`)
+
+Generate a searchable site from PascalDoc and XML Doc comments in the project
+and installed dependencies:
+
+```console
+boss4d doc
+boss4d doc --output artifacts/api
+boss4d doc --no-dependencies -o artifacts/project-api
+```
+
+The output contains a standalone `index.html` and a machine-readable
+`search-index.json`. The default directory is `docs-api`. The command is
+available on Windows/Delphi and Linux/FPC. See the
+[complete static API documentation guide](api-documentation.md).
+
+## Version management
+
+List Registry versions, install a compatible immutable release, or pin the
+manifest to the exact version already recorded in the lock:
+
+```console
+boss4d package versions Horse
+boss4d package install Horse@^3.0.0
+boss4d pin horse
+boss4d unpin horse
+```
+
+Explicit upgrades and downgrades create a durable snapshot of the manifest,
+lock, and modules. Restore the latest state with `rollback`:
+
+```console
+boss4d upgrade github.com/hashload/horse@3.2.1
+boss4d downgrade github.com/hashload/horse@3.1.0
+boss4d rollback
+```
+
+See [Version Management](version-management.md) for revocation, mirror,
+receipt, and recovery details.

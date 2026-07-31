@@ -79,6 +79,28 @@ same compiler, platform, and configuration as the consuming target. Boss4D
 performs a stable topological sort, rejects missing compatible targets, and
 reports every project participating in a cycle before compilation.
 
+### Optional and conditional dependencies
+
+`dependsOn` remains the compact syntax for mandatory dependencies that apply
+to every target. Use `dependencies` when an edge is optional or conditional:
+
+```json
+"dependencies": [
+  {
+    "path": "packages/TelemetryRuntime.dproj",
+    "optional": true,
+    "compilers": ["37.0"],
+    "platforms": ["Win32"],
+    "configurations": ["Release"]
+  }
+]
+```
+
+An omitted condition means every value on that axis. A matching mandatory
+dependency must produce a compatible target. A matching optional dependency is
+used when its target exists and ignored otherwise. Runtime packages cannot
+depend on design-time packages through either syntax.
+
 Default selection expands one target per applicable project. An all-targets
 selection expands the complete Cartesian product after applying project
 restrictions. The result is sorted by target identity and is independent from
