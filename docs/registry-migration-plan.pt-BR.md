@@ -13,8 +13,8 @@ passarem nos checks do pull request do Registry.
 - 16 pacotes no namespace `regyssilveira`, já cadastrado;
 - 10 pacotes no namespace `HashLoad`;
 - zero pacotes schema v2 e zero fingerprints autorizados;
-- 12 pacotes do publisher com releases imutáveis e tags coerentes;
-- 4 pacotes do publisher que precisam de release ou correção da tag;
+- 3 pacotes do publisher aprovados nos gates atuais de reprodutibilidade;
+- 13 pacotes do publisher que precisam de release ou correção da tag;
 - saúde: 55 pacotes, 109 avisos de migração e zero erros estruturais.
 
 O portal gerado do Registry é o painel público do progresso. No momento ele
@@ -57,18 +57,18 @@ do publisher cadastrado:
 | Pacote | Candidato | Estado |
 |---|---:|---|
 | Boss4Delphi | v1.6.0 | Primeira prova ponta a ponta |
-| horse-rate-limit | v1.0.0 | Pronto após onboarding do signer |
+| horse-rate-limit | v1.0.0 | Bloqueado: dependência REST de teste não declarada e unit ausente |
 | horse-compression-v2 | v1.0.0 | Bloqueado: tag declara `2.0.0` no `boss.json` |
-| horse-static | v1.0.0 | Pronto após onboarding do signer |
-| horse-dto | v1.0.0 | Pronto após onboarding do signer |
-| horse-rbac | v1.0.0 | Pronto após onboarding do signer |
-| horse-schema-validation | v1.0.0 | Pronto após onboarding do signer |
-| horse-multipart | v1.0.0 | Pronto após onboarding do signer |
-| horse-helmet | v1.0.0 | Pronto após onboarding do signer |
-| horse-ssl-redirect | v1.0.0 | Pronto após onboarding do signer |
-| horse-request-id | v1.0.0 | Pronto após onboarding do signer |
-| horse-opentelemetry | v1.0.0 | Pronto após onboarding do signer |
-| horse-prometheus | v1.0.0 | Pronto após onboarding do signer |
+| horse-static | v1.0.0 | Bloqueado: alias da dependência resolve para `https://horse/` |
+| horse-dto | v1.0.0 | Bloqueado: não compila com o Horse 3.2.0 resolvido |
+| horse-rbac | v1.0.0 | Bloqueado: testes não compilam com o Horse 3.2.0 resolvido |
+| horse-schema-validation | v1.0.0 | Pronto: instalação, compilação e 10/10 testes aprovados |
+| horse-multipart | v1.0.0 | Pronto: instalação, compilação e teste real de upload aprovados |
+| horse-helmet | v1.0.0 | Bloqueado: manifesto de testes referencia repositório inexistente |
+| horse-ssl-redirect | v1.0.0 | Bloqueado: testes não compilam com o Horse 3.2.0 resolvido |
+| horse-request-id | v1.0.0 | Bloqueado: usa request services ausentes no Horse 3.2.0 |
+| horse-opentelemetry | v1.0.0 | Bloqueado: dependência legada resolve para `https://horse/` |
+| horse-prometheus | v1.0.0 | Bloqueado: dependência legada resolve para `https://horse/` |
 
 Cada migração deve compilar e testar a tag imutável, produzir `.b4dpkg`,
 assinatura OpenPGP e proveniência in-toto, enviar os arquivos para a release da
@@ -80,12 +80,15 @@ empacotados a partir de checkouts imutáveis detached. Todos os onze arquivos
 correspondem aos artefatos. Eles continuam sendo preparação local até que
 testes dos projetos, assinaturas OpenPGP, uploads nas releases e submissões ao
 Registry estejam concluídos.
+Somente `horse-schema-validation` e `horse-multipart` passam atualmente pelo
+gate de testes do projeto; conformidade do pacote sozinha não significa que a
+release está pronta.
 
 ## Onda 2 — pacotes do publisher que precisam de release
 
 `Dext`, `horse-crud` e `horse-sanitize` ainda não possuem tag/release
-publicada. `horse-compression-v2` também precisa de uma nova tag imutável
-coerente, pois a tag `v1.0.0` existente declara versão `2.0.0` no `boss.json`.
+publicada. Os dez pacotes bloqueados da Onda 1 também precisam de manifestos,
+testes ou compatibilidade com Horse corrigidos em novas releases imutáveis.
 Antes da migração esses pacotes precisam de tag SemVer exata, testes, assets
 imutáveis e o mesmo fluxo de publicação assinada.
 

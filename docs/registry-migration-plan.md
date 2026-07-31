@@ -13,8 +13,8 @@ request checks.
 - 16 packages in the already registered `regyssilveira` namespace;
 - 10 packages in the `HashLoad` namespace;
 - zero schema-v2 packages and zero authorized signer fingerprints;
-- 12 publisher-controlled packages with coherent immutable tagged releases;
-- 4 publisher-controlled packages requiring a release or corrected tag;
+- 3 publisher-controlled packages passing the current reproducibility gates;
+- 13 publisher-controlled packages requiring a release or corrected tag;
 - catalog health: 55 packages, 109 migration warnings, zero structural errors.
 
 The generated Registry portal is the public progress ledger. It currently
@@ -56,18 +56,18 @@ registered publisher scope:
 | Package | Candidate | State |
 |---|---:|---|
 | Boss4Delphi | v1.6.0 | First end-to-end proof |
-| horse-rate-limit | v1.0.0 | Ready after signer onboarding |
+| horse-rate-limit | v1.0.0 | Blocked: undeclared REST test dependency and missing test unit |
 | horse-compression-v2 | v1.0.0 | Blocked: tag declares `2.0.0` in `boss.json` |
-| horse-static | v1.0.0 | Ready after signer onboarding |
-| horse-dto | v1.0.0 | Ready after signer onboarding |
-| horse-rbac | v1.0.0 | Ready after signer onboarding |
-| horse-schema-validation | v1.0.0 | Ready after signer onboarding |
-| horse-multipart | v1.0.0 | Ready after signer onboarding |
-| horse-helmet | v1.0.0 | Ready after signer onboarding |
-| horse-ssl-redirect | v1.0.0 | Ready after signer onboarding |
-| horse-request-id | v1.0.0 | Ready after signer onboarding |
-| horse-opentelemetry | v1.0.0 | Ready after signer onboarding |
-| horse-prometheus | v1.0.0 | Ready after signer onboarding |
+| horse-static | v1.0.0 | Blocked: dependency alias resolves to `https://horse/` |
+| horse-dto | v1.0.0 | Blocked: does not compile against resolved Horse 3.2.0 |
+| horse-rbac | v1.0.0 | Blocked: tests do not compile against resolved Horse 3.2.0 |
+| horse-schema-validation | v1.0.0 | Ready: install, compile, and 10/10 tests pass |
+| horse-multipart | v1.0.0 | Ready: install, compile, and upload integration test passes |
+| horse-helmet | v1.0.0 | Blocked: test manifest references a nonexistent repository |
+| horse-ssl-redirect | v1.0.0 | Blocked: tests do not compile against resolved Horse 3.2.0 |
+| horse-request-id | v1.0.0 | Blocked: uses Horse request services absent from 3.2.0 |
+| horse-opentelemetry | v1.0.0 | Blocked: legacy dependency value resolves to `https://horse/` |
+| horse-prometheus | v1.0.0 | Blocked: legacy dependency value resolves to `https://horse/` |
 
 Each migration must build and test from the immutable tag, produce `.b4dpkg`,
 OpenPGP signature and in-toto provenance, upload them to the tag release, and
@@ -78,14 +78,16 @@ been packed from detached immutable checkouts. All eleven `.b4dpkg` files pass
 package conformance and all eleven in-toto subject digests match their
 artifacts. They remain local preparation artifacts until their project tests,
 OpenPGP signatures, release uploads, and Registry submissions are complete.
+Only `horse-schema-validation` and `horse-multipart` currently pass the
+project-test gate; package conformance alone is not release readiness.
 
 ## Wave 2 — publisher-controlled packages needing a release
 
 `Dext`, `horse-crud`, and `horse-sanitize` have no published tag/release.
-`horse-compression-v2` additionally needs a new coherent immutable tag because
-its existing `v1.0.0` tag declares version `2.0.0` in `boss.json`. Before
-Registry migration these packages need an exact SemVer tag, tests, immutable
-release assets, and the same signed publication workflow.
+The ten blocked Wave 1 packages additionally need corrected manifests, tests,
+or Horse compatibility in new immutable releases. Before Registry migration
+these packages need an exact SemVer tag, tests, immutable release assets, and
+the same signed publication workflow.
 
 ## Wave 3 — external publisher onboarding
 
