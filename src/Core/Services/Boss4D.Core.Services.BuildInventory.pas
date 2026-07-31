@@ -327,7 +327,7 @@ begin
         'Lista de pacotes ausente no inventario global.');
     for var I := 0 to LPackages.Count - 1 do
     begin
-      var LObject := LPackages.Items[I] as TJSONObject;
+      var LObject := LPackages[I] as TJSONObject;
       if not Assigned(LObject) then
         raise EBoss4DBuildInventoryError.Create(
           'Entrada de pacote invalida no inventario global.');
@@ -338,7 +338,7 @@ begin
       try
         if Assigned(LDependencies) then
           for var J := 0 to LDependencies.Count - 1 do
-            LValues.Add(LDependencies.Items[J].Value);
+            LValues.Add(LDependencies[J].Value);
         RegisterPackage(LName, LRootDirectory, LValues.ToArray);
       finally
         LValues.Free;

@@ -742,6 +742,8 @@ var
   LSubPkg: TBoss4DPackage;
   LEffectivePlatform: string;
   LEffectiveCompiler: string;
+  LBuildIDEIntegration: TBoss4DIDEIntegrationService;
+  LBuildInventory: TBoss4DBuildInventory;
 
   procedure CaptureRootMetadata;
   begin
@@ -981,19 +983,19 @@ begin
       begin
       var LRegistry: IBoss4DRegistryService :=
         TBoss4DWindowsRegistryAdapter.Create;
-      var LIDEIntegration := TBoss4DIDEIntegrationService.Create(
+      LBuildIDEIntegration := TBoss4DIDEIntegrationService.Create(
         LRegistry, FLogger);
-      var LInventory := TBoss4DBuildInventory.Create(TPath.Combine(
+      LBuildInventory := TBoss4DBuildInventory.Create(TPath.Combine(
         GetBossHome, 'build-inventory.json'));
       try
-        LInventory.Load;
+        LBuildInventory.Load;
         var LCoordinator := TBoss4DBuildCoordinator.Create(FCompiler, FLogger,
           FPackageRepo, FLockRepo,
           procedure(const ARegistration: TBoss4DIDERegistration)
           begin
-            LIDEIntegration.RegisterTarget(ARegistration);
+            LBuildIDEIntegration.RegisterTarget(ARegistration);
           end,
-          LInventory, TBoss4DRegistryIDEDiscovery.Create(LRegistry));
+          LBuildInventory, TBoss4DRegistryIDEDiscovery.Create(LRegistry));
         try
           var LBuildOptions := Default(TBoss4DBuildCommandOptions);
           LBuildOptions.AllInstalledIDEs := True;
@@ -1003,8 +1005,8 @@ begin
           LCoordinator.Free;
         end;
       finally
-        LInventory.Free;
-        LIDEIntegration.Free;
+        LBuildInventory.Free;
+        LBuildIDEIntegration.Free;
       end;
       end;
     end;

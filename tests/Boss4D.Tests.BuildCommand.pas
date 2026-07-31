@@ -293,6 +293,7 @@ var
   LCommand: TBoss4DBuildCommand;
   LOptions: TBoss4DBuildCommandOptions;
   LOutsideFile: string;
+  LRegistrationCalled: Boolean;
 begin
   TFile.WriteAllText(TPath.Combine(FRoot, 'Design.dproj'),
     '<Project/>', TEncoding.UTF8);
@@ -314,10 +315,12 @@ begin
     LPackage.IDEAssets.Tools.Add('../outside-ide-asset.exe');
     LOptions := TBoss4DBuildCommandOptions.Parse(TArray<string>.Create(
       'build', '--register', '--force'));
+    LRegistrationCalled := False;
     LCommand := TBoss4DBuildCommand.Create(
       TBuildCommandCompilerMock.Create, nil,
       procedure(const ARegistration: TBoss4DIDERegistration)
       begin
+        LRegistrationCalled := True;
       end);
     try
       Assert.WillRaise(
@@ -326,6 +329,8 @@ begin
           LCommand.Execute(LPackage, LLock, FRoot, LOptions);
         end,
         EArgumentException);
+      Assert.IsFalse(LRegistrationCalled,
+        'Ativo inseguro deve falhar antes de alterar a IDE.');
     finally
       LCommand.Free;
     end;

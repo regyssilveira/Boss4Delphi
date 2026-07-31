@@ -130,6 +130,7 @@ function TBoss4DBuildExecutor.Execute(const APackage: TBoss4DPackage;
 var
   LTargets: TBoss4DBuildTargetList;
   LFingerprints: TDictionary<string, string>;
+  LModulesDirectory: string;
 begin
   if not Assigned(APackage) then
     raise EArgumentNilException.Create('APackage');
@@ -151,7 +152,7 @@ begin
   LTargets := TBoss4DBuildMatrixExpander.Expand(APackage,
     AOptions.Selection);
   TDirectory.CreateDirectory(TPath.Combine(GetBossHome, 'artifact-cache'));
-  var LModulesDirectory := TPath.Combine(ARootDirectory,
+  LModulesDirectory := TPath.Combine(ARootDirectory,
     FOLDER_DEPENDENCIES);
   for var LTarget in LTargets do
     TDirectory.CreateDirectory(TBoss4DBuildPaths.TargetRoot(LModulesDirectory,

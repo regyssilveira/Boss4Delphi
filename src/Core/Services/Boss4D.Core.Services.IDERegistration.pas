@@ -839,6 +839,17 @@ begin
     AStore.WriteValue(AKey, AName, LUpdated);
 end;
 
+procedure RestoreStagedArtifacts(
+  const AStagedFiles: TDictionary<string, string>);
+begin
+  for var LPair in AStagedFiles do
+    if TFile.Exists(LPair.Value) then
+    begin
+      TDirectory.CreateDirectory(TPath.GetDirectoryName(LPair.Key));
+      TFile.Move(LPair.Value, LPair.Key);
+    end;
+end;
+
 function TBoss4DIDERegistrationService.RemoveMatching(
   const AName, ACompiler, APlatform: string;
   const AByOwner: Boolean): Integer;
@@ -907,17 +918,6 @@ var
       TFile.Move(LArtifact, LStaged);
       LStagedFiles.Add(LArtifact, LStaged);
     end;
-  end;
-
-  procedure RestoreStagedArtifacts;
-  begin
-    for var LPair in LStagedFiles do
-      if TFile.Exists(LPair.Value) then
-      begin
-        var LOriginal := LPair.Key;
-        TDirectory.CreateDirectory(TPath.GetDirectoryName(LOriginal));
-        TFile.Move(LPair.Value, LOriginal);
-      end;
   end;
 
 begin
@@ -999,7 +999,7 @@ begin
         try
           Rollback(FStore, LSnapshots);
         finally
-          RestoreStagedArtifacts;
+          RestoreStagedArtifacts(LStagedFiles);
         end;
         raise EBoss4DIDERegistrationError.CreateFmt(
           'Falha ao desregistrar pacote IDE %s: %s',

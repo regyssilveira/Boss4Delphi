@@ -109,6 +109,7 @@ type
     procedure HandleSpec(const AArgs: TArray<string>);
     procedure HandleBuild(const AArgs: TArray<string>);
     procedure HandleSupport(const AArgs: TArray<string>);
+    procedure HandleIDEUninstall(const AArgs: TArray<string>);
     procedure HandleIDE(const AArgs: TArray<string>);
     function ParseSbomArguments(
       const AArgs: TArray<string>): TBoss4DSbomCommandOptions;
@@ -456,6 +457,75 @@ begin
     end;
 end;
 
+procedure TBoss4DCommandLineParser.HandleIDEUninstall(
+  const AArgs: TArray<string>);
+var
+  LInventory: TBoss4DBuildInventory;
+  LIDEIntegration: TBoss4DIDEIntegrationService;
+  LRemovalNames: TList<string>;
+  LDependents, LOrder: TArray<string>;
+  LCascade, LForce: Boolean;
+  LCount: Integer;
+begin
+  if Length(AArgs) < 3 then
+    raise EArgumentException.Create(
+      'Uso: boss4d ide uninstall <pacote> [--cascade|--force].');
+  LCascade := False;
+  LForce := False;
+  for var LOptionIndex := 3 to Length(AArgs) - 1 do
+    if SameText(AArgs[LOptionIndex], '--cascade') then
+      LCascade := True
+    else if SameText(AArgs[LOptionIndex], '--force') then
+      LForce := True
+    else
+      raise EArgumentException.Create(
+        'Opcao desconhecida para ide uninstall: ' + AArgs[LOptionIndex]);
+  if LCascade and LForce then
+    raise EArgumentException.Create(
+      '--cascade e --force nao podem ser combinados.');
+
+  LInventory := TBoss4DBuildInventory.Create(TPath.Combine(
+    GetBossHome, 'build-inventory.json'));
+  LIDEIntegration := nil;
+  LRemovalNames := TList<string>.Create;
+  try
+    LInventory.Load;
+    LRemovalNames.Add(AArgs[2].ToLower);
+    if LInventory.Contains(AArgs[2]) then
+    begin
+      LDependents := LInventory.DependentsOf(AArgs[2]);
+      if (Length(LDependents) > 0) and not LCascade and not LForce then
+        raise EInvalidOpException.CreateFmt(
+          'Nao e possivel remover %s; dependentes instalados: %s.',
+          [AArgs[2], string.Join(', ', LDependents)]);
+      if LCascade then
+        LRemovalNames.AddRange(LDependents);
+    end;
+    LOrder := LInventory.BuildOrder(LRemovalNames.ToArray);
+    LCount := 0;
+    if not Assigned(FUninstallHandler) then
+      LIDEIntegration := TBoss4DIDEIntegrationService.Create(
+        FRegistry, FLogger);
+    for var LOrderIndex := Length(LOrder) - 1 downto 0 do
+    begin
+      var LOwner := LOrder[LOrderIndex];
+      if Assigned(FUninstallHandler) then
+        Inc(LCount, FUninstallHandler(LOwner))
+      else
+        Inc(LCount, LIDEIntegration.UninstallPackage(LOwner));
+      if LInventory.Contains(LOwner) then
+        LInventory.RemovePackage(LOwner);
+    end;
+    LInventory.Save;
+  finally
+    LRemovalNames.Free;
+    LIDEIntegration.Free;
+    LInventory.Free;
+  end;
+  FLogger.Log(TBoss4DLogLevel.Info,
+    'Pacote removido de todas as IDEs: %d registros.', [LCount]);
+end;
+
 procedure TBoss4DCommandLineParser.HandleIDE(
   const AArgs: TArray<string>);
 var
@@ -550,65 +620,7 @@ begin
 
     if SameText(AArgs[1], 'uninstall') then
     begin
-      if Length(AArgs) < 3 then
-        raise EArgumentException.Create(
-          'Uso: boss4d ide uninstall <pacote> [--cascade|--force].');
-      var LCascade := False;
-      var LForce := False;
-      for var LOptionIndex := 3 to Length(AArgs) - 1 do
-        if SameText(AArgs[LOptionIndex], '--cascade') then
-          LCascade := True
-        else if SameText(AArgs[LOptionIndex], '--force') then
-          LForce := True
-        else
-          raise EArgumentException.Create(
-            'Opcao desconhecida para ide uninstall: ' +
-            AArgs[LOptionIndex]);
-      if LCascade and LForce then
-        raise EArgumentException.Create(
-          '--cascade e --force nao podem ser combinados.');
-      var LUninstallInventory := TBoss4DBuildInventory.Create(TPath.Combine(
-        GetBossHome, 'build-inventory.json'));
-      try
-        LUninstallInventory.Load;
-        var LRemovalNames := TList<string>.Create;
-        try
-          LRemovalNames.Add(AArgs[2].ToLower);
-        if LUninstallInventory.Contains(AArgs[2]) then
-        begin
-          var LDependents := LUninstallInventory.DependentsOf(AArgs[2]);
-          if (Length(LDependents) > 0) and not LCascade and not LForce then
-            raise EInvalidOpException.CreateFmt(
-              'Nao e possivel remover %s; dependentes instalados: %s.',
-              [AArgs[2], string.Join(', ', LDependents)]);
-          if LCascade then
-            LRemovalNames.AddRange(LDependents);
-        end;
-          var LOrder := LUninstallInventory.BuildOrder(
-            LRemovalNames.ToArray);
-          LCount := 0;
-          if not Assigned(FUninstallHandler) then
-          LIDEIntegration := TBoss4DIDEIntegrationService.Create(
-            FRegistry, FLogger);
-          for var LOrderIndex := Length(LOrder) - 1 downto 0 do
-          begin
-            var LOwner := LOrder[LOrderIndex];
-            if Assigned(FUninstallHandler) then
-              Inc(LCount, FUninstallHandler(LOwner))
-            else
-              Inc(LCount, LIDEIntegration.UninstallPackage(LOwner));
-            if LUninstallInventory.Contains(LOwner) then
-              LUninstallInventory.RemovePackage(LOwner);
-          end;
-          LUninstallInventory.Save;
-        finally
-          LRemovalNames.Free;
-        end;
-      finally
-        LUninstallInventory.Free;
-      end;
-      FLogger.Log(TBoss4DLogLevel.Info,
-        'Pacote removido de todas as IDEs: %d registros.', [LCount]);
+      HandleIDEUninstall(AArgs);
       Exit;
     end;
 
