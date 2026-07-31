@@ -115,7 +115,6 @@ begin
         LItem.SubItems.Add('Sim')
       else
         LItem.SubItems.Add('Nao');
-      LItem.Data := Pointer(I);
     end;
   finally
     FList.Items.EndUpdate;
@@ -127,7 +126,7 @@ procedure TBoss4DGUITimelineDialog.SelectRow(Sender: TObject;
 begin
   if not Selected then
     Exit;
-  var LIndex := NativeInt(Item.Data);
+  var LIndex := Item.Index;
   if (LIndex < 0) or (LIndex > High(FRows)) then
     Exit;
   FDetail.Text := FRows[LIndex].Detail;
