@@ -138,6 +138,7 @@ type
   private
     FCommands: TStringList;
     FDirty: Boolean;
+    FFailAt: Integer;
   public
     constructor Create;
     destructor Destroy; override;
@@ -145,6 +146,7 @@ type
       out AOutput: string): Boolean;
     property Commands: TStringList read FCommands;
     property Dirty: Boolean read FDirty write FDirty;
+    property FailAt: Integer read FFailAt write FFailAt;
   end;
 
   TPosixCoreTests = class(TTestCase)
@@ -213,6 +215,7 @@ type
     procedure TestRegistryCheckoutApplyAndAppend;
     procedure TestRegistryPullRequestCommands;
     procedure TestRegistryPullRequestRejectsDirtyCheckout;
+    procedure TestRegistryPullRequestFailurePreservesMetadata;
     procedure TestProjectWorkflowCommands;
     procedure TestUpdateRollback;
     procedure TestUpdatePreservesRegistryArtifact;
@@ -1345,6 +1348,7 @@ constructor TRegistryPullRequestRunnerMock.Create;
 begin
   inherited Create;
   FCommands := TStringList.Create;
+  FFailAt := -1;
 end;
 
 destructor TRegistryPullRequestRunnerMock.Destroy;
@@ -1357,7 +1361,7 @@ function TRegistryPullRequestRunnerMock.Run(const ACommand,
   ADirectory: string; out AOutput: string): Boolean;
 begin
   FCommands.Add(ACommand);
-  Result := True;
+  Result := FCommands.Count <> FFailAt;
   if ACommand = 'git status --porcelain' then
   begin
     if FDirty then AOutput := ' M registry/index-v2.json'
@@ -2204,6 +2208,56 @@ begin
         on E: Exception do
           AssertTrue(Pos('local changes', E.Message) > 0);
       end;
+    finally
+      LService.Free;
+    end;
+  finally
+    LRunner.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestRegistryPullRequestFailurePreservesMetadata;
+var
+  LRoot, LPackage, LIndex: string;
+  LRunner: TRegistryPullRequestRunnerMock;
+  LService: TBoss4DPosixRegistryPullRequestService;
+  LOptions: TBoss4DRegistryPullRequestOptions;
+  LSession: TBoss4DRegistryPullRequestSession;
+begin
+  LRoot := NewTempDirectory;
+  ForceDirectories(IncludeTrailingPathDelimiter(LRoot) +
+    'registry/packages');
+  LPackage := IncludeTrailingPathDelimiter(LRoot) +
+    'registry/packages/horse.json';
+  LIndex := IncludeTrailingPathDelimiter(LRoot) +
+    'registry/index-v2.json';
+  SaveFixture(LPackage, '{}');
+  SaveFixture(LIndex, '{}');
+  LOptions := Default(TBoss4DRegistryPullRequestOptions);
+  LOptions.RegistryRoot := LRoot;
+  LOptions.PackageName := 'Horse';
+  LOptions.Version := '3.2.1';
+  LOptions.Branch := 'boss4d/package-horse-3.2.1';
+  LOptions.PushRemote := 'origin';
+  LOptions.BaseBranch := 'main';
+  LOptions.PullRequestRepository := 'regyssilveira/Boss4Delphi';
+  LOptions.PullRequestHead := LOptions.Branch;
+  LRunner := TRegistryPullRequestRunnerMock.Create;
+  try
+    LService := TBoss4DPosixRegistryPullRequestService.Create(
+      @LRunner.Run);
+    try
+      LSession := LService.Start(LOptions);
+      LRunner.FailAt := 6;
+      try
+        LService.Submit(LOptions, LSession, LPackage, LIndex);
+        Fail('Push failure must be reported');
+      except
+        on E: Exception do
+          AssertTrue(Pos('push', E.Message) > 0);
+      end;
+      AssertTrue(FileExists(LPackage));
+      AssertTrue(FileExists(LIndex));
     finally
       LService.Free;
     end;

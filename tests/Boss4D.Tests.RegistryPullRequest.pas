@@ -33,6 +33,7 @@ type
     [Test] procedure TestStartAndSubmitUseExactFiles;
     [Test] procedure TestDirtyCheckoutIsRejected;
     [Test] procedure TestCancelRestoresBranch;
+    [Test] procedure TestSubmitFailurePreservesMetadataForRetry;
     [Test] procedure TestUnsafeBranchIsRejected;
   end;
 
@@ -173,6 +174,39 @@ begin
       'git switch "main"'));
     Assert.IsTrue(LRunner.Commands.Contains(
       'git branch -D "' + LOptions.Branch + '"'));
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TTestsRegistryPullRequest.TestSubmitFailurePreservesMetadataForRetry;
+var
+  LRunner: TRegistryCommandRunnerMock;
+  LService: TBoss4DRegistryPullRequestService;
+  LSession: TBoss4DRegistryPullRequestSession;
+  LOptions: TBoss4DRegistryPullRequestOptions;
+  LPackage, LIndex: string;
+begin
+  LRunner := TRegistryCommandRunnerMock.Create;
+  LService := TBoss4DRegistryPullRequestService.Create(LRunner);
+  try
+    LOptions := Options;
+    LPackage := TPath.Combine(FDirectory,
+      'registry\packages\horse.json');
+    LIndex := TPath.Combine(FDirectory, 'registry\index-v2.json');
+    TDirectory.CreateDirectory(TPath.GetDirectoryName(LPackage));
+    TFile.WriteAllText(LPackage, '{}');
+    TFile.WriteAllText(LIndex, '{}');
+    LSession := LService.Start(LOptions);
+    LRunner.FailAt := 6;
+    Assert.WillRaise(
+      procedure
+      begin
+        LService.Submit(LOptions, LSession, LPackage, LIndex);
+      end,
+      EBoss4DRegistryPullRequest);
+    Assert.IsTrue(TFile.Exists(LPackage));
+    Assert.IsTrue(TFile.Exists(LIndex));
   finally
     LService.Free;
   end;

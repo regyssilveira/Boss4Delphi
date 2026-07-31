@@ -1371,7 +1371,8 @@ var
     LFingerprint, LSigningKey, LArtifactUrl, LArtifactOutput,
     LSubmissionOutput, LRegistryRoot, LRegistryBranch, LRegistryRemote,
     LRegistryBase, LRegistryPrRepository, LRegistryPrHead: string;
-  LOfficial, LUserDryRun, LAppendVersion, LOpenPr: Boolean;
+  LOfficial, LUserDryRun, LAppendVersion, LOpenPr,
+    LKeepOfficialOutputs: Boolean;
   I: Integer;
   LEncoding: TEncoding;
 begin
@@ -1383,6 +1384,7 @@ begin
   LUserDryRun := False;
   LAppendVersion := False;
   LOpenPr := False;
+  LKeepOfficialOutputs := False;
   LRegistryRemote := 'origin';
   LRegistryBase := 'main';
   LRegistryPrRepository := 'regyssilveira/Boss4Delphi';
@@ -1576,6 +1578,7 @@ begin
                   LCheckoutResult.PackagePath);
                 if Assigned(LPullRequestService) then
                 begin
+                  LKeepOfficialOutputs := True;
                   var LPullRequestResult :=
                     LPullRequestService.Submit(
                       LPullRequestOptions, LPullRequestSession,
@@ -1595,14 +1598,17 @@ begin
             FLogger.Log(TBoss4DLogLevel.Info,
               'Submissao para PR: ' + LResult.SubmissionPath);
           except
-            if TFile.Exists(LResult.SubmissionPath) then
-              TFile.Delete(LResult.SubmissionPath);
-            if TFile.Exists(LResult.SignaturePath) then
-              TFile.Delete(LResult.SignaturePath);
-            if TFile.Exists(LResult.ProvenancePath) then
-              TFile.Delete(LResult.ProvenancePath);
-            if TFile.Exists(LResult.ArtifactPath) then
-              TFile.Delete(LResult.ArtifactPath);
+            if not LKeepOfficialOutputs then
+            begin
+              if TFile.Exists(LResult.SubmissionPath) then
+                TFile.Delete(LResult.SubmissionPath);
+              if TFile.Exists(LResult.SignaturePath) then
+                TFile.Delete(LResult.SignaturePath);
+              if TFile.Exists(LResult.ProvenancePath) then
+                TFile.Delete(LResult.ProvenancePath);
+              if TFile.Exists(LResult.ArtifactPath) then
+                TFile.Delete(LResult.ArtifactPath);
+            end;
             raise;
           end;
         finally

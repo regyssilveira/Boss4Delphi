@@ -136,7 +136,7 @@ var
   LRegistryPullRequestService: TBoss4DPosixRegistryPullRequestService;
   LPublishPayload, LPublishOutput, LTokenEnvironment: string;
   LPublishManifest: TJSONObject;
-  LOfficialDryRun: Boolean;
+  LOfficialDryRun, LKeepOfficialOutputs: Boolean;
   LFoundFlag: Boolean;
   LDocumentationResult: TBoss4DDocumentationResult;
   LDocumentationOutput: string;
@@ -686,6 +686,7 @@ begin
     end
     else if LCommand = 'publish' then
     begin
+      LKeepOfficialOutputs := False;
       LPublishOptions := Default(TBoss4DPublishOptions);
       LPublishOptions.RegistryUrl := OptionValue('--registry', '');
       LOfficialDryRun := HasOption('--dry-run');
@@ -845,6 +846,7 @@ begin
                   end;
                   if Assigned(LRegistryPullRequestService) then
                   begin
+                    LKeepOfficialOutputs := True;
                     LRegistryPullRequestResult :=
                       LRegistryPullRequestService.Submit(
                         LRegistryPullRequestOptions,
@@ -865,14 +867,17 @@ begin
               WriteLn('registry PR document: ' +
                 LOfficialPublishResult.SubmissionPath);
             except
-              if FileExists(LOfficialPublishResult.SubmissionPath) then
-                DeleteFile(LOfficialPublishResult.SubmissionPath);
-              if FileExists(LOfficialPublishResult.SignaturePath) then
-                DeleteFile(LOfficialPublishResult.SignaturePath);
-              if FileExists(LOfficialPublishResult.ProvenancePath) then
-                DeleteFile(LOfficialPublishResult.ProvenancePath);
-              if FileExists(LOfficialPublishResult.ArtifactPath) then
-                DeleteFile(LOfficialPublishResult.ArtifactPath);
+              if not LKeepOfficialOutputs then
+              begin
+                if FileExists(LOfficialPublishResult.SubmissionPath) then
+                  DeleteFile(LOfficialPublishResult.SubmissionPath);
+                if FileExists(LOfficialPublishResult.SignaturePath) then
+                  DeleteFile(LOfficialPublishResult.SignaturePath);
+                if FileExists(LOfficialPublishResult.ProvenancePath) then
+                  DeleteFile(LOfficialPublishResult.ProvenancePath);
+                if FileExists(LOfficialPublishResult.ArtifactPath) then
+                  DeleteFile(LOfficialPublishResult.ArtifactPath);
+              end;
               raise;
             end;
           end;
