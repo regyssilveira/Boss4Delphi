@@ -17,6 +17,7 @@ implementation
 
 uses
   System.SysUtils,
+  System.IOUtils,
   System.Generics.Collections,
   System.Generics.Defaults,
   Boss4D.Core.Services.BuildConventions,
@@ -223,6 +224,8 @@ begin
       begin
         var LTarget := TBoss4DBuildTarget.Create;
         LTarget.PackageName := APackage.Name;
+        LTarget.ComponentName :=
+          TPath.GetFileNameWithoutExtension(LProjectPath);
         LTarget.ProjectPath := LProjectPath;
         LTarget.ProjectKind := 'runtime';
         LTarget.Compiler := LCompiler;
@@ -263,6 +266,11 @@ begin
                           LExpandedProject);
                         var LTarget := TBoss4DBuildTarget.Create;
                         LTarget.PackageName := APackage.Name;
+                        LTarget.ComponentName := LProject.PackageName;
+                        if LTarget.ComponentName.IsEmpty then
+                          LTarget.ComponentName :=
+                            TPath.GetFileNameWithoutExtension(
+                              LExpandedProject);
                         LTarget.ProjectPath := LExpandedProject;
                         LTarget.ProjectKind := LProject.Kind;
                         LTarget.Compiler := LCompiler;

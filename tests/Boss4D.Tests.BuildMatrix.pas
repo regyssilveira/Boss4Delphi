@@ -14,6 +14,8 @@ type
     [Test]
     procedure TestProjectRolesAreTypedAndBackwardCompatible;
     [Test]
+    procedure TestComponentPackageIdentityIncludesRoleAndProfile;
+    [Test]
     procedure TestExplicitSelectionFiltersTargets;
     [Test]
     procedure TestSelectionCanExpandAxesIndependently;
@@ -111,6 +113,40 @@ begin
   finally
     LTarget.Free;
     LProject.Free;
+  end;
+end;
+
+procedure TTestsBuildMatrix.TestComponentPackageIdentityIncludesRoleAndProfile;
+var
+  LTarget: TBoss4DBuildTarget;
+  LIdentity: TBoss4DComponentPackageIdentity;
+begin
+  LTarget := TBoss4DBuildTarget.Create;
+  try
+    LTarget.PackageName := 'Owner';
+    LTarget.ComponentName := 'DesignPackage';
+    LTarget.Role := TBoss4DBuildProjectRole.DesignPackage;
+    LTarget.Compiler := '37.0';
+    LTarget.Platform := 'Win32';
+    LTarget.Configuration := 'Release';
+    LIdentity := TBoss4DComponentPackageIdentity.FromTarget(
+      LTarget, 'CI-Isolated');
+    Assert.AreEqual('Owner', LIdentity.OwnerPackage);
+    Assert.AreEqual('DesignPackage', LIdentity.PackageName);
+    Assert.AreEqual(TBoss4DBuildProjectRole.DesignPackage, LIdentity.Role);
+    Assert.AreEqual('CI-Isolated', LIdentity.Profile);
+    Assert.AreEqual(
+      'owner|designpackage|design|37.0|win32|release|ci-isolated',
+      LIdentity.Key);
+
+    LTarget.ComponentName := '';
+    LTarget.ProjectPath := 'packages\RuntimeFallback.dproj';
+    LTarget.Role := TBoss4DBuildProjectRole.RuntimePackage;
+    LIdentity := TBoss4DComponentPackageIdentity.FromTarget(LTarget, '');
+    Assert.AreEqual('RuntimeFallback', LIdentity.PackageName);
+    Assert.AreEqual('default', LIdentity.Profile);
+  finally
+    LTarget.Free;
   end;
 end;
 

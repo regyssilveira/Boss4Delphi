@@ -20,6 +20,7 @@ type
   TBoss4DBuildProject = class
   private
     FPath: string;
+    FPackageName: string;
     FKind: string;
     FDependsOn: TList<string>;
     FCompilers: TList<string>;
@@ -31,6 +32,7 @@ type
     constructor Create;
     destructor Destroy; override;
     property Path: string read FPath write FPath;
+    property PackageName: string read FPackageName write FPackageName;
     property Kind: string read FKind write FKind;
     property Role: TBoss4DBuildProjectRole read GetRole write SetRole;
     property DependsOn: TList<string> read FDependsOn;
@@ -92,6 +94,7 @@ type
   TBoss4DBuildTarget = class
   private
     FPackageName: string;
+    FComponentName: string;
     FProjectPath: string;
     FProjectKind: string;
     FCompiler: string;
@@ -105,6 +108,7 @@ type
     destructor Destroy; override;
     function Identity: string;
     property PackageName: string read FPackageName write FPackageName;
+    property ComponentName: string read FComponentName write FComponentName;
     property ProjectPath: string read FProjectPath write FProjectPath;
     property ProjectKind: string read FProjectKind write FProjectKind;
     property Role: TBoss4DBuildProjectRole read GetRole write SetRole;
@@ -116,10 +120,34 @@ type
 
   TBoss4DBuildTargetList = class(TObjectList<TBoss4DBuildTarget>);
 
+  TBoss4DComponentPackageIdentity = record
+  private
+    FOwnerPackage: string;
+    FPackageName: string;
+    FRole: TBoss4DBuildProjectRole;
+    FCompiler: string;
+    FPlatform: string;
+    FConfiguration: string;
+    FProfile: string;
+  public
+    class function FromTarget(const ATarget: TBoss4DBuildTarget;
+      const AProfile: string = 'default'):
+      TBoss4DComponentPackageIdentity; static;
+    function Key: string;
+    property OwnerPackage: string read FOwnerPackage;
+    property PackageName: string read FPackageName;
+    property Role: TBoss4DBuildProjectRole read FRole;
+    property Compiler: string read FCompiler;
+    property Platform: string read FPlatform;
+    property Configuration: string read FConfiguration;
+    property Profile: string read FProfile;
+  end;
+
 implementation
 
 uses
-  System.SysUtils;
+  System.SysUtils,
+  System.IOUtils;
 
 class function TBoss4DBuildProjectRoles.Parse(
   const AValue: string): TBoss4DBuildProjectRole;
@@ -272,6 +300,34 @@ function TBoss4DBuildTarget.Identity: string;
 begin
   Result := FPackageName + '|' + FProjectPath + '|' + FCompiler + '|' +
     FPlatform + '|' + FConfiguration;
+end;
+
+class function TBoss4DComponentPackageIdentity.FromTarget(
+  const ATarget: TBoss4DBuildTarget;
+  const AProfile: string): TBoss4DComponentPackageIdentity;
+begin
+  if not Assigned(ATarget) then
+    raise EArgumentNilException.Create('ATarget');
+  Result := Default(TBoss4DComponentPackageIdentity);
+  Result.FOwnerPackage := ATarget.PackageName.Trim;
+  Result.FPackageName := ATarget.ComponentName.Trim;
+  if Result.FPackageName.IsEmpty then
+    Result.FPackageName :=
+      TPath.GetFileNameWithoutExtension(ATarget.ProjectPath);
+  Result.FRole := ATarget.Role;
+  Result.FCompiler := ATarget.Compiler.Trim;
+  Result.FPlatform := ATarget.Platform.Trim;
+  Result.FConfiguration := ATarget.Configuration.Trim;
+  Result.FProfile := AProfile.Trim;
+  if Result.FProfile.IsEmpty then
+    Result.FProfile := 'default';
+end;
+
+function TBoss4DComponentPackageIdentity.Key: string;
+begin
+  Result := LowerCase(FOwnerPackage + '|' + FPackageName + '|' +
+    TBoss4DBuildProjectRoles.NameOf(FRole) + '|' + FCompiler + '|' +
+    FPlatform + '|' + FConfiguration + '|' + FProfile);
 end;
 
 end.

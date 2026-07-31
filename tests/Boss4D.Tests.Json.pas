@@ -226,6 +226,7 @@ begin
 
     LProject := TBoss4DBuildProject.Create;
     LProject.Path := 'packages/runtime.dproj';
+    LProject.PackageName := 'RuntimePackage';
     LProject.Kind := 'runtime';
     LProject.Platforms.Add('Win32');
     LProject.Platforms.Add('Win64');
@@ -233,6 +234,7 @@ begin
 
     LProject := TBoss4DBuildProject.Create;
     LProject.Path := 'packages/design.dproj';
+    LProject.PackageName := 'DesignPackage';
     LProject.Kind := 'design';
     LProject.DependsOn.Add('packages/runtime.dproj');
     LProject.Compilers.Add('37.0');
@@ -256,12 +258,16 @@ begin
     Assert.AreEqual('packages/design.dproj',
       LLoaded.BuildMatrix.Projects[0].Path);
     Assert.AreEqual('design', LLoaded.BuildMatrix.Projects[0].Kind);
+    Assert.AreEqual('DesignPackage',
+      LLoaded.BuildMatrix.Projects[0].PackageName);
     Assert.AreEqual<Integer>(1,
       LLoaded.BuildMatrix.Projects[0].DependsOn.Count);
     Assert.AreEqual('packages/runtime.dproj',
       LLoaded.BuildMatrix.Projects[0].DependsOn[0]);
     Assert.AreEqual('37.0',
       LLoaded.BuildMatrix.Projects[0].Compilers[0]);
+    Assert.AreEqual('RuntimePackage',
+      LLoaded.BuildMatrix.Projects[1].PackageName);
   finally
     LLoaded.Free;
   end;

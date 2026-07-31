@@ -302,6 +302,7 @@ begin
     var LProject := TBoss4DBuildProject.Create;
     try
       LProject.Path := ReadString(LProjectObject, 'path');
+      LProject.PackageName := ReadString(LProjectObject, 'packageName');
       LProject.Kind := ReadString(LProjectObject, 'kind');
       if LProject.Kind.IsEmpty then
         LProject.Kind := 'runtime';
@@ -553,6 +554,8 @@ begin
       begin
         var LProjectObject := TJSONObject.Create;
         LProjectObject.AddPair('path', LProject.Path);
+        if not LProject.PackageName.IsEmpty then
+          LProjectObject.AddPair('packageName', LProject.PackageName);
         LProjectObject.AddPair('kind', LProject.Kind);
         AddStringArrayIfPresent(LProjectObject, 'dependsOn',
           LProject.DependsOn);
