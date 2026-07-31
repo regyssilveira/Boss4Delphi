@@ -36,6 +36,9 @@ type
     FArtifactDigest: string;
     FSignatureUrl: string;
     FProvenanceUrl: string;
+    FChangelogUrl: string;
+    FSbomUrl: string;
+    FDependencies: TList<string>;
     FArtifactMirrors: TList<string>;
     FVariants: TObjectList<TBoss4DPackageArtifactVariant>;
   public
@@ -49,6 +52,9 @@ type
     property ArtifactDigest: string read FArtifactDigest write FArtifactDigest;
     property SignatureUrl: string read FSignatureUrl write FSignatureUrl;
     property ProvenanceUrl: string read FProvenanceUrl write FProvenanceUrl;
+    property ChangelogUrl: string read FChangelogUrl write FChangelogUrl;
+    property SbomUrl: string read FSbomUrl write FSbomUrl;
+    property Dependencies: TList<string> read FDependencies;
     property ArtifactMirrors: TList<string> read FArtifactMirrors;
     property Variants: TObjectList<TBoss4DPackageArtifactVariant> read FVariants;
   end;
@@ -65,6 +71,9 @@ type
     FArtifactDigest: string;
     FSignatureUrl: string;
     FProvenanceUrl: string;
+    FChangelogUrl: string;
+    FSbomUrl: string;
+    FDependencies: TList<string>;
     FVariants: TObjectList<TBoss4DPackageArtifactVariant>;
     FVersions: TObjectList<TBoss4DPackageVersion>;
   public
@@ -84,6 +93,9 @@ type
     property ArtifactDigest: string read FArtifactDigest write FArtifactDigest;
     property SignatureUrl: string read FSignatureUrl write FSignatureUrl;
     property ProvenanceUrl: string read FProvenanceUrl write FProvenanceUrl;
+    property ChangelogUrl: string read FChangelogUrl write FChangelogUrl;
+    property SbomUrl: string read FSbomUrl write FSbomUrl;
+    property Dependencies: TList<string> read FDependencies;
     property Variants: TObjectList<TBoss4DPackageArtifactVariant> read FVariants;
     property Versions: TObjectList<TBoss4DPackageVersion> read FVersions;
   end;
@@ -202,10 +214,12 @@ begin
   inherited Create;
   FVariants := TObjectList<TBoss4DPackageArtifactVariant>.Create(True);
   FArtifactMirrors := TList<string>.Create;
+  FDependencies := TList<string>.Create;
 end;
 
 destructor TBoss4DPackageVersion.Destroy;
 begin
+  FDependencies.Free;
   FArtifactMirrors.Free;
   FVariants.Free;
   inherited Destroy;
@@ -227,6 +241,15 @@ begin
       FArtifactDigest := LPackageVersion.ArtifactDigest;
       FSignatureUrl := LPackageVersion.SignatureUrl;
       FProvenanceUrl := LPackageVersion.ProvenanceUrl;
+      if not LPackageVersion.ChangelogUrl.IsEmpty then
+        FChangelogUrl := LPackageVersion.ChangelogUrl;
+      if not LPackageVersion.SbomUrl.IsEmpty then
+        FSbomUrl := LPackageVersion.SbomUrl;
+      if LPackageVersion.Dependencies.Count > 0 then
+      begin
+        FDependencies.Clear;
+        FDependencies.AddRange(LPackageVersion.Dependencies.ToArray);
+      end;
       for var LVariant in LPackageVersion.Variants do
       begin
         var LCopy := TBoss4DPackageArtifactVariant.Create;
@@ -272,10 +295,12 @@ begin
   inherited Create;
   FVariants := TObjectList<TBoss4DPackageArtifactVariant>.Create(True);
   FVersions := TObjectList<TBoss4DPackageVersion>.Create(True);
+  FDependencies := TList<string>.Create;
 end;
 
 destructor TBoss4DPackageIndexEntry.Destroy;
 begin
+  FDependencies.Free;
   FVersions.Free;
   FVariants.Free;
   inherited Destroy;
@@ -425,6 +450,9 @@ begin
   Result.ArtifactDigest := AObject.GetValue<string>('sha256', '');
   Result.SignatureUrl := AObject.GetValue<string>('signature', '');
   Result.ProvenanceUrl := AObject.GetValue<string>('provenance', '');
+  Result.ChangelogUrl := AObject.GetValue<string>('changelog', '');
+  Result.SbomUrl := AObject.GetValue<string>('sbom', '');
+  ReadStringArray(AObject, 'dependencies', Result.Dependencies);
   ReadStringArray(AObject, 'mirrors', Result.ArtifactMirrors);
   if AObject.GetValue('variants') is TJSONArray then
     for var LValue in TJSONArray(AObject.GetValue('variants')) do
@@ -449,6 +477,9 @@ begin
   Result.ArtifactDigest := AObject.GetValue<string>('sha256', '');
   Result.SignatureUrl := AObject.GetValue<string>('signature', '');
   Result.ProvenanceUrl := AObject.GetValue<string>('provenance', '');
+  Result.ChangelogUrl := AObject.GetValue<string>('changelog', '');
+  Result.SbomUrl := AObject.GetValue<string>('sbom', '');
+  ReadStringArray(AObject, 'dependencies', Result.Dependencies);
   if (ASchemaVersion = 2) and
      (AObject.GetValue('versions') is TJSONArray) then
     for var LValue in TJSONArray(AObject.GetValue('versions')) do
@@ -472,6 +503,9 @@ begin
     LLegacy.ArtifactDigest := Result.ArtifactDigest;
     LLegacy.SignatureUrl := Result.SignatureUrl;
     LLegacy.ProvenanceUrl := Result.ProvenanceUrl;
+    LLegacy.ChangelogUrl := Result.ChangelogUrl;
+    LLegacy.SbomUrl := Result.SbomUrl;
+    LLegacy.Dependencies.AddRange(Result.Dependencies.ToArray);
     Result.Versions.Add(LLegacy);
   end;
   Result.Source := ASource;
@@ -628,6 +662,9 @@ begin
         LCopy.ArtifactDigest := LEntry.ArtifactDigest;
         LCopy.SignatureUrl := LEntry.SignatureUrl;
         LCopy.ProvenanceUrl := LEntry.ProvenanceUrl;
+        LCopy.ChangelogUrl := LEntry.ChangelogUrl;
+        LCopy.SbomUrl := LEntry.SbomUrl;
+        LCopy.Dependencies.AddRange(LEntry.Dependencies.ToArray);
         for var LVariant in LEntry.Variants do
         begin
           var LVariantCopy := TBoss4DPackageArtifactVariant.Create;
@@ -650,6 +687,10 @@ begin
           LVersionCopy.ArtifactDigest := LVersion.ArtifactDigest;
           LVersionCopy.SignatureUrl := LVersion.SignatureUrl;
           LVersionCopy.ProvenanceUrl := LVersion.ProvenanceUrl;
+          LVersionCopy.ChangelogUrl := LVersion.ChangelogUrl;
+          LVersionCopy.SbomUrl := LVersion.SbomUrl;
+          LVersionCopy.Dependencies.AddRange(
+            LVersion.Dependencies.ToArray);
           LVersionCopy.ArtifactMirrors.AddRange(
             LVersion.ArtifactMirrors.ToArray);
           for var LVariant in LVersion.Variants do
@@ -700,6 +741,9 @@ begin
         Result.ArtifactDigest := LEntry.ArtifactDigest;
         Result.SignatureUrl := LEntry.SignatureUrl;
         Result.ProvenanceUrl := LEntry.ProvenanceUrl;
+        Result.ChangelogUrl := LEntry.ChangelogUrl;
+        Result.SbomUrl := LEntry.SbomUrl;
+        Result.Dependencies.AddRange(LEntry.Dependencies.ToArray);
         for var LVariant in LEntry.Variants do
         begin
           var LVariantCopy := TBoss4DPackageArtifactVariant.Create;
@@ -722,6 +766,10 @@ begin
           LVersionCopy.ArtifactDigest := LVersion.ArtifactDigest;
           LVersionCopy.SignatureUrl := LVersion.SignatureUrl;
           LVersionCopy.ProvenanceUrl := LVersion.ProvenanceUrl;
+          LVersionCopy.ChangelogUrl := LVersion.ChangelogUrl;
+          LVersionCopy.SbomUrl := LVersion.SbomUrl;
+          LVersionCopy.Dependencies.AddRange(
+            LVersion.Dependencies.ToArray);
           LVersionCopy.ArtifactMirrors.AddRange(
             LVersion.ArtifactMirrors.ToArray);
           for var LVariant in LVersion.Variants do

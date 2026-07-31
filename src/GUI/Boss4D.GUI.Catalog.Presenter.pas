@@ -17,6 +17,11 @@ type
     Versions: string;
     InstallVersions: TArray<string>;
     VariantSummary: string;
+    CompatibilitySummary: string;
+    Dependencies: TArray<string>;
+    DependencyGraph: string;
+    ChangelogUrl: string;
+    SbomUrl: string;
     SupplyChainSummary: string;
   end;
 
@@ -61,6 +66,14 @@ begin
       LRow.Repository := LEntry.Repository;
       LRow.Description := LEntry.Description;
       LRow.License := LEntry.License;
+      LRow.Dependencies := LEntry.Dependencies.ToArray;
+      if Length(LRow.Dependencies) = 0 then
+        LRow.DependencyGraph := LEntry.Name + ' -> sem dependencias informadas'
+      else
+        LRow.DependencyGraph := LEntry.Name + ' -> ' +
+          string.Join(', ', LRow.Dependencies);
+      LRow.ChangelogUrl := LEntry.ChangelogUrl;
+      LRow.SbomUrl := LEntry.SbomUrl;
       LRevoked := 0;
       LVersions.Clear;
       LVariants.Clear;
@@ -103,10 +116,18 @@ begin
           LRow.InstallVersions[LLength] := LVersion.Version;
         end;
       if LVariants.Count = 0 then
-        LRow.VariantSummary := 'Pacote baseado em codigo-fonte'
+      begin
+        LRow.VariantSummary := 'Pacote baseado em codigo-fonte';
+        LRow.CompatibilitySummary :=
+          'Compativel via codigo-fonte; requer toolchain local'
+      end
       else
+      begin
         LRow.VariantSummary := StringReplace(Trim(LVariants.Text),
           sLineBreak, ', ', [rfReplaceAll]);
+        LRow.CompatibilitySummary :=
+          'Artefatos verificados: ' + LRow.VariantSummary;
+      end;
       LRow.SupplyChainSummary := Format(
         'Digest: %s | Assinatura: %s | Proveniencia: %s',
         [IfThen(LHasDigest, 'sim', 'nao'),

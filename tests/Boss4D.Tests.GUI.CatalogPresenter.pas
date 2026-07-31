@@ -12,11 +12,13 @@ type
     [Test] procedure ExposesLatestAndRevokedVersionSummary;
     [Test] procedure ExposesPackageMetadataAndSupplyChainEvidence;
     [Test] procedure IdentifiesSourcePackageWithoutArtifactEvidence;
+    [Test] procedure ExposesDependencyGraphCompatibilityAndLinks;
   end;
 
 implementation
 
 uses
+  System.SysUtils,
   System.Generics.Collections,
   Boss4D.Core.Services.PackageIndex,
   Boss4D.GUI.Catalog.Presenter;
@@ -114,6 +116,39 @@ begin
     Assert.AreEqual(
       'Digest: nao | Assinatura: nao | Proveniencia: nao',
       LRows[0].SupplyChainSummary);
+  finally
+    LPresenter.Free;
+    LEntries.Free;
+  end;
+end;
+
+procedure TBoss4DGUICatalogPresenterTests.ExposesDependencyGraphCompatibilityAndLinks;
+begin
+  var LEntries := TObjectList<TBoss4DPackageIndexEntry>.Create(True);
+  var LPresenter := TBoss4DGUICatalogPresenter.Create;
+  try
+    var LEntry := TBoss4DPackageIndexEntry.Create;
+    LEntry.Name := 'WebStack';
+    LEntry.Repository := 'github.com/example/webstack';
+    LEntry.Dependencies.Add('Horse');
+    LEntry.Dependencies.Add('Jhonson');
+    LEntry.ChangelogUrl := 'https://example.test/changelog';
+    LEntry.SbomUrl := 'https://example.test/sbom.cdx.json';
+    var LVariant := TBoss4DPackageArtifactVariant.Create;
+    LVariant.Platform := 'Win64';
+    LVariant.Compiler := '37.0';
+    LEntry.Variants.Add(LVariant);
+    LEntries.Add(LEntry);
+    var LRows := LPresenter.BuildRows(LEntries);
+    Assert.AreEqual<Integer>(2, Length(LRows[0].Dependencies));
+    Assert.AreEqual('WebStack -> Horse, Jhonson',
+      LRows[0].DependencyGraph);
+    Assert.IsTrue(LRows[0].CompatibilitySummary.Contains(
+      'Win64 / 37.0'));
+    Assert.AreEqual('https://example.test/changelog',
+      LRows[0].ChangelogUrl);
+    Assert.AreEqual('https://example.test/sbom.cdx.json',
+      LRows[0].SbomUrl);
   finally
     LPresenter.Free;
     LEntries.Free;

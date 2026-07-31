@@ -1200,6 +1200,9 @@ begin
     '"artifact":"https://packages.example/modern.b4dpkg",' +
     '"sha256":"def456","signature":"https://packages.example/modern.asc",' +
     '"provenance":"https://packages.example/modern.intoto.json",' +
+    '"changelog":"https://packages.example/modern/changelog",' +
+    '"sbom":"https://packages.example/modern/sbom.cdx.json",' +
+    '"dependencies":["RuntimeCore","JsonCore"],' +
     '"variants":[{"platform":"Win64","compiler":"37.0",' +
     '"artifact":"https://packages.example/modern-win64.b4dpkg",' +
     '"sha256":"win64"},{"platform":"Win64",' +
@@ -1231,6 +1234,12 @@ begin
         LModern.SignatureUrl);
       Assert.AreEqual('https://packages.example/modern.intoto.json',
         LModern.ProvenanceUrl);
+      Assert.AreEqual('https://packages.example/modern/changelog',
+        LModern.ChangelogUrl);
+      Assert.AreEqual('https://packages.example/modern/sbom.cdx.json',
+        LModern.SbomUrl);
+      Assert.AreEqual<Integer>(2, LModern.Dependencies.Count);
+      Assert.AreEqual('RuntimeCore', LModern.Dependencies[0]);
       Assert.AreEqual<Integer>(3, LModern.Variants.Count);
       Assert.AreEqual('https://packages.example/modern-win64.b4dpkg',
         LModern.SelectVariant('Win64', '37.0').ArtifactUrl);
