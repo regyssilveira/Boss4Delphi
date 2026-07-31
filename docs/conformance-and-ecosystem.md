@@ -49,3 +49,16 @@ Pack performance and determinism can be tracked with:
 
 The benchmark emits machine-readable JSON containing min/average/max latency
 and fails if any iteration produces a different SHA-256.
+
+## Official static publication
+
+`.github/workflows/registry-pages.yml` validates the composed catalog, portal,
+search index, and publisher document before uploading only `registry/` as a
+GitHub Pages artifact. Deployment uses the protected `github-pages`
+environment, OIDC, and job-scoped `pages: write`; the workflow default remains
+`contents: read`.
+
+After the workflow reaches `main`, a repository administrator must select
+**GitHub Actions** as the Pages source once. Every subsequent Registry change
+is validated and deployed automatically. A stale search index, missing package,
+unsafe reference, or incomplete portal stops publication.

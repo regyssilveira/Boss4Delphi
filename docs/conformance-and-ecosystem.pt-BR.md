@@ -51,3 +51,17 @@ O desempenho e o determinismo do pack podem ser acompanhados com:
 
 O benchmark gera JSON com latências mínima/média/máxima e falha se qualquer
 iteração produzir SHA-256 diferente.
+
+## Publicação estática oficial
+
+O `.github/workflows/registry-pages.yml` valida catálogo composto, portal,
+índice de busca e cadastro de publishers antes de enviar somente `registry/`
+como artefato do GitHub Pages. O deploy usa o ambiente protegido
+`github-pages`, OIDC e `pages: write` restrito ao job; o padrão do workflow
+permanece `contents: read`.
+
+Depois que o workflow chegar ao `main`, um administrador precisa selecionar
+**GitHub Actions** como origem do Pages uma única vez. As mudanças seguintes do
+Registry serão validadas e publicadas automaticamente. Índice de busca
+desatualizado, pacote ausente, referência insegura ou portal incompleto
+interrompem a publicação.

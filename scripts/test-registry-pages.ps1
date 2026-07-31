@@ -1,8 +1,22 @@
 $ErrorActionPreference = 'Stop'
 $workspace = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $validator = Join-Path $PSScriptRoot 'validate-registry-pages.ps1'
+$workflowPath = Join-Path $workspace '.github\workflows\registry-pages.yml'
 
 & $validator -Root $workspace
+
+$workflow = Get-Content -LiteralPath $workflowPath -Raw
+foreach ($required in @(
+    'actions/upload-pages-artifact@v4',
+    'actions/deploy-pages@v4',
+    'pages: write',
+    'id-token: write',
+    'contents: read',
+    './scripts/validate-registry-pages.ps1')) {
+  if (-not $workflow.Contains($required)) {
+    throw "Registry Pages workflow is missing: $required"
+  }
+}
 
 $fixtureRoot = Join-Path ([IO.Path]::GetTempPath()) (
   'boss4d-registry-pages-' + [Guid]::NewGuid().ToString('N'))

@@ -1,0 +1,44 @@
+name: Registry Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "registry/**"
+      - "scripts/validate-registry-pages.ps1"
+      - ".github/workflows/registry-pages.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: registry-pages
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate composed Registry artifacts
+        shell: pwsh
+        run: ./scripts/validate-registry-pages.ps1
+      - name: Upload Registry Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: registry
+
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy Registry Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
