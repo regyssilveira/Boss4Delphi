@@ -171,6 +171,7 @@ uses
   Boss4D.Core.Services.DependencySubmission,
   Boss4D.Core.Services.Publish,
   Boss4D.Core.Services.OfficialPublish,
+  Boss4D.Core.Services.RegistryCheckout,
   Boss4D.Core.Services.SelfUpdate,
   Boss4D.Core.Services.Pack,
   Boss4D.Core.Services.Resolver,
@@ -277,7 +278,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  package versions <pacote> Lista versoes publicadas e revogadas.');
   FLogger.Log(TBoss4DLogLevel.Info, '  dependency submit    Envia snapshot ao GitHub Dependency Graph.');
   FLogger.Log(TBoss4DLogLevel.Info, '  publish              Publica pacote com validacoes; use --dry-run para inspecionar.');
-  FLogger.Log(TBoss4DLogLevel.Info, '  publish --official   Prepara pacote assinado e JSON para PR no Registry publico.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  publish --official [--registry-root dir] Prepara bundle e atualiza checkout para PR.');
   FLogger.Log(TBoss4DLogLevel.Info, '  ci [--offline]       Reinstala limpo usando o lock sem altera-lo; aceita --jobs, --progress, --json e --quiet.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config delphi use <caminho>  Configura o caminho global do compilador Delphi.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config git shallow <true/false> Configura uso de shallow clones globais.');
@@ -1366,8 +1367,8 @@ var
   LHttp: IBoss4DHttpClient;
   LPayload, LOutputPath, LTokenEnvironment, LPublisher, LRepository,
     LFingerprint, LSigningKey, LArtifactUrl, LArtifactOutput,
-    LSubmissionOutput: string;
-  LOfficial, LUserDryRun: Boolean;
+    LSubmissionOutput, LRegistryRoot: string;
+  LOfficial, LUserDryRun, LAppendVersion: Boolean;
   I: Integer;
   LEncoding: TEncoding;
 begin
@@ -1377,6 +1378,7 @@ begin
   LTokenEnvironment := 'BOSS4D_PUBLISH_TOKEN';
   LOfficial := False;
   LUserDryRun := False;
+  LAppendVersion := False;
   I := 1;
   while I < Length(AArgs) do
   begin
@@ -1387,6 +1389,8 @@ begin
     end
     else if SameText(AArgs[I], '--official') then
       LOfficial := True
+    else if SameText(AArgs[I], '--append-version') then
+      LAppendVersion := True
     else if SameText(AArgs[I], '--allow-dirty') then
       LOptions.RequireCleanGit := False
     else if SameText(AArgs[I], '--skip-tests') then
@@ -1400,7 +1404,8 @@ begin
             SameText(AArgs[I], '--sign') or
             SameText(AArgs[I], '--artifact-url') or
             SameText(AArgs[I], '--artifact-output') or
-            SameText(AArgs[I], '--submission-output') then
+            SameText(AArgs[I], '--submission-output') or
+            SameText(AArgs[I], '--registry-root') then
     begin
       if I + 1 >= Length(AArgs) then
         raise EArgumentException.Create('Informe um valor para ' + AArgs[I]);
@@ -1423,6 +1428,8 @@ begin
         LArtifactOutput := AArgs[I]
       else if SameText(AArgs[I - 1], '--submission-output') then
         LSubmissionOutput := AArgs[I]
+      else if SameText(AArgs[I - 1], '--registry-root') then
+        LRegistryRoot := AArgs[I]
       else
         LOutputPath := AArgs[I];
     end
@@ -1479,10 +1486,37 @@ begin
           TBoss4DGpgPackageSigner.Create(Boss4DProcessRunner));
         try
           var LResult := LOfficialService.Prepare(LOfficialOptions);
-          FLogger.Log(TBoss4DLogLevel.Info,
-            'Bundle oficial preparado: ' + LResult.ArtifactPath);
-          FLogger.Log(TBoss4DLogLevel.Info,
-            'Submissao para PR: ' + LResult.SubmissionPath);
+          try
+            if not LRegistryRoot.IsEmpty then
+            begin
+              var LCheckoutService :=
+                TBoss4DRegistryCheckoutService.Create;
+              try
+                var LCheckoutResult := LCheckoutService.Apply(
+                  LRegistryRoot, LResult.SubmissionPath,
+                  LAppendVersion);
+                FLogger.Log(TBoss4DLogLevel.Info,
+                  'Checkout do Registry atualizado: ' +
+                  LCheckoutResult.PackagePath);
+              finally
+                LCheckoutService.Free;
+              end;
+            end;
+            FLogger.Log(TBoss4DLogLevel.Info,
+              'Bundle oficial preparado: ' + LResult.ArtifactPath);
+            FLogger.Log(TBoss4DLogLevel.Info,
+              'Submissao para PR: ' + LResult.SubmissionPath);
+          except
+            if TFile.Exists(LResult.SubmissionPath) then
+              TFile.Delete(LResult.SubmissionPath);
+            if TFile.Exists(LResult.SignaturePath) then
+              TFile.Delete(LResult.SignaturePath);
+            if TFile.Exists(LResult.ProvenancePath) then
+              TFile.Delete(LResult.ProvenancePath);
+            if TFile.Exists(LResult.ArtifactPath) then
+              TFile.Delete(LResult.ArtifactPath);
+            raise;
+          end;
         finally
           LOfficialService.Free;
         end;

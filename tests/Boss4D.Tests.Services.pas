@@ -3558,6 +3558,8 @@ begin
       '--repository', 'github.com/example/cli-test',
       '--fingerprint', StringOfChar('a', 40),
       '--sign', 'release@example.com',
+      '--registry-root', TPath.Combine(FTempDir, 'registry-preview'),
+      '--append-version',
       '--artifact-url',
       'https://github.com/example/cli-test/releases/download/v1.0.0/' +
       'cli-test-1.0.0.b4dpkg'));
@@ -3565,6 +3567,8 @@ begin
       'Dry-run oficial aprovado'));
     Assert.IsFalse(TDirectory.Exists(TPath.Combine(FTempDir, 'dist')),
       'Dry-run oficial nao pode criar bundle.');
+    Assert.IsFalse(TDirectory.Exists(TPath.Combine(FTempDir,
+      'registry-preview')), 'Dry-run nao pode alterar checkout.');
   finally
     LParser.Free;
     LConfigService.Free;
