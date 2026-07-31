@@ -222,12 +222,12 @@ items form the active backlog.
 
 - [x] **[Story] Safe Global Git Object and Binary Cache**
   - Avoid duplicate physical repository clones by maintaining a central cache and generating logical hard links to each project's `modules/` folder.
-- [ ] **[Story] Parallel Downloads and MSBuild**
-  - The MSBuild scheduler already runs independent targets concurrently,
-    observes the dependency graph, limits `--jobs`, supports cancellation, and
-    blocks dependents after failure. The remaining work is removing the global
-    Git lock from installation and bounding concurrent downloads without
-    allowing two operations against the same cache.
+- [x] **[Story] Parallel Downloads and MSBuild**
+  - The MSBuild scheduler runs independent targets concurrently, observes the
+    dependency graph, limits `--jobs`, supports cancellation, and blocks
+    dependents after failure. Installation also bounds concurrent Git
+    operations by `--jobs` and serializes only operations against the same
+    cache key.
 
 ---
 

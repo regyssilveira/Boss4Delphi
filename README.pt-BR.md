@@ -103,7 +103,7 @@ cd /d d:\Projetos\BossDelphi
   Gerencia e consulta todo o ciclo de vida das dependências, com rollback
   automático de `boss.json`, `boss-lock.json` e `modules/` em caso de falha.
   Consulte o [guia do ciclo de vida](docs/dependency-lifecycle.pt-BR.md).
-* `boss4d ci` / `boss4d install --locked|--frozen-lockfile|--offline|--production`
+* `boss4d ci` / `boss4d install --locked|--frozen-lockfile|--offline|--production [--jobs <n>]`
   Executa instalações reproduzíveis com CI limpo, cache offline e dependências
   somente de produção.
 * `boss4d dependencies|tree|why|outdated` e `boss4d run <script>`

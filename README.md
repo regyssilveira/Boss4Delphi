@@ -117,7 +117,7 @@ cd /d d:\Projetos\BossDelphi
   Provides deterministic SemVer selection, exact pins, durable version-history
   snapshots, and transactional recovery. See
   [version management](docs/version-management.md).
-* `boss4d ci` / `boss4d install --locked|--frozen-lockfile|--offline|--production`
+* `boss4d ci` / `boss4d install --locked|--frozen-lockfile|--offline|--production [--jobs <n>]`
   Runs reproducible installs with clean CI, offline cache, and production-only
   dependency support.
 * `boss4d dependencies|tree|why|outdated` and `boss4d run <script>`

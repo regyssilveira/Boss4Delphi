@@ -223,11 +223,11 @@ itens ainda abertos formam o backlog ativo.
 
 - [x] **[Story] Cache Global Seguro de Objetos Git e Binários**
   - Evitar clones físicos repetidos, mantendo os arquivos Git num repositório centralizado e gerando links lógicos (hard links) para a pasta `modules/` de cada projeto.
-- [ ] **[Story] Paralelização de Downloads e MSBuild**
-  - O scheduler de MSBuild já executa targets independentes em paralelo,
-    respeita o grafo, limita `--jobs`, cancela e interrompe dependentes após
-    falha. Falta remover o lock Git global da instalação e limitar downloads
-    concorrentes sem permitir duas operações sobre o mesmo cache.
+- [x] **[Story] Paralelização de Downloads e MSBuild**
+  - O scheduler de MSBuild executa targets independentes em paralelo, respeita
+    o grafo, limita `--jobs`, cancela e interrompe dependentes após falha. A
+    instalação também limita operações Git concorrentes por `--jobs` e
+    serializa somente operações destinadas à mesma chave de cache.
 
 ---
 

@@ -112,7 +112,16 @@ boss4d install
   Instalacao concluida com sucesso!
   ```
 
-This reads the `boss.json`, resolves the full dependency graph recursively, downloads all packages concurrently, and generates/updates the **`boss-lock.json`** file to lock the exact versions resolved.
+This reads the `boss.json`, resolves the full dependency graph recursively,
+downloads packages concurrently, and generates/updates **`boss-lock.json`** to
+lock the exact resolved versions. Use `--jobs <n>` to bound concurrent Git
+operations (default: 4). Different repositories may progress in parallel, while
+operations targeting the same global cache remain serialized.
+
+```bash
+boss4d install --jobs 8
+boss4d ci --jobs 4
+```
 
 If the root manifest declares `buildMatrix`, the same command discovers
 installed Delphi versions and their Win32/Win64 compilers, builds only

@@ -112,7 +112,16 @@ boss4d install
   Instalacao concluida com sucesso!
   ```
 
-Este comando lê o `boss.json`, resolve a árvore de dependências recursivas concorrentemente e gera ou atualiza o arquivo **`boss-lock.json`** que trava as versões exatas baixadas.
+Este comando lê o `boss.json`, resolve a árvore recursiva, baixa pacotes
+concorrentemente e gera ou atualiza o **`boss-lock.json`** com as versões
+exatas. Use `--jobs <n>` para limitar as operações Git simultâneas (padrão: 4).
+Repositórios diferentes podem avançar em paralelo; operações destinadas ao
+mesmo cache global continuam serializadas.
+
+```bash
+boss4d install --jobs 8
+boss4d ci --jobs 4
+```
 
 Quando o manifesto raiz declara `buildMatrix`, o mesmo comando detecta as
 versões instaladas do Delphi e seus compiladores Win32/Win64, compila somente
