@@ -226,7 +226,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -q, --quiet (modo silencioso).');
   FLogger.Log(TBoss4DLogLevel.Info, '  install              Instala todas as dependencias declaradas no boss.json.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -p, --platform <plataforma> (Win32, Win64, Linux64, etc.).');
-  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --locked, --frozen-lockfile, --offline, --production, --progress plain|interactive, --json, --quiet.');
+  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --locked, --frozen-lockfile, --offline, --production, --no-register, --progress plain|interactive, --json, --quiet.');
   FLogger.Log(TBoss4DLogLevel.Info, '  install <dep>        Instala uma dependencia especifica.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Exemplo: boss4d install github.com/hashload/horse@^3.0.0');
   FLogger.Log(TBoss4DLogLevel.Info, '  add <dep> [--dev]    Adiciona dependencia de runtime ou desenvolvimento.');
@@ -1168,6 +1168,7 @@ var
 begin
   LDepToInstall := '';
   LOptions := Default(TBoss4DInstallOptions);
+  LOptions.InstallIDEs := True;
   LProgressMode := 'plain';
 
   I := 1;
@@ -1197,6 +1198,11 @@ begin
     else if SameText(AArgs[I], '--production') then
     begin
       LOptions.Production := True;
+      Inc(I);
+    end
+    else if SameText(AArgs[I], '--no-register') then
+    begin
+      LOptions.InstallIDEs := False;
       Inc(I);
     end
     else if SameText(AArgs[I], '--resolution') then
@@ -1243,11 +1249,8 @@ begin
     raise EArgumentException.Create(
       '--locked instala somente o grafo completo declarado no lock.');
   FInstallService.SetProgressMode(LProgressMode);
-  if LDepToInstall.IsEmpty and
-     (LOptions.Locked or LOptions.Offline or LOptions.Production) then
-    FInstallService.Execute(LOptions)
-  else
-    FInstallService.Execute(LDepToInstall, LOptions.Platform);
+  LOptions.InstallSingle := LDepToInstall;
+  FInstallService.Execute(LOptions);
 end;
 
 procedure TBoss4DCommandLineParser.HandleCI(const AArgs: TArray<string>);

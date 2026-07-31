@@ -114,6 +114,12 @@ boss4d install
 
 This reads the `boss.json`, resolves the full dependency graph recursively, downloads all packages concurrently, and generates/updates the **`boss-lock.json`** file to lock the exact versions resolved.
 
+If the root manifest declares `buildMatrix`, the same command discovers
+installed Delphi versions and their Win32/Win64 compilers, builds only
+compatible targets, and registers the resulting design-time BPLs in the exact
+IDE that produced them. Use `boss4d install --no-register` when restoring only
+dependencies or preparing an isolated CI environment.
+
 ---
 
 ## ⚙️ 3. Configuration Management (`config`)

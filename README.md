@@ -100,7 +100,11 @@ cd /d d:\Projetos\BossDelphi
   Interactively initializes a new `boss.json` file in the current directory.
   * *Flags*: `-q`, `--quiet` (creates a default file silently).
 * `boss4d install`
-  Reads the local `boss.json`, resolves the dependency graph recursively using SemVer, downloads modules to the `modules/` folder, updates `boss-lock.json`, and triggers compilation.
+  Reads the local `boss.json`, resolves the dependency graph recursively using
+  SemVer, downloads modules, updates `boss-lock.json`, and triggers compilation.
+  When `buildMatrix` is declared, it detects every compatible installed Delphi,
+  builds the supported Win32/Win64 targets, and registers design-time packages.
+  Use `--no-register` for a dependency-only or CI-style installation.
 * `boss4d install <url>@<version>`
   Adds and installs a specific package dependency.
   * *Example*: `boss4d install github.com/hashload/horse@^3.1.0`

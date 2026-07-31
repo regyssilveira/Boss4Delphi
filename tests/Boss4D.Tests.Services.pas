@@ -48,6 +48,8 @@ type
 
     [Test]
     procedure TestInstallService;
+    [Test]
+    procedure TestInstallBuildMatrixTriggersAutomaticIDEInstallation;
 
     [Test]
     procedure TestInstallBranchDependency;
@@ -356,6 +358,51 @@ begin
   finally
     LConfig.Free;
     LConfigService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestInstallBuildMatrixTriggersAutomaticIDEInstallation;
+var
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+  LInstall: TBoss4DInstallService;
+  LOptions: TBoss4DInstallOptions;
+  LTriggered: Integer;
+begin
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'matrix-component';
+    LPackage.Version := '1.0.0';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'Component.dproj';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+    LPackageRepo.Save(LPackage, GetBossFile);
+  finally
+    LPackage.Free;
+  end;
+  LTriggered := 0;
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo,
+    TGitClientMock.Create, THttpClientMock.Create, TCompilerMock.Create,
+    TTestLogger.Create,
+    procedure(const APackage: TBoss4DPackage)
+    begin
+      Inc(LTriggered);
+      Assert.AreEqual<string>('matrix-component', APackage.Name);
+    end);
+  try
+    LOptions := Default(TBoss4DInstallOptions);
+    LOptions.InstallIDEs := True;
+    LInstall.Execute(LOptions);
+    Assert.AreEqual(1, LTriggered);
+  finally
+    LInstall.Free;
   end;
 end;
 
