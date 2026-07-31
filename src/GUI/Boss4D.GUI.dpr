@@ -54,6 +54,7 @@ uses
   Boss4D.GUI.Install.Presenter in 'Boss4D.GUI.Install.Presenter.pas',
   Boss4D.GUI.Install.Dialog in 'Boss4D.GUI.Install.Dialog.pas',
   Boss4D.GUI.Operation.Presenter in 'Boss4D.GUI.Operation.Presenter.pas',
+  Boss4D.GUI.TargetProgress in 'Boss4D.GUI.TargetProgress.pas',
   Boss4D.GUI.Process.Windows in 'Boss4D.GUI.Process.Windows.pas',
   Boss4D.GUI.Health.Presenter in 'Boss4D.GUI.Health.Presenter.pas',
   Boss4D.Core.Services.DependencySubmission in '..\Core\Services\Boss4D.Core.Services.DependencySubmission.pas',
