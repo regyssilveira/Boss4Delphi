@@ -87,6 +87,8 @@ type
     procedure TestPackageIndexSparseRevocationAndMirrorMetadata;
     [Test]
     procedure TestPublicRegistryIsDefaultSource;
+    [Test]
+    procedure TestPackageIndexUsesLastValidHttpCache;
 
     [Test]
     procedure TestGitHubDependencySubmission;
@@ -1740,6 +1742,51 @@ begin
     LConfig.Free;
     LInstall.Free;
     LInit.Free;
+  end;
+end;
+
+procedure TTestsServices.TestPackageIndexUsesLastValidHttpCache;
+const
+  CACHE_URL = 'https://registry.example/index-v2.json';
+var
+  LConfig: TBoss4DConfigService;
+  LHttp: THttpClientMock;
+  LService: TBoss4DPackageIndexService;
+begin
+  LConfig := TBoss4DConfigService.Create(TTestLogger.Create);
+  LHttp := THttpClientMock.Create;
+  LHttp.AddResponse(CACHE_URL,
+    '{"schemaVersion":2,"packages":[{"name":"CachedPackage",' +
+    '"repository":"example.test/cached","versions":[{"version":"1.0.0"}]}]}',
+    200);
+  LService := TBoss4DPackageIndexService.Create(LConfig, LHttp,
+    TTestLogger.Create);
+  try
+    LService.AddRegistry(CACHE_URL);
+    var LFirst := LService.Info('CachedPackage');
+    try
+      Assert.IsNotNull(LFirst);
+    finally
+      LFirst.Free;
+    end;
+  finally
+    LService.Free;
+  end;
+  LHttp := THttpClientMock.Create;
+  LHttp.AddResponse(CACHE_URL, '', 503);
+  LService := TBoss4DPackageIndexService.Create(LConfig, LHttp,
+    TTestLogger.Create);
+  try
+    var LCached := LService.Info('CachedPackage');
+    try
+      Assert.IsNotNull(LCached);
+      Assert.AreEqual('1.0.0', LCached.LatestVersion);
+    finally
+      LCached.Free;
+    end;
+  finally
+    LService.Free;
+    LConfig.Free;
   end;
 end;
 

@@ -93,6 +93,7 @@ type
     FConfigService: TBoss4DConfigService;
     FHttp: IBoss4DHttpClient;
     FLogger: IBoss4DLogger;
+    function ReadSource(const ASource: string): string;
     procedure AddBuiltIn(const AEntries: TObjectList<TBoss4DPackageIndexEntry>);
     procedure LoadRegistry(const ASource: string;
       const AEntries: TObjectList<TBoss4DPackageIndexEntry>);
@@ -114,12 +115,45 @@ type
 implementation
 
 uses
-  System.SysUtils, System.IOUtils, System.JSON,
+  System.SysUtils, System.IOUtils, System.JSON, System.Hash,
   Boss4D.Core.Domain.SemVer, Boss4D.Core.Services.Resolver;
 
 const
   BOSS4D_PUBLIC_REGISTRY =
     'https://raw.githubusercontent.com/regyssilveira/Boss4Delphi/main/registry/index-v2.json';
+
+function TBoss4DPackageIndexService.ReadSource(const ASource: string): string;
+var
+  LStatus: Integer;
+  LCacheDirectory, LCachePath, LContent: string;
+begin
+  if not ASource.StartsWith('http://', True) and
+     not ASource.StartsWith('https://', True) then
+    Exit(TFile.ReadAllText(TPath.GetFullPath(ASource), TEncoding.UTF8));
+  LCacheDirectory := TPath.Combine(GetEnvironmentVariable('BOSS_HOME'),
+    'registry-cache');
+  if GetEnvironmentVariable('BOSS_HOME').IsEmpty then
+    LCacheDirectory := TPath.Combine(TPath.GetHomePath,
+      TPath.Combine('.boss', 'registry-cache'));
+  LCachePath := TPath.Combine(LCacheDirectory,
+    THashSHA2.GetHashString(ASource.ToLower).ToLower + '.json');
+  LStatus := FHttp.Get(ASource, LContent);
+  if (LStatus >= 200) and (LStatus < 300) then
+  begin
+    TDirectory.CreateDirectory(LCacheDirectory);
+    TFile.WriteAllText(LCachePath, LContent, TEncoding.UTF8);
+    Exit(LContent);
+  end;
+  if TFile.Exists(LCachePath) then
+  begin
+    FLogger.Log(TBoss4DLogLevel.Warning,
+      Format('Registry HTTP %d; usando cache local: %s',
+        [LStatus, ASource]));
+    Exit(TFile.ReadAllText(LCachePath, TEncoding.UTF8));
+  end;
+  raise Exception.CreateFmt('Registry %s respondeu HTTP %d',
+    [ASource, LStatus]);
+end;
 
 constructor TBoss4DPackageArtifactVariant.Create;
 begin
@@ -312,7 +346,6 @@ procedure TBoss4DPackageIndexService.LoadRegistryInternal(const ASource: string;
   const AVisited: TDictionary<string, Boolean>);
 var
   LContent: string;
-  LStatus: Integer;
   function ResolveReference(const AReference: string): string;
   begin
     if AReference.StartsWith('http://', True) or
@@ -330,16 +363,7 @@ begin
   if AVisited.ContainsKey(ASource.ToLower) then
     Exit;
   AVisited.Add(ASource.ToLower, True);
-  if ASource.StartsWith('http://', True) or
-     ASource.StartsWith('https://', True) then
-  begin
-    LStatus := FHttp.Get(ASource, LContent);
-    if (LStatus < 200) or (LStatus >= 300) then
-      raise Exception.CreateFmt('Registry %s respondeu HTTP %d',
-        [ASource, LStatus]);
-  end
-  else
-    LContent := TFile.ReadAllText(TPath.GetFullPath(ASource), TEncoding.UTF8);
+  LContent := ReadSource(ASource);
   var LValue := TJSONObject.ParseJSONValue(LContent);
   try
     if not (LValue is TJSONObject) then
