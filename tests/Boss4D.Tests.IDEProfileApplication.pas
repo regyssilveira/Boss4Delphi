@@ -42,6 +42,20 @@ uses
   Boss4D.Tests.IDEProcessPolicy,
   Boss4D.Tests.Mocks;
 
+procedure IntroduceAndAssertProfileDrift(
+  const AApplication: TBoss4DIDEProfileApplication;
+  const ARegistry: TIDERegistryStoreMock);
+begin
+  Assert.AreEqual<Integer>(0,
+    Length(AApplication.FindDrift('isolated')));
+  const LKnownPackageKey =
+    'Software\Embarcadero\Boss4D-isolated\37.0\Known Packages';
+  var LKnownPackageNames := ARegistry.ListValueNames(
+    LKnownPackageKey);
+  ARegistry.DeleteValue(LKnownPackageKey, LKnownPackageNames[0]);
+  Assert.IsTrue(Length(AApplication.FindDrift('isolated')) > 0);
+end;
+
 procedure TTestsIDEProfileApplication.Setup;
 begin
   FPreviousDirectory := TDirectory.GetCurrentDirectory;
@@ -158,15 +172,7 @@ begin
       Assert.AreEqual<Integer>(1, LSummary.Affected, 'registered');
       Assert.IsTrue(Length(LRegistryMock.ListValueNames(
         'Software\Embarcadero\Boss4D-isolated\37.0\Known Packages')) > 0);
-      Assert.AreEqual<Integer>(0,
-        Length(LApplication.FindDrift('isolated')));
-      var LKnownPackageKey :=
-        'Software\Embarcadero\Boss4D-isolated\37.0\Known Packages';
-      var LKnownPackageNames := LRegistryMock.ListValueNames(
-        LKnownPackageKey);
-      LRegistryMock.DeleteValue(LKnownPackageKey,
-        LKnownPackageNames[0]);
-      Assert.IsTrue(Length(LApplication.FindDrift('isolated')) > 0);
+      IntroduceAndAssertProfileDrift(LApplication, LRegistryMock);
       LProfile := LProfiles.Get('isolated');
       try
         Assert.AreEqual<Integer>(1, LProfile.Packages.Count,
