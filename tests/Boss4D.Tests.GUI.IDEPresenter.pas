@@ -45,6 +45,7 @@ type
     function Uninstall(const AProfileId, APackage: string): Integer;
     function Repair(const AProfileId: string): Integer;
     function Undo: Integer;
+    function History: TList<string>;
     procedure Launch(const AProfileId: string);
     procedure CreateProfile(const AName, ADescription, ACompiler,
       AExecutable: string);
@@ -152,6 +153,13 @@ function TBackendMock.Undo: Integer;
 begin
   LastAction := 'undo';
   Result := 3;
+end;
+
+function TBackendMock.History: TList<string>;
+begin
+  LastAction := 'history';
+  Result := TList<string>.Create;
+  Result.Add('2026-07-31 | succeeded | profile-install | daily | horse');
 end;
 
 procedure TBackendMock.Launch(const AProfileId: string);
@@ -287,6 +295,10 @@ begin
     LPresenter.Undo;
     Assert.AreEqual('undo', LBackendObject.LastAction);
     Assert.IsTrue(LViewObject.Status.Contains('3'));
+    LPresenter.History;
+    Assert.AreEqual('history', LBackendObject.LastAction);
+    Assert.AreEqual<Integer>(1, LViewObject.Targets.Count);
+    Assert.IsTrue(LViewObject.Targets[0].Contains('profile-install'));
     LPresenter.Launch;
     Assert.AreEqual('launch:daily', LBackendObject.LastAction);
     LPresenter.CloneProfile('Review');

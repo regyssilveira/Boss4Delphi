@@ -550,7 +550,7 @@ begin
   if Length(AArgs) < 3 then
     raise EArgumentException.Create(
       'Uso: boss4d ide profile list|create|show|target|clone|remove|' +
-      'export|import|snapshot|diff|restore|project|undo|launch|' +
+      'export|import|snapshot|diff|restore|project|history|undo|launch|' +
       'preview-install|install|' +
       'preview-uninstall|uninstall|repair.');
   LStore := TBoss4DIDEProfileStore.Create(TPath.Combine(
@@ -819,6 +819,33 @@ begin
       FLogger.Log(TBoss4DLogLevel.Info,
         'Ultima operacao IDE desfeita: %d alteracoes, %d builds.',
         [LSummary.Affected, LSummary.Built + LSummary.Restored]);
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'history') then
+    begin
+      if Length(AArgs) <> 3 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile history.');
+      var LHistoryStore := TBoss4DJsonIDEOperationResultStore.Create(
+        TPath.Combine(GetBossHome, 'ide-operation-results'));
+      try
+        var LHistory := LHistoryStore.History;
+        try
+          for var LItem in LHistory do
+            FLogger.Log(TBoss4DLogLevel.Info,
+              '%s  %s  %s  %s  %s',
+              [LItem.StartedAt,
+               TBoss4DIDEOperationStatuses.NameOf(LItem.Status),
+               LItem.Kind, LItem.Profile, LItem.Target]);
+          FLogger.Log(TBoss4DLogLevel.Info,
+            '%d operacao(oes) no historico.', [LHistory.Count]);
+        finally
+          LHistory.Free;
+        end;
+      finally
+        LHistoryStore.Free;
+      end;
       Exit;
     end;
 

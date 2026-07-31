@@ -83,6 +83,13 @@ begin
         LLoaded.CompletedActions[0]);
       Assert.AreEqual('snapshots\before-install.json',
         LLoaded.UndoSnapshot);
+      var LHistory := LStore.History;
+      try
+        Assert.AreEqual<Integer>(1, LHistory.Count);
+        Assert.AreEqual(LResult.OperationId, LHistory[0].OperationId);
+      finally
+        LHistory.Free;
+      end;
     finally
       LLoaded.Free;
     end;

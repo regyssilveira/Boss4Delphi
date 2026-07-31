@@ -518,6 +518,15 @@ object FormMain: TFormMain
             TabOrder = 5
             OnClick = BtnIDEUndoClick
           end
+          object BtnIDEHistory: TButton
+            Left = 582
+            Top = 39
+            Width = 82
+            Height = 28
+            Caption = 'Historico'
+            TabOrder = 6
+            OnClick = BtnIDEHistoryClick
+          end
           object LblIDEConflictPolicy: TLabel
             Left = 8
             Top = 11

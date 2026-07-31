@@ -94,6 +94,7 @@ boss4d ide profile snapshot team-a --output team-a.snapshot.json
 boss4d ide profile diff team-a team-a.snapshot.json
 boss4d ide profile restore team-a.snapshot.json
 boss4d ide profile undo
+boss4d ide profile history
 ```
 
 A profile export contains its portable declaration. A snapshot additionally
@@ -107,6 +108,10 @@ snapshot and records it in the operation journal. `profile undo` reverses the
 latest successful install or uninstall: removed products are rebuilt and
 registered again, while newly installed products are removed before the
 previous inventory is restored.
+
+`profile history` lists every immutable journal entry with timestamp, status,
+operation, profile, and target. The GUI exposes the same list through
+**History** and keeps `latest.json` only as a convenience pointer.
 
 Projects can bind themselves to a profile in `boss.json`:
 
@@ -157,6 +162,7 @@ Open `Boss4D.GUI.exe` and select **Components and IDEs**:
 4. inspect **Preview install** before changing the IDE;
 5. choose conflict and open-IDE policies, then install;
 6. use **Repair** to reconcile drift;
+7. use **Undo** or **History** to recover or audit completed operations.
 7. inspect **Preview remove**, then remove the managed product.
 
 The package grid distinguishes products available in the build inventory from

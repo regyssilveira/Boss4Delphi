@@ -60,6 +60,7 @@ type
     function Repair(const AProfileId: string):
       TBoss4DIDEProfileOperationSummary;
     function UndoLatest: TBoss4DIDEProfileOperationSummary;
+    function History: TObjectList<TBoss4DIDEOperationResult>;
   end;
 
 implementation
@@ -370,6 +371,15 @@ begin
   finally
     LPrevious.Free;
   end;
+end;
+
+function TBoss4DIDEProfileApplication.History:
+  TObjectList<TBoss4DIDEOperationResult>;
+begin
+  if not Assigned(FResultStore) then
+    raise EBoss4DIDEProfileError.Create(
+      'Historico requer um store de resultados de operacoes IDE.');
+  Result := FResultStore.History;
 end;
 
 function TBoss4DIDEProfileApplication.Repair(

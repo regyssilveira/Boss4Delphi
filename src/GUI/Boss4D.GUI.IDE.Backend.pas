@@ -35,6 +35,7 @@ type
     function Uninstall(const AProfileId, APackage: string): Integer;
     function Repair(const AProfileId: string): Integer;
     function Undo: Integer;
+    function History: TList<string>;
     procedure Launch(const AProfileId: string);
     procedure CreateProfile(const AName, ADescription, ACompiler,
       AExecutable: string);
@@ -47,7 +48,8 @@ type
 implementation
 
 uses
-  System.SysUtils;
+  System.SysUtils,
+  Boss4D.Core.Services.IDEOperationResult;
 
 constructor TBoss4DGUIIDEManagementBackend.Create(
   const AQuery: TBoss4DIDEManagementQuery;
@@ -116,6 +118,21 @@ end;
 function TBoss4DGUIIDEManagementBackend.Undo: Integer;
 begin
   Result := FOperations.UndoLatest.Affected;
+end;
+
+function TBoss4DGUIIDEManagementBackend.History: TList<string>;
+begin
+  Result := TList<string>.Create;
+  var LHistory := FOperations.History;
+  try
+    for var LItem in LHistory do
+      Result.Add(Format('%s | %s | %s | %s | %s',
+        [LItem.StartedAt,
+         TBoss4DIDEOperationStatuses.NameOf(LItem.Status),
+         LItem.Kind, LItem.Profile, LItem.Target]));
+  finally
+    LHistory.Free;
+  end;
 end;
 
 procedure TBoss4DGUIIDEManagementBackend.Launch(

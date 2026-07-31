@@ -48,16 +48,19 @@ type
     ['{2FBEDE13-4615-451A-B5BF-D10EED3A138D}']
     procedure Save(const AResult: TBoss4DIDEOperationResult);
     function LoadLatest: TBoss4DIDEOperationResult;
+    function History: TObjectList<TBoss4DIDEOperationResult>;
   end;
 
   TBoss4DJsonIDEOperationResultStore = class(TInterfacedObject,
     IBoss4DIDEOperationResultStore)
   private
     FDirectory: string;
+    function LoadFromPath(const APath: string): TBoss4DIDEOperationResult;
   public
     constructor Create(const ADirectory: string);
     procedure Save(const AResult: TBoss4DIDEOperationResult);
     function LoadLatest: TBoss4DIDEOperationResult;
+    function History: TObjectList<TBoss4DIDEOperationResult>;
   end;
 
   TBoss4DIDEOperationStatuses = class
@@ -90,6 +93,24 @@ begin
       Result := 'deferred';
   else
     Result := 'planned';
+  end;
+end;
+
+function TBoss4DJsonIDEOperationResultStore.History:
+  TObjectList<TBoss4DIDEOperationResult>;
+begin
+  Result := TObjectList<TBoss4DIDEOperationResult>.Create(True);
+  if not TDirectory.Exists(FDirectory) then
+    Exit;
+  var LFiles := TDirectory.GetFiles(FDirectory, '*.json');
+  TArray.Sort<string>(LFiles);
+  try
+    for var LFile in LFiles do
+      if not SameText(TPath.GetFileName(LFile), 'latest.json') then
+        Result.Add(LoadFromPath(LFile));
+  except
+    Result.Free;
+    raise;
   end;
 end;
 
@@ -224,17 +245,21 @@ end;
 
 function TBoss4DJsonIDEOperationResultStore.LoadLatest:
   TBoss4DIDEOperationResult;
+begin
+  Result := LoadFromPath(TPath.Combine(FDirectory, 'latest.json'));
+end;
+
+function TBoss4DJsonIDEOperationResultStore.LoadFromPath(
+  const APath: string): TBoss4DIDEOperationResult;
 var
   LObject: TJSONObject;
   LActions: TJSONArray;
-  LPath: string;
 begin
-  LPath := TPath.Combine(FDirectory, 'latest.json');
-  if not TFile.Exists(LPath) then
+  if not TFile.Exists(APath) then
     raise EFileNotFoundException.Create(
       'Nenhum resultado de operacao IDE foi persistido.');
   LObject := TJSONObject.ParseJSONValue(
-    TFile.ReadAllText(LPath, TEncoding.UTF8)) as TJSONObject;
+    TFile.ReadAllText(APath, TEncoding.UTF8)) as TJSONObject;
   if not Assigned(LObject) then
     raise EConvertError.Create(
       'Resultado de operacao IDE invalido.');

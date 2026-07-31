@@ -24,6 +24,7 @@ type
     function Uninstall(const AProfileId, APackage: string): Integer;
     function Repair(const AProfileId: string): Integer;
     function Undo: Integer;
+    function History: TList<string>;
     procedure Launch(const AProfileId: string);
     procedure CreateProfile(const AName, ADescription, ACompiler,
       AExecutable: string);
@@ -68,6 +69,7 @@ type
     procedure Uninstall(const APackage: string);
     procedure Repair;
     procedure Undo;
+    procedure History;
     procedure Launch;
     procedure CreateProfile(const AName, ADescription, ACompiler,
       AExecutable: string);
@@ -288,6 +290,25 @@ begin
     LoadPackages;
     FView.ShowIDEStatus(Format(
       'Ultima operacao desfeita: %d alteracao(oes).', [LAffected]));
+  except
+    on E: Exception do
+      FView.ShowIDEError(E.Message);
+  end;
+end;
+
+procedure TBoss4DIDEManagementPresenter.History;
+begin
+  try
+    FView.ClearTargets;
+    var LHistory := FBackend.History;
+    try
+      for var LItem in LHistory do
+        FView.AddTarget(LItem);
+      FView.ShowIDEStatus(Format(
+        '%d operacao(oes) no historico.', [LHistory.Count]));
+    finally
+      LHistory.Free;
+    end;
   except
     on E: Exception do
       FView.ShowIDEError(E.Message);

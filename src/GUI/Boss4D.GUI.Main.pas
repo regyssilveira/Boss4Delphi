@@ -69,6 +69,7 @@ type
     BtnIDEPreviewRemove: TButton;
     BtnIDERemove: TButton;
     BtnIDEUndo: TButton;
+    BtnIDEHistory: TButton;
     ComboIDEConflictPolicy: TComboBox;
     ComboIDEOpenPolicy: TComboBox;
     LblIDEConflictPolicy: TLabel;
@@ -108,6 +109,7 @@ type
     procedure BtnIDEPreviewRemoveClick(Sender: TObject);
     procedure BtnIDERemoveClick(Sender: TObject);
     procedure BtnIDEUndoClick(Sender: TObject);
+    procedure BtnIDEHistoryClick(Sender: TObject);
   private
     FCurrentProjectDir: string;
     FIDEProfileIds: TStringList;
@@ -973,6 +975,11 @@ begin
   if MessageDlg('Desfazer a ultima instalacao ou remocao concluida?',
     mtConfirmation, [mbYes, mbNo], 0) = mrYes then
     FIDEPresenter.Undo;
+end;
+
+procedure TFormMain.BtnIDEHistoryClick(Sender: TObject);
+begin
+  FIDEPresenter.History;
 end;
 
 end.
