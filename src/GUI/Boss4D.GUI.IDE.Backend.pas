@@ -129,10 +129,9 @@ begin
   var LHistory := FOperations.History;
   try
     for var LItem in LHistory do
-      Result.Add(Format('%s | %s | %s | %s | %s',
-        [LItem.StartedAt,
-         TBoss4DIDEOperationStatuses.NameOf(LItem.Status),
-         LItem.Kind, LItem.Profile, LItem.Target]));
+      Result.Add(LItem.StartedAt + ' | ' +
+        TBoss4DIDEOperationStatuses.NameOf(LItem.Status) + ' | ' +
+        LItem.Kind + ' | ' + LItem.Profile + ' | ' + LItem.Target);
   finally
     LHistory.Free;
   end;
