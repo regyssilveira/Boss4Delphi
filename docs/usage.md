@@ -682,7 +682,11 @@ The **Boss4D** graphical user interface (**`Boss4D.GUI.exe`**) provides a modern
      **History** action opens a newest-first operation timeline with status,
      profile, target, undo availability, completed actions, and
      error/recovery details.
-2. **Integrated Log Console**: The bottom area prints real-time logs, compilation outputs, and concurrent download tasks running in background threads (via PPL) in a thread-safe UI component.
+2. **Structured Log Console**: The bottom area presents thread-safe real-time
+   events with timestamp, level, source, and message columns. Operators can
+   filter by severity, search immediately, jump to the latest errors, clear
+   the view, and export the complete diagnostic history as schema-versioned
+   JSON.
 
 The GUI component screen and `boss4d ide profile` commands share the same
 application services and inventories. See the

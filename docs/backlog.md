@@ -52,7 +52,9 @@ See the [authoritative delivery plan](ide-packages-profiles-gui-plan.md).
   transactional rollback of a selected historical entry.
 - [x] Profile dashboard with live Registry drift, side-by-side installed-product
   comparison, compiler/target/branch details, and direct isolated IDE launch.
-- [ ] Structured searchable logs with error navigation and diagnostic export.
+- [x] Structured searchable logs with timestamp/level/source columns, level
+  filters, instant search, direct focus on errors, clearing, and JSON
+  diagnostic export.
 - [ ] Accessibility, persistent preferences, light/dark themes, keyboard
   navigation, and native completion notifications.
 

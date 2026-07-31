@@ -55,8 +55,9 @@ Veja o [plano oficial da entrega](ide-packages-profiles-gui-plan.pt-BR.md).
 - [x] Dashboard de perfis com drift real do Registry, comparação lado a lado
   dos produtos instalados, compilador/target/branch e abertura direta da IDE
   isolada.
-- [ ] Logs estruturados e pesquisáveis, navegação até o erro e exportação de
-  diagnóstico.
+- [x] Logs estruturados e pesquisáveis com colunas de horário/nível/origem,
+  filtro por nível, pesquisa instantânea, foco direto nos erros, limpeza e
+  exportação de diagnóstico em JSON.
 - [ ] Acessibilidade, preferências persistentes, temas claro/escuro, navegação
   por teclado e notificações nativas de conclusão.
 

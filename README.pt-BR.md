@@ -156,7 +156,9 @@ cd /d d:\Projetos\BossDelphi
   transacional de produtos com preview. A GUI apresenta o diário imutável de
   operações como uma linha do tempo estruturada com evidências de recuperação
   e desfazer, além de um dashboard de perfis com drift real, comparação de
-  produtos instalados e abertura direta da IDE isolada. Consulte o
+  produtos instalados e abertura direta da IDE isolada. O console estruturado
+  oferece filtros por severidade, pesquisa, foco nos erros e exportação de
+  diagnóstico em JSON. Consulte o
   [guia de perfis e componentes](docs/ide-component-management.pt-BR.md).
 * `boss4d config delphi use <caminho_ou_versao>`
   Configura o caminho global do Delphi ou a versão de release (ex: "23.0", "22.0") para a compilação do MSBuild. Se não configurado, o resolvedor autodetecta dinamicamente a versão mais recente instalada.

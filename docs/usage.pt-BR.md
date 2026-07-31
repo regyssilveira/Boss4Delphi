@@ -685,7 +685,11 @@ A interface gráfica do **Boss4D** (**`Boss4D.GUI.exe`**) fornece uma aplicaçã
      perfis e abertura direta da IDE isolada. A ação **Histórico** abre uma linha do tempo
      das operações mais recentes, com estado, perfil, target, disponibilidade
      de desfazer, ações concluídas e detalhes de erro/recuperação.
-2. **Terminal de Logs Integrado**: A área inferior exibe os logs, avisos e andamento de downloads concorrentes e compilação de pacotes gerados em segundo plano (via PPL) de forma thread-safe.
+2. **Console de Logs Estruturados**: A área inferior apresenta eventos em
+   tempo real e thread-safe com colunas de horário, nível, origem e mensagem.
+   É possível filtrar por severidade, pesquisar instantaneamente, ir aos erros
+   mais recentes, limpar a visualização e exportar todo o diagnóstico como
+   JSON versionado.
 
 A tela de componentes e os comandos `boss4d ide profile` compartilham os mesmos
 serviços e inventários. Consulte o
