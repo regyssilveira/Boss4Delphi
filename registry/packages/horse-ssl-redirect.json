@@ -1,0 +1,22 @@
+{
+    "schemaVersion":  2,
+    "packages":  [
+                     {
+                         "name":  "horse-ssl-redirect",
+                         "publisher":  "boss4d",
+                         "repository":  "github.com/regyssilveira/horse-ssl-redirect",
+                         "signerFingerprint":  "A91FA178E7A1DE7FB10148C8308C9045E23B0279",
+                         "description":  "HTTP to HTTPS redirect middleware for Horse",
+                         "license":  "Apache-2.0",
+                         "versions":  [
+                                          {
+                                              "version":  "1.0.1",
+                                              "artifact":  "https://github.com/regyssilveira/horse-ssl-redirect/releases/download/v1.0.1/horse-ssl-redirect-1.0.1.b4dpkg",
+                                              "sha256":  "d782e92bedef199d1c23393a94493d7d0f9133e4bc62c38441053b84a93cecaf",
+                                              "signature":  "https://github.com/regyssilveira/horse-ssl-redirect/releases/download/v1.0.1/horse-ssl-redirect-1.0.1.b4dpkg.asc",
+                                              "provenance":  "https://github.com/regyssilveira/horse-ssl-redirect/releases/download/v1.0.1/horse-ssl-redirect-1.0.1.b4dpkg.intoto.json"
+                                          }
+                                      ]
+                     }
+                 ]
+}

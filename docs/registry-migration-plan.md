@@ -8,17 +8,17 @@ request checks.
 
 ## Current baseline
 
-- 46 discoverable legacy v1 packages;
+- 45 discoverable legacy v1 packages;
 - 18 repository owners;
 - 16 packages in the already registered `regyssilveira` namespace;
 - 10 packages in the `HashLoad` namespace;
-- 9 signed schema-v2 packages and one authorized signer fingerprint;
-- 9 publisher-controlled packages published through the reproducibility gates;
-- 7 publisher-controlled packages requiring a release or corrected tag;
-- catalog health: 55 packages, 92 migration warnings, zero structural errors.
+- 10 signed schema-v2 packages and one authorized signer fingerprint;
+- 10 publisher-controlled packages published through the reproducibility gates;
+- 6 publisher-controlled packages requiring a release or corrected tag;
+- catalog health: 55 packages, 90 migration warnings, zero structural errors.
 
 The generated Registry portal is the public progress ledger. It currently
-reports 9 verified packages, 46 legacy packages, and 16% verified migration.
+reports 10 verified packages, 45 legacy packages, and 18% verified migration.
 Each accepted schema-v2 package with an authorized publisher fingerprint
 increments that metric automatically.
 
@@ -64,7 +64,7 @@ registered publisher scope:
 | horse-schema-validation | v1.0.0 | Published; install, signature, provenance, and 10/10 tests pass |
 | horse-multipart | v1.0.0 | Published; install, signature, provenance, and upload integration test pass |
 | horse-helmet | v1.0.1 | Published; repaired manifest, 12/12 tests and verified installation pass |
-| horse-ssl-redirect | v1.0.0 | Blocked: tests do not compile against resolved Horse 3.2.0 |
+| horse-ssl-redirect | v1.0.1 | Published; 8/8 redirect integration tests and verified installation pass |
 | horse-request-id | v1.0.0 | Blocked: uses Horse request services absent from 3.2.0 |
 | horse-opentelemetry | v1.0.0 | Blocked: legacy dependency value resolves to `https://horse/` |
 | horse-prometheus | v1.0.0 | Blocked: legacy dependency value resolves to `https://horse/` |
@@ -117,6 +117,12 @@ covered unauthenticated, missing-claim, OR, and AND decisions before the
 10-file bundle passed independent signature and verified no-fallback
 installation.
 
+`horse-ssl-redirect` `v1.0.1` followed with Horse 3.2 route-scoped test
+compatibility and a reproducible Seattle runner. Four complete eight-test runs
+plus a clean post-merge run covered localhost policy, proxy HTTPS headers,
+custom TLS ports, and redirect status before the signed nine-file bundle
+passed conformance and verified no-fallback installation.
+
 ### First publication batch
 
 The first publication batch completed in this order:
@@ -134,7 +140,7 @@ Never reuse one package's evidence URL for another package.
 ## Wave 2 — publisher-controlled packages needing a release
 
 `Dext`, `horse-crud`, and `horse-sanitize` have no published tag/release.
-The four blocked Wave 1 packages additionally need corrected manifests, tests,
+The three blocked Wave 1 packages additionally need corrected manifests, tests,
 or Horse compatibility in new immutable releases. Before Registry migration
 these packages need an exact SemVer tag, tests, immutable release assets, and
 the same signed publication workflow.

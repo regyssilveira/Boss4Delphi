@@ -8,17 +8,17 @@ passarem nos checks do pull request do Registry.
 
 ## Ponto de partida
 
-- 46 pacotes legados v1 pesquisáveis;
+- 45 pacotes legados v1 pesquisáveis;
 - 18 responsáveis por repositórios;
 - 16 pacotes no namespace `regyssilveira`, já cadastrado;
 - 10 pacotes no namespace `HashLoad`;
-- 9 pacotes schema v2 assinados e um fingerprint autorizado;
-- 9 pacotes do publisher publicados pelos gates de reprodutibilidade;
-- 7 pacotes do publisher que precisam de release ou correção da tag;
-- saúde: 55 pacotes, 92 avisos de migração e zero erros estruturais.
+- 10 pacotes schema v2 assinados e um fingerprint autorizado;
+- 10 pacotes do publisher publicados pelos gates de reprodutibilidade;
+- 6 pacotes do publisher que precisam de release ou correção da tag;
+- saúde: 55 pacotes, 90 avisos de migração e zero erros estruturais.
 
 O portal gerado do Registry é o painel público do progresso. No momento ele
-informa 9 pacotes verificados, 46 pacotes legados e 16% de migração verificada.
+informa 10 pacotes verificados, 45 pacotes legados e 18% de migração verificada.
 Cada pacote schema v2 aceito com fingerprint autorizado para o publisher
 incrementa essa métrica automaticamente.
 
@@ -65,7 +65,7 @@ do publisher cadastrado:
 | horse-schema-validation | v1.0.0 | Publicado; instalação, assinatura, proveniência e 10/10 testes aprovados |
 | horse-multipart | v1.0.0 | Publicado; instalação, assinatura, proveniência e teste real de upload aprovados |
 | horse-helmet | v1.0.1 | Publicado; manifesto reparado, 12/12 testes e instalação verificada aprovados |
-| horse-ssl-redirect | v1.0.0 | Bloqueado: testes não compilam com o Horse 3.2.0 resolvido |
+| horse-ssl-redirect | v1.0.1 | Publicado; 8/8 testes de integração de redirect e instalação verificada aprovados |
 | horse-request-id | v1.0.0 | Bloqueado: usa request services ausentes no Horse 3.2.0 |
 | horse-opentelemetry | v1.0.0 | Bloqueado: dependência legada resolve para `https://horse/` |
 | horse-prometheus | v1.0.0 | Bloqueado: dependência legada resolve para `https://horse/` |
@@ -122,6 +122,13 @@ após o merge, cobriram decisões sem autenticação, sem claim, OR e AND antes 
 o bundle de 10 arquivos passar na verificação independente da assinatura e na
 instalação verificada sem fallback.
 
+O `horse-ssl-redirect` `v1.0.1` veio depois com compatibilidade dos testes por
+rota com o Horse 3.2 e um runner Seattle reproduzível. Quatro execuções
+completas dos oito testes, mais uma execução limpa após o merge, cobriram
+política de localhost, headers HTTPS de proxy, portas TLS e status de redirect
+personalizados antes de o bundle assinado de nove arquivos passar na
+conformidade e na instalação verificada sem fallback.
+
 ### Primeiro lote de publicação
 
 O primeiro lote de publicação foi concluído nesta ordem:
@@ -139,7 +146,7 @@ reutilize a URL de evidência de um pacote em outro.
 ## Onda 2 — pacotes do publisher que precisam de release
 
 `Dext`, `horse-crud` e `horse-sanitize` ainda não possuem tag/release
-publicada. Os quatro pacotes bloqueados da Onda 1 também precisam de manifestos,
+publicada. Os três pacotes bloqueados da Onda 1 também precisam de manifestos,
 testes ou compatibilidade com Horse corrigidos em novas releases imutáveis.
 Antes da migração esses pacotes precisam de tag SemVer exata, testes, assets
 imutáveis e o mesmo fluxo de publicação assinada.

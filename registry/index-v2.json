@@ -17,6 +17,7 @@
                    "packages/horse-rate-limit.json",
                    "packages/horse-rbac.json",
                    "packages/horse-schema-validation.json",
+                   "packages/horse-ssl-redirect.json",
                    "packages/horse-static.json"
                ],
     "packages":  [
