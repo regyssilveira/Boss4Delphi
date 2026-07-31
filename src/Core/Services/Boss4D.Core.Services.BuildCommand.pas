@@ -37,6 +37,8 @@ type
 
   TBoss4DIDERegistrationHandler = reference to procedure(
     const ARegistration: TBoss4DIDERegistration);
+  TBoss4DIDERegistrationBatchHandler = reference to function(
+    const ARegistrations: TObjectList<TBoss4DIDERegistration>): Integer;
 
   TBoss4DBuildCommandOptions = record
     Selection: TBoss4DBuildSelection;
@@ -66,6 +68,7 @@ type
     FCompiler: IBoss4DCompiler;
     FLogger: IBoss4DLogger;
     FRegistrationHandler: TBoss4DIDERegistrationHandler;
+    FRegistrationBatchHandler: TBoss4DIDERegistrationBatchHandler;
     FInventory: TBoss4DBuildInventory;
     function SourceChecksum(const APackage: TBoss4DPackage;
       const ARootDirectory: string): string;
@@ -73,7 +76,9 @@ type
     constructor Create(const ACompiler: IBoss4DCompiler;
       const ALogger: IBoss4DLogger;
       const ARegistrationHandler: TBoss4DIDERegistrationHandler = nil;
-      const AInventory: TBoss4DBuildInventory = nil);
+      const AInventory: TBoss4DBuildInventory = nil;
+      const ARegistrationBatchHandler:
+        TBoss4DIDERegistrationBatchHandler = nil);
     function Plan(const APackage: TBoss4DPackage;
       const ARootDirectory: string;
       const AOptions: TBoss4DBuildCommandOptions): TBoss4DBuildCommandPlan;
@@ -249,7 +254,8 @@ end;
 constructor TBoss4DBuildCommand.Create(const ACompiler: IBoss4DCompiler;
   const ALogger: IBoss4DLogger;
   const ARegistrationHandler: TBoss4DIDERegistrationHandler;
-  const AInventory: TBoss4DBuildInventory);
+  const AInventory: TBoss4DBuildInventory;
+  const ARegistrationBatchHandler: TBoss4DIDERegistrationBatchHandler);
 begin
   inherited Create;
   if not Assigned(ACompiler) then
@@ -257,6 +263,7 @@ begin
   FCompiler := ACompiler;
   FLogger := ALogger;
   FRegistrationHandler := ARegistrationHandler;
+  FRegistrationBatchHandler := ARegistrationBatchHandler;
   FInventory := AInventory;
 end;
 
@@ -372,6 +379,7 @@ var
   LDependency: TBoss4DDependency;
   LExecutor: TBoss4DBuildExecutor;
   LTargets: TBoss4DBuildTargetList;
+  LRegistrations: TObjectList<TBoss4DIDERegistration>;
   LExecutionOptions: TBoss4DBuildExecutionOptions;
   procedure CopyIDEAsset(const ADeclaredPath, ACategory,
     ATargetRoot: string);
@@ -457,11 +465,14 @@ begin
 
     if AOptions.RegisterTargets then
     begin
-      if not Assigned(FRegistrationHandler) then
+      if not Assigned(FRegistrationHandler) and
+         not Assigned(FRegistrationBatchHandler) then
         raise EInvalidOpException.Create(
           'O registro na IDE nao esta disponivel neste ambiente.');
       LTargets := TBoss4DBuildMatrixExpander.Expand(APackage,
         AOptions.Selection);
+      LRegistrations :=
+        TObjectList<TBoss4DIDERegistration>.Create(True);
       try
         for var LTarget in LTargets do
           if SameText(LTarget.ProjectKind, 'design') then
@@ -545,14 +556,24 @@ begin
                     LRegistration.RegistryValues.Add(LManagedValue);
                   end;
                 end;
-                FRegistrationHandler(LRegistration);
-                Inc(Result.Registered);
+                if Assigned(FRegistrationBatchHandler) then
+                  LRegistrations.Add(LRegistration.Clone)
+                else
+                begin
+                  FRegistrationHandler(LRegistration);
+                  Inc(Result.Registered);
+                end;
               finally
                 LRegistration.Free;
               end;
             end;
           end;
+        if Assigned(FRegistrationBatchHandler) and
+           (LRegistrations.Count > 0) then
+          Inc(Result.Registered,
+            FRegistrationBatchHandler(LRegistrations));
       finally
+        LRegistrations.Free;
         LTargets.Free;
       end;
     end;
