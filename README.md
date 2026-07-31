@@ -184,7 +184,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Deterministic Build Improvements](docs/build-improvements.md)**: Collision-free paths, toolchains, declared projects, Lazarus, scaffolding, and normalization.
 * **[Build Matrix Guide and Contract](docs/build-matrix-contract.md)**: Schema, CLI workflow, compiler conventions, migration, diagnostics, troubleshooting, and acceptance rules for multi-version Delphi builds.
 * **[Component Build and IDE Lifecycle](docs/component-build-and-ide.md)**: Complete guide to project kinds, support levels, shared cache, IDE assets, conflicts, active repair, and safe removal.
-* **[IDE Profiles and Component Management](docs/ide-component-management.md)**: Isolated Registry branches, runtime/design products, CLI/GUI workflows, policies, previews, repair, removal, and everyday examples.
+* **[IDE Profiles and Component Management](docs/ide-component-management.md)**: Isolated Registry branches, runtime/design products, project bindings, snapshots, drift, restore/undo, CLI/GUI workflows, and everyday examples.
 * **[Dependency Lifecycle](docs/dependency-lifecycle.md)**: Transactional add, update, and remove plus graph-aware list and why commands.
 * **[Reproducible Installation](docs/reproducible-install.md)**: Frozen locks, offline cache behavior, CI clean installs, and rollback guarantees.
 * **[Dependency Scopes](docs/dependency-scopes.md)**: `devDependencies`, production installs, lock v3, and SBOM scope evidence.
