@@ -52,8 +52,9 @@ Veja o [plano oficial da entrega](ide-packages-profiles-gui-plan.pt-BR.md).
   erro/recuperação e disponibilidade de desfazer.
 - [ ] Estender a linha do tempo com comparação explícita antes/depois e
   rollback transacional de uma entrada histórica selecionada.
-- [ ] Dashboard de perfis com drift, comparação lado a lado, produtos
-  instalados e abertura direta da IDE isolada.
+- [x] Dashboard de perfis com drift real do Registry, comparação lado a lado
+  dos produtos instalados, compilador/target/branch e abertura direta da IDE
+  isolada.
 - [ ] Logs estruturados e pesquisáveis, navegação até o erro e exportação de
   diagnóstico.
 - [ ] Acessibilidade, preferências persistentes, temas claro/escuro, navegação

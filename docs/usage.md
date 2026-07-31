@@ -676,6 +676,9 @@ The **Boss4D** graphical user interface (**`Boss4D.GUI.exe`**) provides a modern
      compiler targets, available/installed component products, install/remove
      previews, conflict and open-IDE policies, transactional installation,
      repair, removal, and launch through an alternate Registry branch. The
+     **Dashboard** consolidates live Registry drift, installed products,
+     compiler/target/branch details, side-by-side profile comparison, and
+     direct isolated IDE launch. The
      **History** action opens a newest-first operation timeline with status,
      profile, target, undo availability, completed actions, and
      error/recovery details.

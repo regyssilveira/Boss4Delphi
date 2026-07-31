@@ -50,8 +50,8 @@ See the [authoritative delivery plan](ide-packages-profiles-gui-plan.md).
   availability.
 - [ ] Extend the operation timeline with explicit before/after comparison and
   transactional rollback of a selected historical entry.
-- [ ] Profile dashboard with drift, side-by-side comparison, installed
-  products, and direct isolated IDE launch.
+- [x] Profile dashboard with live Registry drift, side-by-side installed-product
+  comparison, compiler/target/branch details, and direct isolated IDE launch.
 - [ ] Structured searchable logs with error navigation and diagnostic export.
 - [ ] Accessibility, persistent preferences, light/dark themes, keyboard
   navigation, and native completion notifications.

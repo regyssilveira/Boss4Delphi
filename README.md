@@ -166,7 +166,9 @@ cd /d d:\Projetos\BossDelphi
   `preview-install|install|repair|preview-uninstall|uninstall`
   Manages isolated RAD Studio Registry branches and performs previewable,
   transactional product installation. The GUI exposes the immutable operation
-  journal as a structured timeline with recovery and undo evidence. See the
+  journal as a structured timeline with recovery and undo evidence, plus a
+  profile dashboard for live drift, installed-product comparison, and direct
+  isolated IDE launch. See the
   [IDE profile and component guide](docs/ide-component-management.md).
 * `boss4d config delphi use <path_or_release_version>`
   Sets the global path or the release version (e.g. "23.0", "22.0") of the Delphi installation directory for MSBuild. If not specified, the compiler adapter will automatically detect the latest installed Delphi version.

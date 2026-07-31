@@ -159,15 +159,19 @@ Políticas para IDE aberta:
 
 Abra `Boss4D.GUI.exe` e selecione **Componentes e IDEs**:
 
-1. crie, clone, selecione, remova ou inicie um perfil;
-2. escolha plataforma e configuração padrão;
-3. selecione um produto do inventário global de builds;
-4. consulte **Preview instalar** antes de alterar a IDE;
-5. escolha as políticas de conflito e IDE aberta e instale;
-6. use **Reparar** para reconciliar drift;
-7. use **Desfazer** ou abra a linha do tempo estruturada em **Historico** para
+1. abra **Dashboard** para revisar todos os perfis, drift real, produtos
+   instalados, compilador/target e Registry branch;
+2. selecione dois perfis no dashboard para comparar produtos exclusivos e
+   compartilhados, ou selecione um e use **Abrir IDE**;
+3. crie, clone, selecione, remova ou inicie um perfil;
+4. escolha plataforma e configuração padrão;
+5. selecione um produto do inventário global de builds;
+6. consulte **Preview instalar** antes de alterar a IDE;
+7. escolha as políticas de conflito e IDE aberta e instale;
+8. use **Reparar** para reconciliar drift;
+9. use **Desfazer** ou abra a linha do tempo estruturada em **Historico** para
    recuperar ou auditar operacoes;
-8. consulte **Preview remover** e remova o produto gerenciado.
+10. consulte **Preview remover** e remova o produto gerenciado.
 
 A grade diferencia produtos disponíveis no inventário de builds dos instalados
 no perfil selecionado. A lista de targets mostra as identidades exatas afetadas

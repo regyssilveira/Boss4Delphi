@@ -159,15 +159,19 @@ Open-IDE policies:
 
 Open `Boss4D.GUI.exe` and select **Components and IDEs**:
 
-1. create, clone, select, remove, or launch a profile;
-2. choose its default platform and configuration;
-3. select a product from the global build inventory;
-4. inspect **Preview install** before changing the IDE;
-5. choose conflict and open-IDE policies, then install;
-6. use **Repair** to reconcile drift;
-7. use **Undo** or open the structured **History** timeline to recover or audit
+1. open **Dashboard** to review every profile, its live drift state, installed
+   products, compiler/target, and Registry branch;
+2. select two dashboard rows to compare exclusive and shared products, or
+   select one and use **Open IDE** to launch its isolated branch;
+3. create, clone, select, remove, or launch a profile;
+4. choose its default platform and configuration;
+5. select a product from the global build inventory;
+6. inspect **Preview install** before changing the IDE;
+7. choose conflict and open-IDE policies, then install;
+8. use **Repair** to reconcile drift;
+9. use **Undo** or open the structured **History** timeline to recover or audit
    completed operations;
-8. inspect **Preview remove**, then remove the managed product.
+10. inspect **Preview remove**, then remove the managed product.
 
 The package grid distinguishes products available in the build inventory from
 products installed in the selected profile. The target list shows the exact
