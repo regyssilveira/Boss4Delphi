@@ -13,6 +13,7 @@ type
     [Test] procedure ExposesPackageMetadataAndSupplyChainEvidence;
     [Test] procedure IdentifiesSourcePackageWithoutArtifactEvidence;
     [Test] procedure ExposesDependencyGraphCompatibilityAndLinks;
+    [Test] procedure AllowsOnlyHttpCatalogNavigation;
   end;
 
 implementation
@@ -153,6 +154,18 @@ begin
     LPresenter.Free;
     LEntries.Free;
   end;
+end;
+
+procedure TBoss4DGUICatalogPresenterTests.AllowsOnlyHttpCatalogNavigation;
+begin
+  Assert.IsTrue(TBoss4DGUICatalogPresenter.IsNavigableUrl(
+    'https://example.test/changelog'));
+  Assert.IsTrue(TBoss4DGUICatalogPresenter.IsNavigableUrl(
+    'http://localhost/sbom.json'));
+  Assert.IsFalse(TBoss4DGUICatalogPresenter.IsNavigableUrl(
+    'file:///C:/secret.txt'));
+  Assert.IsFalse(TBoss4DGUICatalogPresenter.IsNavigableUrl(
+    'javascript:alert(1)'));
 end;
 
 initialization

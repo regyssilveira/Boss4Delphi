@@ -51,6 +51,10 @@ type
     ListCatalog: TListView;
     PanelCatalogDetails: TPanel;
     MemoCatalogDetails: TMemo;
+    PanelCatalogLinks: TPanel;
+    BtnCatalogRepository: TButton;
+    BtnCatalogChangelog: TButton;
+    BtnCatalogSbom: TButton;
     PanelDocTop: TPanel;
     BtnDocCheck: TButton;
     BtnDocFix: TButton;
@@ -124,6 +128,9 @@ type
     procedure BtnInstallSelectedClick(Sender: TObject);
     procedure ListCatalogSelectItem(Sender: TObject; Item: TListItem;
       Selected: Boolean);
+    procedure BtnCatalogRepositoryClick(Sender: TObject);
+    procedure BtnCatalogChangelogClick(Sender: TObject);
+    procedure BtnCatalogSbomClick(Sender: TObject);
     procedure BtnDocCheckClick(Sender: TObject);
     procedure BtnDocFixClick(Sender: TObject);
     procedure BtnDocRepairIDEClick(Sender: TObject);
@@ -184,6 +191,7 @@ type
     function CurrentLogFilter: TBoss4DGUILogFilter;
     procedure PopulateCatalog;
     procedure ShowCatalogDetails(const AIndex: Integer);
+    procedure OpenCatalogUrl(const AUrl, ALabel: string);
     procedure RunAsyncCommand(const ATitle, ACommand: string; const AArgs: string = '');
     procedure RunAsyncGuidedInstall(
       const ARequest: TBoss4DGUIInstallRequest);
@@ -222,6 +230,7 @@ implementation
 uses
   System.IOUtils, System.Threading, System.JSON, System.StrUtils,
   System.SyncObjs,
+  Winapi.ShellAPI,
   Boss4D.Adapters.Json,
   Boss4D.Adapters.Http,
   Boss4D.Adapters.Git,
@@ -526,6 +535,9 @@ var
   LRow: TBoss4DGUICatalogRow;
 begin
   MemoCatalogDetails.Clear;
+  BtnCatalogRepository.Enabled := False;
+  BtnCatalogChangelog.Enabled := False;
+  BtnCatalogSbom.Enabled := False;
   if (AIndex < 0) or (AIndex >= Length(FCatalogRows)) then
     Exit;
   LRow := FCatalogRows[AIndex];
@@ -537,8 +549,60 @@ begin
   MemoCatalogDetails.Lines.Add('Versoes: ' +
     IfThen(LRow.Versions <> '', LRow.Versions, 'nao informadas'));
   MemoCatalogDetails.Lines.Add('Variantes: ' + LRow.VariantSummary);
+  MemoCatalogDetails.Lines.Add('Compatibilidade: ' +
+    LRow.CompatibilitySummary);
+  MemoCatalogDetails.Lines.Add('Dependencias: ' + LRow.DependencyGraph);
   MemoCatalogDetails.Lines.Add('Conformidade: ' + LRow.SupplyChainSummary);
+  if LRow.ChangelogUrl.IsEmpty then
+    MemoCatalogDetails.Lines.Add('Changelog: nao informado no Registry')
+  else
+    MemoCatalogDetails.Lines.Add('Changelog: disponivel');
+  if LRow.SbomUrl.IsEmpty then
+    MemoCatalogDetails.Lines.Add('SBOM: nao informado no Registry')
+  else
+    MemoCatalogDetails.Lines.Add('SBOM: disponivel');
   MemoCatalogDetails.Lines.Add('Repositorio: ' + LRow.Repository);
+  BtnCatalogRepository.Enabled := not LRow.Repository.Trim.IsEmpty;
+  BtnCatalogChangelog.Enabled :=
+    TBoss4DGUICatalogPresenter.IsNavigableUrl(LRow.ChangelogUrl);
+  BtnCatalogSbom.Enabled :=
+    TBoss4DGUICatalogPresenter.IsNavigableUrl(LRow.SbomUrl);
+end;
+
+procedure TFormMain.OpenCatalogUrl(const AUrl, ALabel: string);
+begin
+  var LUrl := AUrl.Trim;
+  if not LUrl.Contains('://') then
+    LUrl := 'https://' + LUrl;
+  if not TBoss4DGUICatalogPresenter.IsNavigableUrl(LUrl) then
+  begin
+    ShowMessage(ALabel + ' nao possui uma URL HTTP valida.');
+    Exit;
+  end;
+  if ShellExecute(Handle, 'open', PChar(LUrl), nil, nil,
+     SW_SHOWNORMAL) <= 32 then
+    ShowMessage('Nao foi possivel abrir ' + ALabel + '.');
+end;
+
+procedure TFormMain.BtnCatalogRepositoryClick(Sender: TObject);
+begin
+  if Assigned(ListCatalog.Selected) then
+    OpenCatalogUrl(FCatalogRows[ListCatalog.Selected.Index].Repository,
+      'o repositorio');
+end;
+
+procedure TFormMain.BtnCatalogChangelogClick(Sender: TObject);
+begin
+  if Assigned(ListCatalog.Selected) then
+    OpenCatalogUrl(FCatalogRows[ListCatalog.Selected.Index].ChangelogUrl,
+      'o changelog');
+end;
+
+procedure TFormMain.BtnCatalogSbomClick(Sender: TObject);
+begin
+  if Assigned(ListCatalog.Selected) then
+    OpenCatalogUrl(FCatalogRows[ListCatalog.Selected.Index].SbomUrl,
+      'o SBOM');
 end;
 
 procedure TFormMain.ListCatalogSelectItem(Sender: TObject; Item: TListItem;

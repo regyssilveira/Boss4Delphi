@@ -267,9 +267,9 @@ object FormMain: TFormMain
         end
         object PanelCatalogDetails: TPanel
           Left = 0
-          Top = 285
+          Top = 245
           Width = 689
-          Height = 125
+          Height = 165
           Align = alBottom
           BevelOuter = bvNone
           Caption = ''
@@ -278,11 +278,50 @@ object FormMain: TFormMain
             Left = 0
             Top = 0
             Width = 689
-            Height = 125
+            Height = 129
             Align = alClient
             ReadOnly = True
             ScrollBars = ssVertical
             TabOrder = 0
+          end
+          object PanelCatalogLinks: TPanel
+            Left = 0
+            Top = 129
+            Width = 689
+            Height = 36
+            Align = alBottom
+            BevelOuter = bvNone
+            TabOrder = 1
+            object BtnCatalogRepository: TButton
+              Left = 8
+              Top = 5
+              Width = 105
+              Height = 26
+              Caption = 'Repositorio'
+              Enabled = False
+              TabOrder = 0
+              OnClick = BtnCatalogRepositoryClick
+            end
+            object BtnCatalogChangelog: TButton
+              Left = 119
+              Top = 5
+              Width = 105
+              Height = 26
+              Caption = 'Changelog'
+              Enabled = False
+              TabOrder = 1
+              OnClick = BtnCatalogChangelogClick
+            end
+            object BtnCatalogSbom: TButton
+              Left = 230
+              Top = 5
+              Width = 105
+              Height = 26
+              Caption = 'Abrir SBOM'
+              Enabled = False
+              TabOrder = 2
+              OnClick = BtnCatalogSbomClick
+            end
           end
         end
       end

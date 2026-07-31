@@ -27,6 +27,7 @@ type
 
   TBoss4DGUICatalogPresenter = class
   public
+    class function IsNavigableUrl(const AUrl: string): Boolean; static;
     function BuildRows(
       const AEntries: TObjectList<TBoss4DPackageIndexEntry>):
       TArray<TBoss4DGUICatalogRow>;
@@ -36,6 +37,13 @@ implementation
 
 uses
   System.SysUtils, System.Classes, System.StrUtils;
+
+class function TBoss4DGUICatalogPresenter.IsNavigableUrl(
+  const AUrl: string): Boolean;
+begin
+  Result := AUrl.StartsWith('https://', True) or
+    AUrl.StartsWith('http://', True);
+end;
 
 function TBoss4DGUICatalogPresenter.BuildRows(
   const AEntries: TObjectList<TBoss4DPackageIndexEntry>):
