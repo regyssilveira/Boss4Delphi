@@ -25,6 +25,13 @@ não confiável é escapado no HTML. A pasta `registry/` pode ser
 servida pelo GitHub Pages, CDN ou qualquer servidor HTTP estático; o índice
 JSON é a autoridade do protocolo e o portal é somente sua projeção legível.
 
+Para uma entrada v2 local, o comando compõe recursivamente os documentos de
+`includes` e `sparse`, carrega cada documento uma única vez e aplica suas
+revogações antes da renderização. As referências devem permanecer dentro do
+diretório da entrada. Travessia para o diretório pai e referências HTTP são
+rejeitadas; materialize localmente um registry remoto antes de gerar um portal
+determinístico.
+
 O desempenho e o determinismo do pack podem ser acompanhados com:
 
 ```powershell

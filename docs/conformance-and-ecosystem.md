@@ -24,6 +24,12 @@ metadata is HTML-escaped. The `registry/` directory can
 be served by GitHub Pages, a CDN, or any static HTTP server; the JSON index is
 the protocol authority and the portal is only a human-readable projection.
 
+For a local v2 entry point, the command recursively composes `includes` and
+`sparse` documents, loads each document only once, and applies their
+revocations before rendering. References must remain inside the entry point
+directory. Parent traversal and HTTP references are rejected; materialize a
+remote registry locally before generating a deterministic portal.
+
 Pack performance and determinism can be tracked with:
 
 ```powershell
