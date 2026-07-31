@@ -119,6 +119,17 @@ inclusive dentro de `versions`.
 
 O catálogo da GUI e a busca do RAD Studio usam o mesmo serviço da CLI.
 
+Para hospedagem estática e serviços externos de descoberta, gere um snapshot
+consolidado:
+
+```text
+boss4d registry search-index registry/index-v2.json registry/search-index.json
+```
+
+O snapshot resolve `includes` e metadados `sparse` locais, aplica revogações e
+expõe identidade normalizada de publishers sem substituir a entrada oficial do
+protocolo.
+
 Metadados HTTP são persistidos após cada resposta válida. Falhas de rede ou do
 servidor usam a última cópia válida. O cliente POSIX também utiliza requisições
 condicionais com `ETag` e `Last-Modified` e oferece resolução estrita somente

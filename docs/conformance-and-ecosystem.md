@@ -16,11 +16,15 @@ A static, host-independent portal can be generated from any conforming index:
 
 ```text
 boss4d registry portal registry/index-v2.json registry/index.html
+boss4d registry search-index registry/index-v2.json registry/search-index.json
 ```
 
-The searchable portal renders v1 or v2 packages, version history, revocations,
-and available SHA-256/signature/provenance evidence. All untrusted package
-metadata is HTML-escaped. The `registry/` directory can
+The responsive portal renders catalog statistics and filters packages by text,
+publisher trust, platform, and compiler. It also presents v1/v2 version
+history, revocations, and available SHA-256/signature/provenance evidence. All
+untrusted metadata is HTML-escaped. The companion search index is a
+deterministic, fully composed JSON snapshot suitable for GitHub Pages, a CDN,
+or a hosted search service. The `registry/` directory can
 be served by GitHub Pages, a CDN, or any static HTTP server; the JSON index is
 the protocol authority and the portal is only a human-readable projection.
 

@@ -118,6 +118,17 @@ their immutable SHA-256 digest, including entries inside `versions`.
 The standalone GUI catalog and RAD Studio search action use the same index
 service as the CLI.
 
+For static hosting and external discovery services, generate a consolidated
+snapshot:
+
+```text
+boss4d registry search-index registry/index-v2.json registry/search-index.json
+```
+
+The snapshot resolves local `includes` and `sparse` metadata, applies
+revocations, and exposes normalized publisher identity without replacing the
+protocol entry point.
+
 HTTP metadata is persisted after every valid response. Network or server
 failures fall back to the last valid cache. The POSIX client additionally uses
 `ETag` and `Last-Modified` conditional requests and supports strict

@@ -17,11 +17,15 @@ conforme:
 
 ```text
 boss4d registry portal registry/index-v2.json registry/index.html
+boss4d registry search-index registry/index-v2.json registry/search-index.json
 ```
 
-O portal pesquisável apresenta pacotes v1/v2, histórico de versões, revogações
-e evidências disponíveis de SHA-256, assinatura e proveniência. Todo metadado
-não confiável é escapado no HTML. A pasta `registry/` pode ser
+O portal responsivo apresenta estatísticas e filtra pacotes por texto,
+confiança do publisher, plataforma e compilador. Também exibe histórico v1/v2,
+revogações e evidências disponíveis de SHA-256, assinatura e proveniência. Todo
+metadado não confiável é escapado no HTML. O índice de busca complementar é um
+snapshot JSON determinístico e completamente composto, adequado para GitHub
+Pages, CDN ou um serviço de busca hospedado. A pasta `registry/` pode ser
 servida pelo GitHub Pages, CDN ou qualquer servidor HTTP estático; o índice
 JSON é a autoridade do protocolo e o portal é somente sua projeção legível.
 
