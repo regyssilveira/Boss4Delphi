@@ -19,6 +19,8 @@ type
     [Test]
     procedure TestDefaultAndNamedProfilesUseIsolatedBranches;
     [Test]
+    procedure TestDefaultMigratesLegacyInventoryWithoutOverwrite;
+    [Test]
     procedure TestClonePackagesAndPersistenceAreIndependent;
     [Test]
     procedure TestExportImportAndLaunchRegistryBranch;
@@ -73,6 +75,45 @@ begin
     finally
       LNamed.Free;
       LDefault.Free;
+    end;
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TTestsIDEProfiles.TestDefaultMigratesLegacyInventoryWithoutOverwrite;
+var
+  LService: TBoss4DIDEProfileService;
+  LProfile: TBoss4DIDEProfile;
+  LLegacyPath: string;
+begin
+  LLegacyPath := TPath.Combine(FDirectory,
+    'ide-registrations.json');
+  TFile.WriteAllText(LLegacyPath, '{"legacy":true}', TEncoding.UTF8);
+  LService := TBoss4DIDEProfileService.Create(
+    TBoss4DIDEProfileStore(FStore),
+    TPath.Combine(FDirectory, 'data'));
+  try
+    LProfile := LService.EnsureDefault('d13',
+      'C:\Delphi13\bin\bds.exe', LLegacyPath);
+    try
+      Assert.AreEqual('{"legacy":true}', TFile.ReadAllText(
+        LProfile.InventoryPath, TEncoding.UTF8));
+      TFile.WriteAllText(LProfile.InventoryPath, '{"new":true}',
+        TEncoding.UTF8);
+    finally
+      LProfile.Free;
+    end;
+    LProfile := LService.EnsureDefault('d13',
+      'C:\Delphi13\bin\bds.exe', LLegacyPath);
+    try
+      Assert.AreEqual('{"new":true}', TFile.ReadAllText(
+        LProfile.InventoryPath, TEncoding.UTF8),
+        'Inventario ja migrado nunca pode ser sobrescrito.');
+      Assert.AreEqual('Software\Embarcadero\BDS',
+        LProfile.RegistryRoot);
+    finally
+      LProfile.Free;
     end;
   finally
     LService.Free;

@@ -36,8 +36,8 @@ type
     constructor Create(const AStore: TBoss4DIDEProfileStore;
       const AProfilesRoot: string;
       const ALaunchHandler: TBoss4DIDELaunchHandler = nil);
-    function EnsureDefault(const ACompiler,
-      AExecutable: string): TBoss4DIDEProfile;
+    function EnsureDefault(const ACompiler, AExecutable: string;
+      const ALegacyInventoryPath: string = ''): TBoss4DIDEProfile;
     function CreateProfile(const AName, ADescription, ACompiler,
       AExecutable: string): TBoss4DIDEProfile;
     function CloneProfile(const ASourceId, ANewName: string):
@@ -279,13 +279,25 @@ begin
 end;
 
 function TBoss4DIDEProfileService.EnsureDefault(
-  const ACompiler, AExecutable: string): TBoss4DIDEProfile;
+  const ACompiler, AExecutable,
+  ALegacyInventoryPath: string): TBoss4DIDEProfile;
 begin
   var LProfiles := FStore.Load;
   try
     for var LProfile in LProfiles do
       if SameText(LProfile.Id, 'default') then
+      begin
+        if not ALegacyInventoryPath.Trim.IsEmpty and
+           TFile.Exists(ALegacyInventoryPath) and
+           not TFile.Exists(LProfile.InventoryPath) then
+        begin
+          TDirectory.CreateDirectory(
+            TPath.GetDirectoryName(LProfile.InventoryPath));
+          TFile.Copy(TPath.GetFullPath(ALegacyInventoryPath),
+            LProfile.InventoryPath, False);
+        end;
         Exit(LProfile.Clone);
+      end;
     var LProfile := TBoss4DIDEProfile.Create;
     LProfile.Id := 'default';
     LProfile.Name := 'default';
@@ -296,6 +308,15 @@ begin
     LProfile.RegistryBranch := 'BDS';
     LProfile.InventoryPath := TPath.Combine(
       TPath.Combine(FProfilesRoot, 'default'), 'registrations.json');
+    if not ALegacyInventoryPath.Trim.IsEmpty and
+       TFile.Exists(ALegacyInventoryPath) and
+       not TFile.Exists(LProfile.InventoryPath) then
+    begin
+      TDirectory.CreateDirectory(
+        TPath.GetDirectoryName(LProfile.InventoryPath));
+      TFile.Copy(TPath.GetFullPath(ALegacyInventoryPath),
+        LProfile.InventoryPath, False);
+    end;
     LProfiles.Add(LProfile);
     FStore.Save(LProfiles);
     Result := LProfile.Clone;
