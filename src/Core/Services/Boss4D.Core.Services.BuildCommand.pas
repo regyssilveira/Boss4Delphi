@@ -7,7 +7,8 @@ uses
   Boss4D.Core.Domain.Package,
   Boss4D.Core.Domain.Lock,
   Boss4D.Core.Domain.BuildMatrix,
-  Boss4D.Core.Services.IDERegistration;
+  Boss4D.Core.Services.IDERegistration,
+  Boss4D.Core.Services.BuildInventory;
 
 type
   TBoss4DIDERegistrationHandler = reference to procedure(
@@ -36,12 +37,14 @@ type
     FCompiler: IBoss4DCompiler;
     FLogger: IBoss4DLogger;
     FRegistrationHandler: TBoss4DIDERegistrationHandler;
+    FInventory: TBoss4DBuildInventory;
     function SourceChecksum(const APackage: TBoss4DPackage;
       const ARootDirectory: string): string;
   public
     constructor Create(const ACompiler: IBoss4DCompiler;
       const ALogger: IBoss4DLogger;
-      const ARegistrationHandler: TBoss4DIDERegistrationHandler = nil);
+      const ARegistrationHandler: TBoss4DIDERegistrationHandler = nil;
+      const AInventory: TBoss4DBuildInventory = nil);
     function Execute(const APackage: TBoss4DPackage;
       const ALock: TBoss4DLock; const ARootDirectory: string;
       const AOptions: TBoss4DBuildCommandOptions): TBoss4DBuildCommandResult;
@@ -53,6 +56,7 @@ uses
   System.SysUtils,
   System.IOUtils,
   System.Hash,
+  System.Generics.Collections,
   Boss4D.Core.Domain.Dependency,
   Boss4D.Core.Domain.Env,
   Boss4D.Core.Domain.Consts,
@@ -157,7 +161,8 @@ end;
 
 constructor TBoss4DBuildCommand.Create(const ACompiler: IBoss4DCompiler;
   const ALogger: IBoss4DLogger;
-  const ARegistrationHandler: TBoss4DIDERegistrationHandler);
+  const ARegistrationHandler: TBoss4DIDERegistrationHandler;
+  const AInventory: TBoss4DBuildInventory);
 begin
   inherited Create;
   if not Assigned(ACompiler) then
@@ -165,6 +170,7 @@ begin
   FCompiler := ACompiler;
   FLogger := ALogger;
   FRegistrationHandler := ARegistrationHandler;
+  FInventory := AInventory;
 end;
 
 function TBoss4DBuildCommand.SourceChecksum(const APackage: TBoss4DPackage;
@@ -263,6 +269,22 @@ begin
       FLogger.Log(TBoss4DLogLevel.Info,
         'Build: %d agendados, %d compilados, %d restaurados, %d ignorados.',
         [Result.Scheduled, Result.Built, Result.Restored, Result.Skipped]);
+    if Assigned(FInventory) then
+    begin
+      var LDependencies := TList<string>.Create;
+      try
+        for var LName in APackage.Dependencies.Keys do
+          LDependencies.Add(LName);
+        for var LName in APackage.DevDependencies.Keys do
+          if not LDependencies.Contains(LName) then
+            LDependencies.Add(LName);
+        FInventory.RegisterPackage(APackage.Name, ARootDirectory,
+          LDependencies.ToArray);
+        FInventory.Save;
+      finally
+        LDependencies.Free;
+      end;
+    end;
   finally
     LExecutor.Free;
     LDependency.Free;

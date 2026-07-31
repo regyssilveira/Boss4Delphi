@@ -62,6 +62,7 @@ uses
   Boss4D.Core.Domain.Env,
   Boss4D.Core.Services.BuildPaths,
   Boss4D.Core.Services.BuildCommand,
+  Boss4D.Core.Services.BuildInventory,
   Boss4D.Core.Services.IDERegistration;
 
 constructor TBuildCommandCompilerMock.Create;
@@ -170,15 +171,21 @@ var
   LRegisteredCompiler: string;
   LRegisteredPlatform: string;
   LRegisteredBpl: string;
+  LInventory: TBoss4DBuildInventory;
+  LInventoryPath: string;
 begin
   TFile.WriteAllText(TPath.Combine(FRoot, 'Design.dproj'),
     '<Project/>', TEncoding.UTF8);
   LPackage := TBoss4DPackage.Create;
   LLock := TBoss4DLock.Create;
   LCompiler := TBuildCommandCompilerMock.Create;
+  LInventoryPath := TPath.Combine(FRoot, 'build-inventory.json');
+  LInventory := TBoss4DBuildInventory.Create(LInventoryPath);
   try
     LPackage.Name := 'component-' + TGUID.NewGuid.ToString;
     LPackage.Version := '1.0.0';
+    LPackage.Dependencies.Add('runtime-base', '^1.0');
+    LPackage.DevDependencies.Add('test-base', '^1.0');
     LPackage.BuildMatrix.Compilers.Add('23.0');
     LPackage.BuildMatrix.Compilers.Add('37.0');
     LPackage.BuildMatrix.Platforms.Add('Win32');
@@ -199,7 +206,8 @@ begin
         LRegisteredCompiler := ARegistration.Compiler;
         LRegisteredPlatform := ARegistration.Platform;
         LRegisteredBpl := ARegistration.BplPath;
-      end);
+      end,
+      LInventory);
     try
       LResult := LCommand.Execute(LPackage, LLock, FRoot, LOptions);
       Assert.AreEqual(2, LResult.Scheduled);
@@ -209,10 +217,15 @@ begin
       Assert.AreEqual('37.0', LRegisteredCompiler);
       Assert.AreEqual('Win64', LRegisteredPlatform);
       Assert.IsTrue(TFile.Exists(LRegisteredBpl));
+      Assert.IsTrue(TFile.Exists(LInventoryPath));
+      Assert.IsTrue(LInventory.Contains(LPackage.Name));
+      Assert.AreEqual<Integer>(2,
+        LInventory.GetPackage(LPackage.Name).Dependencies.Count);
     finally
       LCommand.Free;
     end;
   finally
+    LInventory.Free;
     LLock.Free;
     LPackage.Free;
   end;

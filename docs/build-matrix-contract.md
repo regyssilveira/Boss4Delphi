@@ -132,6 +132,16 @@ recorded outputs are all valid. The executor distinguishes and explains:
 Changing a runtime package therefore invalidates its compatible design-time
 consumers even when their own source files did not change.
 
+Successful builds also update the global inventory at
+`%BOSS_HOME%/build-inventory.json`. The inventory records each package root and
+its runtime and development dependencies using a deterministic, versioned
+schema. Its reverse graph provides direct and transitive dependent selection,
+and its topological planner orders selected packages before their consumers.
+Self-dependencies and cycles are rejected before the inventory is persisted.
+This inventory is the contract used by affected-package and repair workflows;
+it contains no compiler binaries and does not require every modeled IDE to be
+installed.
+
 ## Parallel scheduling
 
 The scheduler is dependency-ready rather than level-barrier based. A consumer

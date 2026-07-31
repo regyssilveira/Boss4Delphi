@@ -11,7 +11,7 @@ uses
   Boss4D.Core.Services.Tool, Boss4D.Core.Services.IDEIntegration,
   Boss4D.Core.Services.GetIt, Boss4D.Core.Services.Clean,
   Boss4D.Core.Services.Sbom, Boss4D.Core.Services.Scaffold,
-  Boss4D.Core.Services.BuildCommand;
+  Boss4D.Core.Services.BuildCommand, Boss4D.Core.Services.BuildInventory;
 
 
 type
@@ -456,6 +456,7 @@ var
   LCommand: TBoss4DBuildCommand;
   LIDEIntegration: TBoss4DIDEIntegrationService;
   LHandler: TBoss4DIDERegistrationHandler;
+  LInventory: TBoss4DBuildInventory;
 begin
   LCompiler := FCompiler;
   if not Assigned(LCompiler) then
@@ -481,12 +482,20 @@ begin
           end;
       end;
       try
-        LCommand := TBoss4DBuildCommand.Create(LCompiler, FLogger, LHandler);
+        LInventory := TBoss4DBuildInventory.Create(TPath.Combine(
+          GetBossHome, 'build-inventory.json'));
         try
-          LCommand.Execute(LPackage, LLock, GetCurrentDir,
-            TBoss4DBuildCommandOptions.Parse(AArgs));
+          LInventory.Load;
+          LCommand := TBoss4DBuildCommand.Create(LCompiler, FLogger, LHandler,
+            LInventory);
+          try
+            LCommand.Execute(LPackage, LLock, GetCurrentDir,
+              TBoss4DBuildCommandOptions.Parse(AArgs));
+          finally
+            LCommand.Free;
+          end;
         finally
-          LCommand.Free;
+          LInventory.Free;
         end;
       finally
         LIDEIntegration.Free;
