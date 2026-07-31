@@ -8,17 +8,19 @@ boss4d conformance registry registry/index-v2.json
 boss4d conformance package dist/library.b4dpkg
 ```
 
-Registry conformance requires schema v1, package names and repositories, and
+Registry conformance accepts schemas v1/v2, package names and repositories, and
 paired artifact URL/SHA-256 metadata. Package conformance verifies format v1,
 safe relative paths, Base64 content, and every per-file SHA-256 digest.
 
 A static, host-independent portal can be generated from any conforming index:
 
 ```text
-boss4d registry portal registry/index-v1.json registry/index.html
+boss4d registry portal registry/index-v2.json registry/index.html
 ```
 
-All untrusted package metadata is HTML-escaped. The `registry/` directory can
+The searchable portal renders v1 or v2 packages, version history, revocations,
+and available SHA-256/signature/provenance evidence. All untrusted package
+metadata is HTML-escaped. The `registry/` directory can
 be served by GitHub Pages, a CDN, or any static HTTP server; the JSON index is
 the protocol authority and the portal is only a human-readable projection.
 

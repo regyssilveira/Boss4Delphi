@@ -11,6 +11,8 @@ boss4d registry add C:\company\boss4d-index.json
 boss4d registry list
 boss4d search database
 boss4d info InternalLib
+boss4d package versions InternalLib
+boss4d package install InternalLib@^2.0.0
 boss4d registry remove C:\company\boss4d-index.json
 ```
 
@@ -116,8 +118,7 @@ their immutable SHA-256 digest, including entries inside `versions`.
 The standalone GUI catalog and RAD Studio search action use the same index
 service as the CLI.
 
-HTTP metadata is cached with its `ETag` and `Last-Modified` validators. Online
-requests send `If-None-Match` and `If-Modified-Since`; a `304 Not Modified`
-reuses the cached bytes. Network failures fall back to the last valid cache,
-while `--offline` performs no HTTP request and fails clearly when no cached
-copy exists.
+HTTP metadata is persisted after every valid response. Network or server
+failures fall back to the last valid cache. The POSIX client additionally uses
+`ETag` and `Last-Modified` conditional requests and supports strict
+`--offline` cache-only resolution.

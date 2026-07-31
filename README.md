@@ -113,6 +113,10 @@ cd /d d:\Projetos\BossDelphi
   Manages and inspects the complete dependency lifecycle with automatic rollback
   of `boss.json`, `boss-lock.json`, and `modules/` on failure. See the
   [dependency lifecycle guide](docs/dependency-lifecycle.md).
+* `boss4d package versions`, `pin|unpin`, `upgrade|downgrade`, and `rollback`
+  Provides deterministic SemVer selection, exact pins, durable version-history
+  snapshots, and transactional recovery. See
+  [version management](docs/version-management.md).
 * `boss4d ci` / `boss4d install --locked|--frozen-lockfile|--offline|--production`
   Runs reproducible installs with clean CI, offline cache, and production-only
   dependency support.
@@ -195,6 +199,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Cache Strategy](docs/cache-strategy.md)**: Safe Git object reuse and platform/compiler-isolated executable artifacts.
 * **[Project Templates](docs/templates.md)**: Delphi, VCL, FMX, Horse+Dext API, DUnitX, Lazarus, and workspace presets.
 * **[Package Publishing](docs/publish.md)**: Dry-run, validation gates, token handling, and public/private registry contracts.
+* **[Version Management](docs/version-management.md)**: Registry versions, revocation, pin/unpin, upgrade/downgrade, mirrors, and rollback.
 * **[Platform Portability](docs/platform-portability.md)**: Portable contracts, current Linux parity, and the next POSIX targets.
 * **[Terminal Progress](docs/terminal-progress.md)**: Interactive, plain, JSON Lines, and quiet progress output for installs and CI.
 * **[Secure Self-update](docs/self-update.md)**: Release discovery, SHA-256 verification, staging, and installer handoff.

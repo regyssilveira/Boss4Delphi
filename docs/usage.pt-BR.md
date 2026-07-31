@@ -759,3 +759,26 @@ O `doctor` também verifica matriz/grafo, toolchains instaladas, paths de
 projeto, colisões de outputs/units e divergência do Registro. Consulte o
 [guia completo da matriz](build-matrix-contract.pt-BR.md) e o
 [guia do ciclo de vida do componente](component-build-and-ide.pt-BR.md).
+## Gerenciamento de versões
+
+Liste as versões do Registry, instale uma release imutável compatível ou fixe
+o manifesto na versão exata já registrada no lock:
+
+```console
+boss4d package versions Horse
+boss4d package install Horse@^3.0.0
+boss4d pin horse
+boss4d unpin horse
+```
+
+Upgrades e downgrades explícitos criam um snapshot durável do manifesto, lock
+e módulos. Restaure o estado mais recente com `rollback`:
+
+```console
+boss4d upgrade github.com/hashload/horse@3.2.1
+boss4d downgrade github.com/hashload/horse@3.1.0
+boss4d rollback
+```
+
+Consulte [Gerenciamento de versões](version-management.pt-BR.md) para detalhes
+sobre revogação, mirrors, recibos e recuperação.

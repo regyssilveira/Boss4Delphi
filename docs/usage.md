@@ -755,3 +755,26 @@ boss4d ide uninstall Component --cascade
 paths, output/unit collisions, and IDE registry drift. See the
 [complete build matrix guide](build-matrix-contract.md) and the
 [complete component lifecycle guide](component-build-and-ide.md).
+## Version management
+
+List Registry versions, install a compatible immutable release, or pin the
+manifest to the exact version already recorded in the lock:
+
+```console
+boss4d package versions Horse
+boss4d package install Horse@^3.0.0
+boss4d pin horse
+boss4d unpin horse
+```
+
+Explicit upgrades and downgrades create a durable snapshot of the manifest,
+lock, and modules. Restore the latest state with `rollback`:
+
+```console
+boss4d upgrade github.com/hashload/horse@3.2.1
+boss4d downgrade github.com/hashload/horse@3.1.0
+boss4d rollback
+```
+
+See [Version Management](version-management.md) for revocation, mirror,
+receipt, and recovery details.

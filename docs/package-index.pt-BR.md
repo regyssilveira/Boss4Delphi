@@ -11,6 +11,8 @@ boss4d registry add C:\empresa\boss4d-index.json
 boss4d registry list
 boss4d search database
 boss4d info InternalLib
+boss4d package versions InternalLib
+boss4d package install InternalLib@^2.0.0
 boss4d registry remove C:\empresa\boss4d-index.json
 ```
 
@@ -117,8 +119,7 @@ inclusive dentro de `versions`.
 
 O catálogo da GUI e a busca do RAD Studio usam o mesmo serviço da CLI.
 
-Metadados HTTP são armazenados com seus validadores `ETag` e `Last-Modified`.
-As consultas online enviam `If-None-Match` e `If-Modified-Since`; uma resposta
-`304 Not Modified` reutiliza os bytes do cache. Falhas de rede usam a última
-cópia válida, enquanto `--offline` não realiza chamadas HTTP e informa
-claramente quando ainda não existe uma cópia local.
+Metadados HTTP são persistidos após cada resposta válida. Falhas de rede ou do
+servidor usam a última cópia válida. O cliente POSIX também utiliza requisições
+condicionais com `ETag` e `Last-Modified` e oferece resolução estrita somente
+por cache com `--offline`.

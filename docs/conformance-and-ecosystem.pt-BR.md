@@ -8,7 +8,7 @@ boss4d conformance registry registry/index-v2.json
 boss4d conformance package dist/biblioteca.b4dpkg
 ```
 
-A conformidade do registro exige schema v1, nome e repositório dos pacotes e
+A conformidade do registro aceita schemas v1/v2, nome e repositório dos pacotes e
 metadados pareados de URL/SHA-256. A conformidade do pacote verifica formato
 v1, caminhos relativos seguros, conteúdo Base64 e o SHA-256 de cada arquivo.
 
@@ -16,10 +16,12 @@ Um portal estático e independente de host pode ser gerado de qualquer índice
 conforme:
 
 ```text
-boss4d registry portal registry/index-v1.json registry/index.html
+boss4d registry portal registry/index-v2.json registry/index.html
 ```
 
-Todo metadado não confiável é escapado no HTML. A pasta `registry/` pode ser
+O portal pesquisável apresenta pacotes v1/v2, histórico de versões, revogações
+e evidências disponíveis de SHA-256, assinatura e proveniência. Todo metadado
+não confiável é escapado no HTML. A pasta `registry/` pode ser
 servida pelo GitHub Pages, CDN ou qualquer servidor HTTP estático; o índice
 JSON é a autoridade do protocolo e o portal é somente sua projeção legível.
 
