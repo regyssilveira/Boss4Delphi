@@ -604,11 +604,19 @@ begin
         on E: Exception do
           FLogger.Log(TBoss4DLogLevel.Warning, E.Message);
       end;
-    for var LEntry in LAll do
-      if AQuery.IsEmpty or LEntry.Name.Contains(AQuery, True) or
-         LEntry.Repository.Contains(AQuery, True) or
-         LEntry.Description.Contains(AQuery, True) then
+    var LSeenNames := TDictionary<string, Boolean>.Create;
+    try
+      for var I := LAll.Count - 1 downto 0 do
       begin
+        var LEntry := LAll[I];
+        var LIdentity := LEntry.Name.ToLowerInvariant;
+        if LSeenNames.ContainsKey(LIdentity) then
+          Continue;
+        LSeenNames.Add(LIdentity, True);
+        if not (AQuery.IsEmpty or LEntry.Name.Contains(AQuery, True) or
+           LEntry.Repository.Contains(AQuery, True) or
+           LEntry.Description.Contains(AQuery, True)) then
+          Continue;
         var LCopy := TBoss4DPackageIndexEntry.Create;
         LCopy.Name := LEntry.Name;
         LCopy.Repository := LEntry.Repository;
@@ -661,6 +669,10 @@ begin
         end;
         Result.Add(LCopy);
       end;
+      Result.Reverse;
+    finally
+      LSeenNames.Free;
+    end;
   finally
     LConfig.Free;
     LAll.Free;

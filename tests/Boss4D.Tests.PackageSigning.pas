@@ -24,12 +24,15 @@ type
     [Test] procedure BuildsVerificationCommand;
     [Test] procedure UsesConfiguredGpgExecutable;
     [Test] procedure RejectsSigningFailure;
+    [Test] procedure PreservesVerificationFailureDetails;
+    [Test] procedure DiscoversNativeProgramFilesFromWin32Process;
   end;
 
 implementation
 
 uses
-  System.SysUtils, Boss4D.Adapters.Security.Gpg;
+  System.SysUtils, System.IOUtils, Winapi.Windows,
+  Boss4D.Adapters.Security.Gpg;
 
 constructor TSigningRunnerMock.Create(const ASucceed: Boolean);
 begin
@@ -95,6 +98,50 @@ begin
     begin
       LSigner.Sign('C:\pkg\demo.b4dpkg', 'release@example.com');
     end, Exception);
+end;
+
+procedure TBoss4DPackageSigningTests.PreservesVerificationFailureDetails;
+var
+  LSigner: IBoss4DPackageSigner;
+  LDetails: IBoss4DPackageVerificationDetails;
+begin
+  LSigner := TBoss4DGpgPackageSigner.Create(
+    TSigningRunnerMock.Create(False));
+  Assert.IsFalse(LSigner.Verify('C:\pkg\demo.b4dpkg',
+    'C:\pkg\demo.b4dpkg.asc'));
+  Assert.IsTrue(Supports(LSigner, IBoss4DPackageVerificationDetails,
+    LDetails));
+  Assert.AreEqual('mock', LDetails.LastVerificationError);
+end;
+
+procedure TBoss4DPackageSigningTests.DiscoversNativeProgramFilesFromWin32Process;
+var
+  LRoot, LGpgPath, LPreviousRoot, LPreviousOverride: string;
+  LRunner: TSigningRunnerMock;
+  LSigner: IBoss4DPackageSigner;
+begin
+  LRoot := TPath.Combine(TPath.GetTempPath,
+    'boss4d-gpg-discovery-' + TGUID.NewGuid.ToString);
+  LGpgPath := TPath.Combine(LRoot, 'Git\usr\bin\gpg.exe');
+  TDirectory.CreateDirectory(TPath.GetDirectoryName(LGpgPath));
+  TFile.WriteAllText(LGpgPath, '');
+  LPreviousRoot := GetEnvironmentVariable('ProgramW6432');
+  LPreviousOverride := GetEnvironmentVariable('BOSS4D_GPG');
+  try
+    Winapi.Windows.SetEnvironmentVariable('BOSS4D_GPG', '');
+    Winapi.Windows.SetEnvironmentVariable('ProgramW6432', PChar(LRoot));
+    LRunner := TSigningRunnerMock.Create(True);
+    LSigner := TBoss4DGpgPackageSigner.Create(LRunner);
+    Assert.IsTrue(LSigner.Verify('C:\pkg\demo.b4dpkg',
+      'C:\pkg\demo.b4dpkg.asc'));
+    Assert.IsTrue(LRunner.Command.StartsWith('"' + LGpgPath + '"'));
+  finally
+    Winapi.Windows.SetEnvironmentVariable(
+      'ProgramW6432', PChar(LPreviousRoot));
+    Winapi.Windows.SetEnvironmentVariable(
+      'BOSS4D_GPG', PChar(LPreviousOverride));
+    TDirectory.Delete(LRoot, True);
+  end;
 end;
 
 initialization

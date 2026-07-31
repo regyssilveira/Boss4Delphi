@@ -22,6 +22,7 @@ type
     [Test] procedure RejectsDigestMismatchWithoutReplacingTarget;
     [Test] procedure RejectsInvalidSignature;
     [Test] procedure UsesMirrorOnlyWhenDigestMatches;
+    [Test] procedure RetriesTransientArtifactDownload;
   end;
 
 implementation
@@ -216,6 +217,38 @@ begin
     LRequest.TargetDirectory := LTarget;
     Assert.IsTrue(LService.Execute(LRequest).Installed);
     Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget, 'verified.pas')));
+  finally
+    LService.Free;
+    if TDirectory.Exists(LTarget) then TDirectory.Delete(LTarget, True);
+    DeletePackedFixture(LRoot, LArtifact);
+  end;
+end;
+
+procedure TBoss4DPackageInstallTests.RetriesTransientArtifactDownload;
+const
+  ARTIFACT_URL = 'https://packages.example/transient.b4dpkg';
+var
+  LRoot, LArtifact, LTarget: string;
+  LPackResult: TBoss4DPackResult;
+  LHttp: THttpClientMock;
+  LService: TBoss4DPackageInstallService;
+  LRequest: TBoss4DPackageInstallRequest;
+begin
+  CreatePackedFixture(LRoot, LArtifact, LPackResult);
+  LTarget := TPath.Combine(TPath.GetTempPath, TPath.GetRandomFileName);
+  LHttp := THttpClientMock.Create;
+  LHttp.AddResponse(ARTIFACT_URL, TFile.ReadAllText(LArtifact), 200);
+  LHttp.AddTransientDownloadFailures(ARTIFACT_URL, 2);
+  LService := TBoss4DPackageInstallService.Create(LHttp);
+  try
+    LRequest := Default(TBoss4DPackageInstallRequest);
+    LRequest.PackageName := 'transient';
+    LRequest.Version := '1.0.0';
+    LRequest.ArtifactUrl := ARTIFACT_URL;
+    LRequest.Sha256 := LPackResult.Digest;
+    LRequest.TargetDirectory := LTarget;
+    Assert.IsTrue(LService.Execute(LRequest).Installed);
+    Assert.AreEqual<Integer>(3, LHttp.DownloadAttempts(ARTIFACT_URL));
   finally
     LService.Free;
     if TDirectory.Exists(LTarget) then TDirectory.Delete(LTarget, True);

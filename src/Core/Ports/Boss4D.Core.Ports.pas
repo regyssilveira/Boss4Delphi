@@ -139,6 +139,11 @@ type
     function Verify(const AArtifactPath, ASignaturePath: string): Boolean;
   end;
 
+  IBoss4DPackageVerificationDetails = interface
+    ['{89074A35-E4B1-4659-BD3A-F23AF9456B6A}']
+    function LastVerificationError: string;
+  end;
+
   { Contrato para compilacao de dependencias Delphi e search paths }
   IBoss4DCompiler = interface
     ['{69527D56-F14E-43D4-A746-2D7227D60006}']

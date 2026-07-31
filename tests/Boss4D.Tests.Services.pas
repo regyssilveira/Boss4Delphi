@@ -98,6 +98,8 @@ type
     [Test]
     procedure TestPackageIndexV2IncludesV1;
     [Test]
+    procedure TestConfiguredRegistryOverridesPublicLegacyEntry;
+    [Test]
     procedure TestPackageIndexSelectsVersionsDeterministically;
     [Test]
     procedure TestPackageIndexSparseRevocationAndMirrorMetadata;
@@ -1240,6 +1242,47 @@ begin
       Assert.IsNull(LModern.SelectVariant('Linux64', '3.2.2'));
     finally
       LModern.Free;
+    end;
+  finally
+    LService.Free;
+    LConfig.Free;
+  end;
+end;
+
+procedure TTestsServices.TestConfiguredRegistryOverridesPublicLegacyEntry;
+const
+  PUBLIC_URL =
+    'https://raw.githubusercontent.com/regyssilveira/Boss4Delphi/main/registry/index-v2.json';
+var
+  LConfig: TBoss4DConfigService;
+  LHttp: THttpClientMock;
+  LService: TBoss4DPackageIndexService;
+  LIndexPath: string;
+  LEntry: TBoss4DPackageIndexEntry;
+begin
+  LIndexPath := TPath.Combine(FTempDir, 'override-index-v2.json');
+  TFile.WriteAllText(LIndexPath,
+    '{"schemaVersion":2,"packages":[{"name":"MigratedPackage",' +
+    '"repository":"github.com/demo/migrated","versions":[{' +
+    '"version":"1.0.0","artifact":"https://example.test/package.b4dpkg",' +
+    '"sha256":"' + StringOfChar('a', 64) + '"}]}]}', TEncoding.UTF8);
+  LConfig := TBoss4DConfigService.Create(TTestLogger.Create);
+  LHttp := THttpClientMock.Create;
+  LHttp.AddResponse(PUBLIC_URL,
+    '{"schemaVersion":2,"packages":[{"name":"MigratedPackage",' +
+    '"repository":"github.com/demo/migrated"}]}', 200);
+  LService := TBoss4DPackageIndexService.Create(LConfig, LHttp,
+    TTestLogger.Create);
+  try
+    LService.AddRegistry(LIndexPath);
+    LEntry := LService.Info('MigratedPackage');
+    try
+      Assert.IsNotNull(LEntry);
+      Assert.AreEqual<Integer>(1, LEntry.Versions.Count);
+      Assert.AreEqual('1.0.0', LEntry.ResolveVersion('1.0.0').Version);
+      Assert.AreEqual(LIndexPath, LEntry.Source);
+    finally
+      LEntry.Free;
     end;
   finally
     LService.Free;

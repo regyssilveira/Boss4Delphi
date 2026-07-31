@@ -6,10 +6,12 @@ uses
   Boss4D.Core.Ports;
 
 type
-  TBoss4DGpgPackageSigner = class(TInterfacedObject, IBoss4DPackageSigner)
+  TBoss4DGpgPackageSigner = class(TInterfacedObject, IBoss4DPackageSigner,
+    IBoss4DPackageVerificationDetails)
   private
     FRunner: IBoss4DProcessRunner;
     FGpgExecutable: string;
+    FLastVerificationError: string;
     class function DiscoverExecutable: string; static;
     function CommandExecutable: string;
   public
@@ -17,6 +19,7 @@ type
       const AGpgExecutable: string = '');
     function Sign(const AArtifactPath, AKeyId: string): string;
     function Verify(const AArtifactPath, ASignaturePath: string): Boolean;
+    function LastVerificationError: string;
   end;
 
 implementation
@@ -52,7 +55,7 @@ begin
   if not Result.IsEmpty then
     Exit;
   for var LRootName in TArray<string>.Create(
-    'ProgramFiles', 'ProgramFiles(x86)') do
+    'ProgramW6432', 'ProgramFiles', 'ProgramFiles(x86)') do
   begin
     var LRoot := GetEnvironmentVariable(LRootName);
     if LRoot.IsEmpty then
@@ -89,11 +92,19 @@ function TBoss4DGpgPackageSigner.Verify(const AArtifactPath,
 var
   LOutput, LCommand: string;
 begin
+  FLastVerificationError := '';
   LCommand := Format('%s --batch --verify "%s" "%s"',
     [CommandExecutable, TPath.GetFullPath(ASignaturePath),
       TPath.GetFullPath(AArtifactPath)]);
   Result := FRunner.Execute(LCommand,
     TPath.GetDirectoryName(TPath.GetFullPath(AArtifactPath)), LOutput);
+  if not Result then
+    FLastVerificationError := LOutput;
+end;
+
+function TBoss4DGpgPackageSigner.LastVerificationError: string;
+begin
+  Result := FLastVerificationError;
 end;
 
 end.

@@ -20,7 +20,7 @@ type
 implementation
 
 uses
-  System.SysUtils, System.Net.HttpClient, System.Classes;
+  System.SysUtils, System.IOUtils, System.Net.HttpClient, System.Classes;
 
 function TBoss4DHttpNativeAdapter.DownloadToFile(const AURL,
   ATargetPath: string): Integer;
@@ -30,20 +30,34 @@ var
   LStream: TFileStream;
 begin
   LClient := THTTPClient.Create;
-  LStream := TFileStream.Create(ATargetPath, fmCreate);
   try
     LClient.UserAgent := 'Boss4D/1.4';
     LClient.ConnectionTimeout := 10000;
     LClient.ResponseTimeout := 60000;
+    LClient.HandleRedirects := True;
+    LClient.MaxRedirects := 10;
     try
-      LResponse := LClient.Get(AURL, LStream);
+      LResponse := LClient.Get(AURL);
       Result := LResponse.StatusCode;
+      if (Result >= 200) and (Result < 300) then
+      begin
+        LStream := TFileStream.Create(ATargetPath, fmCreate);
+        try
+          if Assigned(LResponse.ContentStream) then
+            LStream.CopyFrom(LResponse.ContentStream, 0);
+        finally
+          LStream.Free;
+        end;
+      end;
     except
       on E: Exception do
+      begin
+        if TFile.Exists(ATargetPath) then
+          TFile.Delete(ATargetPath);
         Result := 500;
+      end;
     end;
   finally
-    LStream.Free;
     LClient.Free;
   end;
 end;
