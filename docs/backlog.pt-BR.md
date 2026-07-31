@@ -1,5 +1,17 @@
 # Backlog de Desenvolvimento do Boss4D
 
+## Épico 22: Instalação de componentes, perfis isolados e GUI
+
+- [ ] Identidades runtime/design tipadas e planos determinísticos de instalação.
+- [ ] Preview, lock de máquina, política de IDE aberta e rollback completo.
+- [ ] Perfis nomeados com Registry branches e inventários isolados.
+- [ ] `ide profile` create/show/clone/remove/import/export/install/repair/launch.
+- [ ] Serviços de aplicação compartilhados por CLI, wizard e GUI.
+- [ ] Dashboard, targets, grafo, perfis, preview, reparo e remoção na GUI.
+- [ ] Exemplos/documentação bilíngues, validação e Sonar limpo.
+
+Veja o [plano oficial da entrega](ide-packages-profiles-gui-plan.pt-BR.md).
+
 ## Épico 21: CLI portável e fundação de distribuição
 
 - [x] **[Story] Fundação de abstração de plataforma**
