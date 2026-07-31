@@ -72,6 +72,32 @@ type
     property AllowedSigners: TList<string> read FAllowedSigners;
   end;
 
+  TBoss4DIDERegistryValue = class
+  private
+    FKey: string;
+    FName: string;
+    FValue: string;
+  public
+    property Key: string read FKey write FKey;
+    property Name: string read FName write FName;
+    property Value: string read FValue write FValue;
+  end;
+
+  TBoss4DIDEAssets = class
+  private
+    FTools: TList<string>;
+    FTemplates: TList<string>;
+    FRegistryValues: TObjectList<TBoss4DIDERegistryValue>;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    function IsDeclared: Boolean;
+    property Tools: TList<string> read FTools;
+    property Templates: TList<string> read FTemplates;
+    property RegistryValues: TObjectList<TBoss4DIDERegistryValue>
+      read FRegistryValues;
+  end;
+
   { Entidade pura de dominio que representa o arquivo boss.json }
   TBoss4DPackage = class
   private
@@ -92,6 +118,7 @@ type
     FWorkspaces: TList<string>;
     FSbomComponents: TObjectList<TBoss4DManualComponent>;
     FBuildMatrix: TBoss4DBuildMatrix;
+    FIDEAssets: TBoss4DIDEAssets;
   public
     constructor Create;
     destructor Destroy; override;
@@ -122,6 +149,7 @@ type
     property Workspaces: TList<string> read FWorkspaces;
     property SbomComponents: TObjectList<TBoss4DManualComponent> read FSbomComponents;
     property BuildMatrix: TBoss4DBuildMatrix read FBuildMatrix;
+    property IDEAssets: TBoss4DIDEAssets read FIDEAssets;
   end;
 
 implementation
@@ -157,6 +185,28 @@ end;
 
 { TBoss4DPackage }
 
+constructor TBoss4DIDEAssets.Create;
+begin
+  inherited Create;
+  FTools := TList<string>.Create;
+  FTemplates := TList<string>.Create;
+  FRegistryValues := TObjectList<TBoss4DIDERegistryValue>.Create(True);
+end;
+
+destructor TBoss4DIDEAssets.Destroy;
+begin
+  FRegistryValues.Free;
+  FTemplates.Free;
+  FTools.Free;
+  inherited Destroy;
+end;
+
+function TBoss4DIDEAssets.IsDeclared: Boolean;
+begin
+  Result := (FTools.Count > 0) or (FTemplates.Count > 0) or
+    (FRegistryValues.Count > 0);
+end;
+
 constructor TBoss4DPackage.Create;
 begin
   inherited Create;
@@ -170,10 +220,12 @@ begin
   FWorkspaces := TList<string>.Create;
   FSbomComponents := TObjectList<TBoss4DManualComponent>.Create(True);
   FBuildMatrix := TBoss4DBuildMatrix.Create;
+  FIDEAssets := TBoss4DIDEAssets.Create;
 end;
 
 destructor TBoss4DPackage.Destroy;
 begin
+  FIDEAssets.Free;
   FBuildMatrix.Free;
   FSbomComponents.Free;
   FWorkspaces.Free;

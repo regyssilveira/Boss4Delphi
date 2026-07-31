@@ -25,6 +25,8 @@ type
     [Test]
     procedure TestBuildMatrixSerialization;
     [Test]
+    procedure TestIDEAssetsSerialization;
+    [Test]
     procedure TestBuildMatrixExampleIsExecutable;
     [Test]
     procedure TestLockSerialization;
@@ -222,6 +224,53 @@ begin
       LLoaded.BuildMatrix.Projects[0].DependsOn[0]);
     Assert.AreEqual('37.0',
       LLoaded.BuildMatrix.Projects[0].Compilers[0]);
+  finally
+    LLoaded.Free;
+  end;
+end;
+
+procedure TTestsJson.TestIDEAssetsSerialization;
+var
+  LFilePath: string;
+  LPackage: TBoss4DPackage;
+  LLoaded: TBoss4DPackage;
+  LRegistryValue: TBoss4DIDERegistryValue;
+begin
+  LFilePath := TPath.Combine(FTempDir, 'ide-assets-boss.json');
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'ide-assets-component';
+    LPackage.Version := '1.0.0';
+    LPackage.IDEAssets.Tools.Add('ide/tools/component-wizard.exe');
+    LPackage.IDEAssets.Templates.Add('ide/templates/component-template.zip');
+    LRegistryValue := TBoss4DIDERegistryValue.Create;
+    LRegistryValue.Key :=
+      'Software\Embarcadero\BDS\{compiler}\ComponentVendor';
+    LRegistryValue.Name := 'TemplatePath';
+    LRegistryValue.Value := '{templates}';
+    LPackage.IDEAssets.RegistryValues.Add(LRegistryValue);
+    FPackageRepo.Save(LPackage, LFilePath);
+  finally
+    LPackage.Free;
+  end;
+
+  LLoaded := FPackageRepo.Load(LFilePath);
+  try
+    Assert.IsTrue(LLoaded.IDEAssets.IsDeclared);
+    Assert.AreEqual<Integer>(1, LLoaded.IDEAssets.Tools.Count);
+    Assert.AreEqual('ide/tools/component-wizard.exe',
+      LLoaded.IDEAssets.Tools[0]);
+    Assert.AreEqual<Integer>(1, LLoaded.IDEAssets.Templates.Count);
+    Assert.AreEqual('ide/templates/component-template.zip',
+      LLoaded.IDEAssets.Templates[0]);
+    Assert.AreEqual<Integer>(1, LLoaded.IDEAssets.RegistryValues.Count);
+    Assert.AreEqual(
+      'Software\Embarcadero\BDS\{compiler}\ComponentVendor',
+      LLoaded.IDEAssets.RegistryValues[0].Key);
+    Assert.AreEqual('TemplatePath',
+      LLoaded.IDEAssets.RegistryValues[0].Name);
+    Assert.AreEqual('{templates}',
+      LLoaded.IDEAssets.RegistryValues[0].Value);
   finally
     LLoaded.Free;
   end;
