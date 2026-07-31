@@ -13,6 +13,8 @@ passarem nos checks do pull request do Registry.
 - 16 pacotes no namespace `regyssilveira`, já cadastrado;
 - 10 pacotes no namespace `HashLoad`;
 - zero pacotes schema v2 e zero fingerprints autorizados;
+- 12 pacotes do publisher com releases imutáveis e tags coerentes;
+- 4 pacotes do publisher que precisam de release ou correção da tag;
 - saúde: 55 pacotes, 109 avisos de migração e zero erros estruturais.
 
 O portal gerado do Registry é o painel público do progresso. No momento ele
@@ -22,7 +24,8 @@ incrementa essa métrica automaticamente.
 
 ## Onda 0 — estabelecer identidade de assinatura
 
-1. Instalar uma implementação OpenPGP na estação de release.
+1. Usar a implementação GnuPG 2.4.9 incluída no Git for Windows da estação de
+   release.
 2. Criar ou importar a identidade de assinatura e guardar o certificado de
    revogação fora do repositório.
 3. Adicionar somente o fingerprint público completo ao publisher `boss4d`.
@@ -55,7 +58,7 @@ do publisher cadastrado:
 |---|---:|---|
 | Boss4Delphi | v1.6.0 | Primeira prova ponta a ponta |
 | horse-rate-limit | v1.0.0 | Pronto após onboarding do signer |
-| horse-compression-v2 | v1.0.0 | Pronto após onboarding do signer |
+| horse-compression-v2 | v1.0.0 | Bloqueado: tag declara `2.0.0` no `boss.json` |
 | horse-static | v1.0.0 | Pronto após onboarding do signer |
 | horse-dto | v1.0.0 | Pronto após onboarding do signer |
 | horse-rbac | v1.0.0 | Pronto após onboarding do signer |
@@ -71,10 +74,19 @@ Cada migração deve compilar e testar a tag imutável, produzir `.b4dpkg`,
 assinatura OpenPGP e proveniência in-toto, enviar os arquivos para a release da
 tag e usar `boss4d publish --official --open-pr`.
 
-## Onda 2 — pacotes do publisher sem release
+Onze candidatos de middleware com manifestos `v1.0.0` coerentes já foram
+empacotados a partir de checkouts imutáveis detached. Todos os onze arquivos
+`.b4dpkg` passam na conformidade de pacote e os onze digests do subject in-toto
+correspondem aos artefatos. Eles continuam sendo preparação local até que
+testes dos projetos, assinaturas OpenPGP, uploads nas releases e submissões ao
+Registry estejam concluídos.
+
+## Onda 2 — pacotes do publisher que precisam de release
 
 `Dext`, `horse-crud` e `horse-sanitize` ainda não possuem tag/release
-publicada. Antes da migração precisam de tag SemVer exata, testes, assets
+publicada. `horse-compression-v2` também precisa de uma nova tag imutável
+coerente, pois a tag `v1.0.0` existente declara versão `2.0.0` no `boss.json`.
+Antes da migração esses pacotes precisam de tag SemVer exata, testes, assets
 imutáveis e o mesmo fluxo de publicação assinada.
 
 ## Onda 3 — onboarding de publishers externos
