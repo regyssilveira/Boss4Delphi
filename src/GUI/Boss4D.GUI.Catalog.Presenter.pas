@@ -127,7 +127,7 @@ begin
       begin
         LRow.VariantSummary := 'Pacote baseado em codigo-fonte';
         LRow.CompatibilitySummary :=
-          'Compativel via codigo-fonte; requer toolchain local'
+          'Compativel via codigo-fonte; requer toolchain local';
       end
       else
       begin
