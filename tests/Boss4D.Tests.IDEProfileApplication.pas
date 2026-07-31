@@ -25,6 +25,7 @@ implementation
 uses
   System.SysUtils,
   System.IOUtils,
+  System.Generics.Collections,
   Boss4D.Core.Ports,
   Boss4D.Core.Domain.Package,
   Boss4D.Core.Domain.BuildMatrix,
@@ -32,6 +33,7 @@ uses
   Boss4D.Adapters.Json,
   Boss4D.Core.Services.BuildInventory,
   Boss4D.Core.Services.BuildCommand,
+  Boss4D.Core.Services.BuildExecutor,
   Boss4D.Core.Services.IDERegistration,
   Boss4D.Core.Services.IDEProfiles,
   Boss4D.Core.Services.IDEProfileApplication,
@@ -90,6 +92,7 @@ var
   LPlan: TBoss4DBuildCommandPlan;
   LRemovalPlan: TBoss4DIDERemovalPlan;
   LSummary: TBoss4DIDEProfileOperationSummary;
+  LProgress: TList<TBoss4DBuildTargetProgressEvent>;
 begin
   TFile.WriteAllText(TPath.Combine(FDirectory, 'Design.dproj'),
     '<Project/>', TEncoding.UTF8);
@@ -123,6 +126,7 @@ begin
   LResultStoreObject := TBoss4DJsonIDEOperationResultStore.Create(
     TPath.Combine(FDirectory, 'operation-results'));
   LResultStore := LResultStoreObject;
+  LProgress := TList<TBoss4DBuildTargetProgressEvent>.Create;
   try
     LProfile := LProfiles.CreateProfile('Isolated', '', 'd13',
       'C:\Delphi13\bin\bds.exe');
@@ -143,6 +147,11 @@ begin
       end,
       LResultStore);
     try
+      LApplication.TargetProgress :=
+        procedure(const AEvent: TBoss4DBuildTargetProgressEvent)
+        begin
+          LProgress.Add(AEvent);
+        end;
       var LQuery := TBoss4DIDEManagementQuery.Create(
         LProfiles, LBuildInventory, LApplication);
       try
@@ -170,6 +179,11 @@ begin
       Assert.AreEqual<Integer>(1, LSummary.Built + LSummary.Restored,
         'built or restored');
       Assert.AreEqual<Integer>(1, LSummary.Affected, 'registered');
+      Assert.AreEqual<Integer>(2, LProgress.Count);
+      Assert.AreEqual(TargetStarted, LProgress[0].State);
+      Assert.IsTrue(LProgress[1].State in [TargetBuilt, TargetRestored]);
+      Assert.AreEqual<Integer>(1, LProgress[1].Current);
+      Assert.AreEqual<Integer>(1, LProgress[1].Total);
       Assert.IsTrue(Length(LRegistryMock.ListValueNames(
         'Software\Embarcadero\Boss4D-isolated\37.0\Known Packages')) > 0);
       IntroduceAndAssertProfileDrift(LApplication, LRegistryMock);
@@ -248,6 +262,7 @@ begin
       LApplication.Free;
     end;
   finally
+    LProgress.Free;
     LResultStore := nil;
     LRegistryStore := nil;
     LBuildInventory.Free;

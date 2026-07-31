@@ -7,6 +7,7 @@ uses
   Boss4D.Core.Ports,
   Boss4D.Core.Domain.IDEProfile,
   Boss4D.Core.Services.BuildCommand,
+  Boss4D.Core.Services.BuildExecutor,
   Boss4D.Core.Services.BuildInventory,
   Boss4D.Core.Services.IDEProfiles,
   Boss4D.Core.Services.IDERegistration,
@@ -35,6 +36,7 @@ type
     FLogger: IBoss4DLogger;
     FRegistrationFactory: TBoss4DIDERegistrationServiceFactory;
     FResultStore: IBoss4DIDEOperationResultStore;
+    FTargetProgress: TBoss4DBuildTargetProgressHandler;
     function BuildOptions(const AProfile: TBoss4DIDEProfile;
       const AConflictPolicy: TBoss4DIDEConflictPolicy):
       TBoss4DBuildCommandOptions;
@@ -62,6 +64,8 @@ type
     function FindDrift(const AProfileId: string): TArray<string>;
     function UndoLatest: TBoss4DIDEProfileOperationSummary;
     function History: TObjectList<TBoss4DIDEOperationResult>;
+    property TargetProgress: TBoss4DBuildTargetProgressHandler
+      read FTargetProgress write FTargetProgress;
   end;
 
 implementation
@@ -118,6 +122,7 @@ begin
   Result.RegisterTargets := True;
   Result.ConflictPolicy := AConflictPolicy;
   Result.Jobs := 1;
+  Result.TargetProgress := FTargetProgress;
 end;
 
 function TBoss4DIDEProfileApplication.PreviewInstall(
