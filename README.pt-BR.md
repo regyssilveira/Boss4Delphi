@@ -128,6 +128,10 @@ cd /d d:\Projetos\BossDelphi
   `[--explain] [--register]`
   Executa a matriz selecionada com outputs isolados, rebuild incremental,
   paralelismo seguro pelo grafo, explicações e registro exato opcional.
+* `boss4d support [--compiler <versão>|all] [--platform <target>|all]`
+  `[--kind runtime|design|application|tool|binary] [--project <path>]`
+  Informa `certified`, `compatible`, `experimental` ou `unsupported` para a
+  combinação solicitada.
 * `boss4d ide unregister <pacote> --compiler <versão> --platform <plataforma>`
   e `boss4d ide repair`
   Removem um registro exato ou reconciliam divergências transacionalmente.
@@ -164,6 +168,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Guia da Feature SBOM](docs/sbom.pt-BR.md)**: Motivação, modelo de evidências, cobertura, VEX, atestações, limites e fluxo recomendado de release.
 * **[Melhorias de Build Determinístico](docs/build-improvements.pt-BR.md)**: Paths sem colisão, toolchains, projetos declarados, Lazarus, scaffolding e normalização.
 * **[Guia e Contrato da Matriz de Build](docs/build-matrix-contract.pt-BR.md)**: Schema, fluxo da CLI, convenções, migração, diagnóstico, troubleshooting e critérios para builds Delphi multiversão.
+* **[Build de Componentes e Ciclo de Vida da IDE](docs/component-build-and-ide.pt-BR.md)**: Guia completo de tipos, níveis de suporte, cache compartilhado, ativos da IDE, conflitos, reparo ativo e remoção segura.
 * **[Ciclo de Vida de Dependências](docs/dependency-lifecycle.pt-BR.md)**: Add, update e remove transacionais, além de list e why baseados no grafo.
 * **[Instalação Reproduzível](docs/reproducible-install.pt-BR.md)**: Lock congelado, cache offline, instalação limpa em CI e garantias de rollback.
 * **[Escopos de Dependências](docs/dependency-scopes.pt-BR.md)**: `devDependencies`, instalação de produção, lock v3 e escopo no SBOM.

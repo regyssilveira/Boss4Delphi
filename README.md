@@ -139,6 +139,10 @@ cd /d d:\Projetos\BossDelphi
   `[--explain] [--register]`
   Executes the selected matrix with isolated outputs, incremental rebuild,
   graph-safe parallelism, explanations, and optional exact IDE registration.
+* `boss4d support [--compiler <version>|all] [--platform <target>|all]`
+  `[--kind runtime|design|application|tool|binary] [--project <path>]`
+  Reports `certified`, `compatible`, `experimental`, or `unsupported` for the
+  requested compiler/platform/project combination.
 * `boss4d ide unregister <package> --compiler <version> --platform <platform>`
   and `boss4d ide repair`
   Remove one exact registration or reconcile registry drift transactionally.
@@ -174,6 +178,7 @@ cd /d d:\Projetos\BossDelphi
 * **[SBOM Feature Guide](docs/sbom.md)**: Motivation, evidence model, coverage, VEX, attestations, limitations, and recommended release workflow.
 * **[Deterministic Build Improvements](docs/build-improvements.md)**: Collision-free paths, toolchains, declared projects, Lazarus, scaffolding, and normalization.
 * **[Build Matrix Guide and Contract](docs/build-matrix-contract.md)**: Schema, CLI workflow, compiler conventions, migration, diagnostics, troubleshooting, and acceptance rules for multi-version Delphi builds.
+* **[Component Build and IDE Lifecycle](docs/component-build-and-ide.md)**: Complete guide to project kinds, support levels, shared cache, IDE assets, conflicts, active repair, and safe removal.
 * **[Dependency Lifecycle](docs/dependency-lifecycle.md)**: Transactional add, update, and remove plus graph-aware list and why commands.
 * **[Reproducible Installation](docs/reproducible-install.md)**: Frozen locks, offline cache behavior, CI clean installs, and rollback guarantees.
 * **[Dependency Scopes](docs/dependency-scopes.md)**: `devDependencies`, production installs, lock v3, and SBOM scope evidence.

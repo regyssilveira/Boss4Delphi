@@ -3,15 +3,16 @@
 This document defines the compatibility rules and the declarative model used by
 Boss4D to describe builds across multiple Delphi versions.
 
-## Initial scope
+## Current scope
 
-The first advanced matrix covers:
+The matrix models:
 
-- Delphi 10 (`BDS 17.0`), Delphi 10.1 (`BDS 18.0`), Delphi 11 (`BDS 22.0`), Delphi 12 (`BDS 23.0`),
-  and Delphi 13 (`BDS 37.0`);
-- `Win32` and `Win64`;
+- Delphi XE through Delphi 13, with exact BDS, compiler-symbol, and package
+  suffix conventions;
+- `Win32`, `Win64`, `Linux64`, supported macOS, iOS, and Android generations;
 - `Debug` and `Release`;
-- runtime and design-time packages;
+- runtime/design packages, applications, tools, prebuilt binaries, and
+  experimental C++Builder Win32/Win64 projects;
 - selection of one target, multiple targets, or the complete matrix.
 
 Existing Lazarus support remains valid, but an advanced Lazarus matrix is not
@@ -70,7 +71,9 @@ outside its global axis, duplicate values, unsupported platform/configuration,
 duplicate project paths, and a selection that yields no targets are rejected
 before compilation.
 
-`kind` accepts `runtime` or `design` and defaults to `runtime`. `dependsOn`
+`kind` accepts `runtime`, `design`, `application`, `tool`, or `binary` and
+defaults to `runtime`. `.dproj` and `.cbproj` use MSBuild; binary entries are
+copied to the isolated `bin` directory without invoking a compiler. `dependsOn`
 records build relationships by project path. Dependencies are resolved for the
 same compiler, platform, and configuration as the consuming target. Boss4D
 performs a stable topological sort, rejects missing compatible targets, and
@@ -104,6 +107,8 @@ modules/artifacts/<package>/<compiler>/<platform>/<configuration>/
 The complete target tree is cached as one unit. Its cache key includes the
 dependency identity, source checksum, compiler, platform, and configuration.
 Restoring one target can therefore never overwrite or satisfy another target.
+Every cached file has a SHA-256 entry; local and optional filesystem-backed
+remote caches are verified and promoted atomically.
 Legacy manifests keep their existing output layout until explicitly built
 through the matrix executor.
 
@@ -186,6 +191,11 @@ owner.
 The same ownership rule applies to the user `PATH`, so a shared BPL directory
 is repaired and removed only when appropriate.
 
+`ideAssets` can declare tools, templates, and restricted per-user BDS Registry
+values. Asset paths must remain under the package root. Managed values support
+the `{compiler}`, `{platform}`, `{root}`, `{bpl}`, `{tools}`, and `{templates}`
+tokens and participate in rollback, repair, and uninstall.
+
 DLL outputs are copied into the managed BPL directory before registration, so
 they are available through that target's `PATH` entry and remain covered by
 artifact rollback. CHM outputs are registered per compiler under
@@ -205,10 +215,21 @@ unmanaged user files are never removed.
 
 The CLI accepts either BDS versions or short aliases:
 
-| Delphi | BDS/compiler selector | Alias | Package suffix | Symbol |
+| Delphi | BDS selector | Alias | Package suffix | Symbol |
 |---|---:|---|---:|---|
+| XE | `8.0` | `xe` | `150` | `VER220` |
+| XE2 | `9.0` | `xe2` | `160` | `VER230` |
+| XE3 | `10.0` | `xe3` | `170` | `VER240` |
+| XE4 | `11.0` | `xe4` | `180` | `VER250` |
+| XE5 | `12.0` | `xe5` | `190` | `VER260` |
+| XE6 | `14.0` | `xe6` | `200` | `VER270` |
+| XE7 | `15.0` | `xe7` | `210` | `VER280` |
+| XE8 | `16.0` | `xe8` | `220` | `VER290` |
 | 10 Seattle | `17.0` | `d10` | `230` | `VER300` |
 | 10.1 Berlin | `18.0` | `d101` | `240` | `VER310` |
+| 10.2 Tokyo | `19.0` | `d102` | `250` | `VER320` |
+| 10.3 Rio | `20.0` | `d103` | `260` | `VER330` |
+| 10.4 Sydney | `21.0` | `d104` | `270` | `VER340` |
 | 11 Alexandria | `22.0` | `d11` | `280` | `VER350` |
 | 12 Athens | `23.0` | `d12` | `290` | `VER360` |
 | 13 Florence | `37.0` | `d13` | `370` | `VER370` |
@@ -243,7 +264,9 @@ boss4d build --compiler d13 --platform Win32 --configuration Release --explain
 boss4d build --all-installed
 boss4d build --affected
 boss4d build --with-dependents
+boss4d build --remote-cache X:\boss4d-cache
 boss4d build --full
+boss4d support --compiler d13 --platform Win64 --kind application
 ```
 
 - `--compiler`, `--platform`, and `--configuration` accept one value or `all`
@@ -253,6 +276,9 @@ boss4d build --full
 - `--full` selects every axis and forces recompilation.
 - `--explain` prints the incremental decision for every target.
 - `--register` registers BPLs produced by selected design-time targets.
+- `--conflict fail|warn|adopt|replace` controls collisions with an existing
+  package explicitly.
+- `--remote-cache <path>` shares only SHA-256-verified isolated targets.
 - `--all-installed` discovers BDS installations from the Registry, confirms
   available Win32/Win64 compiler executables, intersects them with the package
   matrix, and builds/registers every compatible target. Missing or modeled-only

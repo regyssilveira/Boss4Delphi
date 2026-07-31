@@ -29,6 +29,8 @@ type
     [Test]
     procedure TestBuildMatrixExampleIsExecutable;
     [Test]
+    procedure TestComponentLifecycleExampleIsExecutable;
+    [Test]
     procedure TestLockSerialization;
     [Test]
     procedure TestLockV1BackwardCompatibility;
@@ -156,6 +158,42 @@ begin
       Assert.AreEqual(
         'multi-delphi-component|packages/ComponentDesign.dproj|22.0|Win32|Release',
         LTargets[0].Identity);
+    finally
+      LTargets.Free;
+    end;
+  finally
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsJson.TestComponentLifecycleExampleIsExecutable;
+var
+  LExamplePath: string;
+  LPackage: TBoss4DPackage;
+  LTargets: TBoss4DBuildTargetList;
+  LFoundBinaryWin64: Boolean;
+begin
+  LExamplePath := TPath.GetFullPath(TPath.Combine(
+    TDirectory.GetCurrentDirectory,
+    '..\examples\component-build-and-ide\boss.json'));
+  Assert.IsTrue(TFile.Exists(LExamplePath),
+    'O exemplo completo de componente deve existir.');
+  LPackage := FPackageRepo.Load(LExamplePath);
+  try
+    Assert.AreEqual<Integer>(5, LPackage.BuildMatrix.Projects.Count);
+    Assert.AreEqual<Integer>(1, LPackage.IDEAssets.Tools.Count);
+    Assert.AreEqual<Integer>(1, LPackage.IDEAssets.Templates.Count);
+    Assert.AreEqual<Integer>(1, LPackage.IDEAssets.RegistryValues.Count);
+    LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+      TBoss4DBuildSelection.All);
+    try
+      Assert.AreEqual<Integer>(51, LTargets.Count);
+      LFoundBinaryWin64 := False;
+      for var LTarget in LTargets do
+        if SameText(LTarget.ProjectKind, 'binary') and
+           SameText(LTarget.Platform, 'Win64') then
+          LFoundBinaryWin64 := True;
+      Assert.IsTrue(LFoundBinaryWin64);
     finally
       LTargets.Free;
     end;

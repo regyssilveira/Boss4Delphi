@@ -1,0 +1,52 @@
+{
+  "name": "acme-controls",
+  "description": "Complete Boss4D component lifecycle example",
+  "version": "2.0.0",
+  "buildMatrix": {
+    "compilers": ["17.0", "22.0", "37.0"],
+    "platforms": ["Win32", "Win64"],
+    "configurations": ["Debug", "Release"],
+    "defaults": {
+      "compiler": "37.0",
+      "platform": "Win64",
+      "configuration": "Release"
+    },
+    "projects": [
+      {
+        "path": "packages/AcmeRuntime.dproj",
+        "kind": "runtime"
+      },
+      {
+        "path": "packages/AcmeDesign.dproj",
+        "kind": "design",
+        "dependsOn": ["packages/AcmeRuntime.dproj"],
+        "platforms": ["Win32"],
+        "configurations": ["Release"]
+      },
+      {
+        "path": "tools/AcmeDesigner.dproj",
+        "kind": "tool"
+      },
+      {
+        "path": "samples/AcmeDemo.dproj",
+        "kind": "application"
+      },
+      {
+        "path": "vendor/acme-driver.dll",
+        "kind": "binary"
+      }
+    ]
+  },
+  "ideAssets": {
+    "tools": ["ide/tools/acme-wizard.exe"],
+    "templates": ["ide/templates/acme-component.zip"],
+    "registry": [
+      {
+        "key": "Software\\Embarcadero\\BDS\\{compiler}\\Acme",
+        "name": "TemplatePath",
+        "value": "{templates}"
+      }
+    ]
+  },
+  "dependencies": {}
+}

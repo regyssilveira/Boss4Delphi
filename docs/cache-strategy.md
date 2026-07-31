@@ -14,9 +14,21 @@ Compiled executable artifacts are cached by:
 
 - normalized source checksum;
 - target platform;
-- compiler/toolchain version.
+- compiler/toolchain version;
+- build configuration.
 
-Only a complete cache entry is restored. A platform or compiler mismatch is a
-cache miss and triggers a normal compilation. Package DCU/DCP/BPL outputs are
-not shared until they can be isolated per dependency without cross-package
-contamination.
+Each entry contains a deterministic file inventory and SHA-256 for every
+artifact. Restoration uses staging plus atomic promotion and rejects missing,
+extra, or modified files. A platform, compiler, configuration, or checksum
+mismatch is a cache miss and triggers normal compilation.
+
+Use a filesystem-backed shared cache between workstations or CI jobs:
+
+```console
+boss4d build --remote-cache X:\boss4d-cache
+boss4d restore --ci --remote-cache X:\boss4d-cache
+```
+
+A valid remote entry repopulates a missing or corrupt local entry. A corrupt
+remote entry is never promoted. Incremental `.boss4d-state` is regenerated for
+the restored target and is not treated as a portable artifact.
