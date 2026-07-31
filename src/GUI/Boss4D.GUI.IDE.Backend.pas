@@ -34,6 +34,7 @@ type
       const AIDEOpenPolicy: TBoss4DIDEOpenPolicy): Integer;
     function Uninstall(const AProfileId, APackage: string): Integer;
     function Repair(const AProfileId: string): Integer;
+    function Undo: Integer;
     procedure Launch(const AProfileId: string);
     procedure CreateProfile(const AName, ADescription, ACompiler,
       AExecutable: string);
@@ -110,6 +111,11 @@ function TBoss4DGUIIDEManagementBackend.Repair(
   const AProfileId: string): Integer;
 begin
   Result := FOperations.Repair(AProfileId).Affected;
+end;
+
+function TBoss4DGUIIDEManagementBackend.Undo: Integer;
+begin
+  Result := FOperations.UndoLatest.Affected;
 end;
 
 procedure TBoss4DGUIIDEManagementBackend.Launch(

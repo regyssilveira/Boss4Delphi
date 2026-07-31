@@ -44,6 +44,7 @@ type
       const AIDEOpenPolicy: TBoss4DIDEOpenPolicy): Integer;
     function Uninstall(const AProfileId, APackage: string): Integer;
     function Repair(const AProfileId: string): Integer;
+    function Undo: Integer;
     procedure Launch(const AProfileId: string);
     procedure CreateProfile(const AName, ADescription, ACompiler,
       AExecutable: string);
@@ -145,6 +146,12 @@ function TBackendMock.Repair(const AProfileId: string): Integer;
 begin
   LastAction := 'repair:' + AProfileId;
   Result := 2;
+end;
+
+function TBackendMock.Undo: Integer;
+begin
+  LastAction := 'undo';
+  Result := 3;
 end;
 
 procedure TBackendMock.Launch(const AProfileId: string);
@@ -277,6 +284,9 @@ begin
     Assert.AreEqual('uninstall:daily:horse', LBackendObject.LastAction);
     LPresenter.Repair;
     Assert.AreEqual('repair:daily', LBackendObject.LastAction);
+    LPresenter.Undo;
+    Assert.AreEqual('undo', LBackendObject.LastAction);
+    Assert.IsTrue(LViewObject.Status.Contains('3'));
     LPresenter.Launch;
     Assert.AreEqual('launch:daily', LBackendObject.LastAction);
     LPresenter.CloneProfile('Review');

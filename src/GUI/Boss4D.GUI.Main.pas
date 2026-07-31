@@ -68,6 +68,7 @@ type
     BtnIDERepair: TButton;
     BtnIDEPreviewRemove: TButton;
     BtnIDERemove: TButton;
+    BtnIDEUndo: TButton;
     ComboIDEConflictPolicy: TComboBox;
     ComboIDEOpenPolicy: TComboBox;
     LblIDEConflictPolicy: TLabel;
@@ -106,6 +107,7 @@ type
     procedure BtnIDERepairClick(Sender: TObject);
     procedure BtnIDEPreviewRemoveClick(Sender: TObject);
     procedure BtnIDERemoveClick(Sender: TObject);
+    procedure BtnIDEUndoClick(Sender: TObject);
   private
     FCurrentProjectDir: string;
     FIDEProfileIds: TStringList;
@@ -964,6 +966,13 @@ begin
   if MessageDlg('Remover os registros e artefatos gerenciados deste ' +
     'package?', mtConfirmation, [mbYes, mbNo], 0) = mrYes then
     FIDEPresenter.Uninstall(SelectedIDEPackage);
+end;
+
+procedure TFormMain.BtnIDEUndoClick(Sender: TObject);
+begin
+  if MessageDlg('Desfazer a ultima instalacao ou remocao concluida?',
+    mtConfirmation, [mbYes, mbNo], 0) = mrYes then
+    FIDEPresenter.Undo;
 end;
 
 end.

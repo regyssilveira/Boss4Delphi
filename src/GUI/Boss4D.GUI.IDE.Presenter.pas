@@ -23,6 +23,7 @@ type
       const AIDEOpenPolicy: TBoss4DIDEOpenPolicy): Integer;
     function Uninstall(const AProfileId, APackage: string): Integer;
     function Repair(const AProfileId: string): Integer;
+    function Undo: Integer;
     procedure Launch(const AProfileId: string);
     procedure CreateProfile(const AName, ADescription, ACompiler,
       AExecutable: string);
@@ -66,6 +67,7 @@ type
       const AIDEOpenPolicy: TBoss4DIDEOpenPolicy);
     procedure Uninstall(const APackage: string);
     procedure Repair;
+    procedure Undo;
     procedure Launch;
     procedure CreateProfile(const AName, ADescription, ACompiler,
       AExecutable: string);
@@ -273,6 +275,19 @@ begin
     LoadPackages;
     FView.ShowIDEStatus(Format(
       'Reparo concluido: %d registro(s) corrigido(s).', [LAffected]));
+  except
+    on E: Exception do
+      FView.ShowIDEError(E.Message);
+  end;
+end;
+
+procedure TBoss4DIDEManagementPresenter.Undo;
+begin
+  try
+    var LAffected := FBackend.Undo;
+    LoadPackages;
+    FView.ShowIDEStatus(Format(
+      'Ultima operacao desfeita: %d alteracao(oes).', [LAffected]));
   except
     on E: Exception do
       FView.ShowIDEError(E.Message);

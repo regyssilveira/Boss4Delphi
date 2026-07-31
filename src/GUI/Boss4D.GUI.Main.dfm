@@ -509,6 +509,15 @@ object FormMain: TFormMain
             TabOrder = 4
             OnClick = BtnIDERemoveClick
           end
+          object BtnIDEUndo: TButton
+            Left = 494
+            Top = 39
+            Width = 82
+            Height = 28
+            Caption = 'Desfazer'
+            TabOrder = 5
+            OnClick = BtnIDEUndoClick
+          end
           object LblIDEConflictPolicy: TLabel
             Left = 8
             Top = 11
