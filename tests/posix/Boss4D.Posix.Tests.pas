@@ -1854,6 +1854,7 @@ begin
     LPoster.Status := 201;
     LService := TBoss4DPosixPublishService.Create(@LPoster.Post);
     try
+      LOptions := Default(TBoss4DPublishOptions);
       LOptions.RegistryUrl := '';
       LOptions.Token := '';
       LOptions.DryRun := True;
@@ -1903,6 +1904,7 @@ var
 begin
   LDir := NewTempDirectory;
   CreatePublishFixture(LDir, '');
+  LOptions := Default(TBoss4DPublishOptions);
   LOptions.RegistryUrl := '';
   LOptions.Token := '';
   LOptions.DryRun := True;
