@@ -35,6 +35,7 @@ uses
   Boss4D.Core.Services.IDERegistration,
   Boss4D.Core.Services.IDEProfiles,
   Boss4D.Core.Services.IDEProfileApplication,
+  Boss4D.Core.Services.IDEManagementQuery,
   Boss4D.Core.Services.IDEOperationResult,
   Boss4D.Core.Services.IDEProcessPolicy,
   Boss4D.Tests.BuildCommand,
@@ -128,6 +129,20 @@ begin
       end,
       LResultStore);
     try
+      var LQuery := TBoss4DIDEManagementQuery.Create(
+        LProfiles, LBuildInventory, LApplication);
+      try
+        var LTargets := LQuery.InstallTargets(
+          'isolated', 'profile-component');
+        try
+          Assert.AreEqual<Integer>(1, LTargets.Count);
+          Assert.IsTrue(LTargets[0].Identity.Contains('Design.dproj'));
+        finally
+          LTargets.Free;
+        end;
+      finally
+        LQuery.Free;
+      end;
       LPlan := LApplication.PreviewInstall(
         'isolated', 'profile-component');
       try
