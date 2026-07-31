@@ -1,0 +1,22 @@
+{
+    "schemaVersion":  2,
+    "packages":  [
+                     {
+                         "name":  "horse-sanitize",
+                         "publisher":  "boss4d",
+                         "repository":  "github.com/regyssilveira/horse-sanitize",
+                         "signerFingerprint":  "A91FA178E7A1DE7FB10148C8308C9045E23B0279",
+                         "description":  "Input sanitization middleware for Horse",
+                         "license":  "Apache-2.0",
+                         "versions":  [
+                                          {
+                                              "version":  "1.0.0",
+                                              "artifact":  "https://github.com/regyssilveira/horse-sanitize/releases/download/v1.0.0/horse-sanitize-1.0.0.b4dpkg",
+                                              "sha256":  "c788ad156c61f5d49a175a5041bf8e9996173f6f53c1d40a440553fb6d097b83",
+                                              "signature":  "https://github.com/regyssilveira/horse-sanitize/releases/download/v1.0.0/horse-sanitize-1.0.0.b4dpkg.asc",
+                                              "provenance":  "https://github.com/regyssilveira/horse-sanitize/releases/download/v1.0.0/horse-sanitize-1.0.0.b4dpkg.intoto.json"
+                                          }
+                                      ]
+                     }
+                 ]
+}

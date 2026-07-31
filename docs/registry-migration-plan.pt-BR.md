@@ -8,17 +8,17 @@ passarem nos checks do pull request do Registry.
 
 ## Ponto de partida
 
-- 42 pacotes legados v1 pesquisáveis;
+- 41 pacotes legados v1 pesquisáveis;
 - 18 responsáveis por repositórios;
 - 16 pacotes no namespace `regyssilveira`, já cadastrado;
 - 10 pacotes no namespace `HashLoad`;
-- 13 pacotes schema v2 assinados e um fingerprint autorizado;
-- 13 pacotes do publisher publicados pelos gates de reprodutibilidade;
-- 3 pacotes do publisher que precisam de release;
-- saúde: 55 pacotes, 84 avisos de migração e zero erros estruturais.
+- 14 pacotes schema v2 assinados e um fingerprint autorizado;
+- 14 pacotes do publisher publicados pelos gates de reprodutibilidade;
+- 2 pacotes do publisher que precisam de release;
+- saúde: 55 pacotes, 82 avisos de migração e zero erros estruturais.
 
 O portal gerado do Registry é o painel público do progresso. No momento ele
-informa 13 pacotes verificados, 42 pacotes legados e 24% de migração verificada.
+informa 14 pacotes verificados, 41 pacotes legados e 25% de migração verificada.
 Cada pacote schema v2 aceito com fingerprint autorizado para o publisher
 incrementa essa métrica automaticamente.
 
@@ -170,9 +170,17 @@ reutilize a URL de evidência de um pacote em outro.
 
 ## Onda 2 — pacotes do publisher que precisam de release
 
-`Dext`, `horse-crud` e `horse-sanitize` ainda não possuem tag/release
-publicada. Antes da migração esses pacotes precisam de tag SemVer exata,
-testes, assets imutáveis e o mesmo fluxo de publicação assinada.
+O `horse-sanitize` `v1.0.0` concluiu esta onda. Sua cópia vendorizada de 107
+arquivos do Horse foi substituída por uma dependência resolvida e travada pelo
+Boss4D. Cinco execuções completas dos sete testes no Seattle, mais uma
+execução limpa após o merge, cobriram tags, URIs JavaScript, atributos de
+evento, dicionários, JSON aninhado, arrays e concorrência sem leaks. O bundle
+assinado de 13 arquivos passou nas verificações independentes de assinatura,
+conformidade e instalação sem fallback.
+
+`Dext` e `horse-crud` ainda precisam de sua primeira tag/release publicada.
+Antes da migração esses pacotes precisam de tag SemVer exata, testes, assets
+imutáveis e o mesmo fluxo de publicação assinada.
 
 ## Onda 3 — onboarding de publishers externos
 

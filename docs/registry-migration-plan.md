@@ -8,17 +8,17 @@ request checks.
 
 ## Current baseline
 
-- 42 discoverable legacy v1 packages;
+- 41 discoverable legacy v1 packages;
 - 18 repository owners;
 - 16 packages in the already registered `regyssilveira` namespace;
 - 10 packages in the `HashLoad` namespace;
-- 13 signed schema-v2 packages and one authorized signer fingerprint;
-- 13 publisher-controlled packages published through the reproducibility gates;
-- 3 publisher-controlled packages requiring a release;
-- catalog health: 55 packages, 84 migration warnings, zero structural errors.
+- 14 signed schema-v2 packages and one authorized signer fingerprint;
+- 14 publisher-controlled packages published through the reproducibility gates;
+- 2 publisher-controlled packages requiring a release;
+- catalog health: 55 packages, 82 migration warnings, zero structural errors.
 
 The generated Registry portal is the public progress ledger. It currently
-reports 13 verified packages, 42 legacy packages, and 24% verified migration.
+reports 14 verified packages, 41 legacy packages, and 25% verified migration.
 Each accepted schema-v2 package with an authorized publisher fingerprint
 increments that metric automatically.
 
@@ -160,9 +160,16 @@ Never reuse one package's evidence URL for another package.
 
 ## Wave 2 — publisher-controlled packages needing a release
 
-`Dext`, `horse-crud`, and `horse-sanitize` have no published tag/release.
-Before Registry migration these packages need an exact SemVer tag, tests,
-immutable release assets, and the same signed publication workflow.
+`horse-sanitize` `v1.0.0` has completed this wave. Its vendored 107-file Horse
+copy was replaced by a Boss4D-resolved and locked dependency. Five complete
+seven-test Seattle runs plus a clean post-merge run covered tags, JavaScript
+URIs, event attributes, dictionaries, nested JSON, arrays, and concurrency
+without leaks. The signed 13-file bundle passed independent signature,
+conformance, and verified no-fallback installation.
+
+`Dext` and `horse-crud` still need their first published tag/release. Before
+Registry migration they need an exact SemVer tag, tests, immutable release
+assets, and the same signed publication workflow.
 
 ## Wave 3 — external publisher onboarding
 
