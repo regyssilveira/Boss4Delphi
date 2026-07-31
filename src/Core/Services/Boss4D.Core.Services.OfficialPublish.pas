@@ -36,6 +36,8 @@ type
     class procedure DeleteIfExists(const APath: string); static;
   public
     constructor Create(const ASigner: IBoss4DPackageSigner);
+    class procedure ValidateOptions(
+      const AOptions: TBoss4DOfficialPublishOptions); static;
     function Prepare(const AOptions: TBoss4DOfficialPublishOptions):
       TBoss4DOfficialPublishResult;
   end;
@@ -62,6 +64,34 @@ begin
     TFile.Delete(APath);
 end;
 
+class procedure TBoss4DOfficialPublishService.ValidateOptions(
+  const AOptions: TBoss4DOfficialPublishOptions);
+var
+  LSubmission: TBoss4DRegistrySubmission;
+begin
+  if AOptions.ProjectDirectory.Trim.IsEmpty then
+    raise EArgumentException.Create('Diretorio do projeto obrigatorio.');
+  if AOptions.ArtifactOutput.Trim.IsEmpty then
+    raise EArgumentException.Create('Saida do artefato obrigatoria.');
+  if AOptions.SubmissionOutput.Trim.IsEmpty then
+    raise EArgumentException.Create('Saida da submissao obrigatoria.');
+  if AOptions.SigningKey.Trim.IsEmpty then
+    raise EArgumentException.Create('Chave de assinatura obrigatoria.');
+  LSubmission := Default(TBoss4DRegistrySubmission);
+  LSubmission.PackageName := AOptions.PackageName;
+  LSubmission.Publisher := AOptions.Publisher;
+  LSubmission.Repository := AOptions.Repository;
+  LSubmission.SignerFingerprint := AOptions.SignerFingerprint;
+  LSubmission.Version := AOptions.Version;
+  LSubmission.ArtifactUrl := AOptions.ArtifactUrl;
+  LSubmission.Sha256 := StringOfChar('0', 64);
+  LSubmission.SignatureUrl := AOptions.ArtifactUrl + '.asc';
+  LSubmission.ProvenanceUrl := AOptions.ArtifactUrl + '.intoto.json';
+  LSubmission.Description := AOptions.Description;
+  LSubmission.License := AOptions.License;
+  TBoss4DRegistrySubmissionService.BuildDocument(LSubmission);
+end;
+
 function TBoss4DOfficialPublishService.Prepare(
   const AOptions: TBoss4DOfficialPublishOptions):
   TBoss4DOfficialPublishResult;
@@ -73,14 +103,7 @@ var
   LEncoding: TEncoding;
 begin
   Result := Default(TBoss4DOfficialPublishResult);
-  if AOptions.ProjectDirectory.Trim.IsEmpty then
-    raise EArgumentException.Create('Diretorio do projeto obrigatorio.');
-  if AOptions.ArtifactOutput.Trim.IsEmpty then
-    raise EArgumentException.Create('Saida do artefato obrigatoria.');
-  if AOptions.SubmissionOutput.Trim.IsEmpty then
-    raise EArgumentException.Create('Saida da submissao obrigatoria.');
-  if AOptions.SigningKey.Trim.IsEmpty then
-    raise EArgumentException.Create('Chave de assinatura obrigatoria.');
+  ValidateOptions(AOptions);
 
   Result.ArtifactPath := TPath.GetFullPath(AOptions.ArtifactOutput);
   Result.SubmissionPath := TPath.GetFullPath(AOptions.SubmissionOutput);

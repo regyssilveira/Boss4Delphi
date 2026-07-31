@@ -3416,6 +3416,7 @@ begin
       'conformance registry|package'));
     Assert.IsTrue(LLogger.LastLogMessage.Contains(
       'package install <pacote>'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('publish --official'));
     Assert.IsTrue(LLogger.LastLogMessage.Contains('support'));
 
     LLogger.LastLogMessage := '';
@@ -3435,9 +3436,14 @@ begin
     LInit.Execute(True);
     var LSbomLock := TBoss4DLock.Create;
     try
+      var LManifest := LPackageRepo.Load(GetBossFile);
       LSbomLock.HasRootMetadata := True;
-      LSbomLock.RootName := 'cli-test';
-      LSbomLock.RootVersion := '1.0.0';
+      try
+        LSbomLock.RootName := LManifest.Name;
+        LSbomLock.RootVersion := LManifest.Version;
+      finally
+        LManifest.Free;
+      end;
       LLockRepo.Save(LSbomLock, TPath.Combine(FTempDir, FILE_PACKAGE_LOCK));
     finally
       LSbomLock.Free;
@@ -3458,6 +3464,21 @@ begin
       on E: EArgumentException do LInvalidFlagsRaised := True;
     end;
     Assert.IsTrue(LInvalidFlagsRaised, 'Lock-only deve rejeitar coletores de ambiente.');
+
+    LLogger.LastLogMessage := '';
+    LParser.ParseAndExecute(TArray<string>.Create('publish', '--official',
+      '--dry-run', '--allow-dirty', '--skip-tests',
+      '--publisher', 'test-publisher',
+      '--repository', 'github.com/example/cli-test',
+      '--fingerprint', StringOfChar('a', 40),
+      '--sign', 'release@example.com',
+      '--artifact-url',
+      'https://github.com/example/cli-test/releases/download/v1.0.0/' +
+      'cli-test-1.0.0.b4dpkg'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains(
+      'Dry-run oficial aprovado'));
+    Assert.IsFalse(TDirectory.Exists(TPath.Combine(FTempDir, 'dist')),
+      'Dry-run oficial nao pode criar bundle.');
   finally
     LParser.Free;
     LConfigService.Free;

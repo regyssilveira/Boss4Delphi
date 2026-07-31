@@ -170,6 +170,7 @@ uses
   Boss4D.Core.Services.PackageIndex,
   Boss4D.Core.Services.DependencySubmission,
   Boss4D.Core.Services.Publish,
+  Boss4D.Core.Services.OfficialPublish,
   Boss4D.Core.Services.SelfUpdate,
   Boss4D.Core.Services.Pack,
   Boss4D.Core.Services.Resolver,
@@ -276,6 +277,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  package versions <pacote> Lista versoes publicadas e revogadas.');
   FLogger.Log(TBoss4DLogLevel.Info, '  dependency submit    Envia snapshot ao GitHub Dependency Graph.');
   FLogger.Log(TBoss4DLogLevel.Info, '  publish              Publica pacote com validacoes; use --dry-run para inspecionar.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  publish --official   Prepara pacote assinado e JSON para PR no Registry publico.');
   FLogger.Log(TBoss4DLogLevel.Info, '  ci [--offline]       Reinstala limpo usando o lock sem altera-lo; aceita --jobs, --progress, --json e --quiet.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config delphi use <caminho>  Configura o caminho global do compilador Delphi.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config git shallow <true/false> Configura uso de shallow clones globais.');
@@ -1362,7 +1364,10 @@ var
   LService: TBoss4DPublishService;
   LLockRepo: IBoss4DLockRepository;
   LHttp: IBoss4DHttpClient;
-  LPayload, LOutputPath, LTokenEnvironment: string;
+  LPayload, LOutputPath, LTokenEnvironment, LPublisher, LRepository,
+    LFingerprint, LSigningKey, LArtifactUrl, LArtifactOutput,
+    LSubmissionOutput: string;
+  LOfficial, LUserDryRun: Boolean;
   I: Integer;
   LEncoding: TEncoding;
 begin
@@ -1370,18 +1375,32 @@ begin
   LOptions.RequireCleanGit := True;
   LOptions.RunTests := True;
   LTokenEnvironment := 'BOSS4D_PUBLISH_TOKEN';
+  LOfficial := False;
+  LUserDryRun := False;
   I := 1;
   while I < Length(AArgs) do
   begin
     if SameText(AArgs[I], '--dry-run') then
-      LOptions.DryRun := True
+    begin
+      LOptions.DryRun := True;
+      LUserDryRun := True;
+    end
+    else if SameText(AArgs[I], '--official') then
+      LOfficial := True
     else if SameText(AArgs[I], '--allow-dirty') then
       LOptions.RequireCleanGit := False
     else if SameText(AArgs[I], '--skip-tests') then
       LOptions.RunTests := False
     else if SameText(AArgs[I], '--registry') or
             SameText(AArgs[I], '--token-env') or
-            SameText(AArgs[I], '--output') then
+            SameText(AArgs[I], '--output') or
+            SameText(AArgs[I], '--publisher') or
+            SameText(AArgs[I], '--repository') or
+            SameText(AArgs[I], '--fingerprint') or
+            SameText(AArgs[I], '--sign') or
+            SameText(AArgs[I], '--artifact-url') or
+            SameText(AArgs[I], '--artifact-output') or
+            SameText(AArgs[I], '--submission-output') then
     begin
       if I + 1 >= Length(AArgs) then
         raise EArgumentException.Create('Informe um valor para ' + AArgs[I]);
@@ -1390,6 +1409,20 @@ begin
         LOptions.RegistryUrl := AArgs[I]
       else if SameText(AArgs[I - 1], '--token-env') then
         LTokenEnvironment := AArgs[I]
+      else if SameText(AArgs[I - 1], '--publisher') then
+        LPublisher := AArgs[I]
+      else if SameText(AArgs[I - 1], '--repository') then
+        LRepository := AArgs[I]
+      else if SameText(AArgs[I - 1], '--fingerprint') then
+        LFingerprint := AArgs[I]
+      else if SameText(AArgs[I - 1], '--sign') then
+        LSigningKey := AArgs[I]
+      else if SameText(AArgs[I - 1], '--artifact-url') then
+        LArtifactUrl := AArgs[I]
+      else if SameText(AArgs[I - 1], '--artifact-output') then
+        LArtifactOutput := AArgs[I]
+      else if SameText(AArgs[I - 1], '--submission-output') then
+        LSubmissionOutput := AArgs[I]
       else
         LOutputPath := AArgs[I];
     end
@@ -1398,6 +1431,8 @@ begin
         'Opcao desconhecida para publish: ' + AArgs[I]);
     Inc(I);
   end;
+  if LOfficial then
+    LOptions.DryRun := True;
   LOptions.Token := GetEnvironmentVariable(LTokenEnvironment);
   LLockRepo := TBoss4DLockJsonRepository.Create;
   LHttp := TBoss4DHttpNativeAdapter.Create;
@@ -1406,6 +1441,56 @@ begin
   try
     LPayload := LService.Execute(GetBossFile,
       TPath.Combine(GetCurrentDir, FILE_PACKAGE_LOCK), LOptions);
+    if LOfficial then
+    begin
+      var LPackage := FPackageRepo.Load(GetBossFile);
+      try
+        if LArtifactOutput.IsEmpty then
+          LArtifactOutput := TPath.Combine(GetCurrentDir,
+            Format('dist\%s-%s.b4dpkg',
+              [LPackage.Name, LPackage.Version]));
+        if LSubmissionOutput.IsEmpty then
+          LSubmissionOutput := TPath.Combine(GetCurrentDir,
+            Format('dist\%s-%s.registry.json',
+              [LPackage.Name, LPackage.Version]));
+        var LOfficialOptions := Default(TBoss4DOfficialPublishOptions);
+        LOfficialOptions.ProjectDirectory := GetCurrentDir;
+        LOfficialOptions.PackageName := LPackage.Name;
+        LOfficialOptions.Publisher := LPublisher;
+        LOfficialOptions.Repository := LRepository;
+        LOfficialOptions.SignerFingerprint := LFingerprint;
+        LOfficialOptions.SigningKey := LSigningKey;
+        LOfficialOptions.Version := LPackage.Version;
+        LOfficialOptions.ArtifactUrl := LArtifactUrl;
+        LOfficialOptions.Description := LPackage.Description;
+        LOfficialOptions.License := LPackage.License;
+        LOfficialOptions.ArtifactOutput := LArtifactOutput;
+        LOfficialOptions.SubmissionOutput := LSubmissionOutput;
+        TBoss4DOfficialPublishService.ValidateOptions(LOfficialOptions);
+        if LUserDryRun then
+        begin
+          FLogger.Log(TBoss4DLogLevel.Info,
+            'Dry-run oficial aprovado: artefato=%s; submissao=%s',
+            [TPath.GetFullPath(LArtifactOutput),
+             TPath.GetFullPath(LSubmissionOutput)]);
+          Exit;
+        end;
+        var LOfficialService := TBoss4DOfficialPublishService.Create(
+          TBoss4DGpgPackageSigner.Create(Boss4DProcessRunner));
+        try
+          var LResult := LOfficialService.Prepare(LOfficialOptions);
+          FLogger.Log(TBoss4DLogLevel.Info,
+            'Bundle oficial preparado: ' + LResult.ArtifactPath);
+          FLogger.Log(TBoss4DLogLevel.Info,
+            'Submissao para PR: ' + LResult.SubmissionPath);
+        finally
+          LOfficialService.Free;
+        end;
+      finally
+        LPackage.Free;
+      end;
+      Exit;
+    end;
     if LOutputPath.IsEmpty then
     begin
       if LOptions.DryRun then
