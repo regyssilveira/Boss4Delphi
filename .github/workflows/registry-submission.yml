@@ -7,6 +7,10 @@ on:
       - "registry/publishers.json"
       - "registry/index-v2.json"
       - "scripts/validate-registry-submission.ps1"
+      - "scripts/test-registry-community-governance.ps1"
+      - ".github/CODEOWNERS"
+      - ".github/ISSUE_TEMPLATE/registry-package-submission.yml"
+      - ".github/workflows/registry-submission.yml"
 
 permissions:
   contents: read
@@ -30,3 +34,4 @@ jobs:
         run: |
           ./scripts/test-registry-submission.ps1
           ./scripts/test-new-registry-submission.ps1
+          ./scripts/test-registry-community-governance.ps1

@@ -1,0 +1,6 @@
+# Trusted Registry publication surfaces require maintainer review.
+/registry/ @regyssilveira
+/scripts/*registry* @regyssilveira
+/.github/workflows/registry-*.yml @regyssilveira
+/.github/ISSUE_TEMPLATE/registry-package-submission.yml @regyssilveira
+
