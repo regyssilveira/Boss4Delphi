@@ -1,0 +1,22 @@
+{
+    "schemaVersion":  2,
+    "packages":  [
+                     {
+                         "name":  "Boss4Delphi",
+                         "publisher":  "boss4d",
+                         "repository":  "github.com/regyssilveira/Boss4Delphi",
+                         "signerFingerprint":  "A91FA178E7A1DE7FB10148C8308C9045E23B0279",
+                         "description":  "Native dependency management for Delphi and Lazarus",
+                         "license":  "MIT",
+                         "versions":  [
+                                          {
+                                              "version":  "1.6.0",
+                                              "artifact":  "https://github.com/regyssilveira/Boss4Delphi/releases/download/v1.6.0/Boss4Delphi-1.6.0.b4dpkg",
+                                              "sha256":  "903d6c3349fe75892430273a577d1b13f65d81f2f0ebe854b046ba9b4d1bda0b",
+                                              "signature":  "https://github.com/regyssilveira/Boss4Delphi/releases/download/v1.6.0/Boss4Delphi-1.6.0.b4dpkg.asc",
+                                              "provenance":  "https://github.com/regyssilveira/Boss4Delphi/releases/download/v1.6.0/Boss4Delphi-1.6.0.b4dpkg.intoto.json"
+                                          }
+                                      ]
+                     }
+                 ]
+}
