@@ -153,10 +153,18 @@ begin
   Result := '';
 end;
 
-procedure AuditReferences(const ARoot, AIndexDirectory: string;
+type
+  TRegistryHealthContext = record
+    Root: string;
+    IndexDirectory: string;
+    Publishers: TJSONObject;
+    Names: TStringList;
+    SeenReferences: TStringList;
+  end;
+
+procedure AuditReferences(const AContext: TRegistryHealthContext;
   const AReferences: TJSONArray; const ALegacy: Boolean;
-  const APublishers: TJSONObject; const ANames,
-  ASeenReferences: TStringList; var AResult: TBoss4DRegistryHealthResult);
+  var AResult: TBoss4DRegistryHealthResult);
 var
   LReference, LPath: string;
   LDocument: TJSONObject;
@@ -167,15 +175,15 @@ begin
   begin
     LReference := ReferenceValue(AReferences.Items[I]);
     if (LReference = '') or
-       (ASeenReferences.IndexOf(LReference) >= 0) then
+       (AContext.SeenReferences.IndexOf(LReference) >= 0) then
     begin
       Inc(AResult.ErrorCount);
       Continue;
     end;
-    ASeenReferences.Add(LReference);
+    AContext.SeenReferences.Add(LReference);
     LPath := ExpandFileName(IncludeTrailingPathDelimiter(
-      AIndexDirectory) + LReference);
-    if (Pos(IncludeTrailingPathDelimiter(ARoot), LPath) <> 1) or
+      AContext.IndexDirectory) + LReference);
+    if (Pos(IncludeTrailingPathDelimiter(AContext.Root), LPath) <> 1) or
        not FileExists(LPath) then
     begin
       Inc(AResult.ErrorCount);
@@ -183,7 +191,8 @@ begin
     end;
     LDocument := LoadObject(LPath);
     try
-      AuditDocument(LDocument, APublishers, ALegacy, ANames, AResult);
+      AuditDocument(LDocument, AContext.Publishers, ALegacy,
+        AContext.Names, AResult);
     finally
       LDocument.Free;
     end;
@@ -197,6 +206,7 @@ var
   LIndex, LPublishers: TJSONObject;
   LIncludes, LSparse: TJSONArray;
   LNames, LReferences: TStringList;
+  LContext: TRegistryHealthContext;
 begin
   Result := Default(TBoss4DRegistryHealthResult);
   LRoot := IncludeTrailingPathDelimiter(ExpandFileName(ARoot)) + 'registry';
@@ -223,10 +233,13 @@ begin
       LSparse := TJSONArray(LIndex.Find('sparse'))
     else
       LSparse := nil;
-    AuditReferences(LRoot, ExtractFileDir(LIndexPath), LIncludes, True,
-      LPublishers, LNames, LReferences, Result);
-    AuditReferences(LRoot, ExtractFileDir(LIndexPath), LSparse, False,
-      LPublishers, LNames, LReferences, Result);
+    LContext.Root := LRoot;
+    LContext.IndexDirectory := ExtractFileDir(LIndexPath);
+    LContext.Publishers := LPublishers;
+    LContext.Names := LNames;
+    LContext.SeenReferences := LReferences;
+    AuditReferences(LContext, LIncludes, True, Result);
+    AuditReferences(LContext, LSparse, False, Result);
     Result.Passed := Result.ErrorCount = 0;
     Result.Summary := Format(
       'packages=%d; legacy=%d; trusted=%d; warnings=%d; errors=%d',
