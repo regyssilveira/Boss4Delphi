@@ -50,6 +50,9 @@ type
       AConfiguration: string);
     procedure ExportProfile(const AIdOrName, APath: string);
     function ImportProfile(const APath: string): TBoss4DIDEProfile;
+    procedure CreateSnapshot(const AIdOrName, APath: string);
+    function CompareSnapshot(const AIdOrName, APath: string): TList<string>;
+    function RestoreSnapshot(const APath: string): TBoss4DIDEProfile;
     procedure Launch(const AIdOrName: string);
   end;
 
@@ -58,10 +61,48 @@ implementation
 uses
   System.IOUtils,
   System.JSON,
+  System.Hash,
   System.Generics.Defaults,
   Winapi.Windows,
   Winapi.ShellAPI,
   Boss4D.Core.Services.BuildConventions;
+
+function InventoryContent(const AProfile: TBoss4DIDEProfile): string;
+begin
+  if TFile.Exists(AProfile.InventoryPath) then
+    Result := TFile.ReadAllText(AProfile.InventoryPath, TEncoding.UTF8)
+  else
+    Result := '';
+end;
+
+function ContentHash(const AContent: string): string;
+begin
+  Result := THashSHA2.GetHashString(AContent).ToLower;
+end;
+
+procedure WriteTextAtomic(const APath, AContent: string);
+begin
+  var LFullPath := TPath.GetFullPath(APath);
+  TDirectory.CreateDirectory(TPath.GetDirectoryName(LFullPath));
+  var LTemp := LFullPath + '.tmp';
+  var LEncoding := TUTF8Encoding.Create(False);
+  try
+    TFile.WriteAllText(LTemp, AContent, LEncoding);
+  finally
+    LEncoding.Free;
+  end;
+  if TFile.Exists(LFullPath) then
+  begin
+    var LBackup := LFullPath + '.bak';
+    if TFile.Exists(LBackup) then
+      TFile.Delete(LBackup);
+    TFile.Replace(LTemp, LFullPath, LBackup);
+    if TFile.Exists(LBackup) then
+      TFile.Delete(LBackup);
+  end
+  else
+    TFile.Move(LTemp, LFullPath);
+end;
 
 procedure WriteProfile(const AObject: TJSONObject;
   const AProfile: TBoss4DIDEProfile);
@@ -484,6 +525,125 @@ begin
     end;
   finally
     LProfile.Free;
+  end;
+end;
+
+procedure TBoss4DIDEProfileService.CreateSnapshot(
+  const AIdOrName, APath: string);
+begin
+  var LProfile := Get(AIdOrName);
+  try
+    var LInventory := InventoryContent(LProfile);
+    var LRoot := TJSONObject.Create;
+    try
+      LRoot.AddPair('schemaVersion', TJSONNumber.Create(1));
+      var LProfileObject := TJSONObject.Create;
+      WriteProfile(LProfileObject, LProfile);
+      LRoot.AddPair('profile', LProfileObject);
+      LRoot.AddPair('inventory', LInventory);
+      LRoot.AddPair('inventorySha256', ContentHash(LInventory));
+      WriteTextAtomic(APath, LRoot.Format(2));
+    finally
+      LRoot.Free;
+    end;
+  finally
+    LProfile.Free;
+  end;
+end;
+
+function ReadSnapshot(const APath: string; out AInventory: string):
+  TBoss4DIDEProfile;
+begin
+  var LRoot := TJSONObject.ParseJSONValue(
+    TFile.ReadAllText(APath, TEncoding.UTF8)) as TJSONObject;
+  if not Assigned(LRoot) then
+    raise EBoss4DIDEProfileError.Create('Snapshot de perfil invalido.');
+  try
+    if LRoot.GetValue<Integer>('schemaVersion', 0) <> 1 then
+      raise EBoss4DIDEProfileError.Create(
+        'Schema do snapshot de perfil nao suportado.');
+    var LProfileObject := LRoot.GetValue<TJSONObject>('profile');
+    if not Assigned(LProfileObject) then
+      raise EBoss4DIDEProfileError.Create(
+        'Snapshot nao contem um perfil IDE.');
+    AInventory := LRoot.GetValue<string>('inventory', '');
+    var LExpectedHash := LRoot.GetValue<string>('inventorySha256', '');
+    if LExpectedHash.IsEmpty or
+       not SameText(LExpectedHash, ContentHash(AInventory)) then
+      raise EBoss4DIDEProfileError.Create(
+        'Integridade do inventario do snapshot invalida.');
+    Result := ReadProfile(LProfileObject);
+  finally
+    LRoot.Free;
+  end;
+end;
+
+function TBoss4DIDEProfileService.CompareSnapshot(
+  const AIdOrName, APath: string): TList<string>;
+begin
+  Result := TList<string>.Create;
+  var LInventory := '';
+  var LSnapshot: TBoss4DIDEProfile := nil;
+  var LCurrent: TBoss4DIDEProfile := nil;
+  try
+    try
+      LSnapshot := ReadSnapshot(APath, LInventory);
+      LCurrent := Get(AIdOrName);
+      if not SameText(LCurrent.Compiler, LSnapshot.Compiler) then
+        Result.Add('compiler');
+      if not SameText(LCurrent.RegistryBranch,
+        LSnapshot.RegistryBranch) then
+        Result.Add('registryBranch');
+      if not SameText(LCurrent.DefaultPlatform,
+        LSnapshot.DefaultPlatform) then
+        Result.Add('defaultPlatform');
+      if not SameText(LCurrent.DefaultConfiguration,
+        LSnapshot.DefaultConfiguration) then
+        Result.Add('defaultConfiguration');
+      var LCurrentPackages := LCurrent.Packages.ToArray;
+      var LSnapshotPackages := LSnapshot.Packages.ToArray;
+      TArray.Sort<string>(LCurrentPackages);
+      TArray.Sort<string>(LSnapshotPackages);
+      if not SameText(string.Join(#10, LCurrentPackages),
+        string.Join(#10, LSnapshotPackages)) then
+        Result.Add('packages');
+      if not SameText(ContentHash(InventoryContent(LCurrent)),
+        ContentHash(LInventory)) then
+        Result.Add('inventory');
+    finally
+      LCurrent.Free;
+      LSnapshot.Free;
+    end;
+  except
+    Result.Free;
+    raise;
+  end;
+end;
+
+function TBoss4DIDEProfileService.RestoreSnapshot(
+  const APath: string): TBoss4DIDEProfile;
+begin
+  var LInventory := '';
+  var LSnapshot := ReadSnapshot(APath, LInventory);
+  try
+    var LProfiles := FStore.Load;
+    try
+      for var I := LProfiles.Count - 1 downto 0 do
+        if SameText(LProfiles[I].Id, LSnapshot.Id) then
+          LProfiles.Delete(I);
+      LSnapshot.InventoryPath := TPath.Combine(
+        TPath.Combine(FProfilesRoot, LSnapshot.Id),
+        'registrations.json');
+      WriteTextAtomic(LSnapshot.InventoryPath, LInventory);
+      LProfiles.Add(LSnapshot);
+      LSnapshot := nil;
+      FStore.Save(LProfiles);
+      Result := LProfiles.Last.Clone;
+    finally
+      LProfiles.Free;
+    end;
+  finally
+    LSnapshot.Free;
   end;
 end;
 

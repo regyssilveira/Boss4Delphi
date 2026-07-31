@@ -28,6 +28,10 @@ type
     procedure TestRemoveRejectsProfileWithInstalledPackages;
     [Test]
     procedure TestConfigureTargetPersistsProfileDefaults;
+    [Test]
+    procedure TestSnapshotDetectsDriftAndRestoresExactInventory;
+    [Test]
+    procedure TestSnapshotRejectsTamperedInventory;
   end;
 
 implementation
@@ -35,8 +39,105 @@ implementation
 uses
   System.SysUtils,
   System.IOUtils,
+  System.Generics.Collections,
   Boss4D.Core.Domain.IDEProfile,
   Boss4D.Core.Services.IDEProfiles;
+
+procedure TTestsIDEProfiles.TestSnapshotDetectsDriftAndRestoresExactInventory;
+var
+  LService: TBoss4DIDEProfileService;
+  LProfile: TBoss4DIDEProfile;
+  LSnapshotPath: string;
+  LDrift: TList<string>;
+begin
+  LService := TBoss4DIDEProfileService.Create(
+    TBoss4DIDEProfileStore(FStore),
+    TPath.Combine(FDirectory, 'data'));
+  try
+    LProfile := LService.CreateProfile('Snapshot Test', '', 'd13',
+      'C:\Delphi13\bin\bds.exe');
+    try
+      TDirectory.CreateDirectory(
+        TPath.GetDirectoryName(LProfile.InventoryPath));
+      TFile.WriteAllText(LProfile.InventoryPath, '{"version":1}',
+        TEncoding.UTF8);
+    finally
+      LProfile.Free;
+    end;
+    LService.AddPackage('snapshot-test', 'Horse@3.1.0');
+    LSnapshotPath := TPath.Combine(FDirectory, 'snapshot.json');
+    LService.CreateSnapshot('snapshot-test', LSnapshotPath);
+
+    LService.ConfigureTarget('snapshot-test', 'Win64', 'Debug');
+    LService.AddPackage('snapshot-test', 'JWT@1.0.0');
+    LProfile := LService.Get('snapshot-test');
+    try
+      TFile.WriteAllText(LProfile.InventoryPath, '{"version":2}',
+        TEncoding.UTF8);
+    finally
+      LProfile.Free;
+    end;
+    LDrift := LService.CompareSnapshot('snapshot-test', LSnapshotPath);
+    try
+      Assert.IsTrue(LDrift.Contains('defaultPlatform'));
+      Assert.IsTrue(LDrift.Contains('defaultConfiguration'));
+      Assert.IsTrue(LDrift.Contains('packages'));
+      Assert.IsTrue(LDrift.Contains('inventory'));
+    finally
+      LDrift.Free;
+    end;
+
+    LProfile := LService.RestoreSnapshot(LSnapshotPath);
+    try
+      Assert.AreEqual('Win32', LProfile.DefaultPlatform);
+      Assert.AreEqual('Release', LProfile.DefaultConfiguration);
+      Assert.AreEqual<Integer>(1, LProfile.Packages.Count);
+      Assert.AreEqual('Horse@3.1.0', LProfile.Packages[0]);
+      Assert.AreEqual('{"version":1}', TFile.ReadAllText(
+        LProfile.InventoryPath, TEncoding.UTF8));
+    finally
+      LProfile.Free;
+    end;
+    LDrift := LService.CompareSnapshot('snapshot-test', LSnapshotPath);
+    try
+      Assert.AreEqual<Integer>(0, LDrift.Count);
+    finally
+      LDrift.Free;
+    end;
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TTestsIDEProfiles.TestSnapshotRejectsTamperedInventory;
+var
+  LService: TBoss4DIDEProfileService;
+  LSnapshotPath: string;
+  LContent: string;
+begin
+  LService := TBoss4DIDEProfileService.Create(
+    TBoss4DIDEProfileStore(FStore),
+    TPath.Combine(FDirectory, 'data'));
+  try
+    var LProfile := LService.CreateProfile('Tamper Test', '', 'd13',
+      'C:\Delphi13\bin\bds.exe');
+    LProfile.Free;
+    LSnapshotPath := TPath.Combine(FDirectory, 'tampered.json');
+    LService.CreateSnapshot('tamper-test', LSnapshotPath);
+    LContent := TFile.ReadAllText(LSnapshotPath, TEncoding.UTF8);
+    LContent := LContent.Replace('"inventory": ""',
+      '"inventory": "tampered"');
+    TFile.WriteAllText(LSnapshotPath, LContent, TEncoding.UTF8);
+    Assert.WillRaise(
+      procedure
+      begin
+        LService.RestoreSnapshot(LSnapshotPath).Free;
+      end,
+      EBoss4DIDEProfileError);
+  finally
+    LService.Free;
+  end;
+end;
 
 procedure TTestsIDEProfiles.Setup;
 begin

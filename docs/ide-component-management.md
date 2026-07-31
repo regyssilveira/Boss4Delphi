@@ -90,7 +90,16 @@ boss4d ide profile target team-a --platform Win64 --configuration Debug
 boss4d ide profile clone team-a Team-A-Review
 boss4d ide profile export team-a --output team-a.json
 boss4d ide profile import team-a.json
+boss4d ide profile snapshot team-a --output team-a.snapshot.json
+boss4d ide profile diff team-a team-a.snapshot.json
+boss4d ide profile restore team-a.snapshot.json
 ```
+
+A profile export contains its portable declaration. A snapshot additionally
+captures the exact package list and registration inventory, protects the
+inventory with SHA-256, detects drift, and restores the captured state with an
+atomic file replacement. On another machine, the inventory path is rebased
+under that machine's Boss4D profile directory.
 
 Preview and perform component operations:
 

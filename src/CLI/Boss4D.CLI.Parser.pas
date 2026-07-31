@@ -550,7 +550,7 @@ begin
   if Length(AArgs) < 3 then
     raise EArgumentException.Create(
       'Uso: boss4d ide profile list|create|show|target|clone|remove|' +
-      'export|import|launch|preview-install|install|' +
+      'export|import|snapshot|diff|restore|launch|preview-install|install|' +
       'preview-uninstall|uninstall|repair.');
   LStore := TBoss4DIDEProfileStore.Create(TPath.Combine(
     GetBossHome, 'ide-profiles.json'));
@@ -729,6 +729,53 @@ begin
       try
         FLogger.Log(TBoss4DLogLevel.Info,
           'Perfil IDE importado: %s.', [LProfile.Id]);
+      finally
+        LProfile.Free;
+      end;
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'snapshot') then
+    begin
+      if (Length(AArgs) <> 6) or
+         not SameText(AArgs[4], '--output') then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile snapshot <perfil> --output <arquivo>.');
+      LService.CreateSnapshot(AArgs[3], AArgs[5]);
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Snapshot do perfil %s criado em %s.', [AArgs[3], AArgs[5]]);
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'diff') then
+    begin
+      if Length(AArgs) <> 5 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile diff <perfil> <snapshot>.');
+      var LDrift := LService.CompareSnapshot(AArgs[3], AArgs[4]);
+      try
+        if LDrift.Count = 0 then
+          FLogger.Log(TBoss4DLogLevel.Info,
+            'Perfil %s corresponde ao snapshot.', [AArgs[3]])
+        else
+          FLogger.Log(TBoss4DLogLevel.Warning,
+            'Drift no perfil %s: %s.',
+            [AArgs[3], string.Join(', ', LDrift.ToArray)]);
+      finally
+        LDrift.Free;
+      end;
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'restore') then
+    begin
+      if Length(AArgs) <> 4 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile restore <snapshot>.');
+      LProfile := LService.RestoreSnapshot(AArgs[3]);
+      try
+        FLogger.Log(TBoss4DLogLevel.Info,
+          'Perfil restaurado: %s.', [LProfile.Id]);
       finally
         LProfile.Free;
       end;
