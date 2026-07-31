@@ -180,6 +180,8 @@ type
       const AProcessProbe: IBoss4DIDEProcessProbe = nil;
       const AIDEExecutableName: string = 'bds.exe');
     procedure RegisterTarget(const ARegistration: TBoss4DIDERegistration);
+    function RegisterTargets(
+      const ARegistrations: TObjectList<TBoss4DIDERegistration>): Integer;
     function DetectConflicts(
       const ARegistration: TBoss4DIDERegistration):
       TArray<TBoss4DIDEPackageConflict>;
@@ -1047,72 +1049,111 @@ end;
 procedure TBoss4DIDERegistrationService.RegisterTarget(
   const ARegistration: TBoss4DIDERegistration);
 var
-  LSnapshots: TObjectList<TBoss4DRegistrySnapshot>;
-  LInventory: TObjectList<TBoss4DIDERegistration>;
-  LEffectiveRegistration: TBoss4DIDERegistration;
-  LConflicts: TArray<TBoss4DIDEPackageConflict>;
-  LPlan: TBoss4DIDERegistrationPlan;
-  LLease: IBoss4DIDEOperationLease;
+  LRegistrations: TObjectList<TBoss4DIDERegistration>;
 begin
   if not Assigned(ARegistration) then
     raise EArgumentNilException.Create('ARegistration');
-  LLease := FOperationLock.Acquire(FProfileName,
-    ARegistration.Compiler, FLockTimeoutMilliseconds);
-  LPlan := PlanRegistration(ARegistration);
+  LRegistrations := TObjectList<TBoss4DIDERegistration>.Create(False);
   try
-    if LPlan.Disposition = TBoss4DIDEPlanDisposition.Blocked then
-        raise EBoss4DIDERegistrationError.CreateFmt(
-          'Conflito de pacote IDE: %s ja esta registrado em %s.',
-          [TPath.GetFileName(ARegistration.BplPath),
-           LPlan.Conflicts[0].ExistingPath]);
-    if LPlan.Disposition = TBoss4DIDEPlanDisposition.Adopted then
-      Exit;
-    if LPlan.Disposition = TBoss4DIDEPlanDisposition.Deferred then
-      Exit;
-    if LPlan.IsNoOp then
-      Exit;
-    LConflicts := LPlan.Conflicts.ToArray;
+    LRegistrations.Add(ARegistration);
+    RegisterTargets(LRegistrations);
   finally
-    LPlan.Free;
+    LRegistrations.Free;
   end;
+end;
+
+function TBoss4DIDERegistrationService.RegisterTargets(
+  const ARegistrations: TObjectList<TBoss4DIDERegistration>): Integer;
+var
+  LCompilers: TList<string>;
+  LLeases: TList<IBoss4DIDEOperationLease>;
+  LPlans: TObjectList<TBoss4DIDERegistrationPlan>;
+  LEffective: TObjectList<TBoss4DIDERegistration>;
+  LSnapshots: TObjectList<TBoss4DRegistrySnapshot>;
+  LInventory: TObjectList<TBoss4DIDERegistration>;
+begin
+  if not Assigned(ARegistrations) then
+    raise EArgumentNilException.Create('ARegistrations');
+  Result := 0;
+  LCompilers := TList<string>.Create;
+  LLeases := TList<IBoss4DIDEOperationLease>.Create;
+  LPlans := TObjectList<TBoss4DIDERegistrationPlan>.Create(True);
+  LEffective := TObjectList<TBoss4DIDERegistration>.Create(True);
   LSnapshots := TObjectList<TBoss4DRegistrySnapshot>.Create(True);
   LInventory := nil;
-  LEffectiveRegistration := ARegistration.Clone;
   try
-    if (ARegistration.ConflictPolicy = TBoss4DIDEConflictPolicy.Replace) then
-      for var LConflict in LConflicts do
-      begin
-        var LDisplacedValue := TBoss4DIDEManagedRegistryValue.Create;
-        LDisplacedValue.Key := LConflict.RegistryKey;
-        LDisplacedValue.Name := LConflict.ExistingPath;
-        LDisplacedValue.Value := LConflict.Description;
-        LEffectiveRegistration.DisplacedRegistryValues.Add(LDisplacedValue);
-      end;
+    for var LRegistration in ARegistrations do
+    begin
+      Validate(LRegistration);
+      if not LCompilers.Contains(LRegistration.Compiler) then
+        LCompilers.Add(LRegistration.Compiler);
+    end;
+    LCompilers.Sort;
+    for var LCompiler in LCompilers do
+      LLeases.Add(FOperationLock.Acquire(FProfileName, LCompiler,
+        FLockTimeoutMilliseconds));
+
+    for var LRegistration in ARegistrations do
+    begin
+      var LPlan := PlanRegistration(LRegistration);
+      LPlans.Add(LPlan);
+      if LPlan.Disposition = TBoss4DIDEPlanDisposition.Blocked then
+        raise EBoss4DIDERegistrationError.CreateFmt(
+          'Conflito de pacote IDE: %s ja esta registrado em %s.',
+          [TPath.GetFileName(LRegistration.BplPath),
+           LPlan.Conflicts[0].ExistingPath]);
+      if (LPlan.Disposition in [
+           TBoss4DIDEPlanDisposition.Adopted,
+           TBoss4DIDEPlanDisposition.Deferred]) or LPlan.IsNoOp then
+        Continue;
+      var LEffectiveRegistration := LRegistration.Clone;
+      LEffective.Add(LEffectiveRegistration);
+      if LRegistration.ConflictPolicy =
+        TBoss4DIDEConflictPolicy.Replace then
+        for var LConflict in LPlan.Conflicts do
+        begin
+          var LDisplacedValue := TBoss4DIDEManagedRegistryValue.Create;
+          LDisplacedValue.Key := LConflict.RegistryKey;
+          LDisplacedValue.Name := LConflict.ExistingPath;
+          LDisplacedValue.Value := LConflict.Description;
+          LEffectiveRegistration.DisplacedRegistryValues.Add(
+            LDisplacedValue);
+        end;
+    end;
+    if LEffective.Count = 0 then
+      Exit;
+
     try
       LInventory := LoadInventory;
-      for var I := LInventory.Count - 1 downto 0 do
-        if SameText(LInventory[I].Identity,
-          LEffectiveRegistration.Identity) then
-        begin
-          RemoveRegistration(FStore, LInventory[I], LSnapshots);
-          LInventory.Delete(I);
-        end;
-      ApplyRegistration(FStore, LEffectiveRegistration, LSnapshots);
-      LInventory.Add(LEffectiveRegistration.Clone);
+      for var LRegistration in LEffective do
+      begin
+        for var I := LInventory.Count - 1 downto 0 do
+          if SameText(LInventory[I].Identity,
+            LRegistration.Identity) then
+          begin
+            RemoveRegistration(FStore, LInventory[I], LSnapshots);
+            LInventory.Delete(I);
+          end;
+        ApplyRegistration(FStore, LRegistration, LSnapshots);
+        LInventory.Add(LRegistration.Clone);
+        Inc(Result);
+      end;
       SaveInventory(LInventory);
     except
       on E: Exception do
       begin
         Rollback(FStore, LSnapshots);
         raise EBoss4DIDERegistrationError.CreateFmt(
-          'Falha ao registrar target IDE %s: %s',
-          [ARegistration.Identity, E.Message]);
+          'Falha ao registrar lote de targets IDE: %s', [E.Message]);
       end;
     end;
   finally
-    LEffectiveRegistration.Free;
     LInventory.Free;
     LSnapshots.Free;
+    LEffective.Free;
+    LPlans.Free;
+    LLeases.Free;
+    LCompilers.Free;
   end;
 end;
 

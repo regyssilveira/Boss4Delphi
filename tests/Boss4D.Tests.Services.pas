@@ -117,6 +117,8 @@ type
     [Test]
     procedure TestIDERegistrationRollsBackOnFailure;
     [Test]
+    procedure TestIDERegistrationBatchRollsBackEveryTarget;
+    [Test]
     procedure TestIDERegistrationPreviewIsMutationFreeAndIdempotent;
     [Test]
     procedure TestIDERegistrationPreviewReportsBlockedConflict;
@@ -1852,6 +1854,57 @@ begin
       'Falha transacional nao pode persistir inventario parcial.');
   finally
     LRegistration.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDERegistrationBatchRollsBackEveryTarget;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistrations: TObjectList<TBoss4DIDERegistration>;
+  LRegistration: TBoss4DIDERegistration;
+  LInventoryPath: string;
+  LPackageKey: string;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LInventoryPath := TPath.Combine(FTempDir, 'batch-inventory.json');
+  LService := TBoss4DIDERegistrationService.Create(LStore, LInventoryPath);
+  LRegistrations := TObjectList<TBoss4DIDERegistration>.Create(True);
+  try
+    LPackageKey := 'Software\Embarcadero\BDS\37.0\Known Packages';
+    LRegistration := TBoss4DIDERegistration.Create;
+    LRegistration.PackageName := 'RuntimeSupport';
+    LRegistration.OwnerPackage := 'Product';
+    LRegistration.Compiler := '37.0';
+    LRegistration.Platform := 'Win32';
+    LRegistration.BplPath := 'C:\batch\RuntimeSupport.bpl';
+    LRegistrations.Add(LRegistration);
+    LRegistration := TBoss4DIDERegistration.Create;
+    LRegistration.PackageName := 'DesignSupport';
+    LRegistration.OwnerPackage := 'Product';
+    LRegistration.Compiler := '37.0';
+    LRegistration.Platform := 'Win32';
+    LRegistration.BplPath := 'C:\batch\DesignSupport.bpl';
+    LRegistrations.Add(LRegistration);
+    LStore.FailOnWrite := 2;
+
+    Assert.WillRaise(
+      procedure
+      begin
+        LService.RegisterTargets(LRegistrations);
+      end,
+      EBoss4DIDERegistrationError);
+    Assert.AreEqual('', LStore.GetValue(LPackageKey,
+      'C:\batch\RuntimeSupport.bpl'));
+    Assert.AreEqual('', LStore.GetValue(LPackageKey,
+      'C:\batch\DesignSupport.bpl'));
+    Assert.AreEqual<Integer>(0,
+      Length(LStore.ListValueNames(LPackageKey)));
+    Assert.IsFalse(TFile.Exists(LInventoryPath),
+      'Falha em qualquer target nao pode persistir lote parcial.');
+  finally
+    LRegistrations.Free;
     LService.Free;
   end;
 end;
