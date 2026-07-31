@@ -97,6 +97,8 @@ type
 
     [Test]
     procedure TestPublishDryRunAndGates;
+    [Test]
+    procedure TestOfficialRegistrySubmissionDocument;
 
     [Test]
     procedure TestCompiledArtifactCacheIsolation;
@@ -275,6 +277,7 @@ uses
   Boss4D.Core.Services.PackageIndex,
   Boss4D.Core.Services.DependencySubmission,
   Boss4D.Core.Services.Publish,
+  Boss4D.Core.Services.RegistrySubmission,
   Boss4D.Core.Services.ArtifactCache,
   Boss4D.Core.Domain.BuildMatrix,
   Boss4D.Core.Services.BuildExecutor,
@@ -1520,6 +1523,65 @@ begin
     LLock.Free;
     LPackage.Free;
   end;
+end;
+
+procedure TTestsServices.TestOfficialRegistrySubmissionDocument;
+var
+  LSubmission: TBoss4DRegistrySubmission;
+  LDocument: string;
+begin
+  LSubmission := Default(TBoss4DRegistrySubmission);
+  LSubmission.PackageName := 'My Package';
+  LSubmission.Publisher := 'my-publisher';
+  LSubmission.Repository := 'github.com/example/my-package';
+  LSubmission.SignerFingerprint := StringOfChar('a', 40);
+  LSubmission.Version := '1.2.3';
+  LSubmission.ArtifactUrl :=
+    'https://github.com/example/my-package/releases/download/v1.2.3/' +
+    'my-package-1.2.3.b4dpkg';
+  LSubmission.Sha256 := StringOfChar('B', 64);
+  LSubmission.SignatureUrl := LSubmission.ArtifactUrl + '.asc';
+  LSubmission.ProvenanceUrl := LSubmission.ArtifactUrl + '.intoto.json';
+  LSubmission.Description := 'Package description';
+  LSubmission.License := 'MIT';
+
+  LDocument :=
+    TBoss4DRegistrySubmissionService.BuildDocument(LSubmission);
+  Assert.AreEqual('my-package',
+    TBoss4DRegistrySubmissionService.PackageSlug(
+      LSubmission.PackageName));
+  Assert.IsTrue(LDocument.Contains('"schemaVersion":2'));
+  Assert.IsTrue(LDocument.Contains('"publisher":"my-publisher"'));
+  Assert.IsTrue(LDocument.Contains('"version":"1.2.3"'));
+  Assert.IsTrue(LDocument.Contains(
+    '"signerFingerprint":"' + StringOfChar('A', 40) + '"'));
+  Assert.IsTrue(LDocument.Contains(
+    '"sha256":"' + StringOfChar('b', 64) + '"'));
+
+  LSubmission.ArtifactUrl := 'http://packages.example/package.b4dpkg';
+  Assert.WillRaise(
+    procedure
+    begin
+      TBoss4DRegistrySubmissionService.BuildDocument(LSubmission);
+    end,
+    EBoss4DRegistrySubmission);
+  LSubmission.ArtifactUrl :=
+    'https://packages.example/package.b4dpkg';
+  LSubmission.SignerFingerprint := 'invalid';
+  Assert.WillRaise(
+    procedure
+    begin
+      TBoss4DRegistrySubmissionService.BuildDocument(LSubmission);
+    end,
+    EBoss4DRegistrySubmission);
+  LSubmission.SignerFingerprint := StringOfChar('a', 40);
+  LSubmission.Version := 'not-semver';
+  Assert.WillRaise(
+    procedure
+    begin
+      TBoss4DRegistrySubmissionService.BuildDocument(LSubmission);
+    end,
+    EBoss4DRegistrySubmission);
 end;
 
 procedure TTestsServices.TestCompiledArtifactCacheIsolation;
