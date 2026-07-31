@@ -383,15 +383,6 @@
                          "license":  "MIT",
                          "artifact":  "",
                          "sha256":  ""
-                     },
-                     {
-                         "name":  "horse-prometheus",
-                         "repository":  "github.com/regyssilveira/horse-prometheus",
-                         "description":  "Prometheus metrics middleware for Horse and Lazarus",
-                         "version":  "",
-                         "license":  "Apache-2.0",
-                         "artifact":  "",
-                         "sha256":  ""
                      }
                  ]
 }

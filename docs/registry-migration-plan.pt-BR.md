@@ -8,17 +8,17 @@ passarem nos checks do pull request do Registry.
 
 ## Ponto de partida
 
-- 43 pacotes legados v1 pesquisáveis;
+- 42 pacotes legados v1 pesquisáveis;
 - 18 responsáveis por repositórios;
 - 16 pacotes no namespace `regyssilveira`, já cadastrado;
 - 10 pacotes no namespace `HashLoad`;
-- 12 pacotes schema v2 assinados e um fingerprint autorizado;
-- 12 pacotes do publisher publicados pelos gates de reprodutibilidade;
-- 4 pacotes do publisher que precisam de release ou correção da tag;
-- saúde: 55 pacotes, 86 avisos de migração e zero erros estruturais.
+- 13 pacotes schema v2 assinados e um fingerprint autorizado;
+- 13 pacotes do publisher publicados pelos gates de reprodutibilidade;
+- 3 pacotes do publisher que precisam de release;
+- saúde: 55 pacotes, 84 avisos de migração e zero erros estruturais.
 
 O portal gerado do Registry é o painel público do progresso. No momento ele
-informa 12 pacotes verificados, 43 pacotes legados e 22% de migração verificada.
+informa 13 pacotes verificados, 42 pacotes legados e 24% de migração verificada.
 Cada pacote schema v2 aceito com fingerprint autorizado para o publisher
 incrementa essa métrica automaticamente.
 
@@ -68,7 +68,7 @@ do publisher cadastrado:
 | horse-ssl-redirect | v1.0.1 | Publicado; 8/8 testes de integração de redirect e instalação verificada aprovados |
 | horse-request-id | v1.0.1 | Publicado; compatibilidade com Horse 3.2, 4/4 testes de isolamento e instalação verificada aprovados |
 | horse-opentelemetry | v1.0.1 | Publicado; contexto por requisição, 62/62 asserções e instalação verificada aprovados |
-| horse-prometheus | v1.0.0 | Bloqueado: dependência legada resolve para `https://horse/` |
+| horse-prometheus | v1.0.1 | Publicado; 11/11 asserções unitárias, 5/5 asserções HTTP reais e instalação verificada aprovados |
 
 Cada migração deve compilar e testar a tag imutável, produzir `.b4dpkg`,
 assinatura OpenPGP e proveniência in-toto, enviar os arquivos para a release da
@@ -146,6 +146,14 @@ limpa após o merge, cobriram criação e recuperação de contexto, parsing W3C
 arquivos passar nas verificações independentes de assinatura, conformidade e
 instalação sem fallback.
 
+O `horse-prometheus` `v1.0.1` concluiu a Onda 1 com a correção da identidade da
+dependência Horse, das APIs de request suportadas e da interrupção da cadeia
+do middleware para `/metrics`. Cinco execuções completas combinaram 11
+asserções unitárias e cinco asserções HTTP reais para métodos, caminhos,
+status, contadores e latências antes de o bundle assinado de 16 arquivos
+passar nas verificações independentes de assinatura, conformidade e instalação
+sem fallback.
+
 ### Primeiro lote de publicação
 
 O primeiro lote de publicação foi concluído nesta ordem:
@@ -163,10 +171,8 @@ reutilize a URL de evidência de um pacote em outro.
 ## Onda 2 — pacotes do publisher que precisam de release
 
 `Dext`, `horse-crud` e `horse-sanitize` ainda não possuem tag/release
-publicada. O pacote restante bloqueado da Onda 1 também precisa de manifesto,
-testes ou compatibilidade com Horse corrigidos em novas releases imutáveis.
-Antes da migração esses pacotes precisam de tag SemVer exata, testes, assets
-imutáveis e o mesmo fluxo de publicação assinada.
+publicada. Antes da migração esses pacotes precisam de tag SemVer exata,
+testes, assets imutáveis e o mesmo fluxo de publicação assinada.
 
 ## Onda 3 — onboarding de publishers externos
 
