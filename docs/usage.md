@@ -660,7 +660,9 @@ The **Boss4D** graphical user interface (**`Boss4D.GUI.exe`**) provides a modern
    * **Search Packages**: A filterable visual catalog with one-click
      installation. Selecting a package opens its details with description,
      license, version/revocation history, compiler/platform variants, and the
-     available digest, signature, and provenance evidence.
+     available digest, signature, and provenance evidence. Rich details also
+     show the declared dependency graph and compatibility mode, with validated
+     buttons for repository, changelog, and SBOM metadata.
      The **Install** action opens a guided flow for exact version, compiler,
      platform, and source-fallback policy, shows the equivalent
      `boss4d package install` command, and requires explicit confirmation.

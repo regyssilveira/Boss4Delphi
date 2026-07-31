@@ -65,6 +65,9 @@ pacotes em arquivos ou repositórios separados:
       "sha256": "...",
       "signature": "https://packages.example.com/InternalLib-2.4.0.b4dpkg.asc",
       "provenance": "https://packages.example.com/InternalLib-2.4.0.b4dpkg.intoto.json",
+      "changelog": "https://packages.example.com/InternalLib/2.4.0/changes",
+      "sbom": "https://packages.example.com/InternalLib-2.4.0.cdx.json",
+      "dependencies": ["RuntimeCore", "JsonCore"],
       "variants": [{
         "platform": "Win64",
         "compiler": "37.0",
@@ -89,6 +92,11 @@ O schema v1 continua totalmente suportado. Índices existentes e o mapa
 string/string original de `dependencies` no `boss.json` não precisam de
 migração. No v2, `versions` é opcional, e um pacote ainda pode expor os campos
 compatíveis com v1 `version`, `artifact` e `sha256` no nível superior.
+
+`dependencies`, `changelog` e `sbom` são opcionais no pacote ou na versão.
+Os metadados da versão selecionada têm precedência. Assim, clientes do
+catálogo podem apresentar o grafo declarado e navegar com segurança para as
+notas da release e seu SBOM publicado, sem baixar ou executar o pacote.
 
 ## Metadados esparsos e revogação
 
@@ -145,7 +153,9 @@ e a URL de um artefato sempre deve estar acompanhada de seu SHA-256 imutável,
 inclusive dentro de `versions`.
 
 O catálogo da GUI e a busca do RAD Studio usam o mesmo serviço da CLI. A GUI
-expõe detalhes de versão/revogação e cadeia de fornecimento e invoca o mesmo
+expõe grafo de dependências, matriz de compatibilidade, versão/revogação e
+cadeia de fornecimento, além de navegação HTTP validada para repositório,
+changelog e SBOM quando esses links são declarados, e invoca o mesmo
 contrato `package install` por um fluxo guiado de versão, compilador e
 plataforma. A barra da operação separa sucesso, falha e cancelamento, acompanha
 o tempo decorrido e preserva solicitações que falharam ou foram canceladas para

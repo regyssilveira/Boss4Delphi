@@ -664,7 +664,9 @@ A interface gráfica do **Boss4D** (**`Boss4D.GUI.exe`**) fornece uma aplicaçã
    * **Buscar Pacotes**: Catálogo visual filtrável com instalação em um clique.
      Ao selecionar um pacote, a GUI exibe descrição, licença, histórico de
      versões/revogações, variantes por compilador/plataforma e as evidências
-     disponíveis de digest, assinatura e proveniência.
+     disponíveis de digest, assinatura e proveniência. Os detalhes ricos
+     também mostram o grafo declarado e o modo de compatibilidade, com botões
+     validados para repositório, changelog e SBOM.
      A ação **Instalar** abre um fluxo guiado para versão exata, compilador,
      plataforma e política de fallback para fontes, mostra o comando
      `boss4d package install` equivalente e exige confirmação explícita.

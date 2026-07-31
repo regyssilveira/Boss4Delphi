@@ -33,8 +33,9 @@ Veja o [plano oficial da entrega](ide-packages-profiles-gui-plan.pt-BR.md).
 - [x] Base de detalhes do catálogo com descrição, licença, histórico de
   versões/revogações, variantes por compilador/plataforma, digest, assinatura
   e proveniência.
-- [ ] Completar cards ricos com grafo de dependências, estado de
-  compatibilidade, navegação do changelog e consulta do SBOM.
+- [x] Completar detalhes ricos com grafo de dependências declarado, estado de
+  compatibilidade por fonte/artefato, navegação validada do changelog e
+  consulta do SBOM quando o Registry fornece os metadados.
 - [x] Instalação guiada do Registry com pacote, versão exata, compilador,
   plataforma, política de fallback para fontes, preview da CLI e confirmação.
 - [ ] Estender o fluxo guiado de componentes com seleção de perfil isolado e

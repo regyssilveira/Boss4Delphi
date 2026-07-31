@@ -14,7 +14,8 @@
                                               "artifact":  "https://github.com/regyssilveira/dext/releases/download/v1.0.0-rc.2/Dext-1.0.0-rc.2.b4dpkg",
                                               "sha256":  "f41b478314924d0112253c2ba90d82f7ebfb2096221f6176d910140215555b65",
                                               "signature":  "https://github.com/regyssilveira/dext/releases/download/v1.0.0-rc.2/Dext-1.0.0-rc.2.b4dpkg.asc",
-                                              "provenance":  "https://github.com/regyssilveira/dext/releases/download/v1.0.0-rc.2/Dext-1.0.0-rc.2.b4dpkg.intoto.json"
+                                              "provenance":  "https://github.com/regyssilveira/dext/releases/download/v1.0.0-rc.2/Dext-1.0.0-rc.2.b4dpkg.intoto.json",
+                                              "changelog":  "https://github.com/regyssilveira/dext/releases/tag/v1.0.0-rc.2"
                                           }
                                       ]
                      }

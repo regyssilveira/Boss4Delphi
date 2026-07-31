@@ -64,6 +64,9 @@ package families in separate files or repositories:
       "sha256": "...",
       "signature": "https://packages.example.com/InternalLib-2.4.0.b4dpkg.asc",
       "provenance": "https://packages.example.com/InternalLib-2.4.0.b4dpkg.intoto.json",
+      "changelog": "https://packages.example.com/InternalLib/2.4.0/changes",
+      "sbom": "https://packages.example.com/InternalLib-2.4.0.cdx.json",
+      "dependencies": ["RuntimeCore", "JsonCore"],
       "variants": [{
         "platform": "Win64",
         "compiler": "37.0",
@@ -87,6 +90,12 @@ Schema v1 remains fully supported. Existing indexes and the original
 string-to-string `dependencies` map in `boss.json` do not require migration.
 In v2, `versions` is optional, and a package may still expose the v1-compatible
 top-level `version`, `artifact`, and `sha256` fields.
+
+`dependencies`, `changelog`, and `sbom` are optional at package or version
+level. Version metadata takes precedence for the selected release. They let
+catalog clients render the declared dependency graph and provide safe
+navigation to release notes and an externally published SBOM without
+downloading or executing the package.
 
 ## Sparse metadata and revocation
 
@@ -142,8 +151,10 @@ indexes.
 Unknown protocol schemas are rejected. Artifact URLs are always paired with
 their immutable SHA-256 digest, including entries inside `versions`.
 The standalone GUI catalog and RAD Studio search action use the same index
-service as the CLI. The GUI exposes version/revocation and supply-chain details
-and invokes the same `package install` contract through a guided
+service as the CLI. The GUI exposes dependency graph, compatibility matrix,
+version/revocation and supply-chain details, plus validated HTTP navigation to
+the repository, changelog, and SBOM when those links are declared, and invokes
+the same `package install` contract through a guided
 version/compiler/platform flow. Its operation bar distinguishes success,
 failure, and cancellation, tracks elapsed time, and preserves failed or
 cancelled requests for retry.

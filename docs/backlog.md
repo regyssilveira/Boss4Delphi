@@ -31,8 +31,9 @@ See the [authoritative delivery plan](ide-packages-profiles-gui-plan.md).
 
 - [x] Catalog detail foundation for description, license, version/revocation
   history, compiler/platform variants, digest, signature, and provenance.
-- [ ] Complete rich package cards with dependency graph, compatibility status,
-  changelog navigation, and SBOM browsing.
+- [x] Complete rich package details with declared dependency graph,
+  source/artifact compatibility status, validated changelog navigation, and
+  SBOM browsing when Registry metadata is available.
 - [x] Guided Registry installation for package, exact version, compiler,
   platform, source-fallback policy, CLI preview, and explicit confirmation.
 - [ ] Extend the guided component workflow with isolated profile selection and
