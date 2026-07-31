@@ -128,6 +128,8 @@ cd /d d:\Projetos\BossDelphi
   Consulta vulnerabilidades OSV das revisões travadas, com cache offline e VEX.
 * `boss4d doctor`, `cache`, `tool`, `plugin`, `getit` e `license report`
   Cobre diagnóstico, cache, ferramentas globais, integrações Windows e licenças.
+  A Central de Saúde da GUI agrupa as verificações de ambiente e oferece
+  remediação, auto-correção, reparo/undo da IDE e otimização de cache.
 * `boss4d doc [-o <diretório>] [--no-dependencies]`
   Gera um site pesquisável usando comentários PascalDoc/XML Doc do projeto e
   das dependências instaladas. Consulte o

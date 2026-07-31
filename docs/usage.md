@@ -667,7 +667,10 @@ The **Boss4D** graphical user interface (**`Boss4D.GUI.exe`**) provides a modern
      While it runs, the operation bar shows elapsed time and offers
      cancellation. A failed or cancelled request remains available through
      **Retry**, with success, failure, and cancellation reported separately.
-   * **Boss4D Doctor**: Run environmental diagnostics and auto-fixes for Delphi compiler installations without writing command lines.
+   * **Health Center**: Presents typed checks grouped by tools, Delphi,
+     compiler, and configuration, with healthy/warning/error summaries and
+     remediation guidance. It exposes direct environment auto-fix, IDE repair,
+     IDE undo, and cache-prune actions.
    * **Manage Cache**: Displays global cache disk usage and provides options to clean (`Clean`) or prune (`Otimizar Cache`) stale downloaded versions.
    * **Components and IDEs**: Manage isolated IDE profiles, their default
      compiler targets, available/installed component products, install/remove

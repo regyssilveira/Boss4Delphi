@@ -43,8 +43,10 @@ Veja o [plano oficial da entrega](ide-packages-profiles-gui-plan.pt-BR.md).
   cancelável, estado explícito de cancelamento, retry e preview do comando CLI.
 - [ ] Adicionar progresso determinado por target e saída estruturada ao vivo
   aos fluxos de build e gerenciamento de componentes.
-- [ ] Central de saúde com diagnósticos agrupados e ações diretas de reparo,
-  rebuild, novo registro e undo.
+- [x] Central de Saúde estruturada com diagnósticos de ambiente agrupados,
+  resumo, remediação, auto-correção, reparo/undo da IDE e otimização de cache.
+- [ ] Adicionar grupos de saúde de projeto/build com ações diretas de rebuild e
+  novo registro exato.
 - [ ] Linha do tempo visual com comparação antes/depois, snapshots e rollback
   transacional.
 - [ ] Dashboard de perfis com drift, comparação lado a lado, produtos

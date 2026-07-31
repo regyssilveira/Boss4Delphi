@@ -66,6 +66,9 @@
 - Observable guided-install lifecycle in the GUI with a marquee progress
   indicator, elapsed time, cooperative cancellation of the child CLI process,
   explicit cancelled state, and retry of the preserved request.
+- Structured environment health reports and a GUI Health Center grouped by
+  tools, Delphi, compiler, and configuration, with summary counts,
+  remediation guidance, environment auto-fix, IDE repair/undo, and cache prune.
 
 ### Changed
 

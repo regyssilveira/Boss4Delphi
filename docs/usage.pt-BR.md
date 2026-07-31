@@ -672,7 +672,10 @@ A interface gráfica do **Boss4D** (**`Boss4D.GUI.exe`**) fornece uma aplicaçã
      cancelamento. Uma solicitação que falhou ou foi cancelada permanece
      disponível em **Tentar novamente**, com estados separados para sucesso,
      falha e cancelamento.
-   * **Boss4D Doctor**: Executa verificações estruturadas e auto-correções no ambiente do Delphi sem precisar da linha de comando.
+   * **Central de Saúde**: Exibe verificações tipadas agrupadas por ferramentas,
+     Delphi, compilador e configuração, com resumo de saudável/aviso/erro e
+     orientação de remediação. Disponibiliza ações diretas de auto-correção do
+     ambiente, reparo da IDE, undo da IDE e otimização do cache.
    * **Gerenciar Cache**: Exibe o uso de disco do cache global e fornece opções para limpar (`Clean`) ou realizar o prune (`Otimizar Cache`) de versões antigas.
    * **Componentes e IDEs**: Gerencia perfis isolados, targets padrão,
      componentes disponíveis/instalados, previews, políticas de conflito e IDE

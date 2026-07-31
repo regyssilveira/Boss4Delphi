@@ -41,8 +41,10 @@ See the [authoritative delivery plan](ide-packages-profiles-gui-plan.md).
   process execution, explicit cancelled state, retry, and CLI command preview.
 - [ ] Add determinate per-target progress and live structured output across
   build and component-management workflows.
-- [ ] Health center with grouped diagnostics and direct repair, rebuild,
-  re-register, and undo actions.
+- [x] Structured Health Center with grouped environment diagnostics, summary,
+  remediation, auto-fix, IDE repair/undo, and cache-prune actions.
+- [ ] Add project/build health groups with direct rebuild and exact
+  re-registration actions.
 - [ ] Visual operation timeline with before/after comparison, snapshots, and
   transactional rollback.
 - [ ] Profile dashboard with drift, side-by-side comparison, installed

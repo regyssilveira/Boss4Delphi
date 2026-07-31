@@ -140,6 +140,8 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d doctor`, `cache`, `tool`, `plugin`, `getit`, and `license report`
   Covers diagnostics, cache maintenance, global tools, Windows integrations,
   and license reports.
+  The GUI Health Center groups environment checks and exposes remediation,
+  auto-fix, IDE repair/undo, and cache-prune actions.
 * `boss4d doc [-o <folder>] [--no-dependencies]`
   Generates a searchable API site from PascalDoc/XML Doc comments in the
   project and installed dependencies. See the
