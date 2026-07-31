@@ -15,6 +15,11 @@ request checks.
 - zero schema-v2 packages and zero authorized signer fingerprints;
 - catalog health: 55 packages, 109 migration warnings, zero structural errors.
 
+The generated Registry portal is the public progress ledger. It currently
+reports 0 verified packages, 55 legacy packages, and 0% verified migration.
+Each accepted schema-v2 package with an authorized publisher fingerprint
+increments that metric automatically.
+
 ## Wave 0 — establish signing identity
 
 1. Install an OpenPGP implementation on the release workstation.

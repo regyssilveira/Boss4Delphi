@@ -20,9 +20,12 @@ boss4d registry search-index registry/index-v2.json registry/search-index.json
 ```
 
 The responsive portal renders catalog statistics and filters packages by text,
-publisher trust, platform, and compiler. It also presents v1/v2 version
-history, revocations, and available SHA-256/signature/provenance evidence. All
-untrusted metadata is HTML-escaped. The companion search index is a
+publisher trust, verified migration state, platform, and compiler. Its
+migration counters deliberately distinguish a registered namespace from a
+verified package: only schema-v2 metadata whose declared fingerprint is
+authorized for the publisher counts as migrated. It also presents v1/v2
+version history, revocations, and available SHA-256/signature/provenance
+evidence. All untrusted metadata is HTML-escaped. The companion search index is a
 deterministic, fully composed JSON snapshot suitable for GitHub Pages, a CDN,
 or a hosted search service. The `registry/` directory can
 be served by GitHub Pages, a CDN, or any static HTTP server; the JSON index is
@@ -61,4 +64,5 @@ environment, OIDC, and job-scoped `pages: write`; the workflow default remains
 After the workflow reaches `main`, a repository administrator must select
 **GitHub Actions** as the Pages source once. Every subsequent Registry change
 is validated and deployed automatically. A stale search index, missing package,
-unsafe reference, or incomplete portal stops publication.
+unsafe reference, missing migration state, or incomplete portal stops
+publication.

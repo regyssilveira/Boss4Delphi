@@ -15,6 +15,11 @@ passarem nos checks do pull request do Registry.
 - zero pacotes schema v2 e zero fingerprints autorizados;
 - saúde: 55 pacotes, 109 avisos de migração e zero erros estruturais.
 
+O portal gerado do Registry é o painel público do progresso. No momento ele
+informa 0 pacotes verificados, 55 pacotes legados e 0% de migração verificada.
+Cada pacote schema v2 aceito com fingerprint autorizado para o publisher
+incrementa essa métrica automaticamente.
+
 ## Onda 0 — estabelecer identidade de assinatura
 
 1. Instalar uma implementação OpenPGP na estação de release.

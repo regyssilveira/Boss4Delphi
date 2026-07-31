@@ -21,9 +21,12 @@ boss4d registry search-index registry/index-v2.json registry/search-index.json
 ```
 
 O portal responsivo apresenta estatísticas e filtra pacotes por texto,
-confiança do publisher, plataforma e compilador. Também exibe histórico v1/v2,
-revogações e evidências disponíveis de SHA-256, assinatura e proveniência. Todo
-metadado não confiável é escapado no HTML. O índice de busca complementar é um
+confiança do publisher, estado da migração verificada, plataforma e compilador.
+Os contadores de migração diferenciam intencionalmente um namespace registrado
+de um pacote verificado: somente metadados schema v2 cujo fingerprint declarado
+é autorizado para o publisher contam como migrados. Também exibe histórico
+v1/v2, revogações e evidências disponíveis de SHA-256, assinatura e
+proveniência. Todo metadado não confiável é escapado no HTML. O índice de busca complementar é um
 snapshot JSON determinístico e completamente composto, adequado para GitHub
 Pages, CDN ou um serviço de busca hospedado. A pasta `registry/` pode ser
 servida pelo GitHub Pages, CDN ou qualquer servidor HTTP estático; o índice
@@ -63,5 +66,5 @@ permanece `contents: read`.
 Depois que o workflow chegar ao `main`, um administrador precisa selecionar
 **GitHub Actions** como origem do Pages uma única vez. As mudanças seguintes do
 Registry serão validadas e publicadas automaticamente. Índice de busca
-desatualizado, pacote ausente, referência insegura ou portal incompleto
-interrompem a publicação.
+desatualizado, pacote ausente, referência insegura, estado de migração ausente
+ou portal incompleto interrompem a publicação.
