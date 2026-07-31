@@ -22,7 +22,9 @@ jobs:
         shell: pwsh
         run: |
           git fetch origin "${{ github.base_ref }}"
-          ./scripts/validate-registry-submission.ps1 -BaseRef "origin/${{ github.base_ref }}"
+          ./scripts/validate-registry-submission.ps1 `
+            -BaseRef "origin/${{ github.base_ref }}" `
+            -Submitter "${{ github.actor }}"
       - name: Run negative validator tests
         shell: pwsh
         run: ./scripts/test-registry-submission.ps1

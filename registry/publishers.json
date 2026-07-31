@@ -4,6 +4,9 @@
     {
       "id": "boss4d",
       "displayName": "Boss4D Project",
+      "githubOwners": [
+        "regyssilveira"
+      ],
       "repositories": [
         "github.com/regyssilveira/"
       ],
