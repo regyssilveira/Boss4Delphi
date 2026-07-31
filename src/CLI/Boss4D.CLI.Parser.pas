@@ -253,7 +253,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -q, --quiet (modo silencioso).');
   FLogger.Log(TBoss4DLogLevel.Info, '  install              Instala todas as dependencias declaradas no boss.json.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -p, --platform <plataforma> (Win32, Win64, Linux64, etc.).');
-  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --locked, --frozen-lockfile, --offline, --production, --no-register, --progress plain|interactive, --json, --quiet.');
+  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --locked, --frozen-lockfile, --offline, --production, --jobs n, --no-register, --progress plain|interactive, --json, --quiet.');
   FLogger.Log(TBoss4DLogLevel.Info, '  install <dep>        Instala uma dependencia especifica.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Exemplo: boss4d install github.com/hashload/horse@^3.0.0');
   FLogger.Log(TBoss4DLogLevel.Info, '  add <dep> [--dev]    Adiciona dependencia de runtime ou desenvolvimento.');
@@ -272,7 +272,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  package versions <pacote> Lista versoes publicadas e revogadas.');
   FLogger.Log(TBoss4DLogLevel.Info, '  dependency submit    Envia snapshot ao GitHub Dependency Graph.');
   FLogger.Log(TBoss4DLogLevel.Info, '  publish              Publica pacote com validacoes; use --dry-run para inspecionar.');
-  FLogger.Log(TBoss4DLogLevel.Info, '  ci [--offline]       Reinstala limpo usando o lock sem altera-lo; aceita --progress, --json e --quiet.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  ci [--offline]       Reinstala limpo usando o lock sem altera-lo; aceita --jobs, --progress, --json e --quiet.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config delphi use <caminho>  Configura o caminho global do compilador Delphi.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config git shallow <true/false> Configura uso de shallow clones globais.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config auth <github/gitlab> <token> Configura tokens de autenticacao global.');
@@ -2058,6 +2058,15 @@ begin
       LOptions.RemoteCachePath := AArgs[I + 1];
       Inc(I, 2);
     end
+    else if SameText(AArgs[I], '--jobs') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create('Informe a quantidade de jobs.');
+      LOptions.Jobs := StrToInt(AArgs[I + 1]);
+      if LOptions.Jobs < 1 then
+        raise EArgumentException.Create('--jobs deve ser maior que zero.');
+      Inc(I, 2);
+    end
     else if SameText(AArgs[I], '--resolution') then
     begin
       if I + 1 >= Length(AArgs) then
@@ -2140,6 +2149,15 @@ begin
           'Informe o caminho do cache remoto.');
       Inc(I);
       LOptions.RemoteCachePath := AArgs[I];
+    end
+    else if SameText(AArgs[I], '--jobs') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create('Informe a quantidade de jobs.');
+      Inc(I);
+      LOptions.Jobs := StrToInt(AArgs[I]);
+      if LOptions.Jobs < 1 then
+        raise EArgumentException.Create('--jobs deve ser maior que zero.');
     end
     else if SameText(AArgs[I], '--json') then
       LProgressMode := 'json'

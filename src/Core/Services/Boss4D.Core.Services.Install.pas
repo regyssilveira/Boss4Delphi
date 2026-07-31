@@ -6,7 +6,7 @@ uses
   System.Generics.Collections, System.Threading, System.SyncObjs, Boss4D.Core.Ports,
   Boss4D.Core.Domain.Dependency, Boss4D.Core.Domain.Lock,
   Boss4D.Core.Domain.Package, Boss4D.Core.Domain.Progress,
-  Boss4D.Core.Services.Resolver;
+  Boss4D.Core.Services.Resolver, Boss4D.Core.Services.OperationGate;
 
 type
   TBoss4DIDEInstallHandler = reference to procedure(
@@ -24,6 +24,7 @@ type
     CIMode: Boolean;
     RemoteCachePath: string;
     ResolutionStrategy: TBoss4DResolutionStrategy;
+    Jobs: Integer;
   end;
 
   { Servico de caso de uso para instalacao e atualizacao de dependencias (boss install) }
@@ -42,6 +43,7 @@ type
     FProgressOutput: IBoss4DProgressOutput;
     FProgress: IBoss4DProgressReporter;
     FIDEInstallHandler: TBoss4DIDEInstallHandler;
+    FOperationGate: TBoss4DKeyedOperationGate;
 
     procedure ProcessDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock;
       const AProcessedDeps: TList<string>);
@@ -237,6 +239,7 @@ var
   LResolvedRevision: string;
   LSubDeps: TArray<TBoss4DDependency>;
   LExistingLocked: TBoss4DLockedDependency;
+  LHasExisting: Boolean;
 begin
   var LDepKey := ADep.GetKey;
 
@@ -258,12 +261,18 @@ begin
 
   LCacheDir := TPath.Combine(GetCacheDir, ADep.HashName);
   LTargetDir := TPath.Combine(GetModulesDir, ADep.StorageName);
+  FGitCriticalSection.Enter;
+  try
+    LHasExisting := ALock.GetInstalled(ADep, LExistingLocked);
+  finally
+    FGitCriticalSection.Leave;
+  end;
 
   FLogger.Log(TBoss4DLogLevel.Info, 'Resolvendo %s (%s)...', [ADep.Name, ADep.Version]);
   FProgress.Report(TBoss4DProgressEvent.Create(LDepKey, ADep.Name,
     TBoss4DProgressPhase.Resolving, 0, 0, ADep.Version));
 
-  FGitCriticalSection.Enter;
+  FOperationGate.Enter(LCacheDir);
   try
     // 1. Garante que o repositorio de cache existe
     if not TDirectory.Exists(LCacheDir) then
@@ -288,7 +297,7 @@ begin
     // 2. Resolve a melhor versao disponivel usando SemVer se a versao informada for um range
     if FOptions.Locked then
     begin
-      if not ALock.GetInstalled(ADep, LExistingLocked) then
+      if not LHasExisting then
         raise Exception.CreateFmt(
           'Dependencia %s nao existe no lock congelado.', [ADep.Name]);
       LResolvedVersion := LExistingLocked.Version;
@@ -346,7 +355,7 @@ begin
     var LChecksum := CalculateDirectoryChecksum(LTargetDir);
 
     // Se a dependÃªncia jÃ¡ constava no arquivo lock existente, validar se o checksum atual bate!
-    if ALock.GetInstalled(ADep, LExistingLocked) then
+    if LHasExisting then
     begin
       if (FOptions.Locked or
           SameText(LExistingLocked.Revision, LResolvedRevision)) and
@@ -365,16 +374,21 @@ begin
     // 4. Adiciona no arquivo lock com a sobrecarga de checksum
     if not FOptions.Locked then
     begin
-      ALock.AddDependency(ADep, LResolvedVersion, ADep.HashName, LChecksum);
-      if ALock.GetInstalled(ADep, LExistingLocked) then
-      begin
-        LExistingLocked.Revision := LResolvedRevision;
-        LExistingLocked.ResolvedFrom := LResolvedVersion;
-        LExistingLocked.ChecksumAlgorithm := 'SHA-256';
+      FGitCriticalSection.Enter;
+      try
+        ALock.AddDependency(ADep, LResolvedVersion, ADep.HashName, LChecksum);
+        if ALock.GetInstalled(ADep, LExistingLocked) then
+        begin
+          LExistingLocked.Revision := LResolvedRevision;
+          LExistingLocked.ResolvedFrom := LResolvedVersion;
+          LExistingLocked.ChecksumAlgorithm := 'SHA-256';
+        end;
+      finally
+        FGitCriticalSection.Leave;
       end;
     end;
   finally
-    FGitCriticalSection.Leave;
+    FOperationGate.Leave(LCacheDir);
   end;
 
   // 5. Recursividade: Analisa subdependencias do modulo recem-baixado
@@ -600,15 +614,12 @@ end;
 procedure TBoss4DInstallService.Execute(const AInstallSingle: string;
   const APlatform: string);
 var
-  LTransaction: TBoss4DProjectTransaction;
+  LOptions: TBoss4DInstallOptions;
 begin
-  LTransaction := TBoss4DProjectTransaction.Create(GetCurrentDir);
-  try
-    ExecuteCore(AInstallSingle, APlatform);
-    LTransaction.Commit;
-  finally
-    LTransaction.Free;
-  end;
+  LOptions := Default(TBoss4DInstallOptions);
+  LOptions.InstallSingle := AInstallSingle;
+  LOptions.Platform := APlatform;
+  Execute(LOptions);
 end;
 
 function TBoss4DInstallService.SignerAllowed(const ASigner: string): Boolean;
@@ -635,9 +646,13 @@ begin
       FOptions.CleanModules := True;
       FOptions.InstallIDEs := False;
     end;
+    if FOptions.Jobs <= 0 then
+      FOptions.Jobs := 4;
+    FOperationGate := TBoss4DKeyedOperationGate.Create(FOptions.Jobs);
     ExecuteCore(FOptions.InstallSingle, FOptions.Platform);
     LTransaction.Commit;
   finally
+    FreeAndNil(FOperationGate);
     FOptions := Default(TBoss4DInstallOptions);
     LTransaction.Free;
   end;

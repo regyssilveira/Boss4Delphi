@@ -36,6 +36,7 @@ uses
   Boss4D.Core.Services.Init in 'Core/Services/Boss4D.Core.Services.Init.pas',
   Boss4D.Core.Services.Config in 'Core/Services/Boss4D.Core.Services.Config.pas',
   Boss4D.Core.Services.Install in 'Core/Services/Boss4D.Core.Services.Install.pas',
+  Boss4D.Core.Services.OperationGate in 'Core/Services/Boss4D.Core.Services.OperationGate.pas',
   Boss4D.Core.Services.SelfUpdate in 'Core/Services/Boss4D.Core.Services.SelfUpdate.pas',
   Boss4D.Core.Services.Pack in 'Core/Services/Boss4D.Core.Services.Pack.pas',
   Boss4D.Core.Services.Resolver in 'Core/Services/Boss4D.Core.Services.Resolver.pas',
