@@ -99,6 +99,8 @@ type
     [Test]
     procedure TestIDERegistrationTargetsOneToolchainAndUnregistersCleanly;
     [Test]
+    procedure TestIDEUnregisterPreservesPathsOwnedByAnotherPackage;
+    [Test]
     procedure TestIDERegistrationAcceptsDelphi10Seattle;
     [Test]
     procedure TestIDERegistrationRollsBackOnFailure;
@@ -1762,6 +1764,53 @@ begin
       'Falha transacional nao pode persistir inventario parcial.');
   finally
     LRegistration.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDEUnregisterPreservesPathsOwnedByAnotherPackage;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LValue: string;
+  LLibraryKey: string;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'shared-path-inventory.json'));
+  try
+    for var LName in TArray<string>.Create('PackageA', 'PackageB') do
+    begin
+      LRegistration := TBoss4DIDERegistration.Create;
+      try
+        LRegistration.PackageName := LName;
+        LRegistration.Compiler := '37.0';
+        LRegistration.Platform := 'Win32';
+        LRegistration.BplPath := 'C:\bpl\' + LName + '.bpl';
+        LRegistration.SearchPath := 'C:\shared\dcu';
+        LRegistration.BrowsingPath := 'C:\shared\src';
+        LRegistration.DebugDcuPath := 'C:\shared\debug';
+        LService.RegisterTarget(LRegistration);
+      finally
+        LRegistration.Free;
+      end;
+    end;
+
+    LLibraryKey := 'Software\Embarcadero\BDS\37.0\Library\Win32';
+    Assert.AreEqual(1, LService.Unregister('PackageA', '37.0', 'Win32'));
+    Assert.IsTrue(LStore.TryRead(LLibraryKey, 'Search Path', LValue));
+    Assert.AreEqual<string>('C:\shared\dcu', LValue);
+    Assert.IsTrue(LStore.TryRead(
+      'Software\Embarcadero\BDS\37.0\Known Packages',
+      'C:\bpl\PackageB.bpl', LValue));
+    Assert.IsFalse(LStore.TryRead(
+      'Software\Embarcadero\BDS\37.0\Known Packages',
+      'C:\bpl\PackageA.bpl', LValue));
+
+    Assert.AreEqual(1, LService.Unregister('PackageB', '37.0', 'Win32'));
+    Assert.IsFalse(LStore.TryRead(LLibraryKey, 'Search Path', LValue));
+  finally
     LService.Free;
   end;
 end;

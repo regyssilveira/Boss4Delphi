@@ -500,6 +500,37 @@ function TBoss4DIDERegistrationService.Unregister(
 var
   LInventory: TObjectList<TBoss4DIDERegistration>;
   LSnapshots: TObjectList<TBoss4DRegistrySnapshot>;
+
+  function Selected(const ARegistration: TBoss4DIDERegistration): Boolean;
+  begin
+    Result := SameText(ARegistration.PackageName, APackageName) and
+      (ACompiler.IsEmpty or SameText(ARegistration.Compiler, ACompiler)) and
+      (APlatform.IsEmpty or SameText(ARegistration.Platform, APlatform));
+  end;
+
+  function PathUsedOutsideSelection(
+    const ARegistration: TBoss4DIDERegistration;
+    const APath, AKind: string): Boolean;
+  begin
+    Result := False;
+    if APath.Trim.IsEmpty then
+      Exit;
+    for var LOther in LInventory do
+    begin
+      if Selected(LOther) or
+         not SameText(LOther.Compiler, ARegistration.Compiler) or
+         not SameText(LOther.Platform, ARegistration.Platform) then
+        Continue;
+      if (SameText(AKind, 'search') and
+          SameText(LOther.SearchPath, APath)) or
+         (SameText(AKind, 'browsing') and
+          SameText(LOther.BrowsingPath, APath)) or
+         (SameText(AKind, 'debug') and
+          SameText(LOther.DebugDcuPath, APath)) then
+        Exit(True);
+    end;
+  end;
+
 begin
   Result := 0;
   LInventory := LoadInventory;
@@ -509,18 +540,20 @@ begin
       for var I := LInventory.Count - 1 downto 0 do
       begin
         var LRegistration := LInventory[I];
-        if not SameText(LRegistration.PackageName, APackageName) or
-           (not ACompiler.IsEmpty and
-            not SameText(LRegistration.Compiler, ACompiler)) or
-           (not APlatform.IsEmpty and
-            not SameText(LRegistration.Platform, APlatform)) then
+        if not Selected(LRegistration) then
           Continue;
-        RemovePathValue(FStore, LibraryKey(LRegistration), 'Search Path',
-          LRegistration.SearchPath, LSnapshots);
-        RemovePathValue(FStore, LibraryKey(LRegistration), 'Browsing Path',
-          LRegistration.BrowsingPath, LSnapshots);
-        RemovePathValue(FStore, LibraryKey(LRegistration), 'Debug DCU Path',
-          LRegistration.DebugDcuPath, LSnapshots);
+        if not PathUsedOutsideSelection(LRegistration,
+          LRegistration.SearchPath, 'search') then
+          RemovePathValue(FStore, LibraryKey(LRegistration), 'Search Path',
+            LRegistration.SearchPath, LSnapshots);
+        if not PathUsedOutsideSelection(LRegistration,
+          LRegistration.BrowsingPath, 'browsing') then
+          RemovePathValue(FStore, LibraryKey(LRegistration), 'Browsing Path',
+            LRegistration.BrowsingPath, LSnapshots);
+        if not PathUsedOutsideSelection(LRegistration,
+          LRegistration.DebugDcuPath, 'debug') then
+          RemovePathValue(FStore, LibraryKey(LRegistration),
+            'Debug DCU Path', LRegistration.DebugDcuPath, LSnapshots);
         TakeSnapshot(FStore, PackageKey(LRegistration),
           LRegistration.BplPath, LSnapshots);
         FStore.DeleteValue(PackageKey(LRegistration),

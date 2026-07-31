@@ -178,6 +178,10 @@ Unregister removes only the exact paths and BPL owned by the selected
 package/compiler/platform, preserving unrelated user paths. Re-registering the
 same target replaces its previous paths and package cleanly. Repair compares
 the inventory with the registry and reapplies only entries with drift.
+Paths shared by multiple managed packages use inventory-based ownership:
+unregistering one package keeps the path while another registration for the
+same compiler/platform still references it, and removes it only with the last
+owner.
 
 ## Delphi conventions
 
