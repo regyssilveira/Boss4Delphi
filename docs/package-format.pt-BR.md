@@ -17,6 +17,12 @@ A mesma árvore produz os mesmos bytes e SHA-256. O empacotamento também grava
 uma declaração in-toto Statement v1 em `.intoto.json`. Com `--sign`, o GPG cria
 e verifica uma assinatura destacada `.asc`.
 
+No Windows, o Boss4D descobre o GnuPG por `BOSS4D_GPG`, pelo Git for Windows ou
+por uma instalação padrão do GnuPG antes de recorrer ao `gpg` do `PATH`. Assim
+o fluxo de release pode usar o `usr\bin\gpg.exe` incluído no Git sem alterar o
+`PATH` global da máquina. `BOSS4D_GPG` deve conter somente o caminho do
+executável, nunca material da chave ou senha.
+
 ## Instalação verificada
 
 Uma versão no Registry v2 pode publicar as evidências:

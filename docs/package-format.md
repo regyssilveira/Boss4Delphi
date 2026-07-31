@@ -18,6 +18,13 @@ Every pack also writes an in-toto Statement v1 at `.intoto.json`, binding the
 artifact name and SHA-256 to the Boss4D builder and file count. With `--sign`,
 Boss4D asks GPG to create an armored detached `.asc` signature and immediately
 verifies it before reporting success.
+
+On Windows, Boss4D discovers GnuPG from `BOSS4D_GPG`, Git for Windows, or a
+standard GnuPG installation before falling back to `gpg` on `PATH`. This lets
+the release workflow use Git's bundled `usr\bin\gpg.exe` without changing the
+machine-wide `PATH`. `BOSS4D_GPG` must contain the executable path, never key
+material or a passphrase.
+
 `boss4d publish` embeds this immutable artifact and digest in protocol-v1
 publication payloads, allowing a registry to store content by digest rather
 than mutable repository state.
