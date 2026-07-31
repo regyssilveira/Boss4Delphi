@@ -37,8 +37,10 @@ See the [authoritative delivery plan](ide-packages-profiles-gui-plan.md).
   platform, source-fallback policy, CLI preview, and explicit confirmation.
 - [ ] Extend the guided component workflow with isolated profile selection and
   a complete target/change preview before installation.
-- [ ] Per-operation and per-target progress, safe cancellation, retry, elapsed
-  time, and copyable equivalent CLI command.
+- [x] Guided-install operation progress, elapsed time, cancellable Windows
+  process execution, explicit cancelled state, retry, and CLI command preview.
+- [ ] Add determinate per-target progress and live structured output across
+  build and component-management workflows.
 - [ ] Health center with grouped diagnostics and direct repair, rebuild,
   re-register, and undo actions.
 - [ ] Visual operation timeline with before/after comparison, snapshots, and

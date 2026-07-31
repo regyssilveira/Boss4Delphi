@@ -144,7 +144,12 @@ aviso sem ocultar resultados das demais. Schemas desconhecidos são rejeitados,
 e a URL de um artefato sempre deve estar acompanhada de seu SHA-256 imutável,
 inclusive dentro de `versions`.
 
-O catálogo da GUI e a busca do RAD Studio usam o mesmo serviço da CLI.
+O catálogo da GUI e a busca do RAD Studio usam o mesmo serviço da CLI. A GUI
+expõe detalhes de versão/revogação e cadeia de fornecimento e invoca o mesmo
+contrato `package install` por um fluxo guiado de versão, compilador e
+plataforma. A barra da operação separa sucesso, falha e cancelamento, acompanha
+o tempo decorrido e preserva solicitações que falharam ou foram canceladas para
+retry.
 
 Para hospedagem estática e serviços externos de descoberta, gere um snapshot
 consolidado:

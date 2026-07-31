@@ -39,8 +39,10 @@ Veja o [plano oficial da entrega](ide-packages-profiles-gui-plan.pt-BR.md).
   plataforma, política de fallback para fontes, preview da CLI e confirmação.
 - [ ] Estender o fluxo guiado de componentes com seleção de perfil isolado e
   preview completo de targets/alterações antes da instalação.
-- [ ] Progresso por operação e target, cancelamento seguro, retry, tempo
-  decorrido e comando CLI equivalente copiável.
+- [x] Progresso da instalação guiada, tempo decorrido, processo Windows
+  cancelável, estado explícito de cancelamento, retry e preview do comando CLI.
+- [ ] Adicionar progresso determinado por target e saída estruturada ao vivo
+  aos fluxos de build e gerenciamento de componentes.
 - [ ] Central de saúde com diagnósticos agrupados e ações diretas de reparo,
   rebuild, novo registro e undo.
 - [ ] Linha do tempo visual com comparação antes/depois, snapshots e rollback

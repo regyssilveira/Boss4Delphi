@@ -63,6 +63,9 @@
 - Guided GUI installation of immutable Registry packages with explicit version,
   compiler, platform, source-fallback policy, confirmation, and a copyable
   equivalent CLI command.
+- Observable guided-install lifecycle in the GUI with a marquee progress
+  indicator, elapsed time, cooperative cancellation of the child CLI process,
+  explicit cancelled state, and retry of the preserved request.
 
 ### Changed
 

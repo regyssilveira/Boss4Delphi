@@ -142,7 +142,11 @@ indexes.
 Unknown protocol schemas are rejected. Artifact URLs are always paired with
 their immutable SHA-256 digest, including entries inside `versions`.
 The standalone GUI catalog and RAD Studio search action use the same index
-service as the CLI.
+service as the CLI. The GUI exposes version/revocation and supply-chain details
+and invokes the same `package install` contract through a guided
+version/compiler/platform flow. Its operation bar distinguishes success,
+failure, and cancellation, tracks elapsed time, and preserves failed or
+cancelled requests for retry.
 
 For static hosting and external discovery services, generate a consolidated
 snapshot:

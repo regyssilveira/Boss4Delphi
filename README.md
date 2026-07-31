@@ -204,7 +204,9 @@ cd /d d:\Projetos\BossDelphi
 * **[Dependency Scopes](docs/dependency-scopes.md)**: `devDependencies`, production installs, lock v3, and SBOM scope evidence.
 * **[Vulnerability Audit](docs/audit.md)**: OSV commit queries, offline cache, severity gates, and VEX suppression.
 * **[Git Trust Policy](docs/trust-policy.md)**: Signed commit/tag verification and allowed signer enforcement.
-* **[Package Indexes](docs/package-index.md)**: Public/private registries, search/info, GUI catalog, and IDE discovery.
+* **[Package Indexes](docs/package-index.md)**: Public/private registries,
+  search/info, rich GUI catalog, guided version/platform installation,
+  cancellable progress/retry, and IDE discovery.
 * **[GitHub Dependency Submission](docs/github-dependency-submission.md)**: Publish lock v3 snapshots to the GitHub Dependency Graph.
 * **[Cache Strategy](docs/cache-strategy.md)**: Safe Git object reuse and platform/compiler-isolated executable artifacts.
 * **[Project Templates](docs/templates.md)**: Delphi, VCL, FMX, Horse+Dext API, DUnitX, Lazarus, and workspace presets.

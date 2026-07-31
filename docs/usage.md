@@ -664,6 +664,9 @@ The **Boss4D** graphical user interface (**`Boss4D.GUI.exe`**) provides a modern
      The **Install** action opens a guided flow for exact version, compiler,
      platform, and source-fallback policy, shows the equivalent
      `boss4d package install` command, and requires explicit confirmation.
+     While it runs, the operation bar shows elapsed time and offers
+     cancellation. A failed or cancelled request remains available through
+     **Retry**, with success, failure, and cancellation reported separately.
    * **Boss4D Doctor**: Run environmental diagnostics and auto-fixes for Delphi compiler installations without writing command lines.
    * **Manage Cache**: Displays global cache disk usage and provides options to clean (`Clean`) or prune (`Otimizar Cache`) stale downloaded versions.
    * **Components and IDEs**: Manage isolated IDE profiles, their default
