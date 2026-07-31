@@ -129,6 +129,8 @@ type
     [Test]
     procedure TestBuildExecutorCompilesExpandedTargets;
     [Test]
+    procedure TestBuildExecutorReportsDeterminateTargetProgress;
+    [Test]
     procedure TestBuildExecutorInstallsBinaryTargetWithoutCompiler;
     [Test]
     procedure TestIncrementalBuildStateExplainsRebuildReasons;
@@ -2379,6 +2381,70 @@ begin
     Assert.AreEqual<Integer>(2, LExecutor.BuiltCount);
     Assert.IsTrue(LExecutor.LastExplanations[0].Contains('fontes'));
   finally
+    LExecutor.Free;
+    LLock.Free;
+    LDep.Free;
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsServices.TestBuildExecutorReportsDeterminateTargetProgress;
+var
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+  LDep: TBoss4DDependency;
+  LLock: TBoss4DLock;
+  LCompiler: TCompilerMock;
+  LExecutor: TBoss4DBuildExecutor;
+  LProjectPath: string;
+  LOptions: TBoss4DBuildExecutionOptions;
+  LEvents: TList<TBoss4DBuildTargetProgressEvent>;
+begin
+  LPackage := TBoss4DPackage.Create;
+  LDep := TBoss4DDependency.Create(
+    'github.com/example/progress-component', '1.0.0');
+  LLock := TBoss4DLock.Create;
+  LCompiler := TCompilerMock.Create;
+  LExecutor := TBoss4DBuildExecutor.Create(LCompiler);
+  LEvents := TList<TBoss4DBuildTargetProgressEvent>.Create;
+  try
+    LPackage.Name := 'progress-component';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Platforms.Add('Win64');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'packages\ProgressComponent.dproj';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+    LProjectPath := TPath.Combine(FTempDir, LProject.Path);
+    TDirectory.CreateDirectory(TPath.GetDirectoryName(LProjectPath));
+    TFile.WriteAllText(LProjectPath, '<Project/>');
+
+    LOptions := TBoss4DBuildExecutionOptions.Create(
+      TBoss4DBuildSelection.All, 'progress-source-checksum');
+    LOptions.Jobs := 1;
+    LOptions.TargetProgress :=
+      procedure(const AEvent: TBoss4DBuildTargetProgressEvent)
+      begin
+        LEvents.Add(AEvent);
+      end;
+
+    LExecutor.Execute(LPackage, LDep, LLock, FTempDir, LOptions);
+
+    Assert.AreEqual<Integer>(4, LEvents.Count);
+    Assert.AreEqual(TargetStarted, LEvents[0].State);
+    Assert.AreEqual<Integer>(0, LEvents[0].Current);
+    Assert.AreEqual<Integer>(2, LEvents[0].Total);
+    Assert.AreEqual(TargetBuilt, LEvents[1].State);
+    Assert.AreEqual<Integer>(1, LEvents[1].Current);
+    Assert.AreEqual(TargetStarted, LEvents[2].State);
+    Assert.AreEqual<Integer>(1, LEvents[2].Current);
+    Assert.AreEqual(TargetBuilt, LEvents[3].State);
+    Assert.AreEqual<Integer>(2, LEvents[3].Current);
+    Assert.AreEqual<Integer>(2, LEvents[3].Total);
+    Assert.IsTrue(LEvents[3].TargetIdentity.Contains('Win64'));
+  finally
+    LEvents.Free;
     LExecutor.Free;
     LLock.Free;
     LDep.Free;

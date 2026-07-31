@@ -14,6 +14,24 @@ uses
   Boss4D.Core.Services.BuildScheduler;
 
 type
+  TBoss4DBuildTargetProgressState = (TargetStarted, TargetBuilt,
+    TargetRestored, TargetSkipped, TargetFailed);
+
+  TBoss4DBuildTargetProgressEvent = record
+    TargetIdentity: string;
+    State: TBoss4DBuildTargetProgressState;
+    Current: Integer;
+    Total: Integer;
+    Message: string;
+    class function Create(const ATargetIdentity: string;
+      const AState: TBoss4DBuildTargetProgressState;
+      const ACurrent, ATotal: Integer; const AMessage: string):
+      TBoss4DBuildTargetProgressEvent; static;
+  end;
+
+  TBoss4DBuildTargetProgressHandler = reference to procedure(
+    const AEvent: TBoss4DBuildTargetProgressEvent);
+
   TBoss4DBuildExecutionOptions = record
   private
     FSelection: TBoss4DBuildSelection;
@@ -22,6 +40,7 @@ type
     FJobs: Integer;
     FCancellation: TBoss4DBuildCancellationProbe;
     FRemoteCachePath: string;
+    FTargetProgress: TBoss4DBuildTargetProgressHandler;
   public
     class function Create(const ASelection: TBoss4DBuildSelection;
       const ASourceChecksum: string): TBoss4DBuildExecutionOptions; static;
@@ -35,6 +54,8 @@ type
       write FCancellation;
     property RemoteCachePath: string read FRemoteCachePath
       write FRemoteCachePath;
+    property TargetProgress: TBoss4DBuildTargetProgressHandler
+      read FTargetProgress write FTargetProgress;
   end;
 
   TBoss4DBuildExecutor = class
@@ -73,6 +94,69 @@ uses
   Boss4D.Core.Services.BuildMatrix,
   Boss4D.Core.Services.BuildGraph,
   Boss4D.Core.Services.BuildPaths;
+
+type
+  TBoss4DBuildTargetProgressDispatcher = class
+  private
+    FHandler: TBoss4DBuildTargetProgressHandler;
+    FTotal: Integer;
+    FCurrent: Integer;
+    FLock: TObject;
+  public
+    constructor Create(const AHandler: TBoss4DBuildTargetProgressHandler;
+      const ATotal: Integer);
+    destructor Destroy; override;
+    procedure Report(const ATarget: TBoss4DBuildTarget;
+      const AState: TBoss4DBuildTargetProgressState;
+      const AMessage: string; const ACompletesTarget: Boolean);
+  end;
+
+constructor TBoss4DBuildTargetProgressDispatcher.Create(
+  const AHandler: TBoss4DBuildTargetProgressHandler;
+  const ATotal: Integer);
+begin
+  inherited Create;
+  FHandler := AHandler;
+  FTotal := ATotal;
+  FLock := TObject.Create;
+end;
+
+destructor TBoss4DBuildTargetProgressDispatcher.Destroy;
+begin
+  FLock.Free;
+  inherited Destroy;
+end;
+
+procedure TBoss4DBuildTargetProgressDispatcher.Report(
+  const ATarget: TBoss4DBuildTarget;
+  const AState: TBoss4DBuildTargetProgressState;
+  const AMessage: string; const ACompletesTarget: Boolean);
+begin
+  if not Assigned(FHandler) then
+    Exit;
+  TMonitor.Enter(FLock);
+  try
+    if ACompletesTarget then
+      Inc(FCurrent);
+    FHandler(TBoss4DBuildTargetProgressEvent.Create(
+      ATarget.Identity, AState, FCurrent, FTotal, AMessage));
+  finally
+    TMonitor.Exit(FLock);
+  end;
+end;
+
+class function TBoss4DBuildTargetProgressEvent.Create(
+  const ATargetIdentity: string;
+  const AState: TBoss4DBuildTargetProgressState;
+  const ACurrent, ATotal: Integer;
+  const AMessage: string): TBoss4DBuildTargetProgressEvent;
+begin
+  Result.TargetIdentity := ATargetIdentity;
+  Result.State := AState;
+  Result.Current := ACurrent;
+  Result.Total := ATotal;
+  Result.Message := AMessage;
+end;
 
 constructor TBoss4DBuildExecutor.Create(const ACompiler: IBoss4DCompiler);
 begin
@@ -131,6 +215,7 @@ var
   LTargets: TBoss4DBuildTargetList;
   LFingerprints: TDictionary<string, string>;
   LModulesDirectory: string;
+  LProgress: TBoss4DBuildTargetProgressDispatcher;
 begin
   if not Assigned(APackage) then
     raise EArgumentNilException.Create('APackage');
@@ -159,106 +244,123 @@ begin
       ADependency.StorageName, LTarget.Compiler, LTarget.Platform,
       LTarget.Configuration));
   LFingerprints := TDictionary<string, string>.Create;
+  LProgress := TBoss4DBuildTargetProgressDispatcher.Create(
+    AOptions.TargetProgress, LTargets.Count);
   try
     Result := TBoss4DBuildScheduler.Execute(LTargets, AOptions.Jobs,
       procedure(const LTarget: TBoss4DBuildTarget)
       begin
-        var LProjectPath := ResolveProjectPath(ARootDirectory,
-          LTarget.ProjectPath);
-        var LTargetRoot := TBoss4DBuildPaths.TargetRoot(LModulesDirectory,
-          ADependency.StorageName, LTarget.Compiler, LTarget.Platform,
-          LTarget.Configuration);
-        var LDependencyFingerprints := TList<string>.Create;
+        LProgress.Report(LTarget, TargetStarted, 'target iniciado', False);
         try
-          for var LDependencyPath in LTarget.DependsOn do
-          begin
-            var LDependencyIdentity := (LTarget.PackageName + '|' +
-              LDependencyPath + '|' + LTarget.Compiler + '|' +
-              LTarget.Platform + '|' + LTarget.Configuration).ToLower;
-            var LDependencyFingerprint := '';
+          var LProjectPath := ResolveProjectPath(ARootDirectory,
+            LTarget.ProjectPath);
+          var LTargetRoot := TBoss4DBuildPaths.TargetRoot(LModulesDirectory,
+            ADependency.StorageName, LTarget.Compiler, LTarget.Platform,
+            LTarget.Configuration);
+          var LDependencyFingerprints := TList<string>.Create;
+          try
+            for var LDependencyPath in LTarget.DependsOn do
+            begin
+              var LDependencyIdentity := (LTarget.PackageName + '|' +
+                LDependencyPath + '|' + LTarget.Compiler + '|' +
+                LTarget.Platform + '|' + LTarget.Configuration).ToLower;
+              var LDependencyFingerprint := '';
+              TMonitor.Enter(FGuard);
+              try
+                if not LFingerprints.TryGetValue(LDependencyIdentity,
+                  LDependencyFingerprint) then
+                  raise EBoss4DBuildGraphError.CreateFmt(
+                    'Fingerprint da dependencia ainda indisponivel: %s.',
+                    [LDependencyIdentity]);
+              finally
+                TMonitor.Exit(FGuard);
+              end;
+              LDependencyFingerprints.Add(LDependencyFingerprint);
+            end;
+            var LDecision := FBuildState.Evaluate(LTarget, LProjectPath,
+              LTargetRoot, LDependencyFingerprints.ToArray, AOptions.Force);
             TMonitor.Enter(FGuard);
             try
-              if not LFingerprints.TryGetValue(LDependencyIdentity,
-                LDependencyFingerprint) then
-                raise EBoss4DBuildGraphError.CreateFmt(
-                  'Fingerprint da dependencia ainda indisponivel: %s.',
-                  [LDependencyIdentity]);
+              FLastExplanations.Add(LTarget.Identity + ': ' +
+                FBuildState.Explain(LDecision));
             finally
               TMonitor.Exit(FGuard);
             end;
-            LDependencyFingerprints.Add(LDependencyFingerprint);
-          end;
-          var LDecision := FBuildState.Evaluate(LTarget, LProjectPath,
-            LTargetRoot, LDependencyFingerprints.ToArray, AOptions.Force);
-          TMonitor.Enter(FGuard);
-          try
-            FLastExplanations.Add(LTarget.Identity + ': ' +
-              FBuildState.Explain(LDecision));
-          finally
-            TMonitor.Exit(FGuard);
-          end;
-          if not LDecision.ShouldBuild then
-          begin
+            if not LDecision.ShouldBuild then
+            begin
+              TMonitor.Enter(FGuard);
+              try
+                Inc(FSkippedCount);
+                LFingerprints.Add(LTarget.Identity.ToLower,
+                  LDecision.Fingerprint);
+              finally
+                TMonitor.Exit(FGuard);
+              end;
+              LProgress.Report(LTarget, TargetSkipped,
+                'target atualizado', True);
+              Exit;
+            end;
+
+            var LCacheFingerprint := AOptions.SourceChecksum + '|' +
+              LDecision.Fingerprint;
+            if not AOptions.Force and FArtifactCache.Restore(ADependency,
+              LCacheFingerprint, LTarget.Platform, LTarget.Compiler,
+              LTarget.Configuration, LTargetRoot) then
+            begin
+              FBuildState.Save(LTarget, LTargetRoot, LDecision);
+              TMonitor.Enter(FGuard);
+              try
+                Inc(FRestoredCount);
+              finally
+                TMonitor.Exit(FGuard);
+              end;
+              LProgress.Report(LTarget, TargetRestored,
+                'target restaurado do cache', True);
+            end
+            else
+            begin
+              if SameText(LTarget.ProjectKind, 'binary') then
+              begin
+                var LBinaryDirectory := TPath.Combine(LTargetRoot,
+                  FOLDER_BIN);
+                TDirectory.CreateDirectory(LBinaryDirectory);
+                TFile.Copy(LProjectPath, TPath.Combine(LBinaryDirectory,
+                  TPath.GetFileName(LProjectPath)), True);
+              end
+              else if not FCompiler.Compile(LProjectPath, ADependency, ALock,
+                LTarget.Platform, LTarget.Compiler,
+                LTarget.Configuration) then
+                raise Exception.CreateFmt('Falha ao compilar target %s.',
+                  [LTarget.Identity]);
+              FBuildState.Save(LTarget, LTargetRoot, LDecision);
+              FArtifactCache.Store(ADependency, LCacheFingerprint,
+                LTarget.Platform, LTarget.Compiler, LTarget.Configuration,
+                LTargetRoot);
+              TMonitor.Enter(FGuard);
+              try
+                Inc(FBuiltCount);
+              finally
+                TMonitor.Exit(FGuard);
+              end;
+              LProgress.Report(LTarget, TargetBuilt,
+                'target compilado', True);
+            end;
             TMonitor.Enter(FGuard);
             try
-              Inc(FSkippedCount);
               LFingerprints.Add(LTarget.Identity.ToLower,
                 LDecision.Fingerprint);
             finally
               TMonitor.Exit(FGuard);
             end;
-            Exit;
-          end;
-
-          var LCacheFingerprint := AOptions.SourceChecksum + '|' +
-            LDecision.Fingerprint;
-          if not AOptions.Force and FArtifactCache.Restore(ADependency,
-            LCacheFingerprint, LTarget.Platform, LTarget.Compiler,
-            LTarget.Configuration, LTargetRoot) then
-          begin
-            FBuildState.Save(LTarget, LTargetRoot, LDecision);
-            TMonitor.Enter(FGuard);
-            try
-              Inc(FRestoredCount);
-            finally
-              TMonitor.Exit(FGuard);
-            end;
-          end
-          else
-          begin
-            if SameText(LTarget.ProjectKind, 'binary') then
-            begin
-              var LBinaryDirectory := TPath.Combine(LTargetRoot,
-                FOLDER_BIN);
-              TDirectory.CreateDirectory(LBinaryDirectory);
-              TFile.Copy(LProjectPath, TPath.Combine(LBinaryDirectory,
-                TPath.GetFileName(LProjectPath)), True);
-            end
-            else if not FCompiler.Compile(LProjectPath, ADependency, ALock,
-              LTarget.Platform, LTarget.Compiler,
-              LTarget.Configuration) then
-              raise Exception.CreateFmt('Falha ao compilar target %s.',
-                [LTarget.Identity]);
-            FBuildState.Save(LTarget, LTargetRoot, LDecision);
-            FArtifactCache.Store(ADependency, LCacheFingerprint,
-              LTarget.Platform, LTarget.Compiler, LTarget.Configuration,
-              LTargetRoot);
-            TMonitor.Enter(FGuard);
-            try
-              Inc(FBuiltCount);
-            finally
-              TMonitor.Exit(FGuard);
-            end;
-          end;
-          TMonitor.Enter(FGuard);
-          try
-            LFingerprints.Add(LTarget.Identity.ToLower,
-              LDecision.Fingerprint);
           finally
-            TMonitor.Exit(FGuard);
+            LDependencyFingerprints.Free;
           end;
-        finally
-          LDependencyFingerprints.Free;
+        except
+          on E: Exception do
+          begin
+            LProgress.Report(LTarget, TargetFailed, E.Message, True);
+            raise;
+          end;
         end;
       end,
       AOptions.Cancellation);
@@ -268,6 +370,7 @@ begin
         Result := CompareText(ALeft, ARight);
       end));
   finally
+    LProgress.Free;
     LFingerprints.Free;
     LTargets.Free;
   end;
