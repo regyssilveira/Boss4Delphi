@@ -37,3 +37,8 @@ Run the same checks locally:
 Registry approval establishes catalog policy; clients still verify the
 artifact checksum, OpenPGP signature, and provenance when installing.
 
+The generated portal deliberately distinguishes a repository that merely
+matches a registered namespace from a schema-v2 package whose declared signer
+is authorized. Publisher registration is administrative identity, not proof
+that a particular release was signed.
+

@@ -32,6 +32,13 @@ diretório da entrada. Travessia para o diretório pai e referências HTTP são
 rejeitadas; materialize localmente um registry remoto antes de gerar um portal
 determinístico.
 
+Quando existe um `publishers.json` ao lado da entrada, o portal também projeta
+a identidade do publisher. `registered namespace` significa somente que o
+repositório corresponde a um prefixo revisado. `authorized publisher` também
+exige que o pacote declare um fingerprint permitido. Nenhum dos rótulos
+substitui a verificação do artefato: SHA-256, assinatura destacada e
+proveniência continuam sendo evidências independentes e aparecem separadamente.
+
 O desempenho e o determinismo do pack podem ser acompanhados com:
 
 ```powershell

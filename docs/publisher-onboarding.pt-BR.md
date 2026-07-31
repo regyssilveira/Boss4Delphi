@@ -38,3 +38,8 @@ Execute localmente:
 A aprovação no Registry estabelece a política do catálogo; durante a
 instalação, o cliente ainda verifica checksum, assinatura OpenPGP e
 proveniência.
+
+O portal gerado distingue deliberadamente um repositório que apenas corresponde
+a um namespace registrado de um pacote schema v2 cujo signatário declarado é
+autorizado. O cadastro do publisher é identidade administrativa, não prova de
+que uma release específica foi assinada.

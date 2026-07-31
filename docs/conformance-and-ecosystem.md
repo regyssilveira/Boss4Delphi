@@ -30,6 +30,13 @@ revocations before rendering. References must remain inside the entry point
 directory. Parent traversal and HTTP references are rejected; materialize a
 remote registry locally before generating a deterministic portal.
 
+If `publishers.json` exists beside the entry point, the portal also projects
+publisher identity. `registered namespace` means only that the repository
+matches a reviewed publisher prefix. `authorized publisher` additionally means
+the package declares an allowed fingerprint. Neither label replaces artifact
+verification: SHA-256, detached signature, and provenance remain independent
+release evidence and are shown separately.
+
 Pack performance and determinism can be tracked with:
 
 ```powershell
