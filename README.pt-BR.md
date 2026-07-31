@@ -156,7 +156,9 @@ cd /d d:\Projetos\BossDelphi
   transacional de produtos com preview. A GUI apresenta o diário imutável de
   operações como uma linha do tempo estruturada com evidências de recuperação
   e desfazer, além de um dashboard de perfis com drift real, comparação de
-  produtos instalados e abertura direta da IDE isolada. O console estruturado
+  produtos instalados e abertura direta da IDE isolada. A instalação de
+  componentes usa uma confirmação guiada explícita para perfil, package,
+  políticas, targets exatos, Registry branch e mudanças transacionais. O console estruturado
   oferece filtros por severidade, pesquisa, foco nos erros e exportação de
   diagnóstico em JSON. Consulte o
   [guia de perfis e componentes](docs/ide-component-management.pt-BR.md).

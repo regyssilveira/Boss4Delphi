@@ -166,16 +166,23 @@ Open `Boss4D.GUI.exe` and select **Components and IDEs**:
 3. create, clone, select, remove, or launch a profile;
 4. choose its default platform and configuration;
 5. select a product from the global build inventory;
-6. inspect **Preview install** before changing the IDE;
-7. choose conflict and open-IDE policies, then install;
+6. use **Preview install** for a quick target inspection, or press
+   **Install** to open the complete guided workflow;
+7. in the guided workflow, explicitly confirm the isolated profile, package,
+   conflict policy, and open-IDE policy. Review the compiler, Registry branch,
+   exact runtime/design targets, transactional snapshot, registration, and
+   inventory changes before pressing **Install**;
 8. use **Repair** to reconcile drift;
 9. use **Undo** or open the structured **History** timeline to recover or audit
    completed operations;
 10. inspect **Preview remove**, then remove the managed product.
 
 The package grid distinguishes products available in the build inventory from
-products installed in the selected profile. The target list shows the exact
-identities affected by the next operation.
+products installed in the selected profile. The target list provides a quick
+preview; the guided installation is the authoritative confirmation surface and
+shows the exact request that will be sent to the shared transactional service.
+Changing the profile inside the dialog reloads its available products and
+recalculates the target/change preview.
 
 ## Everyday profile patterns
 

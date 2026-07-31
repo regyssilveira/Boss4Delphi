@@ -38,7 +38,7 @@ Veja o [plano oficial da entrega](ide-packages-profiles-gui-plan.pt-BR.md).
   consulta do SBOM quando o Registry fornece os metadados.
 - [x] Instalação guiada do Registry com pacote, versão exata, compilador,
   plataforma, política de fallback para fontes, preview da CLI e confirmação.
-- [ ] Estender o fluxo guiado de componentes com seleção de perfil isolado e
+- [x] Estender o fluxo guiado de componentes com seleção de perfil isolado e
   preview completo de targets/alterações antes da instalação.
 - [x] Progresso da instalação guiada, tempo decorrido, processo Windows
   cancelável, estado explícito de cancelamento, retry e preview do comando CLI.

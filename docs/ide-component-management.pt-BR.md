@@ -166,16 +166,23 @@ Abra `Boss4D.GUI.exe` e selecione **Componentes e IDEs**:
 3. crie, clone, selecione, remova ou inicie um perfil;
 4. escolha plataforma e configuração padrão;
 5. selecione um produto do inventário global de builds;
-6. consulte **Preview instalar** antes de alterar a IDE;
-7. escolha as políticas de conflito e IDE aberta e instale;
+6. use **Preview instalar** para uma consulta rápida dos targets ou pressione
+   **Instalar** para abrir o fluxo guiado completo;
+7. no assistente, confirme explicitamente perfil isolado, package, política de
+   conflito e política para IDE aberta. Revise compilador, Registry branch,
+   targets runtime/design exatos, snapshot transacional, registro e mudança no
+   inventário antes de pressionar **Instalar**;
 8. use **Reparar** para reconciliar drift;
 9. use **Desfazer** ou abra a linha do tempo estruturada em **Historico** para
    recuperar ou auditar operacoes;
 10. consulte **Preview remover** e remova o produto gerenciado.
 
 A grade diferencia produtos disponíveis no inventário de builds dos instalados
-no perfil selecionado. A lista de targets mostra as identidades exatas afetadas
-pela próxima operação.
+no perfil selecionado. A lista de targets oferece um preview rápido; o
+assistente é a superfície oficial de confirmação e apresenta a solicitação
+exata enviada ao serviço transacional compartilhado. Trocar o perfil dentro do
+diálogo recarrega os produtos disponíveis e recalcula o preview de
+targets/alterações.
 
 ## Situações cotidianas
 

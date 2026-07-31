@@ -168,7 +168,9 @@ cd /d d:\Projetos\BossDelphi
   transactional product installation. The GUI exposes the immutable operation
   journal as a structured timeline with recovery and undo evidence, plus a
   profile dashboard for live drift, installed-product comparison, and direct
-  isolated IDE launch. Its structured log console provides severity filters,
+  isolated IDE launch. Component installation uses an explicit guided
+  confirmation for profile, package, policies, exact targets, Registry branch,
+  and transactional changes. Its structured log console provides severity filters,
   search, error focus, and JSON diagnostic export. See the
   [IDE profile and component guide](docs/ide-component-management.md).
 * `boss4d config delphi use <path_or_release_version>`

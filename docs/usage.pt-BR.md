@@ -682,7 +682,11 @@ A interface gráfica do **Boss4D** (**`Boss4D.GUI.exe`**) fornece uma aplicaçã
    * **Componentes e IDEs**: Gerencia perfis isolados, targets padrão,
      componentes disponíveis/instalados, previews, políticas de conflito e IDE
      aberta, instalação transacional, reparo, remoção e abertura da IDE pelo
-     Registry branch alternativo. O **Dashboard** consolida drift real do
+     Registry branch alternativo. A ação **Instalar** abre uma confirmação
+     guiada que permite trocar perfil isolado e package, recalcula os targets
+     runtime/design compatíveis e apresenta compilador, Registry branch,
+     políticas, snapshot transacional, registro e mudança no inventário antes
+     da execução. O **Dashboard** consolida drift real do
      Registry, produtos instalados, compilador/target/branch, comparação entre
      perfis e abertura direta da IDE isolada. A ação **Histórico** abre uma linha do tempo
      das operações mais recentes, com estado, perfil, target, disponibilidade

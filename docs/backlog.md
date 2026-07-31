@@ -36,7 +36,7 @@ See the [authoritative delivery plan](ide-packages-profiles-gui-plan.md).
   SBOM browsing when Registry metadata is available.
 - [x] Guided Registry installation for package, exact version, compiler,
   platform, source-fallback policy, CLI preview, and explicit confirmation.
-- [ ] Extend the guided component workflow with isolated profile selection and
+- [x] Extend the guided component workflow with isolated profile selection and
   a complete target/change preview before installation.
 - [x] Guided-install operation progress, elapsed time, cancellable Windows
   process execution, explicit cancelled state, retry, and CLI command preview.
