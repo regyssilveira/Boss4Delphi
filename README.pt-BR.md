@@ -197,6 +197,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Autoatualização Segura](docs/self-update.pt-BR.md)**: Descoberta de release, verificação SHA-256, staging e início do instalador.
 * **[Matriz de Artefatos da Release](docs/release-artifact-matrix.pt-BR.md)**: Builders Windows/Linux, checksums, proveniência OIDC e gates de promoção.
 * **[Onboarding de Publishers](docs/publisher-onboarding.pt-BR.md)**: Identidade, signatários e metadados imutáveis do Registry público.
+* **[Plano de Migração do Registry](docs/registry-migration-plan.pt-BR.md)**: Ondas curadas para migrar descoberta legada para pacotes schema v2 assinados.
 * **[Auditoria Final de Paridade](docs/parity-audit-2026-07-30.pt-BR.md)**: Evidência de implementação e verificação para cada requisito.
 * **[Formato de Pacote Imutável](docs/package-format.pt-BR.md)**: `.b4dpkg` determinístico, instalação verificada, evidências OpenPGP/in-toto, fallback para fontes e variantes por compilador/plataforma.
 * **[Compatibilidade com Delphi Legado](docs/legacy-delphi.pt-BR.md)**: Wizard moderno completo e perfis legados para Delphi 10 Seattle/BDS 17.0 e Delphi 10.1 Berlin/BDS 18.0.
