@@ -358,6 +358,7 @@ begin
                 LRegistration.OwnerPackage := APackage.Name;
                 LRegistration.Compiler := LTarget.Compiler;
                 LRegistration.Platform := LTarget.Platform;
+                LRegistration.Configuration := LTarget.Configuration;
                 LRegistration.BplPath := LBplFile;
                 LRegistration.Description := APackage.Description;
                 LRegistration.ConflictPolicy := AOptions.ConflictPolicy;

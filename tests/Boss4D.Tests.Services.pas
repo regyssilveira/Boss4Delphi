@@ -111,6 +111,8 @@ type
     [Test]
     procedure TestIDERegistrationRepairRestoresDrift;
     [Test]
+    procedure TestIDERepairRebuildsMissingManagedArtifacts;
+    [Test]
     procedure TestIDERegistrationManagesRestrictedRegistryValues;
     [Test]
     procedure TestIDERegistrationRejectsRegistryOutsideCompilerScope;
@@ -1873,6 +1875,63 @@ begin
     Assert.IsTrue(TFile.Exists(LExternal),
       'Unmanaged files must never be removed.');
   finally
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDERepairRebuildsMissingManagedArtifacts;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LRoot: string;
+  LBpl: string;
+  LDll: string;
+  LRebuildCount: Integer;
+  LReceivedConfiguration: string;
+begin
+  LRoot := TPath.Combine(FTempDir, 'active-repair-target');
+  TDirectory.CreateDirectory(LRoot);
+  LBpl := TPath.Combine(LRoot, 'RepairDesign.bpl');
+  LDll := TPath.Combine(LRoot, 'RepairRuntime.dll');
+  TFile.WriteAllText(LBpl, 'bpl');
+  TFile.WriteAllText(LDll, 'dll');
+  LStore := TIDERegistryStoreMock.Create;
+  LRebuildCount := 0;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'active-repair-inventory.json'),
+    procedure(const ARegistration: TBoss4DIDERegistration)
+    begin
+      Inc(LRebuildCount);
+      LReceivedConfiguration := ARegistration.Configuration;
+      TFile.WriteAllText(ARegistration.BplPath, 'rebuilt-bpl');
+      TFile.WriteAllText(LDll, 'rebuilt-dll');
+    end);
+  LRegistration := TBoss4DIDERegistration.Create;
+  try
+    LRegistration.PackageName := 'RepairDesign';
+    LRegistration.OwnerPackage := 'RepairProduct';
+    LRegistration.Compiler := '37.0';
+    LRegistration.Platform := 'Win64';
+    LRegistration.Configuration := 'Release';
+    LRegistration.BplPath := LBpl;
+    LRegistration.Description := 'Repair package';
+    LRegistration.ArtifactRoot := LRoot;
+    LRegistration.Artifacts.Add(LBpl);
+    LRegistration.Artifacts.Add(LDll);
+    LService.RegisterTarget(LRegistration);
+
+    TFile.Delete(LBpl);
+    TFile.Delete(LDll);
+    Assert.AreEqual<Integer>(1, Length(LService.FindDrift));
+    Assert.AreEqual<Integer>(1, LService.Repair);
+    Assert.AreEqual<Integer>(1, LRebuildCount);
+    Assert.AreEqual('Release', LReceivedConfiguration);
+    Assert.IsTrue(TFile.Exists(LBpl));
+    Assert.IsTrue(TFile.Exists(LDll));
+    Assert.AreEqual<Integer>(0, Length(LService.FindDrift));
+  finally
+    LRegistration.Free;
     LService.Free;
   end;
 end;

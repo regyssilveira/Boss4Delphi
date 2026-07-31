@@ -9,6 +9,9 @@ uses
 
 type
   EBoss4DIDERegistrationError = class(Exception);
+  TBoss4DIDERegistration = class;
+  TBoss4DIDEArtifactRepairHandler = reference to procedure(
+    const ARegistration: TBoss4DIDERegistration);
 
   IBoss4DIDERegistryStore = interface
     ['{893DFD50-485C-4D19-97BF-A52E435BEA21}']
@@ -56,6 +59,7 @@ type
     FOwnerPackage: string;
     FCompiler: string;
     FPlatform: string;
+    FConfiguration: string;
     FBplPath: string;
     FDescription: string;
     FSearchPath: string;
@@ -79,6 +83,7 @@ type
     property OwnerPackage: string read FOwnerPackage write FOwnerPackage;
     property Compiler: string read FCompiler write FCompiler;
     property Platform: string read FPlatform write FPlatform;
+    property Configuration: string read FConfiguration write FConfiguration;
     property BplPath: string read FBplPath write FBplPath;
     property Description: string read FDescription write FDescription;
     property SearchPath: string read FSearchPath write FSearchPath;
@@ -102,6 +107,7 @@ type
   private
     FStore: IBoss4DIDERegistryStore;
     FInventoryPath: string;
+    FArtifactRepairHandler: TBoss4DIDEArtifactRepairHandler;
     function LibraryKey(const ARegistration: TBoss4DIDERegistration): string;
     function PackageKey(const ARegistration: TBoss4DIDERegistration): string;
     function IDEPackageKey(
@@ -110,12 +116,15 @@ type
     function LoadInventory: TObjectList<TBoss4DIDERegistration>;
     procedure SaveInventory(
       const AInventory: TObjectList<TBoss4DIDERegistration>);
+    function ArtifactsHealthy(
+      const ARegistration: TBoss4DIDERegistration): Boolean;
     function IsHealthy(const ARegistration: TBoss4DIDERegistration): Boolean;
     function RemoveMatching(const AName, ACompiler, APlatform: string;
       const AByOwner: Boolean): Integer;
   public
     constructor Create(const AStore: IBoss4DIDERegistryStore;
-      const AInventoryPath: string);
+      const AInventoryPath: string;
+      const AArtifactRepairHandler: TBoss4DIDEArtifactRepairHandler = nil);
     procedure RegisterTarget(const ARegistration: TBoss4DIDERegistration);
     function DetectConflicts(
       const ARegistration: TBoss4DIDERegistration):
@@ -252,6 +261,7 @@ begin
   Result.OwnerPackage := FOwnerPackage;
   Result.Compiler := FCompiler;
   Result.Platform := FPlatform;
+  Result.Configuration := FConfiguration;
   Result.BplPath := FBplPath;
   Result.Description := FDescription;
   Result.SearchPath := FSearchPath;
@@ -360,7 +370,8 @@ begin
 end;
 
 constructor TBoss4DIDERegistrationService.Create(
-  const AStore: IBoss4DIDERegistryStore; const AInventoryPath: string);
+  const AStore: IBoss4DIDERegistryStore; const AInventoryPath: string;
+  const AArtifactRepairHandler: TBoss4DIDEArtifactRepairHandler);
 begin
   inherited Create;
   if not Assigned(AStore) then
@@ -369,6 +380,7 @@ begin
     raise EArgumentException.Create('Inventory path nao pode ser vazio.');
   FStore := AStore;
   FInventoryPath := AInventoryPath;
+  FArtifactRepairHandler := AArtifactRepairHandler;
 end;
 
 function TBoss4DIDERegistrationService.LibraryKey(
@@ -455,6 +467,8 @@ begin
         'ownerPackage', '');
       LRegistration.Compiler := LObject.GetValue<string>('compiler', '');
       LRegistration.Platform := LObject.GetValue<string>('platform', '');
+      LRegistration.Configuration := LObject.GetValue<string>(
+        'configuration', '');
       LRegistration.BplPath := LObject.GetValue<string>('bpl', '');
       LRegistration.Description := LObject.GetValue<string>(
         'description', '');
@@ -535,6 +549,7 @@ begin
       LObject.AddPair('ownerPackage', LRegistration.OwnerPackage);
       LObject.AddPair('compiler', LRegistration.Compiler);
       LObject.AddPair('platform', LRegistration.Platform);
+      LObject.AddPair('configuration', LRegistration.Configuration);
       LObject.AddPair('bpl', LRegistration.BplPath);
       LObject.AddPair('description', LRegistration.Description);
       LObject.AddPair('searchPath', LRegistration.SearchPath);
@@ -1014,6 +1029,19 @@ begin
   Result := RemoveMatching(AOwnerPackage, '', '', True);
 end;
 
+function TBoss4DIDERegistrationService.ArtifactsHealthy(
+  const ARegistration: TBoss4DIDERegistration): Boolean;
+begin
+  if ARegistration.ArtifactRoot.Trim.IsEmpty then
+    Exit(True);
+  if not TFile.Exists(ARegistration.BplPath) then
+    Exit(False);
+  for var LArtifact in ARegistration.Artifacts do
+    if not TFile.Exists(LArtifact) then
+      Exit(False);
+  Result := True;
+end;
+
 function TBoss4DIDERegistrationService.IsHealthy(
   const ARegistration: TBoss4DIDERegistration): Boolean;
 var
@@ -1026,7 +1054,8 @@ var
       ContainsPath(LValue, APath);
   end;
 begin
-  Result := PathValueHealthy('Search Path', ARegistration.SearchPath) and
+  Result := ArtifactsHealthy(ARegistration) and
+    PathValueHealthy('Search Path', ARegistration.SearchPath) and
     PathValueHealthy('Browsing Path', ARegistration.BrowsingPath) and
     PathValueHealthy('Debug DCU Path', ARegistration.DebugDcuPath) and
     (ARegistration.RuntimePath.Trim.IsEmpty or
@@ -1073,6 +1102,18 @@ begin
       for var LRegistration in LInventory do
         if not IsHealthy(LRegistration) then
         begin
+          if not ArtifactsHealthy(LRegistration) then
+          begin
+            if not Assigned(FArtifactRepairHandler) then
+              raise EBoss4DIDERegistrationError.CreateFmt(
+                'Artefatos ausentes para %s; execute o reparo com um compilador disponivel.',
+                [LRegistration.Identity]);
+            FArtifactRepairHandler(LRegistration);
+            if not ArtifactsHealthy(LRegistration) then
+              raise EBoss4DIDERegistrationError.CreateFmt(
+                'O rebuild nao restaurou todos os artefatos de %s.',
+                [LRegistration.Identity]);
+          end;
           ApplyRegistration(FStore, LRegistration, LSnapshots);
           Inc(Result);
         end;

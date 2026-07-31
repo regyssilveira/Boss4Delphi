@@ -379,6 +379,9 @@ var
   LCompiler: string;
   LPlatform: string;
   LIDEIntegration: TBoss4DIDEIntegrationService;
+  LRegistrationService: TBoss4DIDERegistrationService;
+  LInventory: TBoss4DBuildInventory;
+  LCompilerService: IBoss4DCompiler;
   LCount: Integer;
   I: Integer;
 begin
@@ -387,6 +390,8 @@ begin
       'Uso: boss4d ide unregister|repair.');
 
   LIDEIntegration := nil;
+  LRegistrationService := nil;
+  LInventory := nil;
   try
     if SameText(AArgs[1], 'repair') then
     begin
@@ -396,9 +401,64 @@ begin
         LCount := FRepairHandler()
       else
       begin
-        LIDEIntegration := TBoss4DIDEIntegrationService.Create(
-          FRegistry, FLogger);
-        LCount := LIDEIntegration.RepairRegistrations;
+        LCompilerService := FCompiler;
+        if not Assigned(LCompilerService) then
+          LCompilerService := TBoss4DDelphiCompilerAdapter.Create(
+            FRegistry, FLogger);
+        LInventory := TBoss4DBuildInventory.Create(TPath.Combine(
+          GetBossHome, 'build-inventory.json'));
+        LInventory.Load;
+        LRegistrationService := TBoss4DIDERegistrationService.Create(
+          TBoss4DWindowsIDERegistryStore.Create,
+          TPath.Combine(GetBossHome, 'ide-registrations.json'),
+          procedure(const ARegistration: TBoss4DIDERegistration)
+          begin
+            if not LInventory.Contains(ARegistration.OwnerPackage) then
+              raise EBoss4DIDERegistrationError.CreateFmt(
+                'Pacote %s nao encontrado no inventario de build.',
+                [ARegistration.OwnerPackage]);
+            var LRoot := LInventory.GetPackage(
+              ARegistration.OwnerPackage).RootDirectory;
+            var LManifest := TPath.Combine(LRoot, FILE_PACKAGE);
+            var LPackage := FPackageRepo.Load(LManifest);
+            try
+              var LLockRepo: IBoss4DLockRepository :=
+                TBoss4DLockJsonRepository.Create;
+              var LLockPath := TPath.Combine(LRoot, FILE_PACKAGE_LOCK);
+              var LLock: TBoss4DLock;
+              if LLockRepo.Exists(LLockPath) then
+                LLock := LLockRepo.Load(LLockPath)
+              else
+                LLock := TBoss4DLock.Create;
+              try
+                var LConfiguration := ARegistration.Configuration;
+                if LConfiguration.IsEmpty then
+                  LConfiguration := TPath.GetFileName(
+                    ExcludeTrailingPathDelimiter(
+                      ARegistration.ArtifactRoot));
+                if not SameText(LConfiguration, 'Debug') and
+                   not SameText(LConfiguration, 'Release') then
+                  LConfiguration := 'Release';
+                var LOptions := TBoss4DBuildCommandOptions.Parse(
+                  TArray<string>.Create('build', '--compiler',
+                    ARegistration.Compiler, '--platform',
+                    ARegistration.Platform, '--configuration',
+                    LConfiguration, '--force'));
+                var LCommand := TBoss4DBuildCommand.Create(
+                  LCompilerService, FLogger);
+                try
+                  LCommand.Execute(LPackage, LLock, LRoot, LOptions);
+                finally
+                  LCommand.Free;
+                end;
+              finally
+                LLock.Free;
+              end;
+            finally
+              LPackage.Free;
+            end;
+          end);
+        LCount := LRegistrationService.Repair;
       end;
       FLogger.Log(TBoss4DLogLevel.Info,
         'Registros IDE reparados: %d.', [LCount]);
@@ -424,16 +484,16 @@ begin
       if LCascade and LForce then
         raise EArgumentException.Create(
           '--cascade e --force nao podem ser combinados.');
-      var LInventory := TBoss4DBuildInventory.Create(TPath.Combine(
+      var LUninstallInventory := TBoss4DBuildInventory.Create(TPath.Combine(
         GetBossHome, 'build-inventory.json'));
       try
-        LInventory.Load;
+        LUninstallInventory.Load;
         var LRemovalNames := TList<string>.Create;
         try
           LRemovalNames.Add(AArgs[2].ToLower);
-        if LInventory.Contains(AArgs[2]) then
+        if LUninstallInventory.Contains(AArgs[2]) then
         begin
-          var LDependents := LInventory.DependentsOf(AArgs[2]);
+          var LDependents := LUninstallInventory.DependentsOf(AArgs[2]);
           if (Length(LDependents) > 0) and not LCascade and not LForce then
             raise EInvalidOpException.CreateFmt(
               'Nao e possivel remover %s; dependentes instalados: %s.',
@@ -441,7 +501,8 @@ begin
           if LCascade then
             LRemovalNames.AddRange(LDependents);
         end;
-          var LOrder := LInventory.BuildOrder(LRemovalNames.ToArray);
+          var LOrder := LUninstallInventory.BuildOrder(
+            LRemovalNames.ToArray);
           LCount := 0;
           if not Assigned(FUninstallHandler) then
           LIDEIntegration := TBoss4DIDEIntegrationService.Create(
@@ -453,15 +514,15 @@ begin
               Inc(LCount, FUninstallHandler(LOwner))
             else
               Inc(LCount, LIDEIntegration.UninstallPackage(LOwner));
-            if LInventory.Contains(LOwner) then
-              LInventory.RemovePackage(LOwner);
+            if LUninstallInventory.Contains(LOwner) then
+              LUninstallInventory.RemovePackage(LOwner);
           end;
-          LInventory.Save;
+          LUninstallInventory.Save;
         finally
           LRemovalNames.Free;
         end;
       finally
-        LInventory.Free;
+        LUninstallInventory.Free;
       end;
       FLogger.Log(TBoss4DLogLevel.Info,
         'Pacote removido de todas as IDEs: %d registros.', [LCount]);
@@ -519,6 +580,8 @@ begin
     FLogger.Log(TBoss4DLogLevel.Info,
       'Registros IDE removidos: %d.', [LCount]);
   finally
+    LInventory.Free;
+    LRegistrationService.Free;
     LIDEIntegration.Free;
   end;
 end;
