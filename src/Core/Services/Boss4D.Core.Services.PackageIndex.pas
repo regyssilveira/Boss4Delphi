@@ -15,13 +15,17 @@ type
     FArtifactDigest: string;
     FSignatureUrl: string;
     FProvenanceUrl: string;
+    FArtifactMirrors: TList<string>;
   public
+    constructor Create;
+    destructor Destroy; override;
     property Platform: string read FPlatform write FPlatform;
     property Compiler: string read FCompiler write FCompiler;
     property ArtifactUrl: string read FArtifactUrl write FArtifactUrl;
     property ArtifactDigest: string read FArtifactDigest write FArtifactDigest;
     property SignatureUrl: string read FSignatureUrl write FSignatureUrl;
     property ProvenanceUrl: string read FProvenanceUrl write FProvenanceUrl;
+    property ArtifactMirrors: TList<string> read FArtifactMirrors;
   end;
 
   TBoss4DPackageVersion = class
@@ -117,6 +121,18 @@ const
   BOSS4D_PUBLIC_REGISTRY =
     'https://raw.githubusercontent.com/regyssilveira/Boss4Delphi/main/registry/index-v2.json';
 
+constructor TBoss4DPackageArtifactVariant.Create;
+begin
+  inherited Create;
+  FArtifactMirrors := TList<string>.Create;
+end;
+
+destructor TBoss4DPackageArtifactVariant.Destroy;
+begin
+  FArtifactMirrors.Free;
+  inherited Destroy;
+end;
+
 constructor TBoss4DPackageVersion.Create;
 begin
   inherited Create;
@@ -156,6 +172,7 @@ begin
         LCopy.ArtifactDigest := LVariant.ArtifactDigest;
         LCopy.SignatureUrl := LVariant.SignatureUrl;
         LCopy.ProvenanceUrl := LVariant.ProvenanceUrl;
+        LCopy.ArtifactMirrors.AddRange(LVariant.ArtifactMirrors.ToArray);
         FVariants.Add(LCopy);
       end;
       Break;
@@ -462,6 +479,14 @@ begin
                         'signature', '');
                       LVariant.ProvenanceUrl := LVariantObject.GetValue<string>(
                         'provenance', '');
+                      var LVariantMirrors: TJSONArray := nil;
+                      if LVariantObject.GetValue('mirrors') is TJSONArray then
+                        LVariantMirrors := TJSONArray(
+                          LVariantObject.GetValue('mirrors'));
+                      if Assigned(LVariantMirrors) then
+                        for var LMirror in LVariantMirrors do
+                          if LMirror is TJSONString then
+                            LVariant.ArtifactMirrors.Add(LMirror.Value);
                       if not LVariant.ArtifactUrl.IsEmpty and
                          not LVariant.ArtifactDigest.IsEmpty then
                         LPackageVersion.Variants.Add(LVariant)
@@ -575,6 +600,8 @@ begin
           LVariantCopy.ArtifactDigest := LVariant.ArtifactDigest;
           LVariantCopy.SignatureUrl := LVariant.SignatureUrl;
           LVariantCopy.ProvenanceUrl := LVariant.ProvenanceUrl;
+          LVariantCopy.ArtifactMirrors.AddRange(
+            LVariant.ArtifactMirrors.ToArray);
           LCopy.Variants.Add(LVariantCopy);
         end;
         for var LVersion in LEntry.Versions do
@@ -597,6 +624,8 @@ begin
             LVariantCopy.ArtifactDigest := LVariant.ArtifactDigest;
             LVariantCopy.SignatureUrl := LVariant.SignatureUrl;
             LVariantCopy.ProvenanceUrl := LVariant.ProvenanceUrl;
+            LVariantCopy.ArtifactMirrors.AddRange(
+              LVariant.ArtifactMirrors.ToArray);
             LVersionCopy.Variants.Add(LVariantCopy);
           end;
           LCopy.Versions.Add(LVersionCopy);
@@ -639,6 +668,8 @@ begin
           LVariantCopy.ArtifactDigest := LVariant.ArtifactDigest;
           LVariantCopy.SignatureUrl := LVariant.SignatureUrl;
           LVariantCopy.ProvenanceUrl := LVariant.ProvenanceUrl;
+          LVariantCopy.ArtifactMirrors.AddRange(
+            LVariant.ArtifactMirrors.ToArray);
           Result.Variants.Add(LVariantCopy);
         end;
         for var LVersion in LEntry.Versions do
@@ -661,6 +692,8 @@ begin
             LVariantCopy.ArtifactDigest := LVariant.ArtifactDigest;
             LVariantCopy.SignatureUrl := LVariant.SignatureUrl;
             LVariantCopy.ProvenanceUrl := LVariant.ProvenanceUrl;
+            LVariantCopy.ArtifactMirrors.AddRange(
+              LVariant.ArtifactMirrors.ToArray);
             LVersionCopy.Variants.Add(LVariantCopy);
           end;
           Result.Versions.Add(LVersionCopy);

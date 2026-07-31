@@ -1904,6 +1904,11 @@ begin
           LRequest.ProvenanceUrl := LEntry.ProvenanceUrl;
           LRequest.TargetDirectory := TPath.Combine(GetModulesDir,
             LDependency.StorageName);
+          if Assigned(LVariant) then
+            LRequest.ArtifactMirrors := LVariant.ArtifactMirrors.ToArray
+          else
+            LRequest.ArtifactMirrors :=
+              LSelectedVersion.ArtifactMirrors.ToArray;
           LInstaller := TBoss4DPackageInstallService.Create(
             TBoss4DHttpNativeAdapter.Create,
             TBoss4DGpgPackageSigner.Create(Boss4DProcessRunner));

@@ -12,6 +12,7 @@ type
     Platform: string;
     Compiler: string;
     ArtifactUrl: string;
+    ArtifactMirrors: TArray<string>;
     Sha256: string;
     SignatureUrl: string;
     ProvenanceUrl: string;
@@ -40,6 +41,7 @@ implementation
 
 uses
   System.SysUtils, System.IOUtils, System.JSON, System.Hash,
+  System.Generics.Collections,
   System.NetEncoding, Boss4D.Core.Services.Conformance;
 
 function FileSha256(const APath: string): string;
@@ -100,6 +102,7 @@ function TBoss4DPackageInstallService.Execute(
 var
   LTempRoot, LArtifact, LSignature, LProvenance, LStage, LBackup: string;
   LRoot: TJSONObject;
+  LStatus: Integer;
 begin
   Result := Default(TBoss4DPackageInstallResult);
   if ARequest.ArtifactUrl.Trim.IsEmpty or ARequest.Sha256.Trim.IsEmpty then
@@ -118,13 +121,29 @@ begin
   DeleteIfExists(LStage);
   DeleteIfExists(LBackup);
   try
-    var LStatus := FHttp.DownloadToFile(ARequest.ArtifactUrl, LArtifact);
-    if (LStatus < 200) or (LStatus >= 300) then
-      raise Exception.CreateFmt('Artifact download failed with HTTP %d.',
-        [LStatus]);
-    Result.Digest := FileSha256(LArtifact);
-    if not SameText(Result.Digest, ARequest.Sha256) then
-      raise Exception.Create('Artifact SHA-256 mismatch.');
+    var LCandidates := TList<string>.Create;
+    try
+      LCandidates.Add(ARequest.ArtifactUrl);
+      LCandidates.AddRange(ARequest.ArtifactMirrors);
+      var LDownloaded := False;
+      for var LCandidate in LCandidates do
+      begin
+        LStatus := FHttp.DownloadToFile(LCandidate, LArtifact);
+        if (LStatus < 200) or (LStatus >= 300) then
+          Continue;
+        Result.Digest := FileSha256(LArtifact);
+        if SameText(Result.Digest, ARequest.Sha256) then
+        begin
+          LDownloaded := True;
+          Break;
+        end;
+      end;
+      if not LDownloaded then
+        raise Exception.Create(
+          'No artifact source returned the expected SHA-256.');
+    finally
+      LCandidates.Free;
+    end;
 
     var LConformance := TBoss4DConformanceService.Create;
     try

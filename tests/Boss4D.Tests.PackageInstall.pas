@@ -21,6 +21,7 @@ type
     [Test] procedure InstallsVerifiedArtifactTransactionally;
     [Test] procedure RejectsDigestMismatchWithoutReplacingTarget;
     [Test] procedure RejectsInvalidSignature;
+    [Test] procedure UsesMirrorOnlyWhenDigestMatches;
   end;
 
 implementation
@@ -186,6 +187,38 @@ begin
     Assert.IsFalse(TDirectory.Exists(LTarget));
   finally
     LService.Free;
+    DeletePackedFixture(LRoot, LArtifact);
+  end;
+end;
+
+procedure TBoss4DPackageInstallTests.UsesMirrorOnlyWhenDigestMatches;
+const
+  PRIMARY_URL = 'https://primary.example/package.b4dpkg';
+  MIRROR_URL = 'https://mirror.example/package.b4dpkg';
+var
+  LRoot, LArtifact, LTarget: string;
+  LPackResult: TBoss4DPackResult;
+  LHttp: THttpClientMock;
+  LService: TBoss4DPackageInstallService;
+  LRequest: TBoss4DPackageInstallRequest;
+begin
+  CreatePackedFixture(LRoot, LArtifact, LPackResult);
+  LTarget := TPath.Combine(TPath.GetTempPath, TPath.GetRandomFileName);
+  LHttp := THttpClientMock.Create;
+  LHttp.AddResponse(PRIMARY_URL, 'tampered', 200);
+  LHttp.AddResponse(MIRROR_URL, TFile.ReadAllText(LArtifact), 200);
+  LService := TBoss4DPackageInstallService.Create(LHttp);
+  try
+    LRequest := Default(TBoss4DPackageInstallRequest);
+    LRequest.ArtifactUrl := PRIMARY_URL;
+    LRequest.ArtifactMirrors := TArray<string>.Create(MIRROR_URL);
+    LRequest.Sha256 := LPackResult.Digest;
+    LRequest.TargetDirectory := LTarget;
+    Assert.IsTrue(LService.Execute(LRequest).Installed);
+    Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget, 'verified.pas')));
+  finally
+    LService.Free;
+    if TDirectory.Exists(LTarget) then TDirectory.Delete(LTarget, True);
     DeletePackedFixture(LRoot, LArtifact);
   end;
 end;
