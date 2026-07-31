@@ -592,7 +592,7 @@ var
   LRootLocked: TBoss4DLockedDependency;
   LTransitive: TBoss4DDependency;
   LPkg: TBoss4DPackage;
-  LRootKey, LTransitiveKey: string;
+  LRootKey, LTransitiveKey, LResolvedVersion: string;
   LRootModulePath: string;
 begin
   LLogger := TTestLogger.Create;
@@ -628,6 +628,8 @@ begin
       LRootKey := LLock.RootDependencies[0];
       Assert.IsTrue(LLock.Installed.TryGetValue(LRootKey, LRootLocked),
         'A dependencia raiz deve existir no lock: ' + LRootKey);
+      LRootLocked.Version := '3.0.0';
+      LResolvedVersion := LRootLocked.Version;
       LRootLocked.Dependencies.Add(LTransitive.GetKey);
       LLockRepo.Save(LLock, TPath.Combine(FTempDir, FILE_PACKAGE_LOCK));
     finally
@@ -647,6 +649,23 @@ begin
     Assert.IsTrue(LLogger.LastLogMessage.Contains(
       LRootKey + ' -> ' + LTransitiveKey),
       'why nao retornou o caminho esperado: ' + LLogger.LastLogMessage);
+
+    LParser.ParseAndExecute(TArray<string>.Create('pin', 'horse'));
+    LPkg := LPackageRepo.Load(GetBossFile);
+    try
+      Assert.AreEqual(LResolvedVersion,
+        LPkg.Dependencies['github.com/hashload/horse']);
+    finally
+      LPkg.Free;
+    end;
+    LParser.ParseAndExecute(TArray<string>.Create('unpin', 'horse'));
+    LPkg := LPackageRepo.Load(GetBossFile);
+    try
+      Assert.AreEqual('^' + LResolvedVersion,
+        LPkg.Dependencies['github.com/hashload/horse']);
+    finally
+      LPkg.Free;
+    end;
 
     LParser.ParseAndExecute(TArray<string>.Create('update', 'horse'));
     var LRootDep := TBoss4DDependency.Create(

@@ -84,6 +84,7 @@ type
     procedure HandleUpdate(const AArgs: TArray<string>);
     procedure HandleList;
     procedure HandleWhy(const AArgs: TArray<string>);
+    procedure HandlePin(const AArgs: TArray<string>; const APin: Boolean);
     procedure HandleAudit(const AArgs: TArray<string>);
     procedure HandleRegistry(const AArgs: TArray<string>);
     procedure HandleSearch(const AArgs: TArray<string>);
@@ -255,6 +256,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  update [dep]         Atualiza uma ou todas as dependencias.');
   FLogger.Log(TBoss4DLogLevel.Info, '  list                 Lista dependencias diretas e transitivas.');
   FLogger.Log(TBoss4DLogLevel.Info, '  why <dep>            Explica por que uma dependencia foi instalada.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  pin|unpin <dep>      Fixa no lock ou restaura uma faixa SemVer compativel.');
   FLogger.Log(TBoss4DLogLevel.Info, '  audit               Consulta vulnerabilidades OSV por revisao do lock.');
   FLogger.Log(TBoss4DLogLevel.Info, '  registry add|remove|list Gerencia indices publicos e privados.');
   FLogger.Log(TBoss4DLogLevel.Info, '  search <termo>       Pesquisa pacotes nos indices configurados.');
@@ -347,6 +349,10 @@ begin
     HandleList
   else if LCommand = 'why' then
     HandleWhy(AArgs)
+  else if LCommand = 'pin' then
+    HandlePin(AArgs, True)
+  else if LCommand = 'unpin' then
+    HandlePin(AArgs, False)
   else if LCommand = 'audit' then
     HandleAudit(AArgs)
   else if LCommand = 'registry' then
@@ -1533,6 +1539,25 @@ begin
         'Dependencia nao encontrada no grafo: ' + AArgs[1])
     else
       FLogger.Log(TBoss4DLogLevel.Info, string.Join(' -> ', LPath));
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandlePin(const AArgs: TArray<string>;
+  const APin: Boolean);
+var
+  LService: TBoss4DDependencyService;
+begin
+  if Length(AArgs) <> 2 then
+    raise EArgumentException.Create('Uso: boss4d pin|unpin <dependencia>');
+  LService := TBoss4DDependencyService.Create(FPackageRepo,
+    TBoss4DLockJsonRepository.Create, FLogger);
+  try
+    if APin then
+      LService.Pin(AArgs[1])
+    else
+      LService.Unpin(AArgs[1]);
   finally
     LService.Free;
   end;
