@@ -51,7 +51,7 @@ type
     function Uninstall(const AProfileId, APackage: string): Integer;
     function Repair(const AProfileId: string): Integer;
     function Undo: Integer;
-    function History: TList<string>;
+    function History: TArray<TBoss4DGUITimelineRow>;
     procedure Snapshot(const AProfileId, APath: string);
     function Diff(const AProfileId, APath: string): TList<string>;
     procedure RestoreSnapshot(const APath: string);
@@ -69,6 +69,7 @@ type
     Profiles: TList<string>;
     Packages: TList<string>;
     Targets: TList<string>;
+    Timeline: TArray<TBoss4DGUITimelineRow>;
     Selected: string;
     Status: string;
     Error: string;
@@ -86,6 +87,8 @@ type
       const AInstalled: Boolean);
     procedure ClearTargets;
     procedure AddTarget(const AIdentity: string);
+    procedure ShowHistory(
+      const ARows: TArray<TBoss4DGUITimelineRow>);
     procedure ShowIDEStatus(const AMessage: string);
     procedure ShowIDEError(const AMessage: string);
   end;
@@ -164,11 +167,14 @@ begin
   Result := 3;
 end;
 
-function TBackendMock.History: TList<string>;
+function TBackendMock.History: TArray<TBoss4DGUITimelineRow>;
 begin
   LastAction := 'history';
-  Result := TList<string>.Create;
-  Result.Add('2026-07-31 | succeeded | profile-install | daily | horse');
+  SetLength(Result, 1);
+  Result[0].Status := 'succeeded';
+  Result[0].Kind := 'profile-install';
+  Result[0].Profile := 'daily';
+  Result[0].Target := 'horse';
 end;
 
 procedure TBackendMock.Snapshot(const AProfileId, APath: string);
@@ -277,6 +283,12 @@ begin
   Targets.Add(AIdentity);
 end;
 
+procedure TViewMock.ShowHistory(
+  const ARows: TArray<TBoss4DGUITimelineRow>);
+begin
+  Timeline := Copy(ARows);
+end;
+
 procedure TViewMock.ShowIDEStatus(const AMessage: string);
 begin
   Status := AMessage;
@@ -324,8 +336,8 @@ begin
     Assert.IsTrue(LViewObject.Status.Contains('3'));
     LPresenter.History;
     Assert.AreEqual('history', LBackendObject.LastAction);
-    Assert.AreEqual<Integer>(1, LViewObject.Targets.Count);
-    Assert.IsTrue(LViewObject.Targets[0].Contains('profile-install'));
+    Assert.AreEqual<Integer>(1, Length(LViewObject.Timeline));
+    Assert.AreEqual('profile-install', LViewObject.Timeline[0].Kind);
     LPresenter.Snapshot('daily.json');
     Assert.AreEqual('snapshot:daily:daily.json',
       LBackendObject.LastAction);

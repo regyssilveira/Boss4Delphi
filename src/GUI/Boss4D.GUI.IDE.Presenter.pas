@@ -6,7 +6,8 @@ uses
   System.Generics.Collections,
   Boss4D.Core.Services.IDEManagementQuery,
   Boss4D.Core.Services.IDERegistration,
-  Boss4D.Core.Services.IDEProcessPolicy;
+  Boss4D.Core.Services.IDEProcessPolicy,
+  Boss4D.GUI.IDE.Timeline;
 
 type
   IBoss4DIDEManagementBackend = interface
@@ -24,7 +25,7 @@ type
     function Uninstall(const AProfileId, APackage: string): Integer;
     function Repair(const AProfileId: string): Integer;
     function Undo: Integer;
-    function History: TList<string>;
+    function History: TArray<TBoss4DGUITimelineRow>;
     procedure Snapshot(const AProfileId, APath: string);
     function Diff(const AProfileId, APath: string): TList<string>;
     procedure RestoreSnapshot(const APath: string);
@@ -49,6 +50,8 @@ type
       const AInstalled: Boolean);
     procedure ClearTargets;
     procedure AddTarget(const AIdentity: string);
+    procedure ShowHistory(
+      const ARows: TArray<TBoss4DGUITimelineRow>);
     procedure ShowIDEStatus(const AMessage: string);
     procedure ShowIDEError(const AMessage: string);
   end;
@@ -305,16 +308,10 @@ end;
 procedure TBoss4DIDEManagementPresenter.History;
 begin
   try
-    FView.ClearTargets;
     var LHistory := FBackend.History;
-    try
-      for var LItem in LHistory do
-        FView.AddTarget(LItem);
-      FView.ShowIDEStatus(Format(
-        '%d operacao(oes) no historico.', [LHistory.Count]));
-    finally
-      LHistory.Free;
-    end;
+    FView.ShowHistory(LHistory);
+    FView.ShowIDEStatus(Format(
+      '%d operacao(oes) no historico.', [Length(LHistory)]));
   except
     on E: Exception do
       FView.ShowIDEError(E.Message);

@@ -9,6 +9,7 @@ uses
   Boss4D.Core.Services.IDEProfileApplication,
   Boss4D.Core.Services.IDERegistration,
   Boss4D.Core.Services.IDEProcessPolicy,
+  Boss4D.GUI.IDE.Timeline,
   Boss4D.GUI.IDE.Presenter;
 
 type
@@ -35,7 +36,7 @@ type
     function Uninstall(const AProfileId, APackage: string): Integer;
     function Repair(const AProfileId: string): Integer;
     function Undo: Integer;
-    function History: TList<string>;
+    function History: TArray<TBoss4DGUITimelineRow>;
     procedure Snapshot(const AProfileId, APath: string);
     function Diff(const AProfileId, APath: string): TList<string>;
     procedure RestoreSnapshot(const APath: string);
@@ -123,15 +124,15 @@ begin
   Result := FOperations.UndoLatest.Affected;
 end;
 
-function TBoss4DGUIIDEManagementBackend.History: TList<string>;
+function TBoss4DGUIIDEManagementBackend.History:
+  TArray<TBoss4DGUITimelineRow>;
 begin
-  Result := TList<string>.Create;
   var LHistory := FOperations.History;
   try
-    for var LItem in LHistory do
-      Result.Add(LItem.StartedAt + ' | ' +
-        TBoss4DIDEOperationStatuses.NameOf(LItem.Status) + ' | ' +
-        LItem.Kind + ' | ' + LItem.Profile + ' | ' + LItem.Target);
+    SetLength(Result, LHistory.Count);
+    for var I := 0 to LHistory.Count - 1 do
+      Result[LHistory.Count - I - 1] :=
+        TBoss4DGUITimeline.FromOperation(LHistory[I]);
   finally
     LHistory.Free;
   end;

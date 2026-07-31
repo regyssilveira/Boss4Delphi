@@ -10,6 +10,7 @@ uses
   Boss4D.Core.Services.IDEProfileApplication,
   Boss4D.Core.Services.IDEManagementQuery,
   Boss4D.GUI.IDE.Presenter,
+  Boss4D.GUI.IDE.Timeline,
   Boss4D.GUI.Catalog.Presenter,
   Boss4D.GUI.Install.Presenter,
   Boss4D.GUI.Operation.Presenter,
@@ -182,6 +183,8 @@ type
       const AInstalled: Boolean);
     procedure ClearTargets;
     procedure AddTarget(const AIdentity: string);
+    procedure ShowHistory(
+      const ARows: TArray<TBoss4DGUITimelineRow>);
     procedure ShowIDEStatus(const AMessage: string);
     procedure ShowIDEError(const AMessage: string);
   end;
@@ -216,7 +219,8 @@ uses
   Boss4D.Core.Services.IDERegistration,
   Boss4D.Core.Services.IDEOperationResult,
   Boss4D.Core.Services.IDEProcessPolicy,
-  Boss4D.GUI.IDE.Backend;
+  Boss4D.GUI.IDE.Backend,
+  Boss4D.GUI.IDE.Timeline.Dialog;
 
 type
   TGUILogger = class(TInterfacedObject, IBoss4DLogger)
@@ -1140,6 +1144,12 @@ end;
 procedure TFormMain.AddTarget(const AIdentity: string);
 begin
   ListIDETargets.Items.Add(AIdentity);
+end;
+
+procedure TFormMain.ShowHistory(
+  const ARows: TArray<TBoss4DGUITimelineRow>);
+begin
+  TBoss4DGUITimelineDialog.Execute(Self, ARows);
 end;
 
 procedure TFormMain.ShowIDEStatus(const AMessage: string);
