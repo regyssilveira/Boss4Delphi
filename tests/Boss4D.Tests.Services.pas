@@ -119,6 +119,8 @@ type
     [Test]
     procedure TestIDERegistrationAcceptsModeledLegacyDelphi;
     [Test]
+    procedure TestIDEProfilesIsolateRegistryAndInventory;
+    [Test]
     procedure TestIDERegistrationRollsBackOnFailure;
     [Test]
     procedure TestIDERegistrationBatchRollsBackEveryTarget;
@@ -1859,6 +1861,83 @@ begin
   finally
     LRegistration.Free;
     LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDEProfilesIsolateRegistryAndInventory;
+var
+  LStore: TIDERegistryStoreMock;
+  LDefaultService: TBoss4DIDERegistrationService;
+  LIsolatedService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LValue: string;
+  LDefaultKey: string;
+  LIsolatedKey: string;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LDefaultService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'default-profile-inventory.json'),
+    nil, nil, 'default', 30000, nil, 'bds.exe',
+    'Software\Embarcadero\BDS');
+  LIsolatedService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'isolated-profile-inventory.json'),
+    nil, nil, 'isolated', 30000, nil, 'bds.exe',
+    'Software\Embarcadero\Boss4D-isolated');
+  try
+    LRegistration := TBoss4DIDERegistration.Create;
+    try
+      LRegistration.PackageName := 'ProfileDesign';
+      LRegistration.OwnerPackage := 'DefaultProduct';
+      LRegistration.Compiler := '37.0';
+      LRegistration.Platform := 'Win32';
+      LRegistration.BplPath := 'C:\default\ProfileDesign.bpl';
+      LDefaultService.RegisterTarget(LRegistration);
+    finally
+      LRegistration.Free;
+    end;
+    LRegistration := TBoss4DIDERegistration.Create;
+    try
+      LRegistration.PackageName := 'ProfileDesign';
+      LRegistration.OwnerPackage := 'IsolatedProduct';
+      LRegistration.Compiler := '37.0';
+      LRegistration.Platform := 'Win32';
+      LRegistration.BplPath := 'C:\isolated\ProfileDesign.bpl';
+      var LManaged := TBoss4DIDEManagedRegistryValue.Create;
+      LManaged.Key :=
+        'Software\Embarcadero\BDS\37.0\ComponentVendor';
+      LManaged.Name := 'Profile';
+      LManaged.Value := 'isolated';
+      LRegistration.RegistryValues.Add(LManaged);
+      LIsolatedService.RegisterTarget(LRegistration);
+    finally
+      LRegistration.Free;
+    end;
+
+    LDefaultKey := 'Software\Embarcadero\BDS\37.0\Known Packages';
+    LIsolatedKey :=
+      'Software\Embarcadero\Boss4D-isolated\37.0\Known Packages';
+    Assert.IsTrue(LStore.TryRead(LDefaultKey,
+      'C:\default\ProfileDesign.bpl', LValue));
+    Assert.IsTrue(LStore.TryRead(LIsolatedKey,
+      'C:\isolated\ProfileDesign.bpl', LValue));
+    Assert.AreEqual('isolated', LStore.GetValue(
+      'Software\Embarcadero\Boss4D-isolated\37.0\ComponentVendor',
+      'Profile'));
+    Assert.IsTrue(TFile.Exists(TPath.Combine(FTempDir,
+      'default-profile-inventory.json')));
+    Assert.IsTrue(TFile.Exists(TPath.Combine(FTempDir,
+      'isolated-profile-inventory.json')));
+
+    Assert.AreEqual<Integer>(1,
+      LDefaultService.Uninstall('DefaultProduct'));
+    Assert.IsFalse(LStore.TryRead(LDefaultKey,
+      'C:\default\ProfileDesign.bpl', LValue));
+    Assert.IsTrue(LStore.TryRead(LIsolatedKey,
+      'C:\isolated\ProfileDesign.bpl', LValue),
+      'Remover o perfil default nao pode alterar o perfil isolado.');
+  finally
+    LIsolatedService.Free;
+    LDefaultService.Free;
   end;
 end;
 

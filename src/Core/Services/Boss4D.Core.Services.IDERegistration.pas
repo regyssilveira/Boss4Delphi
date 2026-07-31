@@ -115,6 +115,7 @@ type
     FCompiler: string;
     FPlatform: string;
     FConfiguration: string;
+    FRegistryRoot: string;
     FBplPath: string;
     FDescription: string;
     FSearchPath: string;
@@ -140,6 +141,7 @@ type
     property Compiler: string read FCompiler write FCompiler;
     property Platform: string read FPlatform write FPlatform;
     property Configuration: string read FConfiguration write FConfiguration;
+    property RegistryRoot: string read FRegistryRoot write FRegistryRoot;
     property BplPath: string read FBplPath write FBplPath;
     property Description: string read FDescription write FDescription;
     property SearchPath: string read FSearchPath write FSearchPath;
@@ -171,6 +173,7 @@ type
     FLockTimeoutMilliseconds: Cardinal;
     FProcessProbe: IBoss4DIDEProcessProbe;
     FIDEExecutableName: string;
+    FRegistryRoot: string;
     function LibraryKey(const ARegistration: TBoss4DIDERegistration): string;
     function PackageKey(const ARegistration: TBoss4DIDERegistration): string;
     function IDEPackageKey(
@@ -194,7 +197,8 @@ type
       const AProfileName: string = 'default';
       const ALockTimeoutMilliseconds: Cardinal = 30000;
       const AProcessProbe: IBoss4DIDEProcessProbe = nil;
-      const AIDEExecutableName: string = 'bds.exe');
+      const AIDEExecutableName: string = 'bds.exe';
+      const ARegistryRoot: string = 'Software\Embarcadero\BDS');
     procedure RegisterTarget(const ARegistration: TBoss4DIDERegistration);
     function RegisterTargets(
       const ARegistrations: TObjectList<TBoss4DIDERegistration>): Integer;
@@ -350,6 +354,7 @@ constructor TBoss4DIDERegistration.Create;
 begin
   inherited Create;
   FIDEOpenPolicy := TBoss4DIDEOpenPolicy.Force;
+  FRegistryRoot := 'Software\Embarcadero\BDS';
   FArtifacts := TList<string>.Create;
   FHelpFiles := TList<string>.Create;
   FRegistryValues := TObjectList<TBoss4DIDEManagedRegistryValue>.Create(True);
@@ -398,6 +403,7 @@ begin
   Result.Compiler := FCompiler;
   Result.Platform := FPlatform;
   Result.Configuration := FConfiguration;
+  Result.RegistryRoot := FRegistryRoot;
   Result.BplPath := FBplPath;
   Result.Description := FDescription;
   Result.SearchPath := FSearchPath;
@@ -657,7 +663,7 @@ begin
     PlanPath('Environment', 'Path', ARegistration.RuntimePath);
     PlanPath('Environment', 'Path', ARegistration.ToolPath);
     for var LHelpFile in ARegistration.HelpFiles do
-      PlanWrite('Software\Embarcadero\BDS\' +
+      PlanWrite(FRegistryRoot + '\' +
         ARegistration.Compiler + '\Help\HtmlHelp1Files',
         ARegistration.OwnerPackage + ':' + TPath.GetFileName(LHelpFile),
         TPath.GetFullPath(LHelpFile));
@@ -684,7 +690,8 @@ constructor TBoss4DIDERegistrationService.Create(
   const AProfileName: string;
   const ALockTimeoutMilliseconds: Cardinal;
   const AProcessProbe: IBoss4DIDEProcessProbe;
-  const AIDEExecutableName: string);
+  const AIDEExecutableName: string;
+  const ARegistryRoot: string);
 begin
   inherited Create;
   if not Assigned(AStore) then
@@ -709,26 +716,33 @@ begin
   if FIDEExecutableName.IsEmpty then
     raise EArgumentException.Create(
       'IDE executable name nao pode ser vazio.');
+  FRegistryRoot := ARegistryRoot.Trim;
+  while FRegistryRoot.EndsWith('\') do
+    Delete(FRegistryRoot, Length(FRegistryRoot), 1);
+  if FRegistryRoot.IsEmpty or FRegistryRoot.Contains('..') or
+     not FRegistryRoot.StartsWith('Software\Embarcadero\', True) then
+    raise EArgumentException.Create(
+      'Registry root do perfil IDE invalido.');
 end;
 
 function TBoss4DIDERegistrationService.LibraryKey(
   const ARegistration: TBoss4DIDERegistration): string;
 begin
-  Result := 'Software\Embarcadero\BDS\' + ARegistration.Compiler +
+  Result := FRegistryRoot + '\' + ARegistration.Compiler +
     '\Library\' + ARegistration.Platform;
 end;
 
 function TBoss4DIDERegistrationService.PackageKey(
   const ARegistration: TBoss4DIDERegistration): string;
 begin
-  Result := 'Software\Embarcadero\BDS\' + ARegistration.Compiler +
+  Result := FRegistryRoot + '\' + ARegistration.Compiler +
     '\Known Packages';
 end;
 
 function TBoss4DIDERegistrationService.IDEPackageKey(
   const ARegistration: TBoss4DIDERegistration): string;
 begin
-  Result := 'Software\Embarcadero\BDS\' + ARegistration.Compiler +
+  Result := FRegistryRoot + '\' + ARegistration.Compiler +
     '\Known IDE Packages';
 end;
 
@@ -737,6 +751,7 @@ procedure TBoss4DIDERegistrationService.Validate(
 begin
   if not Assigned(ARegistration) then
     raise EArgumentNilException.Create('ARegistration');
+  ARegistration.RegistryRoot := FRegistryRoot;
   if ARegistration.PackageName.Trim.IsEmpty then
     raise EArgumentException.Create('PackageName nao pode ser vazio.');
   var LConvention := TBoss4DBuildConventions.ResolveCompiler(
@@ -751,10 +766,16 @@ begin
       'Plataforma IDE nao suportada: %s.', [ARegistration.Platform]);
   if ARegistration.BplPath.Trim.IsEmpty then
     raise EArgumentException.Create('BplPath nao pode ser vazio.');
-  var LAllowedPrefix := 'Software\Embarcadero\BDS\' +
+  var LAllowedPrefix := FRegistryRoot + '\' +
     ARegistration.Compiler + '\';
   for var LRegistryValue in ARegistration.RegistryValues do
   begin
+    var LDefaultPrefix := 'Software\Embarcadero\BDS\' +
+      ARegistration.Compiler + '\';
+    if not LRegistryValue.Key.StartsWith(LAllowedPrefix, True) and
+       LRegistryValue.Key.StartsWith(LDefaultPrefix, True) then
+      LRegistryValue.Key := LAllowedPrefix +
+        LRegistryValue.Key.Substring(LDefaultPrefix.Length);
     if not LRegistryValue.Key.StartsWith(LAllowedPrefix, True) then
       raise EArgumentException.CreateFmt(
         'Chave de Registro IDE fora do escopo HKCU permitido: %s.',
@@ -796,6 +817,8 @@ begin
       LRegistration.Platform := LObject.GetValue<string>('platform', '');
       LRegistration.Configuration := LObject.GetValue<string>(
         'configuration', '');
+      LRegistration.RegistryRoot := LObject.GetValue<string>(
+        'registryRoot', FRegistryRoot);
       LRegistration.BplPath := LObject.GetValue<string>('bpl', '');
       LRegistration.Description := LObject.GetValue<string>(
         'description', '');
@@ -877,6 +900,7 @@ begin
       LObject.AddPair('compiler', LRegistration.Compiler);
       LObject.AddPair('platform', LRegistration.Platform);
       LObject.AddPair('configuration', LRegistration.Configuration);
+      LObject.AddPair('registryRoot', LRegistration.RegistryRoot);
       LObject.AddPair('bpl', LRegistration.BplPath);
       LObject.AddPair('description', LRegistration.Description);
       LObject.AddPair('searchPath', LRegistration.SearchPath);
@@ -989,11 +1013,11 @@ var
   LPackageKey: string;
   LIDEPackageKey: string;
 begin
-  LLibraryKey := 'Software\Embarcadero\BDS\' + ARegistration.Compiler +
+  LLibraryKey := ARegistration.RegistryRoot + '\' + ARegistration.Compiler +
     '\Library\' + ARegistration.Platform;
-  LPackageKey := 'Software\Embarcadero\BDS\' + ARegistration.Compiler +
+  LPackageKey := ARegistration.RegistryRoot + '\' + ARegistration.Compiler +
     '\Known Packages';
-  LIDEPackageKey := 'Software\Embarcadero\BDS\' + ARegistration.Compiler +
+  LIDEPackageKey := ARegistration.RegistryRoot + '\' + ARegistration.Compiler +
     '\Known IDE Packages';
   WritePathValue(AStore, LLibraryKey, 'Search Path',
     ARegistration.SearchPath, ASnapshots);
@@ -1007,7 +1031,7 @@ begin
     ARegistration.ToolPath, ASnapshots);
   for var LHelpFile in ARegistration.HelpFiles do
   begin
-    var LHelpKey := 'Software\Embarcadero\BDS\' +
+    var LHelpKey := ARegistration.RegistryRoot + '\' +
       ARegistration.Compiler + '\Help\HtmlHelp1Files';
     var LHelpName := ARegistration.OwnerPackage + ':' +
       TPath.GetFileName(LHelpFile);
@@ -1045,11 +1069,11 @@ var
   LPackageKey: string;
   LIDEPackageKey: string;
 begin
-  LLibraryKey := 'Software\Embarcadero\BDS\' + ARegistration.Compiler +
+  LLibraryKey := ARegistration.RegistryRoot + '\' + ARegistration.Compiler +
     '\Library\' + ARegistration.Platform;
-  LPackageKey := 'Software\Embarcadero\BDS\' + ARegistration.Compiler +
+  LPackageKey := ARegistration.RegistryRoot + '\' + ARegistration.Compiler +
     '\Known Packages';
-  LIDEPackageKey := 'Software\Embarcadero\BDS\' + ARegistration.Compiler +
+  LIDEPackageKey := ARegistration.RegistryRoot + '\' + ARegistration.Compiler +
     '\Known IDE Packages';
   RemovePathValue(AStore, LLibraryKey, 'Search Path',
     ARegistration.SearchPath, ASnapshots);
@@ -1063,7 +1087,7 @@ begin
     ARegistration.ToolPath, ASnapshots);
   for var LHelpFile in ARegistration.HelpFiles do
   begin
-    var LHelpKey := 'Software\Embarcadero\BDS\' +
+    var LHelpKey := ARegistration.RegistryRoot + '\' +
       ARegistration.Compiler + '\Help\HtmlHelp1Files';
     var LHelpName := ARegistration.OwnerPackage + ':' +
       TPath.GetFileName(LHelpFile);
@@ -1396,7 +1420,7 @@ begin
       PlanDelete(PackageKey(LRegistration), LRegistration.BplPath);
       PlanDelete(IDEPackageKey(LRegistration), LRegistration.BplPath);
       for var LHelpFile in LRegistration.HelpFiles do
-        PlanDelete('Software\Embarcadero\BDS\' +
+        PlanDelete(FRegistryRoot + '\' +
           LRegistration.Compiler + '\Help\HtmlHelp1Files',
           LRegistration.OwnerPackage + ':' + TPath.GetFileName(LHelpFile));
       for var LRegistryValue in LRegistration.RegistryValues do
@@ -1584,7 +1608,7 @@ begin
           LRegistration.BplPath);
         for var LHelpFile in LRegistration.HelpFiles do
         begin
-          var LHelpKey := 'Software\Embarcadero\BDS\' +
+          var LHelpKey := FRegistryRoot + '\' +
             LRegistration.Compiler + '\Help\HtmlHelp1Files';
           var LHelpName := LRegistration.OwnerPackage + ':' +
             TPath.GetFileName(LHelpFile);
@@ -1701,7 +1725,7 @@ begin
   if Result then
     for var LHelpFile in ARegistration.HelpFiles do
     begin
-      var LHelpKey := 'Software\Embarcadero\BDS\' +
+      var LHelpKey := FRegistryRoot + '\' +
         ARegistration.Compiler + '\Help\HtmlHelp1Files';
       var LHelpName := ARegistration.OwnerPackage + ':' +
         TPath.GetFileName(LHelpFile);
