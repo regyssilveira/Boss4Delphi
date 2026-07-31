@@ -111,6 +111,8 @@ type
     procedure TestOfficialRegistrySubmissionDocument;
     [Test]
     procedure TestOfficialPublishPreparesVerifiedBundleTransactionally;
+    [Test]
+    procedure TestRegistryCheckoutAppliesAndAppendsSubmission;
 
     [Test]
     procedure TestCompiledArtifactCacheIsolation;
@@ -272,6 +274,7 @@ implementation
 
 uses
   Winapi.Windows, System.SysUtils, System.Classes, System.IOUtils,
+  System.JSON,
   System.RegularExpressions,
   System.Win.Registry,
   Boss4D.Core.Domain.Package, Boss4D.Core.Domain.Lock, Boss4D.Core.Domain.Dependency,
@@ -290,6 +293,7 @@ uses
   Boss4D.Core.Services.DependencySubmission,
   Boss4D.Core.Services.Publish,
   Boss4D.Core.Services.RegistrySubmission,
+  Boss4D.Core.Services.RegistryCheckout,
   Boss4D.Core.Services.OfficialPublish,
   Boss4D.Core.Services.ArtifactCache,
   Boss4D.Core.Domain.BuildMatrix,
@@ -1683,6 +1687,88 @@ begin
     Assert.IsFalse(TFile.Exists(LOptions.ArtifactOutput +
       '.intoto.json'));
     Assert.IsFalse(TFile.Exists(LOptions.SubmissionOutput));
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestRegistryCheckoutAppliesAndAppendsSubmission;
+var
+  LRegistryRoot, LRegistryDir, LSubmissionPath, LPackagePath: string;
+  LSubmission: TBoss4DRegistrySubmission;
+  LService: TBoss4DRegistryCheckoutService;
+  LResult: TBoss4DRegistryCheckoutResult;
+  LDocument: TJSONObject;
+  LPackages, LVersions: TJSONArray;
+begin
+  LRegistryRoot := TPath.Combine(FTempDir, 'registry-checkout');
+  LRegistryDir := TPath.Combine(LRegistryRoot, 'registry');
+  TDirectory.CreateDirectory(LRegistryDir);
+  TFile.WriteAllText(TPath.Combine(LRegistryDir, 'publishers.json'),
+    '{"schemaVersion":1,"publishers":[{"id":"test-publisher",' +
+    '"repositories":["github.com/example/"],"allowedSigners":["' +
+    StringOfChar('A', 40) + '"]}]}', TEncoding.UTF8);
+  TFile.WriteAllText(TPath.Combine(LRegistryDir, 'index-v2.json'),
+    '{"schemaVersion":2,"includes":[],"sparse":[],"packages":[]}',
+    TEncoding.UTF8);
+  LSubmission := Default(TBoss4DRegistrySubmission);
+  LSubmission.PackageName := 'Checkout Package';
+  LSubmission.Publisher := 'test-publisher';
+  LSubmission.Repository := 'github.com/example/checkout-package';
+  LSubmission.SignerFingerprint := StringOfChar('a', 40);
+  LSubmission.Version := '1.0.0';
+  LSubmission.ArtifactUrl :=
+    'https://github.com/example/checkout-package/releases/download/' +
+    'v1.0.0/checkout-package-1.0.0.b4dpkg';
+  LSubmission.Sha256 := StringOfChar('b', 64);
+  LSubmission.SignatureUrl := LSubmission.ArtifactUrl + '.asc';
+  LSubmission.ProvenanceUrl := LSubmission.ArtifactUrl + '.intoto.json';
+  LSubmission.License := 'MIT';
+  LSubmissionPath := TPath.Combine(FTempDir, 'submission.json');
+  TFile.WriteAllText(LSubmissionPath,
+    TBoss4DRegistrySubmissionService.BuildDocument(LSubmission),
+    TEncoding.UTF8);
+
+  LService := TBoss4DRegistryCheckoutService.Create;
+  try
+    LResult := LService.Apply(LRegistryRoot, LSubmissionPath, False);
+    Assert.IsFalse(LResult.Appended);
+    Assert.IsTrue(TFile.Exists(LResult.PackagePath));
+    Assert.IsTrue(TFile.ReadAllText(LResult.IndexPath).Contains(
+      'packages/checkout-package.json'));
+    LPackagePath := LResult.PackagePath;
+
+    LSubmission.Version := '1.1.0';
+    LSubmission.ArtifactUrl := LSubmission.ArtifactUrl.Replace(
+      'v1.0.0/checkout-package-1.0.0',
+      'v1.1.0/checkout-package-1.1.0');
+    LSubmission.SignatureUrl := LSubmission.ArtifactUrl + '.asc';
+    LSubmission.ProvenanceUrl :=
+      LSubmission.ArtifactUrl + '.intoto.json';
+    LSubmission.Sha256 := StringOfChar('c', 64);
+    TFile.WriteAllText(LSubmissionPath,
+      TBoss4DRegistrySubmissionService.BuildDocument(LSubmission),
+      TEncoding.UTF8);
+    LResult := LService.Apply(LRegistryRoot, LSubmissionPath, True);
+    Assert.IsTrue(LResult.Appended);
+    LDocument := TJSONObject.ParseJSONValue(
+      TFile.ReadAllText(LPackagePath)) as TJSONObject;
+    try
+      LPackages := LDocument.GetValue<TJSONArray>('packages');
+      LVersions := TJSONObject(LPackages.Items[0])
+        .GetValue<TJSONArray>('versions');
+      Assert.AreEqual(2, LVersions.Count);
+      Assert.AreEqual('1.1.0',
+        TJSONObject(LVersions.Items[1]).GetValue<string>('version'));
+    finally
+      LDocument.Free;
+    end;
+    Assert.WillRaise(
+      procedure
+      begin
+        LService.Apply(LRegistryRoot, LSubmissionPath, True);
+      end,
+      EBoss4DRegistryCheckout);
   finally
     LService.Free;
   end;

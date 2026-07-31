@@ -58,6 +58,7 @@ uses
   Boss4D.Core.Services.DependencySubmission in '..\src\Core\Services\Boss4D.Core.Services.DependencySubmission.pas',
   Boss4D.Core.Services.Publish in '..\src\Core\Services\Boss4D.Core.Services.Publish.pas',
   Boss4D.Core.Services.RegistrySubmission in '..\src\Core\Services\Boss4D.Core.Services.RegistrySubmission.pas',
+  Boss4D.Core.Services.RegistryCheckout in '..\src\Core\Services\Boss4D.Core.Services.RegistryCheckout.pas',
   Boss4D.Core.Services.OfficialPublish in '..\src\Core\Services\Boss4D.Core.Services.OfficialPublish.pas',
   Boss4D.Core.Services.ArtifactCache in '..\src\Core\Services\Boss4D.Core.Services.ArtifactCache.pas',
   Boss4D.Core.Services.BuildMatrix in '..\src\Core\Services\Boss4D.Core.Services.BuildMatrix.pas',
