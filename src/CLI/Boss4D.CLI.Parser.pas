@@ -259,7 +259,8 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  registry add|remove|list Gerencia indices publicos e privados.');
   FLogger.Log(TBoss4DLogLevel.Info, '  search <termo>       Pesquisa pacotes nos indices configurados.');
   FLogger.Log(TBoss4DLogLevel.Info, '  info <pacote>        Exibe metadados de um pacote indexado.');
-  FLogger.Log(TBoss4DLogLevel.Info, '  package install <pacote> Instala .b4dpkg verificado; aceita --platform e --compiler.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  package install <pacote>[@range] Instala .b4dpkg versionado e verificado.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  package versions <pacote> Lista versoes publicadas e revogadas.');
   FLogger.Log(TBoss4DLogLevel.Info, '  dependency submit    Envia snapshot ao GitHub Dependency Graph.');
   FLogger.Log(TBoss4DLogLevel.Info, '  publish              Publica pacote com validacoes; use --dry-run para inspecionar.');
   FLogger.Log(TBoss4DLogLevel.Info, '  ci [--offline]       Reinstala limpo usando o lock sem altera-lo; aceita --progress, --json e --quiet.');
@@ -1695,14 +1696,41 @@ var
   LRequest: TBoss4DPackageInstallRequest;
   LDependency: TBoss4DDependency;
   LAllowFallback: Boolean;
-  LPlatform, LCompiler: string;
+  LPlatform, LCompiler, LPackageName, LVersionRange: string;
 begin
+  if (Length(AArgs) = 3) and SameText(AArgs[1], 'versions') then
+  begin
+    LIndex := TBoss4DPackageIndexService.Create(FConfigService,
+      TBoss4DHttpNativeAdapter.Create, FLogger);
+    try
+      var LVersions := LIndex.Versions(AArgs[2]);
+      if Length(LVersions) = 0 then
+        raise EArgumentException.Create('Pacote nao encontrado: ' + AArgs[2]);
+      for var LVersion in LVersions do
+        FLogger.Log(TBoss4DLogLevel.Info, LVersion);
+      Exit;
+    finally
+      LIndex.Free;
+    end;
+  end;
   if (Length(AArgs) < 3) or not SameText(AArgs[1], 'install') then
     raise EArgumentException.Create(
-      'Uso: boss4d package install <pacote> [--no-source-fallback].');
+      'Uso: boss4d package install <pacote[@range]> [--no-source-fallback] ' +
+      '[--platform <plataforma>] [--compiler <versao>] ou ' +
+      'boss4d package versions <pacote>.');
   LAllowFallback := True;
   LPlatform := '';
   LCompiler := '';
+  LPackageName := AArgs[2];
+  LVersionRange := '*';
+  var LAt := LPackageName.LastIndexOf('@');
+  if LAt > 0 then
+  begin
+    LVersionRange := LPackageName.Substring(LAt + 1);
+    LPackageName := LPackageName.Substring(0, LAt);
+    if LVersionRange.IsEmpty then
+      raise EArgumentException.Create('A faixa de versao nao pode ser vazia.');
+  end;
   var I := 3;
   while I < Length(AArgs) do
   begin
@@ -1723,11 +1751,21 @@ begin
   LIndex := TBoss4DPackageIndexService.Create(FConfigService,
     TBoss4DHttpNativeAdapter.Create, FLogger);
   try
-    LEntry := LIndex.Info(AArgs[2]);
+    LEntry := LIndex.Info(LPackageName);
     try
       if not Assigned(LEntry) then
-        raise EArgumentException.Create('Pacote nao encontrado: ' + AArgs[2]);
-      var LVariant := LEntry.SelectVariant(LPlatform, LCompiler);
+        raise EArgumentException.Create('Pacote nao encontrado: ' + LPackageName);
+      var LSelectedVersion := LEntry.ResolveVersion(LVersionRange);
+      if not Assigned(LSelectedVersion) then
+        raise EArgumentException.CreateFmt(
+          'Nenhuma versao nao revogada de %s atende %s.',
+          [LPackageName, LVersionRange]);
+      LEntry.LatestVersion := LSelectedVersion.Version;
+      LEntry.ArtifactUrl := LSelectedVersion.ArtifactUrl;
+      LEntry.ArtifactDigest := LSelectedVersion.ArtifactDigest;
+      LEntry.SignatureUrl := LSelectedVersion.SignatureUrl;
+      LEntry.ProvenanceUrl := LSelectedVersion.ProvenanceUrl;
+      var LVariant := LSelectedVersion.SelectVariant(LPlatform, LCompiler);
       if Assigned(LVariant) then
       begin
         LEntry.ArtifactUrl := LVariant.ArtifactUrl;
@@ -1735,7 +1773,7 @@ begin
         LEntry.SignatureUrl := LVariant.SignatureUrl;
         LEntry.ProvenanceUrl := LVariant.ProvenanceUrl;
       end
-      else if LEntry.Variants.Count > 0 then
+      else if LSelectedVersion.Variants.Count > 0 then
       begin
         LEntry.ArtifactUrl := '';
         LEntry.ArtifactDigest := '';

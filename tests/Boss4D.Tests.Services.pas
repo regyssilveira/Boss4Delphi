@@ -82,6 +82,8 @@ type
     [Test]
     procedure TestPackageIndexV2IncludesV1;
     [Test]
+    procedure TestPackageIndexSelectsVersionsDeterministically;
+    [Test]
     procedure TestPublicRegistryIsDefaultSource;
 
     [Test]
@@ -1190,6 +1192,64 @@ begin
     finally
       LModern.Free;
     end;
+  finally
+    LService.Free;
+    LConfig.Free;
+  end;
+end;
+
+procedure TTestsServices.TestPackageIndexSelectsVersionsDeterministically;
+var
+  LConfig: TBoss4DConfigService;
+  LService: TBoss4DPackageIndexService;
+  LIndexPath: string;
+  LEntry: TBoss4DPackageIndexEntry;
+  LVersions: TArray<string>;
+begin
+  LIndexPath := TPath.Combine(FTempDir, 'versioned-index-v2.json');
+  TFile.WriteAllText(LIndexPath,
+    '{"schemaVersion":2,"packages":[{"name":"VersionedPackage",' +
+    '"repository":"git.example.test/versioned","versions":[' +
+    '{"version":"1.5.0","artifact":"https://packages.example/1.5.b4dpkg",' +
+    '"sha256":"sha15"},{"version":"3.0.0","revoked":true,' +
+    '"artifact":"https://packages.example/3.0.b4dpkg","sha256":"sha30"},' +
+    '{"version":"2.0.0","artifact":"https://packages.example/2.0.b4dpkg",' +
+    '"sha256":"sha20","variants":[{"platform":"Win64","compiler":"37.0",' +
+    '"artifact":"https://packages.example/2.0-win64.b4dpkg",' +
+    '"sha256":"sha20win64"}]},{"version":"invalid"}]}]}',
+    TEncoding.UTF8);
+  LConfig := TBoss4DConfigService.Create(TTestLogger.Create);
+  LService := TBoss4DPackageIndexService.Create(LConfig,
+    THttpClientMock.Create, TTestLogger.Create);
+  try
+    LService.AddRegistry(LIndexPath);
+    LEntry := LService.Info('VersionedPackage');
+    try
+      Assert.IsNotNull(LEntry);
+      Assert.AreEqual('2.0.0', LEntry.LatestVersion,
+        'Latest deve ser calculada por SemVer e ignorar versoes revogadas.');
+      Assert.AreEqual('sha20', LEntry.ArtifactDigest);
+      Assert.AreEqual<Integer>(3, LEntry.Versions.Count,
+        'Versoes SemVer validas, inclusive revogadas, devem ser preservadas.');
+      Assert.IsTrue(LEntry.Versions[0].Revoked);
+      Assert.AreEqual('3.0.0', LEntry.Versions[0].Version);
+      Assert.AreEqual('2.0.0',
+        LEntry.ResolveVersion('^2.0.0').Version);
+      Assert.AreEqual('1.5.0',
+        LEntry.ResolveVersion('1.5.0').Version);
+      Assert.IsNull(LEntry.ResolveVersion('3.0.0'),
+        'Uma versao revogada nunca pode ser selecionada.');
+      Assert.AreEqual('https://packages.example/2.0-win64.b4dpkg',
+        LEntry.ResolveVersion('2.0.0').SelectVariant(
+          'Win64', '37.0').ArtifactUrl);
+    finally
+      LEntry.Free;
+    end;
+    LVersions := LService.Versions('VersionedPackage');
+    Assert.AreEqual<Integer>(3, Length(LVersions));
+    Assert.AreEqual('3.0.0 (revoked)', LVersions[0]);
+    Assert.AreEqual('2.0.0', LVersions[1]);
+    Assert.AreEqual('1.5.0', LVersions[2]);
   finally
     LService.Free;
     LConfig.Free;
