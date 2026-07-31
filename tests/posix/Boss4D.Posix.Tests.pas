@@ -197,6 +197,7 @@ type
     procedure TestPublishDryRunAndImmutableConflict;
     procedure TestPublishRequiresLockEvidence;
     procedure TestOfficialPublishBundle;
+    procedure TestRegistryCheckoutApplyAndAppend;
     procedure TestProjectWorkflowCommands;
     procedure TestUpdateRollback;
     procedure TestUpdatePreservesRegistryArtifact;
@@ -212,7 +213,7 @@ uses
   Boss4D.Posix.Package,
   Boss4D.Posix.Operations, Boss4D.Posix.Compliance, Boss4D.Posix.Audit,
   Boss4D.Posix.Workflows, Boss4D.Posix.Update, Boss4D.Posix.Tools,
-  Boss4D.Posix.Documentation;
+  Boss4D.Posix.Documentation, Boss4D.Posix.RegistryCheckout;
 
 procedure SaveFixture(const APath, AContent: string); forward;
 
@@ -1996,6 +1997,84 @@ begin
     end;
   finally
     LSigner.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestRegistryCheckoutApplyAndAppend;
+var
+  LRoot, LRegistry, LSubmission, LPackage: string;
+  LResult: TBoss4DRegistryCheckoutResult;
+  LData: TJSONData;
+  LStream: TFileStream;
+  LDocument, LPackageEntry: TJSONObject;
+  LPackages, LVersions: TJSONArray;
+begin
+  LRoot := NewTempDirectory;
+  LRegistry := IncludeTrailingPathDelimiter(LRoot) + 'registry';
+  ForceDirectories(LRegistry);
+  SaveFixture(IncludeTrailingPathDelimiter(LRegistry) + 'publishers.json',
+    '{"schemaVersion":1,"publishers":[{"id":"test-publisher",' +
+    '"repositories":["github.com/example/"],"allowedSigners":["' +
+    StringOfChar('A', 40) + '"]}]}');
+  SaveFixture(IncludeTrailingPathDelimiter(LRegistry) + 'index-v2.json',
+    '{"schemaVersion":2,"includes":[],"sparse":[],"packages":[]}');
+  LSubmission := IncludeTrailingPathDelimiter(LRoot) + 'submission.json';
+  SaveFixture(LSubmission,
+    '{"schemaVersion":2,"packages":[{"name":"Checkout Package",' +
+    '"publisher":"test-publisher","repository":' +
+    '"github.com/example/checkout-package","signerFingerprint":"' +
+    StringOfChar('A', 40) + '","description":"demo","license":"MIT",' +
+    '"versions":[{"version":"1.0.0","artifact":' +
+    '"https://packages.example/1.0.0.b4dpkg","sha256":"' +
+    StringOfChar('b', 64) + '","signature":' +
+    '"https://packages.example/1.0.0.b4dpkg.asc","provenance":' +
+    '"https://packages.example/1.0.0.b4dpkg.intoto.json"}]}]}');
+  LResult := ApplyRegistrySubmission(LRoot, LSubmission, False);
+  AssertFalse(LResult.Appended);
+  AssertTrue(FileExists(LResult.PackagePath));
+  LPackage := LResult.PackagePath;
+  with TStringList.Create do
+  try
+    LoadFromFile(LResult.IndexPath);
+    AssertTrue(Pos('packages/checkout-package.json', Text) > 0);
+  finally
+    Free;
+  end;
+
+  SaveFixture(LSubmission,
+    '{"schemaVersion":2,"packages":[{"name":"Checkout Package",' +
+    '"publisher":"test-publisher","repository":' +
+    '"github.com/example/checkout-package","signerFingerprint":"' +
+    StringOfChar('A', 40) + '","description":"demo","license":"MIT",' +
+    '"versions":[{"version":"1.1.0","artifact":' +
+    '"https://packages.example/1.1.0.b4dpkg","sha256":"' +
+    StringOfChar('c', 64) + '","signature":' +
+    '"https://packages.example/1.1.0.b4dpkg.asc","provenance":' +
+    '"https://packages.example/1.1.0.b4dpkg.intoto.json"}]}]}');
+  LResult := ApplyRegistrySubmission(LRoot, LSubmission, True);
+  AssertTrue(LResult.Appended);
+  LStream := TFileStream.Create(LPackage, fmOpenRead);
+  try
+    LData := GetJSON(LStream);
+  finally
+    LStream.Free;
+  end;
+  try
+    LDocument := TJSONObject(LData);
+    LPackages := TJSONArray(LDocument.Find('packages'));
+    LPackageEntry := TJSONObject(LPackages.Items[0]);
+    LVersions := TJSONArray(LPackageEntry.Find('versions'));
+    AssertEquals(2, LVersions.Count);
+    AssertEquals('1.1.0',
+      TJSONObject(LVersions.Items[1]).Get('version', ''));
+  finally
+    LData.Free;
+  end;
+  try
+    ApplyRegistrySubmission(LRoot, LSubmission, True);
+    Fail('Duplicate immutable version must fail');
+  except
+    on E: Exception do AssertTrue(Pos('immutable', E.Message) > 0);
   end;
 end;
 

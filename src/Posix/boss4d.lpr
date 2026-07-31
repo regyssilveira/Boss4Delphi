@@ -7,7 +7,8 @@ uses
   Boss4D.Posix.Config, Boss4D.Posix.Package, Boss4D.Posix.Operations,
   Boss4D.Posix.Compliance, Boss4D.Posix.Audit, Boss4D.Posix.Workflows,
   Boss4D.Posix.Update, Boss4D.Posix.Tools, Boss4D.Posix.Publish,
-  Boss4D.Posix.Project, Boss4D.Posix.Documentation;
+  Boss4D.Posix.RegistryCheckout, Boss4D.Posix.Project,
+  Boss4D.Posix.Documentation;
 
 procedure Help;
 begin
@@ -38,6 +39,7 @@ begin
   WriteLn('         boss4d publish --official --publisher <id>');
   WriteLn('           --repository <host/owner/name> --fingerprint <hex>');
   WriteLn('           --sign <key> --artifact-url <https-url>');
+  WriteLn('           [--registry-root <checkout>] [--append-version]');
   WriteLn('Docs: boss4d doc [-o <folder>] [--no-dependencies]');
 end;
 
@@ -124,6 +126,7 @@ var
   LPublishService: TBoss4DPosixPublishService;
   LPublishOptions: TBoss4DPublishOptions;
   LOfficialPublishResult: TBoss4DOfficialPublishResult;
+  LRegistryCheckoutResult: TBoss4DRegistryCheckoutResult;
   LPublishPayload, LPublishOutput, LTokenEnvironment: string;
   LPublishManifest: TJSONObject;
   LOfficialDryRun: Boolean;
@@ -693,6 +696,8 @@ begin
         OptionValue('--artifact-output', '');
       LPublishOptions.SubmissionOutput :=
         OptionValue('--submission-output', '');
+      LPublishOptions.RegistryRoot := OptionValue('--registry-root', '');
+      LPublishOptions.AppendVersion := HasOption('--append-version');
       if LPublishOptions.Official then
       begin
         LPublishManifest := LoadJsonObject(IncludeTrailingPathDelimiter(
@@ -751,10 +756,31 @@ begin
           begin
             LOfficialPublishResult := LPublishService.PrepareOfficial(
               GetCurrentDir, LPublishOptions);
-            WriteLn('official bundle prepared: ' +
-              LOfficialPublishResult.ArtifactPath);
-            WriteLn('registry PR document: ' +
-              LOfficialPublishResult.SubmissionPath);
+            try
+              if LPublishOptions.RegistryRoot <> '' then
+              begin
+                LRegistryCheckoutResult := ApplyRegistrySubmission(
+                  LPublishOptions.RegistryRoot,
+                  LOfficialPublishResult.SubmissionPath,
+                  LPublishOptions.AppendVersion);
+                WriteLn('Registry checkout updated: ' +
+                  LRegistryCheckoutResult.PackagePath);
+              end;
+              WriteLn('official bundle prepared: ' +
+                LOfficialPublishResult.ArtifactPath);
+              WriteLn('registry PR document: ' +
+                LOfficialPublishResult.SubmissionPath);
+            except
+              if FileExists(LOfficialPublishResult.SubmissionPath) then
+                DeleteFile(LOfficialPublishResult.SubmissionPath);
+              if FileExists(LOfficialPublishResult.SignaturePath) then
+                DeleteFile(LOfficialPublishResult.SignaturePath);
+              if FileExists(LOfficialPublishResult.ProvenancePath) then
+                DeleteFile(LOfficialPublishResult.ProvenancePath);
+              if FileExists(LOfficialPublishResult.ArtifactPath) then
+                DeleteFile(LOfficialPublishResult.ArtifactPath);
+              raise;
+            end;
           end;
         end
         else if LPublishOutput <> '' then

@@ -19,6 +19,8 @@ type
     ArtifactUrl: string;
     ArtifactOutput: string;
     SubmissionOutput: string;
+    RegistryRoot: string;
+    AppendVersion: Boolean;
   end;
 
   TBoss4DPublishPoster = function(const AUrl, APayload, AToken: string;
