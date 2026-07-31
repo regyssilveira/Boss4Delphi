@@ -309,6 +309,23 @@ begin
     HandleInstall(AArgs)
   else if LCommand = 'ci' then
     HandleCI(AArgs)
+  else if LCommand = 'restore' then
+  begin
+    if (Length(AArgs) > 1) and SameText(AArgs[1], '--ci') then
+    begin
+      var LCIArgs := TList<string>.Create;
+      try
+        LCIArgs.Add('ci');
+        for var LRestoreIndex := 2 to Length(AArgs) - 1 do
+          LCIArgs.Add(AArgs[LRestoreIndex]);
+        HandleCI(LCIArgs.ToArray);
+      finally
+        LCIArgs.Free;
+      end;
+    end
+    else
+      HandleInstall(AArgs);
+  end
   else if LCommand = 'add' then
     HandleAdd(AArgs)
   else if (LCommand = 'remove') or (LCommand = 'rm') then
@@ -1339,10 +1356,19 @@ begin
       LOptions.Production := True;
       Inc(I);
     end
-    else if SameText(AArgs[I], '--no-register') then
+    else if SameText(AArgs[I], '--no-register') or
+            SameText(AArgs[I], '--build-only') then
     begin
       LOptions.InstallIDEs := False;
       Inc(I);
+    end
+    else if SameText(AArgs[I], '--remote-cache') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create(
+          'Informe o caminho do cache remoto.');
+      LOptions.RemoteCachePath := AArgs[I + 1];
+      Inc(I, 2);
     end
     else if SameText(AArgs[I], '--resolution') then
     begin
@@ -1401,6 +1427,8 @@ begin
   LOptions := Default(TBoss4DInstallOptions);
   LOptions.Locked := True;
   LOptions.CleanModules := True;
+  LOptions.CIMode := True;
+  LOptions.InstallIDEs := False;
   LProgressMode := 'plain';
   I := 1;
   while I < Length(AArgs) do
@@ -1416,6 +1444,14 @@ begin
         raise EArgumentException.Create('Informe uma plataforma.');
       Inc(I);
       LOptions.Platform := AArgs[I];
+    end
+    else if SameText(AArgs[I], '--remote-cache') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create(
+          'Informe o caminho do cache remoto.');
+      Inc(I);
+      LOptions.RemoteCachePath := AArgs[I];
     end
     else if SameText(AArgs[I], '--json') then
       LProgressMode := 'json'

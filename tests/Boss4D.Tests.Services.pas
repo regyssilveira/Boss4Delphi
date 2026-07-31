@@ -62,6 +62,8 @@ type
 
     [Test]
     procedure TestLockedOfflineAndCI;
+    [Test]
+    procedure TestCIModeIsolatesIDERegistrationAtServiceBoundary;
 
     [Test]
     procedure TestLockedRejectsManifestDrift;
@@ -782,6 +784,12 @@ begin
       'ci deve iniciar por uma arvore modules limpa.');
     Assert.AreEqual(LLockBefore, TFile.ReadAllText(
       TPath.Combine(FTempDir, FILE_PACKAGE_LOCK), TEncoding.UTF8));
+    LStalePath := TPath.Combine(GetModulesDir, 'stale-restore.txt');
+    TFile.WriteAllText(LStalePath, 'stale');
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'restore', '--ci', '--offline'));
+    Assert.IsFalse(TFile.Exists(LStalePath),
+      'restore --ci deve usar o mesmo isolamento e limpeza de ci.');
   finally
     LParser.Free;
     LConfig.Free;
@@ -1878,6 +1886,63 @@ begin
       'Unmanaged files must never be removed.');
   finally
     LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestCIModeIsolatesIDERegistrationAtServiceBoundary;
+var
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LPackage: TBoss4DPackage;
+  LLock: TBoss4DLock;
+  LInstall: TBoss4DInstallService;
+  LOptions: TBoss4DInstallOptions;
+  LIDECalls: Integer;
+  LStalePath: string;
+begin
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'ci-isolated-component';
+    LPackage.Version := '1.0.0';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackageRepo.Save(LPackage, GetBossFile);
+  finally
+    LPackage.Free;
+  end;
+  LLock := TBoss4DLock.Create;
+  try
+    LLock.HasRootMetadata := True;
+    LLock.RootName := 'ci-isolated-component';
+    LLock.RootVersion := '1.0.0';
+    LLockRepo.Save(LLock, TPath.Combine(FTempDir, FILE_PACKAGE_LOCK));
+  finally
+    LLock.Free;
+  end;
+  LIDECalls := 0;
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo,
+    TGitClientMock.Create, THttpClientMock.Create, TCompilerMock.Create,
+    TTestLogger.Create,
+    procedure(const APackage: TBoss4DPackage)
+    begin
+      Inc(LIDECalls);
+    end);
+  try
+    LOptions := Default(TBoss4DInstallOptions);
+    LOptions.CIMode := True;
+    LOptions.InstallIDEs := True;
+    LInstall.Execute(LOptions);
+    Assert.AreEqual<Integer>(0, LIDECalls,
+      'CIMode deve prevalecer mesmo se InstallIDEs vier habilitado.');
+    LStalePath := TPath.Combine(GetModulesDir, 'stale-ci-file.txt');
+    TDirectory.CreateDirectory(GetModulesDir);
+    TFile.WriteAllText(LStalePath, 'stale');
+    LInstall.Execute(LOptions);
+    Assert.IsFalse(TFile.Exists(LStalePath),
+      'CIMode deve sempre iniciar com modules limpo.');
+  finally
+    LInstall.Free;
   end;
 end;
 

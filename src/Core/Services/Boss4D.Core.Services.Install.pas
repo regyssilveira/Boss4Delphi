@@ -21,6 +21,8 @@ type
     Development: Boolean;
     InstallSingle: string;
     InstallIDEs: Boolean;
+    CIMode: Boolean;
+    RemoteCachePath: string;
     ResolutionStrategy: TBoss4DResolutionStrategy;
   end;
 
@@ -537,7 +539,11 @@ begin
   LChecksum := '';
   if ALock.GetInstalled(ADep, LLocked) then
     LChecksum := LLocked.Checksum;
-  LArtifactCache := TBoss4DArtifactCacheService.Create;
+  if FOptions.RemoteCachePath.Trim.IsEmpty then
+    LArtifactCache := TBoss4DArtifactCacheService.Create
+  else
+    LArtifactCache := TBoss4DArtifactCacheService.Create('',
+      TBoss4DFileArtifactCacheBackend.Create(FOptions.RemoteCachePath));
   try
     if LArtifactCache.Restore(ADep, LChecksum, APlatform,
       ACompilerVersion) then
@@ -623,7 +629,13 @@ begin
   LTransaction := TBoss4DProjectTransaction.Create(GetCurrentDir);
   try
     FOptions := AOptions;
-    ExecuteCore(AOptions.InstallSingle, AOptions.Platform);
+    if FOptions.CIMode then
+    begin
+      FOptions.Locked := True;
+      FOptions.CleanModules := True;
+      FOptions.InstallIDEs := False;
+    end;
+    ExecuteCore(FOptions.InstallSingle, FOptions.Platform);
     LTransaction.Commit;
   finally
     FOptions := Default(TBoss4DInstallOptions);
