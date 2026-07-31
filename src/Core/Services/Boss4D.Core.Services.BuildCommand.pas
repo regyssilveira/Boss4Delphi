@@ -271,6 +271,7 @@ begin
                 LRegistration.SearchPath := TPath.Combine(LRoot, 'dcu');
                 LRegistration.BrowsingPath := LRegistration.SearchPath;
                 LRegistration.DebugDcuPath := LRegistration.SearchPath;
+                LRegistration.RuntimePath := LBplDirectory;
                 LRegistration.ArtifactRoot := LRoot;
                 for var LArtifact in TDirectory.GetFiles(LRoot, '*',
                   TSearchOption.soAllDirectories) do

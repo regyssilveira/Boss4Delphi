@@ -39,6 +39,7 @@ type
     FSearchPath: string;
     FBrowsingPath: string;
     FDebugDcuPath: string;
+    FRuntimePath: string;
     FArtifactRoot: string;
     FArtifacts: TList<string>;
   public
@@ -55,6 +56,7 @@ type
     property SearchPath: string read FSearchPath write FSearchPath;
     property BrowsingPath: string read FBrowsingPath write FBrowsingPath;
     property DebugDcuPath: string read FDebugDcuPath write FDebugDcuPath;
+    property RuntimePath: string read FRuntimePath write FRuntimePath;
     property ArtifactRoot: string read FArtifactRoot write FArtifactRoot;
     property Artifacts: TList<string> read FArtifacts;
   end;
@@ -188,6 +190,7 @@ begin
   Result.SearchPath := FSearchPath;
   Result.BrowsingPath := FBrowsingPath;
   Result.DebugDcuPath := FDebugDcuPath;
+  Result.RuntimePath := FRuntimePath;
   Result.ArtifactRoot := FArtifactRoot;
   Result.Artifacts.AddRange(FArtifacts);
 end;
@@ -317,6 +320,8 @@ begin
         'browsingPath', '');
       LRegistration.DebugDcuPath := LObject.GetValue<string>(
         'debugDcuPath', '');
+      LRegistration.RuntimePath := LObject.GetValue<string>(
+        'runtimePath', '');
       LRegistration.ArtifactRoot := LObject.GetValue<string>(
         'artifactRoot', '');
       var LArtifacts := LObject.GetValue<TJSONArray>('artifacts');
@@ -355,6 +360,7 @@ begin
       LObject.AddPair('searchPath', LRegistration.SearchPath);
       LObject.AddPair('browsingPath', LRegistration.BrowsingPath);
       LObject.AddPair('debugDcuPath', LRegistration.DebugDcuPath);
+      LObject.AddPair('runtimePath', LRegistration.RuntimePath);
       LObject.AddPair('artifactRoot', LRegistration.ArtifactRoot);
       var LArtifacts := TJSONArray.Create;
       for var LArtifact in LRegistration.Artifacts do
@@ -445,6 +451,8 @@ begin
     ARegistration.BrowsingPath, ASnapshots);
   WritePathValue(AStore, LLibraryKey, 'Debug DCU Path',
     ARegistration.DebugDcuPath, ASnapshots);
+  WritePathValue(AStore, 'Environment', 'Path',
+    ARegistration.RuntimePath, ASnapshots);
   TakeSnapshot(AStore, LIDEPackageKey, ARegistration.BplPath, ASnapshots);
   AStore.DeleteValue(LIDEPackageKey, ARegistration.BplPath);
   TakeSnapshot(AStore, LPackageKey, ARegistration.BplPath, ASnapshots);
@@ -476,6 +484,8 @@ begin
     ARegistration.BrowsingPath, ASnapshots);
   RemovePathValue(AStore, LLibraryKey, 'Debug DCU Path',
     ARegistration.DebugDcuPath, ASnapshots);
+  RemovePathValue(AStore, 'Environment', 'Path',
+    ARegistration.RuntimePath, ASnapshots);
   TakeSnapshot(AStore, LPackageKey, ARegistration.BplPath, ASnapshots);
   AStore.DeleteValue(LPackageKey, ARegistration.BplPath);
   TakeSnapshot(AStore, LIDEPackageKey, ARegistration.BplPath, ASnapshots);
@@ -573,7 +583,9 @@ var
          (SameText(AKind, 'browsing') and
           SameText(LOther.BrowsingPath, APath)) or
          (SameText(AKind, 'debug') and
-          SameText(LOther.DebugDcuPath, APath)) then
+          SameText(LOther.DebugDcuPath, APath)) or
+         (SameText(AKind, 'runtime') and
+          SameText(LOther.RuntimePath, APath)) then
         Exit(True);
     end;
   end;
@@ -641,6 +653,10 @@ begin
           LRegistration.DebugDcuPath, 'debug') then
           RemovePathValue(FStore, LibraryKey(LRegistration),
             'Debug DCU Path', LRegistration.DebugDcuPath, LSnapshots);
+        if not PathUsedOutsideSelection(LRegistration,
+          LRegistration.RuntimePath, 'runtime') then
+          RemovePathValue(FStore, 'Environment', 'Path',
+            LRegistration.RuntimePath, LSnapshots);
         TakeSnapshot(FStore, PackageKey(LRegistration),
           LRegistration.BplPath, LSnapshots);
         FStore.DeleteValue(PackageKey(LRegistration),
@@ -705,6 +721,9 @@ begin
   Result := PathValueHealthy('Search Path', ARegistration.SearchPath) and
     PathValueHealthy('Browsing Path', ARegistration.BrowsingPath) and
     PathValueHealthy('Debug DCU Path', ARegistration.DebugDcuPath) and
+    (ARegistration.RuntimePath.Trim.IsEmpty or
+      (FStore.TryRead('Environment', 'Path', LValue) and
+       ContainsPath(LValue, ARegistration.RuntimePath))) and
     FStore.TryRead(PackageKey(ARegistration), ARegistration.BplPath,
       LValue) and SameText(LValue, ARegistration.Description);
 end;

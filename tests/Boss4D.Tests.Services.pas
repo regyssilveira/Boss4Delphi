@@ -1756,12 +1756,14 @@ begin
     LRegistration.SearchPath := 'C:\artifacts\dcu';
     LRegistration.BrowsingPath := 'C:\sources';
     LRegistration.DebugDcuPath := 'C:\artifacts\debug-dcu';
+    LRegistration.RuntimePath := 'C:\artifacts\bpl';
     LService.RegisterTarget(LRegistration);
 
     LLibraryKey := 'Software\Embarcadero\BDS\37.0\Library\Win32';
     LPackageKey := 'Software\Embarcadero\BDS\37.0\Known Packages';
     LStore.DeleteValue(LLibraryKey, 'Search Path');
     LStore.DeleteValue(LPackageKey, LRegistration.BplPath);
+    LStore.DeleteValue('Environment', 'Path');
 
     Assert.AreEqual<Integer>(1, Length(LService.FindDrift));
     Assert.AreEqual<Integer>(1, LService.Repair);
@@ -1770,6 +1772,8 @@ begin
       LStore.GetValue(LLibraryKey, 'Search Path'));
     Assert.AreEqual('Sample design package',
       LStore.GetValue(LPackageKey, LRegistration.BplPath));
+    Assert.AreEqual('C:\artifacts\bpl',
+      LStore.GetValue('Environment', 'Path'));
   finally
     LRegistration.Free;
     LService.Free;
@@ -1925,6 +1929,7 @@ begin
         LRegistration.SearchPath := 'C:\shared\dcu';
         LRegistration.BrowsingPath := 'C:\shared\src';
         LRegistration.DebugDcuPath := 'C:\shared\debug';
+        LRegistration.RuntimePath := 'C:\shared\bpl';
         LService.RegisterTarget(LRegistration);
       finally
         LRegistration.Free;
@@ -1935,6 +1940,8 @@ begin
     Assert.AreEqual(1, LService.Unregister('PackageA', '37.0', 'Win32'));
     Assert.IsTrue(LStore.TryRead(LLibraryKey, 'Search Path', LValue));
     Assert.AreEqual<string>('C:\shared\dcu', LValue);
+    Assert.IsTrue(LStore.TryRead('Environment', 'Path', LValue));
+    Assert.AreEqual<string>('C:\shared\bpl', LValue);
     Assert.IsTrue(LStore.TryRead(
       'Software\Embarcadero\BDS\37.0\Known Packages',
       'C:\bpl\PackageB.bpl', LValue));
@@ -1944,6 +1951,7 @@ begin
 
     Assert.AreEqual(1, LService.Unregister('PackageB', '37.0', 'Win32'));
     Assert.IsFalse(LStore.TryRead(LLibraryKey, 'Search Path', LValue));
+    Assert.IsFalse(LStore.TryRead('Environment', 'Path', LValue));
   finally
     LService.Free;
   end;

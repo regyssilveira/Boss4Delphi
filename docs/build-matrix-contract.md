@@ -168,6 +168,7 @@ For each target, the registration transaction manages:
 - `Search Path`;
 - `Browsing Path`;
 - `Debug DCU Path`.
+- the target BPL directory in the current user's `PATH`.
 
 Every registry value is snapshotted before mutation. A failed write or
 inventory update restores the values in reverse order and does not persist a
@@ -182,6 +183,8 @@ Paths shared by multiple managed packages use inventory-based ownership:
 unregistering one package keeps the path while another registration for the
 same compiler/platform still references it, and removes it only with the last
 owner.
+The same ownership rule applies to the user `PATH`, so a shared BPL directory
+is repaired and removed only when appropriate.
 
 Inventory schema v2 also records the target artifact root and the exact
 BPL/DCU/DCP/output files produced by the registered build. Unregister moves
