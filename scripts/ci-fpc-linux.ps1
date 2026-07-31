@@ -27,7 +27,7 @@ grep -q completion .fpc-build/package-smoke/project/progress.json
 ./.fpc-build/boss4d unknown-command >/dev/null 2>&1 || test $? -eq 2
 ./.fpc-build/boss4d doctor > .fpc-build/doctor.txt 2>&1 || true
 grep -q git .fpc-build/doctor.txt
-grep -q sha256sum .fpc-build/doctor.txt
+grep -q 'OK sha256:' .fpc-build/doctor.txt
 (cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d sbom --format cyclonedx --lock-only --strict --validate --reproducible --vex /work/tests/fixtures/package-posix/vex.json --output sbom.cdx.json)
 (cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d sbom --format spdx --lock-only --strict --validate --reproducible --output sbom.spdx.json)
 grep -q CycloneDX .fpc-build/package-smoke/project/sbom.cdx.json

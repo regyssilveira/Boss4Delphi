@@ -94,13 +94,21 @@ end;
 
 function Sha256File(const APath: string): string;
 var
-  LOutput: string;
+  LOutput, LTool: string;
 begin
-  if not RunCommand('sha256sum', [APath], LOutput) then
-    raise Exception.Create('sha256sum failed for ' + APath);
+  LTool := FindSha256Tool;
+  if LTool = '' then
+    raise Exception.Create('SHA-256 tool not found (sha256sum or shasum)');
+  if LTool = 'sha256sum' then
+  begin
+    if not RunCommand(LTool, [APath], LOutput) then
+      raise Exception.Create('sha256sum failed for ' + APath);
+  end
+  else if not RunCommand(LTool, ['-a', '256', APath], LOutput) then
+    raise Exception.Create('shasum failed for ' + APath);
   Result := LowerCase(Copy(Trim(LOutput), 1, 64));
   if Length(Result) <> 64 then
-    raise Exception.Create('invalid sha256sum output');
+    raise Exception.Create('invalid SHA-256 output');
 end;
 
 procedure DeleteDirectoryTree(const ADirectory: string);

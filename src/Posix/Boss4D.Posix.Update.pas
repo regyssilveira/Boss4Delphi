@@ -34,6 +34,7 @@ type
   end;
 
 function CompareVersions(const ALeft, ARight: string): Integer;
+function PosixReleaseAssetName: string;
 
 implementation
 
@@ -77,6 +78,22 @@ begin
     if LLeft < LRight then Exit(-1);
     if LLeft > LRight then Exit(1);
   end;
+end;
+
+function PosixReleaseAssetName: string;
+var
+  LArchitecture: string;
+begin
+  {$ifdef cpuaarch64}
+  LArchitecture := 'arm64';
+  {$else}
+  {$ifdef cpux86_64}
+  LArchitecture := 'x86_64';
+  {$else}
+  LArchitecture := 'unknown';
+  {$endif}
+  {$endif}
+  Result := 'boss4d-' + PlatformName + '-' + LArchitecture + '.tar.gz';
 end;
 
 function NativeFetchRelease: string;
@@ -197,18 +214,17 @@ end;
 
 function TBoss4DPosixUpdateService.Execute(const ACurrentVersion,
   AExecutablePath: string): TBoss4DUpdateResult;
-const
-  ASSET_NAME = 'boss4d-linux-x86_64.tar.gz';
 var
   LData: TJSONData;
   LRoot: TJSONObject;
   LAssets: TJSONArray;
   LRelease, LAssetUrl, LChecksumsUrl, LTemp, LArchive, LChecksums,
-    LExtract, LBinary, LExpected, LBackup: string;
+    LExtract, LBinary, LExpected, LBackup, LAssetName: string;
   LDownloaded, LExtracted: Boolean;
 begin
   Result.Updated := False;
   Result.Version := ACurrentVersion;
+  LAssetName := PosixReleaseAssetName;
   if Assigned(FFetcher) then LRelease := FFetcher()
   else LRelease := NativeFetchRelease;
   LData := GetJSON(LRelease);
@@ -222,16 +238,16 @@ begin
     if not (LRoot.Find('assets') is TJSONArray) then
       raise Exception.Create('release assets are missing');
     LAssets := TJSONArray(LRoot.Find('assets'));
-    LAssetUrl := FindAssetUrl(LAssets, ASSET_NAME);
+    LAssetUrl := FindAssetUrl(LAssets, LAssetName);
     LChecksumsUrl := FindAssetUrl(LAssets, 'SHA256SUMS.txt');
     if (LAssetUrl = '') or (LChecksumsUrl = '') then
-      raise Exception.Create('Linux update assets are missing');
+      raise Exception.Create(PlatformName + ' update assets are missing');
   finally
     LData.Free;
   end;
   LTemp := IncludeTrailingPathDelimiter(GetTempDir(False)) +
     'boss4d-update-' + IntToHex(Random(MaxInt), 8);
-  LArchive := IncludeTrailingPathDelimiter(LTemp) + ASSET_NAME;
+  LArchive := IncludeTrailingPathDelimiter(LTemp) + LAssetName;
   LChecksums := IncludeTrailingPathDelimiter(LTemp) + 'SHA256SUMS.txt';
   LExtract := IncludeTrailingPathDelimiter(LTemp) + 'extract';
   LBackup := ExpandFileName(AExecutablePath) + '.previous';
@@ -245,7 +261,7 @@ begin
     LDownloaded := NativeDownload(LAssetUrl, LArchive) and
       NativeDownload(LChecksumsUrl, LChecksums);
   if not LDownloaded then raise Exception.Create('update download failed');
-  LExpected := ReadExpectedHash(LChecksums, ASSET_NAME);
+  LExpected := ReadExpectedHash(LChecksums, LAssetName);
   if (LExpected = '') or not SameText(Sha256File(LArchive), LExpected) then
     raise Exception.Create('update SHA-256 mismatch');
   if Assigned(FExtractor) then

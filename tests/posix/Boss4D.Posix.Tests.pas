@@ -165,7 +165,9 @@ type
     procedure TestExitCodeClassification;
     procedure TestCancellation;
     procedure TestInstallHonorsCancellation;
-    procedure TestLinuxDoctor;
+    procedure TestPosixDoctor;
+    procedure TestSha256ToolSelection;
+    procedure TestReleaseAssetName;
     procedure TestCycloneDxLockOnlySbom;
     procedure TestSpdxLockOnlySbom;
     procedure TestCycloneDxVex;
@@ -944,7 +946,15 @@ end;
 
 procedure TPosixCoreTests.TestPlatform;
 begin
+  {$ifdef linux}
   AssertEquals('linux', PlatformName);
+  {$else}
+  {$ifdef darwin}
+  AssertEquals('macos', PlatformName);
+  {$else}
+  AssertEquals('posix', PlatformName);
+  {$endif}
+  {$endif}
 end;
 
 procedure TPosixCoreTests.TestLegacyManifestCompatibility;
@@ -1186,16 +1196,18 @@ begin
   end;
 end;
 
-procedure TPosixCoreTests.TestLinuxDoctor;
+procedure TPosixCoreTests.TestPosixDoctor;
 var
   LResults: TStringList;
+  LTool: string;
 begin
-  AssertTrue(FindExecutable('sha256sum') <> '');
+  LTool := FindSha256Tool;
+  AssertTrue('A supported SHA-256 tool is required', LTool <> '');
   AssertEquals('', FindExecutable('boss4d-command-that-does-not-exist'));
   LResults := RunDoctor;
   try
     AssertTrue(LResults.Text,
-      LResults.IndexOf('OK sha256sum: available') >= 0);
+      LResults.IndexOf('OK sha256: ' + LTool) >= 0);
     AssertTrue(LResults.Text, LResults.IndexOf('OK home: writable') >= 0);
     AssertEquals(LResults.Text,
       LResults.IndexOf('ERROR git: not found') < 0, DoctorPassed(LResults));
@@ -1236,7 +1248,7 @@ begin
     LSource := IncludeTrailingPathDelimiter(FDirectory) + 'SHA256SUMS.txt'
   else
     LSource := IncludeTrailingPathDelimiter(FDirectory) +
-      'boss4d-linux-x86_64.tar.gz';
+      PosixReleaseAssetName;
   LInput := TFileStream.Create(LSource, fmOpenRead);
   try
     LOutput := TFileStream.Create(ATarget, fmCreate);
@@ -1680,12 +1692,11 @@ var
   LContent: TStringList;
 begin
   LDir := NewTempDirectory;
-  LArchive := IncludeTrailingPathDelimiter(LDir) +
-    'boss4d-linux-x86_64.tar.gz';
+  LArchive := IncludeTrailingPathDelimiter(LDir) + PosixReleaseAssetName;
   SaveFixture(LArchive, 'archive fixture');
   LHash := Sha256File(LArchive);
   SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'SHA256SUMS.txt',
-    LHash + '  boss4d-linux-x86_64.tar.gz');
+    LHash + '  ' + PosixReleaseAssetName);
   LTarget := IncludeTrailingPathDelimiter(LDir) + 'installed/boss4d';
   ForceDirectories(ExtractFileDir(LTarget));
   SaveFixture(LTarget, 'old executable');
@@ -1693,7 +1704,7 @@ begin
   try
     LMock.Directory := LDir;
     LMock.Release := '{"tag_name":"v1.6.0","assets":[' +
-      '{"name":"boss4d-linux-x86_64.tar.gz",' +
+      '{"name":"' + PosixReleaseAssetName + '",' +
       '"browser_download_url":"https://release/archive"},' +
       '{"name":"SHA256SUMS.txt",' +
       '"browser_download_url":"https://release/SHA256SUMS.txt"}]}';
@@ -2043,6 +2054,31 @@ begin
   finally
     LRoot.Free;
   end;
+end;
+
+procedure TPosixCoreTests.TestSha256ToolSelection;
+begin
+  AssertEquals('sha256sum', SelectSha256Tool('/usr/bin/sha256sum',
+    '/usr/bin/shasum'));
+  AssertEquals('shasum', SelectSha256Tool('', '/usr/bin/shasum'));
+  AssertEquals('', SelectSha256Tool('', ''));
+end;
+
+procedure TPosixCoreTests.TestReleaseAssetName;
+var
+  LExpectedArchitecture: string;
+begin
+  {$ifdef cpuaarch64}
+  LExpectedArchitecture := 'arm64';
+  {$else}
+  {$ifdef cpux86_64}
+  LExpectedArchitecture := 'x86_64';
+  {$else}
+  LExpectedArchitecture := 'unknown';
+  {$endif}
+  {$endif}
+  AssertEquals('boss4d-' + PlatformName + '-' + LExpectedArchitecture +
+    '.tar.gz', PosixReleaseAssetName);
 end;
 
 procedure TPosixCoreTests.TestDocumentationCanExcludeDependencies;
