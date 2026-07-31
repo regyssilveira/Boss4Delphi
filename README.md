@@ -129,8 +129,10 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d package install <name>@<version>` and `boss4d pack`
   Installs or creates deterministic `.b4dpkg` files with compiler/platform
   selection, SHA-256, OpenPGP, and in-toto provenance.
-* `boss4d publish [--dry-run]` and `boss4d conformance registry|package <file>`
-  Publishes immutable versions and validates public Registry/package contracts.
+* `boss4d publish [--dry-run]`, `boss4d publish --official`, and
+  `boss4d conformance registry|package <file>`
+  Publishes to HTTP registries or prepares a signed, verified bundle and
+  schema-v2 document for a reviewed public Registry PR.
 * `boss4d audit [--fail-on <severity>]`
   Queries OSV for locked revisions, with offline cache and VEX support.
 * `boss4d doctor`, `cache`, `tool`, `plugin`, `getit`, and `license report`

@@ -1,8 +1,11 @@
 # Publishing packages
 
 `boss4d publish` creates a deterministic package record from `boss.json` and
-`boss-lock.json`, validates it, and optionally sends it to the official public
-Registry or to a compatible private registry.
+`boss-lock.json` and validates it. There are two explicit destinations:
+
+- a compatible HTTP registry accepts the authenticated protocol payload;
+- the official public Registry is Git-governed and accepts reviewed pull
+  requests, not HTTP publication.
 This makes the reviewed manifest and locked supply-chain evidence the source of
 the published metadata.
 
@@ -26,6 +29,34 @@ set BOSS4D_PUBLISH_TOKEN=your-token
 boss4d publish --registry https://registry.example/api
 ```
 
+## Prepare an official public Registry submission
+
+Use one local command to run the publication gates, create the immutable
+`.b4dpkg`, create in-toto provenance, sign and verify the artifact with
+OpenPGP, and generate the schema-v2 package document:
+
+```console
+boss4d publish --official ^
+  --publisher my-publisher ^
+  --repository github.com/owner/project ^
+  --fingerprint 0123456789ABCDEF0123456789ABCDEF01234567 ^
+  --sign 0123456789ABCDEF0123456789ABCDEF01234567 ^
+  --artifact-url https://github.com/owner/project/releases/download/v1.2.3/project-1.2.3.b4dpkg
+```
+
+The default outputs are `dist/<name>-<version>.b4dpkg`, its `.asc` signature,
+its `.intoto.json` provenance, and
+`dist/<name>-<version>.registry.json`. Use `--artifact-output` and
+`--submission-output` to override them.
+
+`--dry-run` executes the manifest, lock, clean-worktree, test, identity,
+SemVer, HTTPS, hash-shape, and signer-input gates without creating the bundle.
+The command does not upload assets or modify the Registry repository. Upload
+the three evidence files to the immutable release URL, copy the generated
+document into the Registry checkout, and open the reviewed PR. The Registry
+workflow independently verifies publisher ownership, repository scope,
+fingerprint authorization, immutability, signature, provenance, and digest.
+
 The same command is available on Linux/FPC. It creates the deterministic
 `.b4dpkg` and in-toto provenance locally, embeds both in the protocol payload,
 and requires lock v3 evidence. Git dependencies require revision and checksum;
@@ -45,7 +76,7 @@ Use `--token-env NAME` to select another environment variable. `--allow-dirty`
 and `--skip-tests` explicitly bypass their respective gates and should be
 reserved for controlled recovery workflows.
 
-## Registry contract
+## HTTP Registry contract
 
 Boss4D sends an authenticated `POST` with JSON content to
 `<registry>/packages`. The payload contains package identity and descriptive
@@ -53,5 +84,6 @@ metadata, lock schema version, and dependencies sorted by canonical key with
 version, repository, immutable revision, checksum, and scope. A registry must
 return a 2xx status. Tokens are never written to the manifest, lock, or payload.
 
-This command publishes metadata and supply-chain evidence; release binaries and
-source archives remain artifacts of the project's release pipeline.
+The HTTP mode publishes metadata and embedded evidence. In official mode,
+release assets remain controlled by the package project's release pipeline and
+the Registry change remains reviewable in Git.
