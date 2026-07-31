@@ -166,6 +166,35 @@ begin
     if SameText(SparseValue(LArray.Items[I]), APath) then Exit(True);
 end;
 
+procedure ReadSubmission(const ASubmission: TJSONObject;
+  out APackage, AVersion: TJSONObject; out APackageName,
+  AVersionName, APublisherId, ARepository, AFingerprint: string);
+var
+  LPackages, LVersions: TJSONArray;
+begin
+  if ASubmission.Get('schemaVersion', 0) <> 2 then
+    raise Exception.Create('submission must use schemaVersion 2');
+  if not (ASubmission.Find('packages') is TJSONArray) then
+    raise Exception.Create('submission packages array is required');
+  LPackages := TJSONArray(ASubmission.Find('packages'));
+  if (LPackages.Count <> 1) or
+     not (LPackages.Items[0] is TJSONObject) then
+    raise Exception.Create('submission must contain exactly one package');
+  APackage := TJSONObject(LPackages.Items[0]);
+  if not (APackage.Find('versions') is TJSONArray) then
+    raise Exception.Create('submission versions array is required');
+  LVersions := TJSONArray(APackage.Find('versions'));
+  if (LVersions.Count <> 1) or
+     not (LVersions.Items[0] is TJSONObject) then
+    raise Exception.Create('submission must contain exactly one version');
+  AVersion := TJSONObject(LVersions.Items[0]);
+  APackageName := APackage.Get('name', '');
+  AVersionName := AVersion.Get('version', '');
+  APublisherId := APackage.Get('publisher', '');
+  ARepository := APackage.Get('repository', '');
+  AFingerprint := UpperCase(APackage.Get('signerFingerprint', ''));
+end;
+
 function ApplyRegistrySubmission(const ARoot, ASubmissionPath: string;
   const AAppendVersion: Boolean): TBoss4DRegistryCheckoutResult;
 var
@@ -174,7 +203,7 @@ var
     LRepository, LFingerprint: string;
   LSubmission, LPublishers, LIndex, LExisting,
     LPackage, LVersion, LExistingPackage: TJSONObject;
-  LPackages, LVersions, LSparseArray, LExistingPackages,
+  LSparseArray, LExistingPackages,
     LExistingVersions: TJSONArray;
   LPackageExisted, LSparsePresent: Boolean;
   LSortedSparse: TStringList;
@@ -197,27 +226,9 @@ begin
   LIndex := LoadObject(Result.IndexPath);
   LExisting := nil;
   try
-    if LSubmission.Get('schemaVersion', 0) <> 2 then
-      raise Exception.Create('submission must use schemaVersion 2');
-    if not (LSubmission.Find('packages') is TJSONArray) then
-      raise Exception.Create('submission packages array is required');
-    LPackages := TJSONArray(LSubmission.Find('packages'));
-    if (LPackages.Count <> 1) or
-       not (LPackages.Items[0] is TJSONObject) then
-      raise Exception.Create('submission must contain exactly one package');
-    LPackage := TJSONObject(LPackages.Items[0]);
-    if not (LPackage.Find('versions') is TJSONArray) then
-      raise Exception.Create('submission versions array is required');
-    LVersions := TJSONArray(LPackage.Find('versions'));
-    if (LVersions.Count <> 1) or
-       not (LVersions.Items[0] is TJSONObject) then
-      raise Exception.Create('submission must contain exactly one version');
-    LVersion := TJSONObject(LVersions.Items[0]);
-    Result.PackageName := LPackage.Get('name', '');
-    Result.Version := LVersion.Get('version', '');
-    LPublisherId := LPackage.Get('publisher', '');
-    LRepository := LPackage.Get('repository', '');
-    LFingerprint := UpperCase(LPackage.Get('signerFingerprint', ''));
+    ReadSubmission(LSubmission, LPackage, LVersion,
+      Result.PackageName, Result.Version, LPublisherId,
+      LRepository, LFingerprint);
     Result.PackagePath := IncludeTrailingPathDelimiter(LPackageDirectory) +
       RegistryPackageSlug(Result.PackageName) + '.json';
     LSparsePath := 'packages/' + ExtractFileName(Result.PackagePath);
