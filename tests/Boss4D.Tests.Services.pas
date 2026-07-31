@@ -60,6 +60,8 @@ type
     procedure TestInstallService;
     [Test]
     procedure TestInstallBuildMatrixTriggersAutomaticIDEInstallation;
+    [Test]
+    procedure TestInstallNoRegisterSkipsLibraryPathIntegration;
 
     [Test]
     procedure TestInstallBranchDependency;
@@ -1240,6 +1242,50 @@ begin
   finally
     LService.Free;
     LConfig.Free;
+  end;
+end;
+
+procedure TTestsServices.TestInstallNoRegisterSkipsLibraryPathIntegration;
+var
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LPackage: TBoss4DPackage;
+  LInstall: TBoss4DInstallService;
+  LOptions: TBoss4DInstallOptions;
+  LGit: TGitClientMock;
+  LPathCalls: Integer;
+begin
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'isolated-install';
+    LPackage.Version := '1.0.0';
+    LPackage.AddDependency('github.com/hashload/horse', '^3.1.0');
+    LPackageRepo.Save(LPackage, GetBossFile);
+  finally
+    LPackage.Free;
+  end;
+  LGit := TGitClientMock.Create;
+  LGit.AddMockTags('github.com/hashload/horse',
+    TArray<string>.Create('v3.1.0'));
+  LPathCalls := 0;
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo,
+    LGit, THttpClientMock.Create, TCompilerMock.Create,
+    TTestLogger.Create);
+  try
+    LInstall.SetIDEPathIntegrationHandler(
+      procedure(const APlatform: string)
+      begin
+        Inc(LPathCalls);
+      end);
+    LOptions := Default(TBoss4DInstallOptions);
+    LOptions.InstallIDEs := False;
+    LInstall.Execute(LOptions);
+    Assert.AreEqual(0, LPathCalls,
+      '--no-register nao deve alterar Library Paths globais.');
+  finally
+    LInstall.Free;
   end;
 end;
 

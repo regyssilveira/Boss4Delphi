@@ -127,7 +127,8 @@ Quando o manifesto raiz declara `buildMatrix`, o mesmo comando detecta as
 versões instaladas do Delphi e seus compiladores Win32/Win64, compila somente
 os targets compatíveis e registra as BPLs de design-time exatamente na IDE que
 as produziu. Use `boss4d install --no-register` para restaurar apenas as
-dependências ou preparar um ambiente de CI isolado.
+dependências ou preparar um ambiente de CI isolado; ele impede tanto o registro
+design-time quanto alterações no Library Path global do Delphi.
 
 ---
 

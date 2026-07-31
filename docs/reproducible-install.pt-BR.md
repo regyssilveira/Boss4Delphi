@@ -24,10 +24,11 @@ interrompe o comando.
 
 `ci` e `restore --ci` são o modo de release e automação. Eles impõem o lock,
 limpam `modules/` e desativam o registro na IDE na fronteira do serviço.
-`install --build-only` também impede registro. Como a operação é transacional,
-uma falha restaura manifesto, lock e árvore de módulos anteriores.
-`--remote-cache` compartilha targets compilados verificados sem enfraquecer
-essas regras.
+A fronteira de `install --build-only` e `--no-register` cobre tanto o registro
+de packages design-time quanto alterações no Library Path global do Delphi.
+Como a operação é transacional, uma falha restaura manifesto, lock e árvore de
+módulos anteriores. `--remote-cache` compartilha targets compilados
+verificados sem enfraquecer essas regras.
 
 Sequência recomendada na CI:
 

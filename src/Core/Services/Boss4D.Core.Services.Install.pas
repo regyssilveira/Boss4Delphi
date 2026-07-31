@@ -11,6 +11,8 @@ uses
 type
   TBoss4DIDEInstallHandler = reference to procedure(
     const APackage: TBoss4DPackage);
+  TBoss4DIDEPathIntegrationHandler = reference to procedure(
+    const APlatform: string);
 
   TBoss4DInstallOptions = record
     Platform: string;
@@ -43,6 +45,7 @@ type
     FProgressOutput: IBoss4DProgressOutput;
     FProgress: IBoss4DProgressReporter;
     FIDEInstallHandler: TBoss4DIDEInstallHandler;
+    FIDEPathIntegrationHandler: TBoss4DIDEPathIntegrationHandler;
     FOperationGate: TBoss4DKeyedOperationGate;
 
     procedure ProcessDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock;
@@ -85,6 +88,8 @@ type
     procedure RunInstallTask(const ADep: TBoss4DDependency; const ALock: TBoss4DLock; const ATasks: TList<ITask>);
     procedure SetProgressOutput(const AOutput: IBoss4DProgressOutput);
     procedure SetProgressMode(const AMode: string);
+    procedure SetIDEPathIntegrationHandler(
+      const AHandler: TBoss4DIDEPathIntegrationHandler);
   end;
 
 implementation
@@ -1029,14 +1034,21 @@ begin
     FLogger.Log(TBoss4DLogLevel.Info, 'Instalacao concluida com sucesso!');
 
     // Sem dependencias nao ha Library Paths a registrar; evita mutacao desnecessaria da IDE.
-    if LLock.Installed.Count > 0 then
+    if FOptions.InstallIDEs and (LLock.Installed.Count > 0) then
     begin
-      var LRegistry: IBoss4DRegistryService := TBoss4DWindowsRegistryAdapter.Create;
-      var LIDEIntegration := TBoss4DIDEIntegrationService.Create(LRegistry, FLogger);
-      try
-        LIDEIntegration.IntegrateLibraryPaths(LEffectivePlatform);
-      finally
-        LIDEIntegration.Free;
+      if Assigned(FIDEPathIntegrationHandler) then
+        FIDEPathIntegrationHandler(LEffectivePlatform)
+      else
+      begin
+        var LRegistry: IBoss4DRegistryService :=
+          TBoss4DWindowsRegistryAdapter.Create;
+        var LIDEIntegration := TBoss4DIDEIntegrationService.Create(
+          LRegistry, FLogger);
+        try
+          LIDEIntegration.IntegrateLibraryPaths(LEffectivePlatform);
+        finally
+          LIDEIntegration.Free;
+        end;
       end;
     end;
   finally
@@ -1046,6 +1058,12 @@ begin
     LLock.Free;
     LPkg.Free;
   end;
+end;
+
+procedure TBoss4DInstallService.SetIDEPathIntegrationHandler(
+  const AHandler: TBoss4DIDEPathIntegrationHandler);
+begin
+  FIDEPathIntegrationHandler := AHandler;
 end;
 
 procedure TBoss4DInstallService.RunInstallTask(const ADep: TBoss4DDependency; const ALock: TBoss4DLock;
