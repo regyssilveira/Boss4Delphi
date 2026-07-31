@@ -99,6 +99,7 @@ type
     procedure HandleCache(const AArgs: TArray<string>);
     procedure HandleRun(const AArgs: TArray<string>);
     procedure HandleDoctor(const AArgs: TArray<string>);
+    procedure HandleDoc(const AArgs: TArray<string>);
     procedure HandleLicense(const AArgs: TArray<string>);
     procedure HandleTree(const AArgs: TArray<string>);
     procedure HandleOutdated(const AArgs: TArray<string>);
@@ -174,6 +175,7 @@ uses
   Boss4D.Core.Services.Resolver,
   Boss4D.Core.Services.Conformance,
   Boss4D.Core.Services.RegistryPortal,
+  Boss4D.Core.Services.Documentation,
   Boss4D.Core.Services.PackageInstall,
   Boss4D.Core.Services.BuildSpec,
   Boss4D.Core.Services.BuildConventions,
@@ -265,6 +267,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  upgrade|downgrade <dep>@<versao> Troca versao com snapshot transacional.');
   FLogger.Log(TBoss4DLogLevel.Info, '  rollback             Restaura o ultimo snapshot de versao.');
   FLogger.Log(TBoss4DLogLevel.Info, '  audit               Consulta vulnerabilidades OSV por revisao do lock.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  doc [-o pasta] [--no-dependencies] Gera site estatico da API Pascal.');
   FLogger.Log(TBoss4DLogLevel.Info, '  registry add|remove|list Gerencia indices publicos e privados.');
   FLogger.Log(TBoss4DLogLevel.Info, '  registry portal|search-index <entrada> <saida> Gera artefatos estaticos do catalogo.');
   FLogger.Log(TBoss4DLogLevel.Info, '  search <termo>       Pesquisa pacotes nos indices configurados.');
@@ -389,6 +392,8 @@ begin
     HandleRun(AArgs)
   else if LCommand = 'doctor' then
     HandleDoctor(AArgs)
+  else if LCommand = 'doc' then
+    HandleDoc(AArgs)
   else if LCommand = 'license' then
     HandleLicense(AArgs)
   else if LCommand = 'tree' then
@@ -2304,6 +2309,23 @@ begin
     LRunService.Execute(AArgs[1]);
   finally
     LRunService.Free;
+  end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleDoc(
+  const AArgs: TArray<string>);
+begin
+  var LOptions := TBoss4DDocumentationCommandOptions.Parse(AArgs);
+  var LService := TBoss4DDocumentationService.Create;
+  try
+    var LResult := LService.Generate(GetCurrentDir,
+      TPath.GetFullPath(LOptions.OutputDirectory),
+      LOptions.IncludeDependencies);
+    FLogger.Log(TBoss4DLogLevel.Info,
+      'Documentacao gerada em %s: %d arquivo(s), %d simbolo(s).',
+      [LResult.OutputDirectory, LResult.Files, LResult.Symbols]);
+  finally
+    LService.Free;
   end;
 end;
 

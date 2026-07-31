@@ -27,6 +27,13 @@ type
     OutputDirectory: string;
   end;
 
+  TBoss4DDocumentationCommandOptions = record
+    OutputDirectory: string;
+    IncludeDependencies: Boolean;
+    class function Parse(const AArgs: TArray<string>):
+      TBoss4DDocumentationCommandOptions; static;
+  end;
+
   TBoss4DDocumentationService = class
   private
     function IsSourceIncluded(const ARoot, AOutput,
@@ -56,6 +63,36 @@ uses
   System.RegularExpressions,
   System.NetEncoding,
   System.Generics.Defaults;
+
+class function TBoss4DDocumentationCommandOptions.Parse(
+  const AArgs: TArray<string>): TBoss4DDocumentationCommandOptions;
+begin
+  Result.OutputDirectory := 'docs-api';
+  Result.IncludeDependencies := True;
+  var I := 1;
+  while I < Length(AArgs) do
+  begin
+    if SameText(AArgs[I], '--output') or SameText(AArgs[I], '-o') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create(
+          'Informe o diretorio de saida da documentacao.');
+      Result.OutputDirectory := AArgs[I + 1];
+      Inc(I, 2);
+    end
+    else if SameText(AArgs[I], '--no-dependencies') then
+    begin
+      Result.IncludeDependencies := False;
+      Inc(I);
+    end
+    else
+      raise EArgumentException.Create(
+        'Opcao desconhecida para doc: ' + AArgs[I]);
+  end;
+  if Result.OutputDirectory.Trim.IsEmpty then
+    raise EArgumentException.Create(
+      'O diretorio de saida nao pode ser vazio.');
+end;
 
 function TBoss4DDocumentationService.IsSourceIncluded(
   const ARoot, AOutput, ASourcePath: string;

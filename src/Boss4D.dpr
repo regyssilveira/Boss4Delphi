@@ -42,6 +42,7 @@ uses
   Boss4D.Core.Services.Resolver in 'Core/Services/Boss4D.Core.Services.Resolver.pas',
   Boss4D.Core.Services.Conformance in 'Core/Services/Boss4D.Core.Services.Conformance.pas',
   Boss4D.Core.Services.RegistryPortal in 'Core/Services/Boss4D.Core.Services.RegistryPortal.pas',
+  Boss4D.Core.Services.Documentation in 'Core/Services/Boss4D.Core.Services.Documentation.pas',
   Boss4D.Core.Services.Progress in 'Core/Services/Boss4D.Core.Services.Progress.pas',
   Boss4D.Core.Services.Transaction in 'Core/Services/Boss4D.Core.Services.Transaction.pas',
   Boss4D.Core.Services.Dependencies in 'Core/Services/Boss4D.Core.Services.Dependencies.pas',

@@ -16,6 +16,8 @@ type
     [Test] procedure GeneratesSearchableSiteFromXmlAndPascalDoc;
     [Test] procedure CanExcludeDependencySources;
     [Test] procedure EscapesUntrustedDocumentation;
+    [Test] procedure ParsesDocumentationCommandOptions;
+    [Test] procedure RejectsUnknownDocumentationOption;
   end;
 
 implementation
@@ -118,6 +120,25 @@ begin
   finally
     LService.Free;
   end;
+end;
+
+procedure TBoss4DDocumentationTests.ParsesDocumentationCommandOptions;
+begin
+  var LOptions := TBoss4DDocumentationCommandOptions.Parse(
+    TArray<string>.Create('doc', '--output', 'site', '--no-dependencies'));
+  Assert.AreEqual('site', LOptions.OutputDirectory);
+  Assert.IsFalse(LOptions.IncludeDependencies);
+end;
+
+procedure TBoss4DDocumentationTests.RejectsUnknownDocumentationOption;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      TBoss4DDocumentationCommandOptions.Parse(
+        TArray<string>.Create('doc', '--unknown'));
+    end,
+    EArgumentException);
 end;
 
 initialization
