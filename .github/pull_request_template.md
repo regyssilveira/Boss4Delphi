@@ -28,4 +28,5 @@ Preencha somente quando a PR altera `registry/`:
 - [ ] O nome do arquivo do pacote está normalizado e consta em `index-v2.json`.
 - [ ] Cada versão possui `.b4dpkg`, SHA-256, assinatura OpenPGP e proveniência in-toto.
 - [ ] Não alterei nem removi uma versão ou entrada sparse já publicada.
+- [ ] Usei `new-registry-submission.ps1` para uma entrada nova ou preservei integralmente as versões existentes.
 - [ ] Executei `./scripts/validate-registry-submission.ps1 -Submitter <meu-login>` e `./scripts/test-registry-submission.ps1`.

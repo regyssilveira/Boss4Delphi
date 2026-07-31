@@ -25,6 +25,9 @@ try {
   if ($workflowContent -notmatch '-Submitter "\$\{\{ github\.actor \}\}"') {
     throw 'Registry workflow must bind validation to github.actor.'
   }
+  if ($workflowContent -notmatch 'test-new-registry-submission\.ps1') {
+    throw 'Registry workflow must test the submission generator.'
+  }
   $fingerprint = '1234567890ABCDEF1234567890ABCDEF12345678'
   $publisherEntry = '{"id":"demo","displayName":"Demo","githubOwners":["demo-owner"],"repositories":["github.com/demo/"],"allowedSigners":["' + $fingerprint + '"]}'
   $publishers = '{"schemaVersion":1,"publishers":[' + $publisherEntry + ']}'

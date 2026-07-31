@@ -27,4 +27,6 @@ jobs:
             -Submitter "${{ github.actor }}"
       - name: Run negative validator tests
         shell: pwsh
-        run: ./scripts/test-registry-submission.ps1
+        run: |
+          ./scripts/test-registry-submission.ps1
+          ./scripts/test-new-registry-submission.ps1

@@ -30,6 +30,31 @@ contra os owners presentes no branch de destino; assim, um colaborador não
 consegue adicionar a si próprio e um novo signatário na mesma PR. Submissões de
 pacotes também ficam limitadas aos owners cadastrados.
 
+## Gerando uma submissão de pacote
+
+Depois de cadastrar publisher e signatário, gere o documento do pacote e a
+entrada do índice sparse em conjunto:
+
+```powershell
+./scripts/new-registry-submission.ps1 `
+  -PackageName MeuPacote `
+  -Publisher meu-publisher `
+  -Repository github.com/owner/meu-pacote `
+  -SignerFingerprint 0123456789ABCDEF0123456789ABCDEF01234567 `
+  -Version 1.0.0 `
+  -Artifact https://github.com/owner/meu-pacote/releases/download/v1.0.0/MeuPacote-1.0.0.b4dpkg `
+  -Sha256 <64-caracteres-hexadecimais> `
+  -Signature https://github.com/owner/meu-pacote/releases/download/v1.0.0/MeuPacote-1.0.0.b4dpkg.asc `
+  -Provenance https://github.com/owner/meu-pacote/releases/download/v1.0.0/MeuPacote-1.0.0.b4dpkg.intoto.json `
+  -Description "Meu pacote" `
+  -License MIT
+```
+
+O gerador valida publisher, escopo do repositório, signatário, SemVer, SHA-256
+e URLs HTTPS antes de gravar. Ele cria
+`registry/packages/<nome-normalizado>.json` e atualiza `index-v2.json` em
+conjunto, recusando sobrescrever metadados existentes.
+
 ## Imutabilidade
 
 Objetos de versões existentes não podem ser alterados nem removidos. O
@@ -43,6 +68,7 @@ Execute localmente:
 ```powershell
 ./scripts/validate-registry-submission.ps1 -Submitter <seu-login-github>
 ./scripts/test-registry-submission.ps1
+./scripts/test-new-registry-submission.ps1
 ```
 
 A aprovação no Registry estabelece a política do catálogo; durante a
