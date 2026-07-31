@@ -238,7 +238,7 @@ object FormMain: TFormMain
           Left = 0
           Top = 50
           Width = 689
-          Height = 360
+          Height = 235
           Align = alClient
           Columns = <
             item
@@ -262,6 +262,27 @@ object FormMain: TFormMain
           RowSelect = True
           ViewStyle = vsReport
           TabOrder = 1
+          OnSelectItem = ListCatalogSelectItem
+        end
+        object PanelCatalogDetails: TPanel
+          Left = 0
+          Top = 285
+          Width = 689
+          Height = 125
+          Align = alBottom
+          BevelOuter = bvNone
+          Caption = ''
+          TabOrder = 2
+          object MemoCatalogDetails: TMemo
+            Left = 0
+            Top = 0
+            Width = 689
+            Height = 125
+            Align = alClient
+            ReadOnly = True
+            ScrollBars = ssVertical
+            TabOrder = 0
+          end
         end
       end
       object TabDoctor: TTabSheet

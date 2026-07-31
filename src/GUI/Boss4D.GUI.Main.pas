@@ -9,7 +9,8 @@ uses
   Boss4D.Core.Services.BuildInventory, Boss4D.Core.Services.IDEProfiles,
   Boss4D.Core.Services.IDEProfileApplication,
   Boss4D.Core.Services.IDEManagementQuery,
-  Boss4D.GUI.IDE.Presenter;
+  Boss4D.GUI.IDE.Presenter,
+  Boss4D.GUI.Catalog.Presenter;
 
 type
   TFormMain = class(TForm, IBoss4DIDEManagementView)
@@ -42,6 +43,8 @@ type
     EditSearch: TEdit;
     BtnInstallSelected: TButton;
     ListCatalog: TListView;
+    PanelCatalogDetails: TPanel;
+    MemoCatalogDetails: TMemo;
     PanelDocTop: TPanel;
     BtnDocCheck: TButton;
     BtnDocFix: TButton;
@@ -95,6 +98,8 @@ type
     procedure BtnProjTreeClick(Sender: TObject);
     procedure EditSearchChange(Sender: TObject);
     procedure BtnInstallSelectedClick(Sender: TObject);
+    procedure ListCatalogSelectItem(Sender: TObject; Item: TListItem;
+      Selected: Boolean);
     procedure BtnDocCheckClick(Sender: TObject);
     procedure BtnDocFixClick(Sender: TObject);
     procedure BtnCacheCleanClick(Sender: TObject);
@@ -126,11 +131,13 @@ type
     FIDEQuery: TBoss4DIDEManagementQuery;
     FIDEBackend: IBoss4DIDEManagementBackend;
     FIDEPresenter: TBoss4DIDEManagementPresenter;
+    FCatalogRows: TArray<TBoss4DGUICatalogRow>;
     procedure InitializeIDEManagement;
     function SelectedIDEPackage: string;
     procedure LoadProjectDependencies(const AProjectDir: string);
     procedure LogMessage(const AMessage: string);
     procedure PopulateCatalog;
+    procedure ShowCatalogDetails(const AIndex: Integer);
     procedure RunAsyncCommand(const ATitle, ACommand: string; const AArgs: string = '');
     procedure ClearProfiles;
     procedure AddProfile(const AId, AName, ACompiler,
@@ -154,7 +161,7 @@ implementation
 {$R *.dfm}
 
 uses
-  System.IOUtils, System.Threading, System.JSON,
+  System.IOUtils, System.Threading, System.JSON, System.StrUtils,
   Boss4D.Adapters.Json,
   Boss4D.Adapters.Http,
   Boss4D.Adapters.Git,
@@ -168,7 +175,6 @@ uses
   Boss4D.Core.Services.Tree,
   Boss4D.Core.Services.Outdated,
   Boss4D.Core.Services.PackageIndex,
-  Boss4D.GUI.Catalog.Presenter,
   Boss4D.Core.Domain.Env,
   Boss4D.Core.Domain.IDEProfile,
   Boss4D.Core.Services.IDERegistration,
@@ -417,6 +423,8 @@ var
   LPresenter: TBoss4DGUICatalogPresenter;
 begin
   ListCatalog.Items.Clear;
+  FCatalogRows := nil;
+  MemoCatalogDetails.Clear;
   LLogger := TGUILogger.Create(Self);
   LHttp := TBoss4DHttpNativeAdapter.Create;
   LConfig := TBoss4DConfigService.Create(LLogger);
@@ -425,7 +433,8 @@ begin
   try
     var LEntries := LService.Search(Trim(EditSearch.Text));
     try
-      for var LRow in LPresenter.BuildRows(LEntries) do
+      FCatalogRows := LPresenter.BuildRows(LEntries);
+      for var LRow in FCatalogRows do
       begin
         LItem := ListCatalog.Items.Add;
         LItem.Caption := LRow.Name;
@@ -441,6 +450,35 @@ begin
     LService.Free;
     LConfig.Free;
   end;
+end;
+
+procedure TFormMain.ShowCatalogDetails(const AIndex: Integer);
+var
+  LRow: TBoss4DGUICatalogRow;
+begin
+  MemoCatalogDetails.Clear;
+  if (AIndex < 0) or (AIndex >= Length(FCatalogRows)) then
+    Exit;
+  LRow := FCatalogRows[AIndex];
+  MemoCatalogDetails.Lines.Add(LRow.Name + ' ' + LRow.Version);
+  if LRow.Description <> '' then
+    MemoCatalogDetails.Lines.Add(LRow.Description);
+  MemoCatalogDetails.Lines.Add('Licenca: ' +
+    IfThen(LRow.License <> '', LRow.License, 'nao informada'));
+  MemoCatalogDetails.Lines.Add('Versoes: ' +
+    IfThen(LRow.Versions <> '', LRow.Versions, 'nao informadas'));
+  MemoCatalogDetails.Lines.Add('Variantes: ' + LRow.VariantSummary);
+  MemoCatalogDetails.Lines.Add('Conformidade: ' + LRow.SupplyChainSummary);
+  MemoCatalogDetails.Lines.Add('Repositorio: ' + LRow.Repository);
+end;
+
+procedure TFormMain.ListCatalogSelectItem(Sender: TObject; Item: TListItem;
+  Selected: Boolean);
+begin
+  if Selected then
+    ShowCatalogDetails(Item.Index)
+  else if ListCatalog.Selected = nil then
+    ShowCatalogDetails(-1);
 end;
 
 procedure TFormMain.EditSearchChange(Sender: TObject);
@@ -644,7 +682,9 @@ begin
     Exit;
   end;
 
-  LRepo := ListCatalog.Selected.SubItems[2];
+  if ListCatalog.Selected.Index >= Length(FCatalogRows) then
+    Exit;
+  LRepo := FCatalogRows[ListCatalog.Selected.Index].Repository;
   RunAsyncCommand('Instalacao de ' + ListCatalog.Selected.Caption, 'install', LRepo);
 end;
 
