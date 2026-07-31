@@ -153,7 +153,9 @@ cd /d d:\Projetos\BossDelphi
   `snapshot|diff|restore|history|undo` e
   `preview-install|install|repair|preview-uninstall|uninstall`
   Gerencia Registry branches isolados do RAD Studio e executa instalação
-  transacional de produtos com preview. Consulte o
+  transacional de produtos com preview. A GUI apresenta o diário imutável de
+  operações como uma linha do tempo estruturada com evidências de recuperação
+  e desfazer. Consulte o
   [guia de perfis e componentes](docs/ide-component-management.pt-BR.md).
 * `boss4d config delphi use <caminho_ou_versao>`
   Configura o caminho global do Delphi ou a versão de release (ex: "23.0", "22.0") para a compilação do MSBuild. Se não configurado, o resolvedor autodetecta dinamicamente a versão mais recente instalada.

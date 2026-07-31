@@ -45,8 +45,11 @@ See the [authoritative delivery plan](ide-packages-profiles-gui-plan.md).
   remediation, auto-fix, IDE repair/undo, and cache-prune actions.
 - [ ] Add project/build health groups with direct rebuild and exact
   re-registration actions.
-- [ ] Visual operation timeline with before/after comparison, snapshots, and
-  transactional rollback.
+- [x] Typed visual operation timeline with newest-first status, operation,
+  profile, target, completed actions, error/recovery details, and undo
+  availability.
+- [ ] Extend the operation timeline with explicit before/after comparison and
+  transactional rollback of a selected historical entry.
 - [ ] Profile dashboard with drift, side-by-side comparison, installed
   products, and direct isolated IDE launch.
 - [ ] Structured searchable logs with error navigation and diagnostic export.

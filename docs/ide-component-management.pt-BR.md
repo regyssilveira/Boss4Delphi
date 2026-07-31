@@ -111,7 +111,10 @@ da restauracao do inventario anterior.
 
 `profile history` lista cada entrada imutavel do diario com data, status,
 operacao, perfil e alvo. A GUI apresenta a mesma lista em **Historico** e
-mantem `latest.json` apenas como um ponteiro de conveniencia.
+mantem `latest.json` apenas como um ponteiro de conveniencia. A linha do tempo
+visual exibe primeiro as entradas mais recentes, indica quando ha dados para
+desfazer e apresenta acoes concluidas, erros e instrucoes de recuperacao no
+painel de detalhes.
 
 Projetos podem se vincular a um perfil no `boss.json`:
 
@@ -162,8 +165,9 @@ Abra `Boss4D.GUI.exe` e selecione **Componentes e IDEs**:
 4. consulte **Preview instalar** antes de alterar a IDE;
 5. escolha as políticas de conflito e IDE aberta e instale;
 6. use **Reparar** para reconciliar drift;
-7. use **Desfazer** ou **Historico** para recuperar ou auditar operacoes.
-7. consulte **Preview remover** e remova o produto gerenciado.
+7. use **Desfazer** ou abra a linha do tempo estruturada em **Historico** para
+   recuperar ou auditar operacoes;
+8. consulte **Preview remover** e remova o produto gerenciado.
 
 A grade diferencia produtos disponíveis no inventário de builds dos instalados
 no perfil selecionado. A lista de targets mostra as identidades exatas afetadas

@@ -47,8 +47,11 @@ Veja o [plano oficial da entrega](ide-packages-profiles-gui-plan.pt-BR.md).
   resumo, remediação, auto-correção, reparo/undo da IDE e otimização de cache.
 - [ ] Adicionar grupos de saúde de projeto/build com ações diretas de rebuild e
   novo registro exato.
-- [ ] Linha do tempo visual com comparação antes/depois, snapshots e rollback
-  transacional.
+- [x] Linha do tempo visual tipada, da operação mais recente para a mais
+  antiga, com estado, operação, perfil, target, ações concluídas, detalhes de
+  erro/recuperação e disponibilidade de desfazer.
+- [ ] Estender a linha do tempo com comparação explícita antes/depois e
+  rollback transacional de uma entrada histórica selecionada.
 - [ ] Dashboard de perfis com drift, comparação lado a lado, produtos
   instalados e abertura direta da IDE isolada.
 - [ ] Logs estruturados e pesquisáveis, navegação até o erro e exportação de

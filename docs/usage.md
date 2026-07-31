@@ -675,7 +675,10 @@ The **Boss4D** graphical user interface (**`Boss4D.GUI.exe`**) provides a modern
    * **Components and IDEs**: Manage isolated IDE profiles, their default
      compiler targets, available/installed component products, install/remove
      previews, conflict and open-IDE policies, transactional installation,
-     repair, removal, and launch through an alternate Registry branch.
+     repair, removal, and launch through an alternate Registry branch. The
+     **History** action opens a newest-first operation timeline with status,
+     profile, target, undo availability, completed actions, and
+     error/recovery details.
 2. **Integrated Log Console**: The bottom area prints real-time logs, compilation outputs, and concurrent download tasks running in background threads (via PPL) in a thread-safe UI component.
 
 The GUI component screen and `boss4d ide profile` commands share the same

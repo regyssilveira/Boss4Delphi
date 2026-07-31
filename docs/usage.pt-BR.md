@@ -680,7 +680,9 @@ A interface gráfica do **Boss4D** (**`Boss4D.GUI.exe`**) fornece uma aplicaçã
    * **Componentes e IDEs**: Gerencia perfis isolados, targets padrão,
      componentes disponíveis/instalados, previews, políticas de conflito e IDE
      aberta, instalação transacional, reparo, remoção e abertura da IDE pelo
-     Registry branch alternativo.
+     Registry branch alternativo. A ação **Histórico** abre uma linha do tempo
+     das operações mais recentes, com estado, perfil, target, disponibilidade
+     de desfazer, ações concluídas e detalhes de erro/recuperação.
 2. **Terminal de Logs Integrado**: A área inferior exibe os logs, avisos e andamento de downloads concorrentes e compilação de pacotes gerados em segundo plano (via PPL) de forma thread-safe.
 
 A tela de componentes e os comandos `boss4d ide profile` compartilham os mesmos

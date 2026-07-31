@@ -111,7 +111,10 @@ previous inventory is restored.
 
 `profile history` lists every immutable journal entry with timestamp, status,
 operation, profile, and target. The GUI exposes the same list through
-**History** and keeps `latest.json` only as a convenience pointer.
+**History** and keeps `latest.json` only as a convenience pointer. The visual
+timeline shows newest entries first, indicates whether undo data is available,
+and exposes completed actions, errors, and recovery instructions in a detail
+panel.
 
 Projects can bind themselves to a profile in `boss.json`:
 
@@ -162,8 +165,9 @@ Open `Boss4D.GUI.exe` and select **Components and IDEs**:
 4. inspect **Preview install** before changing the IDE;
 5. choose conflict and open-IDE policies, then install;
 6. use **Repair** to reconcile drift;
-7. use **Undo** or **History** to recover or audit completed operations.
-7. inspect **Preview remove**, then remove the managed product.
+7. use **Undo** or open the structured **History** timeline to recover or audit
+   completed operations;
+8. inspect **Preview remove**, then remove the managed product.
 
 The package grid distinguishes products available in the build inventory from
 products installed in the selected profile. The target list shows the exact
