@@ -30,6 +30,9 @@ grep -q git .fpc-build/doctor.txt
 grep -q 'OK sha256:' .fpc-build/doctor.txt
 (cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d sbom --format cyclonedx --lock-only --strict --validate --reproducible --vex /work/tests/fixtures/package-posix/vex.json --output sbom.cdx.json)
 (cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d sbom --format spdx --lock-only --strict --validate --reproducible --output sbom.spdx.json)
+(cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d publish --official --dry-run --allow-dirty --skip-tests --publisher smoke-publisher --repository github.com/example/demo --fingerprint aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --sign test-key --artifact-url https://github.com/example/demo/releases/download/v1.0.0/demo-1.0.0.b4dpkg > official-publish.txt)
+grep -q 'official dry-run approved' .fpc-build/package-smoke/project/official-publish.txt
+test ! -e .fpc-build/package-smoke/project/dist/demo-1.0.0.b4dpkg
 grep -q CycloneDX .fpc-build/package-smoke/project/sbom.cdx.json
 grep -q CVE-2099-0001 .fpc-build/package-smoke/project/sbom.cdx.json
 grep -q SPDX-2.3 .fpc-build/package-smoke/project/sbom.spdx.json

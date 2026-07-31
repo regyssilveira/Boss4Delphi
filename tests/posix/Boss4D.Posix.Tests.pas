@@ -112,6 +112,15 @@ type
     property Url: string read FUrl;
   end;
 
+  TOfficialSignerMock = class
+  private
+    FAccept: Boolean;
+  public
+    function Sign(const AArtifactPath, AKeyId: string;
+      out ASignaturePath: string): Boolean;
+    property Accept: Boolean read FAccept write FAccept;
+  end;
+
   TProjectWorkflowMock = class
   private
     FCommand: string;
@@ -187,6 +196,7 @@ type
     procedure TestGlobalToolLifecycle;
     procedure TestPublishDryRunAndImmutableConflict;
     procedure TestPublishRequiresLockEvidence;
+    procedure TestOfficialPublishBundle;
     procedure TestProjectWorkflowCommands;
     procedure TestUpdateRollback;
     procedure TestUpdatePreservesRegistryArtifact;
@@ -1291,6 +1301,14 @@ begin
   Result := FStatus;
 end;
 
+function TOfficialSignerMock.Sign(const AArtifactPath, AKeyId: string;
+  out ASignaturePath: string): Boolean;
+begin
+  ASignaturePath := AArtifactPath + '.asc';
+  SaveFixture(ASignaturePath, 'signed-by:' + AKeyId);
+  Result := FAccept;
+end;
+
 function TProjectWorkflowMock.Run(const ACommand,
   ADirectory: string): Boolean;
 begin
@@ -1901,6 +1919,81 @@ begin
     end;
   finally
     LService.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestOfficialPublishBundle;
+var
+  LDir, LOutput, LSubmission: string;
+  LSigner: TOfficialSignerMock;
+  LService: TBoss4DPosixPublishService;
+  LOptions: TBoss4DPublishOptions;
+  LResult: TBoss4DOfficialPublishResult;
+  LDocument: TStringList;
+begin
+  LDir := NewTempDirectory;
+  CreatePublishFixture(LDir, 'sha256:' + StringOfChar('b', 64));
+  LOutput := IncludeTrailingPathDelimiter(LDir) +
+    'dist/publish-test-1.0.0.b4dpkg';
+  LSubmission := IncludeTrailingPathDelimiter(LDir) +
+    'dist/publish-test-1.0.0.registry.json';
+  LOptions := Default(TBoss4DPublishOptions);
+  LOptions.Publisher := 'test-publisher';
+  LOptions.Repository := 'github.com/example/publish-test';
+  LOptions.SignerFingerprint := StringOfChar('a', 40);
+  LOptions.SigningKey := 'release@example.com';
+  LOptions.ArtifactUrl :=
+    'https://github.com/example/publish-test/releases/download/v1.0.0/' +
+    'publish-test-1.0.0.b4dpkg';
+  LOptions.ArtifactOutput := LOutput;
+  LOptions.SubmissionOutput := LSubmission;
+  LSigner := TOfficialSignerMock.Create;
+  try
+    LSigner.Accept := True;
+    LService := TBoss4DPosixPublishService.Create(nil, @LSigner.Sign);
+    try
+      LResult := LService.PrepareOfficial(LDir, LOptions);
+      AssertTrue(FileExists(LResult.ArtifactPath));
+      AssertTrue(FileExists(LResult.ProvenancePath));
+      AssertTrue(FileExists(LResult.SignaturePath));
+      AssertTrue(FileExists(LResult.SubmissionPath));
+      AssertEquals(64, Length(LResult.Digest));
+      LDocument := TStringList.Create;
+      try
+        LDocument.LoadFromFile(LResult.SubmissionPath);
+        AssertTrue(Pos('"schemaVersion" : 2', LDocument.Text) > 0);
+        AssertTrue(Pos('"publisher" : "test-publisher"',
+          LDocument.Text) > 0);
+      finally
+        LDocument.Free;
+      end;
+    finally
+      LService.Free;
+    end;
+
+    LOptions.ArtifactOutput := IncludeTrailingPathDelimiter(LDir) +
+      'failed/package.b4dpkg';
+    LOptions.SubmissionOutput := IncludeTrailingPathDelimiter(LDir) +
+      'failed/submission.json';
+    LSigner.Accept := False;
+    LService := TBoss4DPosixPublishService.Create(nil, @LSigner.Sign);
+    try
+      try
+        LService.PrepareOfficial(LDir, LOptions);
+        Fail('Rejected signature must fail');
+      except
+        on E: Exception do
+          AssertTrue(Pos('signature', E.Message) > 0);
+      end;
+      AssertFalse(FileExists(LOptions.ArtifactOutput));
+      AssertFalse(FileExists(LOptions.ArtifactOutput + '.asc'));
+      AssertFalse(FileExists(LOptions.ArtifactOutput + '.intoto.json'));
+      AssertFalse(FileExists(LOptions.SubmissionOutput));
+    finally
+      LService.Free;
+    end;
+  finally
+    LSigner.Free;
   end;
 end;
 

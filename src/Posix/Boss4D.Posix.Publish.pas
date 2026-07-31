@@ -11,19 +11,43 @@ type
     DryRun: Boolean;
     RequireCleanGit: Boolean;
     RunTests: Boolean;
+    Official: Boolean;
+    Publisher: string;
+    Repository: string;
+    SignerFingerprint: string;
+    SigningKey: string;
+    ArtifactUrl: string;
+    ArtifactOutput: string;
+    SubmissionOutput: string;
   end;
 
   TBoss4DPublishPoster = function(const AUrl, APayload, AToken: string;
     out AResponse: string): Integer of object;
+  TBoss4DPackageSigner = function(const AArtifactPath, AKeyId: string;
+    out ASignaturePath: string): Boolean of object;
+
+  TBoss4DOfficialPublishResult = record
+    ArtifactPath: string;
+    SignaturePath: string;
+    ProvenancePath: string;
+    SubmissionPath: string;
+    Digest: string;
+  end;
 
   TBoss4DPosixPublishService = class
   private
     FPoster: TBoss4DPublishPoster;
+    FSigner: TBoss4DPackageSigner;
     procedure Validate(const AProjectDirectory: string;
       const AOptions: TBoss4DPublishOptions);
   public
-    constructor Create(const APoster: TBoss4DPublishPoster = nil);
+    constructor Create(const APoster: TBoss4DPublishPoster = nil;
+      const ASigner: TBoss4DPackageSigner = nil);
     function BuildPayload(const AProjectDirectory: string): string;
+    function BuildOfficialDocument(const AProjectDirectory,
+      ADigest: string; const AOptions: TBoss4DPublishOptions): string;
+    function PrepareOfficial(const AProjectDirectory: string;
+      const AOptions: TBoss4DPublishOptions): TBoss4DOfficialPublishResult;
     function Execute(const AProjectDirectory: string;
       const AOptions: TBoss4DPublishOptions): string;
   end;
@@ -116,11 +140,28 @@ begin
   end;
 end;
 
+function NativeSign(const AArtifactPath, AKeyId: string;
+  out ASignaturePath: string): Boolean;
+var
+  LOutput: string;
+begin
+  ASignaturePath := AArtifactPath + '.asc';
+  Result := RunCommand('gpg',
+    ['--batch', '--yes', '--armor', '--detach-sign',
+     '--local-user', AKeyId, '--output', ASignaturePath, AArtifactPath],
+    LOutput);
+  if Result then
+    Result := RunCommand('gpg',
+      ['--batch', '--verify', ASignaturePath, AArtifactPath], LOutput);
+end;
+
 constructor TBoss4DPosixPublishService.Create(
-  const APoster: TBoss4DPublishPoster);
+  const APoster: TBoss4DPublishPoster;
+  const ASigner: TBoss4DPackageSigner);
 begin
   inherited Create;
   FPoster := APoster;
+  FSigner := ASigner;
 end;
 
 procedure TBoss4DPosixPublishService.Validate(const AProjectDirectory: string;
@@ -220,6 +261,183 @@ begin
     DeleteFile(LTemp + '.intoto.json');
     LLock.Free;
     LManifest.Free;
+  end;
+end;
+
+function IsHex(const AValue: string; const ALength: Integer): Boolean;
+var
+  I: Integer;
+begin
+  Result := Length(AValue) = ALength;
+  if not Result then Exit;
+  for I := 1 to Length(AValue) do
+    if not (AValue[I] in ['0'..'9', 'a'..'f', 'A'..'F']) then Exit(False);
+end;
+
+function IsNormalizedPublisher(const AValue: string): Boolean;
+var
+  I: Integer;
+begin
+  Result := (AValue <> '') and (AValue[1] <> '-') and
+    (AValue[Length(AValue)] <> '-');
+  if not Result then Exit;
+  for I := 1 to Length(AValue) do
+    if not (AValue[I] in ['a'..'z', '0'..'9', '-']) or
+       ((AValue[I] = '-') and (I > 1) and (AValue[I - 1] = '-')) then
+      Exit(False);
+end;
+
+function IsExactSemVer(const AValue: string): Boolean;
+var
+  LCore: string;
+  LParts: TStringList;
+  I, J: Integer;
+begin
+  LCore := AValue;
+  I := Pos('-', LCore);
+  J := Pos('+', LCore);
+  if (I = 0) or ((J > 0) and (J < I)) then I := J;
+  if I > 0 then Delete(LCore, I, MaxInt);
+  LParts := TStringList.Create;
+  try
+    LParts.Delimiter := '.';
+    LParts.StrictDelimiter := True;
+    LParts.DelimitedText := LCore;
+    Result := LParts.Count = 3;
+    if not Result then Exit;
+    for I := 0 to LParts.Count - 1 do
+    begin
+      if LParts[I] = '' then Exit(False);
+      for J := 1 to Length(LParts[I]) do
+        if not (LParts[I][J] in ['0'..'9']) then Exit(False);
+    end;
+  finally
+    LParts.Free;
+  end;
+end;
+
+function IsHttps(const AValue: string): Boolean;
+begin
+  Result := (Pos('https://', LowerCase(AValue)) = 1) and
+    (Pos(' ', AValue) = 0);
+end;
+
+function RepositoryPartCount(const AValue: string): Integer;
+var
+  I: Integer;
+begin
+  Result := 1;
+  for I := 1 to Length(AValue) do
+    if AValue[I] = '/' then Inc(Result);
+end;
+
+function TBoss4DPosixPublishService.BuildOfficialDocument(
+  const AProjectDirectory, ADigest: string;
+  const AOptions: TBoss4DPublishOptions): string;
+var
+  LManifest, LRoot, LPackage, LVersion: TJSONObject;
+  LPackages, LVersions: TJSONArray;
+begin
+  if not IsNormalizedPublisher(AOptions.Publisher) then
+    raise Exception.Create('publisher must be a normalized lowercase ID');
+  if (AOptions.Repository = '') or
+     (RepositoryPartCount(AOptions.Repository) <> 3) or
+     (Pos(' ', AOptions.Repository) > 0) then
+    raise Exception.Create('repository must use host/owner/name');
+  if not IsHex(AOptions.SignerFingerprint, 40) then
+    raise Exception.Create('signer fingerprint must contain 40 hex characters');
+  if not IsHex(ADigest, 64) then
+    raise Exception.Create('SHA-256 must contain 64 hex characters');
+  if not IsHttps(AOptions.ArtifactUrl) then
+    raise Exception.Create('artifact URL must use absolute HTTPS');
+  LManifest := LoadObject(IncludeTrailingPathDelimiter(AProjectDirectory) +
+    'boss.json');
+  try
+    if not IsExactSemVer(LManifest.Get('version', '')) then
+      raise Exception.Create('version must be exact SemVer');
+    LRoot := TJSONObject.Create;
+    try
+      LRoot.Add('schemaVersion', 2);
+      LPackages := TJSONArray.Create;
+      LRoot.Add('packages', LPackages);
+      LPackage := TJSONObject.Create;
+      LPackages.Add(LPackage);
+      LPackage.Add('name', LManifest.Get('name', ''));
+      LPackage.Add('publisher', AOptions.Publisher);
+      LPackage.Add('repository', AOptions.Repository);
+      LPackage.Add('signerFingerprint',
+        UpperCase(AOptions.SignerFingerprint));
+      LPackage.Add('description', LManifest.Get('description', ''));
+      LPackage.Add('license', LManifest.Get('license', ''));
+      LVersions := TJSONArray.Create;
+      LPackage.Add('versions', LVersions);
+      LVersion := TJSONObject.Create;
+      LVersions.Add(LVersion);
+      LVersion.Add('version', LManifest.Get('version', ''));
+      LVersion.Add('artifact', AOptions.ArtifactUrl);
+      LVersion.Add('sha256', LowerCase(ADigest));
+      LVersion.Add('signature', AOptions.ArtifactUrl + '.asc');
+      LVersion.Add('provenance',
+        AOptions.ArtifactUrl + '.intoto.json');
+      Result := LRoot.AsJSON;
+    finally
+      LRoot.Free;
+    end;
+  finally
+    LManifest.Free;
+  end;
+end;
+
+function TBoss4DPosixPublishService.PrepareOfficial(
+  const AProjectDirectory: string;
+  const AOptions: TBoss4DPublishOptions): TBoss4DOfficialPublishResult;
+var
+  LPack: TBoss4DPosixPackResult;
+  LDocument: string;
+  LOutput: TStringList;
+  LSigned: Boolean;
+begin
+  Result.ArtifactPath := ExpandFileName(AOptions.ArtifactOutput);
+  Result.SubmissionPath := ExpandFileName(AOptions.SubmissionOutput);
+  Result.SignaturePath := '';
+  Result.ProvenancePath := '';
+  Result.Digest := '';
+  if AOptions.SigningKey = '' then
+    raise Exception.Create('signing key is required');
+  if AOptions.ArtifactOutput = '' then
+    raise Exception.Create('artifact output is required');
+  if AOptions.SubmissionOutput = '' then
+    raise Exception.Create('submission output is required');
+  ForceDirectories(ExtractFileDir(Result.ArtifactPath));
+  ForceDirectories(ExtractFileDir(Result.SubmissionPath));
+  try
+    LPack := PackProject(AProjectDirectory, Result.ArtifactPath);
+    Result.ArtifactPath := LPack.OutputPath;
+    Result.ProvenancePath := LPack.ProvenancePath;
+    Result.Digest := LPack.Digest;
+    if Assigned(FSigner) then
+      LSigned := FSigner(Result.ArtifactPath, AOptions.SigningKey,
+        Result.SignaturePath)
+    else
+      LSigned := NativeSign(Result.ArtifactPath, AOptions.SigningKey,
+        Result.SignaturePath);
+    if not LSigned or not FileExists(Result.SignaturePath) then
+      raise Exception.Create('package signature was not verified');
+    LDocument := BuildOfficialDocument(AProjectDirectory,
+      Result.Digest, AOptions);
+    LOutput := TStringList.Create;
+    try
+      LOutput.Text := LDocument;
+      LOutput.SaveToFile(Result.SubmissionPath);
+    finally
+      LOutput.Free;
+    end;
+  except
+    if FileExists(Result.SubmissionPath) then DeleteFile(Result.SubmissionPath);
+    if FileExists(Result.SignaturePath) then DeleteFile(Result.SignaturePath);
+    if FileExists(Result.ProvenancePath) then DeleteFile(Result.ProvenancePath);
+    if FileExists(Result.ArtifactPath) then DeleteFile(Result.ArtifactPath);
+    raise;
   end;
 end;
 

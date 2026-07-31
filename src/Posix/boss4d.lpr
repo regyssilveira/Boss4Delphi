@@ -3,7 +3,7 @@ program boss4d;
 {$mode objfpc}{$H+}
 
 uses
-  Classes, SysUtils, DateUtils, Boss4D.Posix.Core, Boss4D.Posix.Registry,
+  Classes, SysUtils, DateUtils, fpjson, Boss4D.Posix.Core, Boss4D.Posix.Registry,
   Boss4D.Posix.Config, Boss4D.Posix.Package, Boss4D.Posix.Operations,
   Boss4D.Posix.Compliance, Boss4D.Posix.Audit, Boss4D.Posix.Workflows,
   Boss4D.Posix.Update, Boss4D.Posix.Tools, Boss4D.Posix.Publish,
@@ -35,6 +35,9 @@ begin
   WriteLn('       boss4d tool update <name> <source>|uninstall <name>|list');
   WriteLn('Publish: boss4d publish --dry-run [--output <file>]');
   WriteLn('         boss4d publish --registry <url> [--allow-dirty]');
+  WriteLn('         boss4d publish --official --publisher <id>');
+  WriteLn('           --repository <host/owner/name> --fingerprint <hex>');
+  WriteLn('           --sign <key> --artifact-url <https-url>');
   WriteLn('Docs: boss4d doc [-o <folder>] [--no-dependencies]');
 end;
 
@@ -120,7 +123,10 @@ var
   LTools: TStringList;
   LPublishService: TBoss4DPosixPublishService;
   LPublishOptions: TBoss4DPublishOptions;
+  LOfficialPublishResult: TBoss4DOfficialPublishResult;
   LPublishPayload, LPublishOutput, LTokenEnvironment: string;
+  LPublishManifest: TJSONObject;
+  LOfficialDryRun: Boolean;
   LFoundFlag: Boolean;
   LDocumentationResult: TBoss4DDocumentationResult;
   LDocumentationOutput: string;
@@ -670,10 +676,44 @@ begin
     end
     else if LCommand = 'publish' then
     begin
+      LPublishOptions := Default(TBoss4DPublishOptions);
       LPublishOptions.RegistryUrl := OptionValue('--registry', '');
-      LPublishOptions.DryRun := HasOption('--dry-run');
+      LOfficialDryRun := HasOption('--dry-run');
+      LPublishOptions.DryRun := LOfficialDryRun;
       LPublishOptions.RequireCleanGit := not HasOption('--allow-dirty');
       LPublishOptions.RunTests := not HasOption('--skip-tests');
+      LPublishOptions.Official := HasOption('--official');
+      LPublishOptions.Publisher := OptionValue('--publisher', '');
+      LPublishOptions.Repository := OptionValue('--repository', '');
+      LPublishOptions.SignerFingerprint :=
+        OptionValue('--fingerprint', '');
+      LPublishOptions.SigningKey := OptionValue('--sign', '');
+      LPublishOptions.ArtifactUrl := OptionValue('--artifact-url', '');
+      LPublishOptions.ArtifactOutput :=
+        OptionValue('--artifact-output', '');
+      LPublishOptions.SubmissionOutput :=
+        OptionValue('--submission-output', '');
+      if LPublishOptions.Official then
+      begin
+        LPublishManifest := LoadJsonObject(IncludeTrailingPathDelimiter(
+          GetCurrentDir) + 'boss.json');
+        try
+          if LPublishOptions.ArtifactOutput = '' then
+            LPublishOptions.ArtifactOutput :=
+              IncludeTrailingPathDelimiter(GetCurrentDir) + 'dist/' +
+              LPublishManifest.Get('name', 'package') + '-' +
+              LPublishManifest.Get('version', '0.0.0') + '.b4dpkg';
+          if LPublishOptions.SubmissionOutput = '' then
+            LPublishOptions.SubmissionOutput :=
+              IncludeTrailingPathDelimiter(GetCurrentDir) + 'dist/' +
+              LPublishManifest.Get('name', 'package') + '-' +
+              LPublishManifest.Get('version', '0.0.0') +
+              '.registry.json';
+        finally
+          LPublishManifest.Free;
+        end;
+        LPublishOptions.DryRun := True;
+      end;
       LTokenEnvironment := OptionValue('--token-env',
         'BOSS4D_PUBLISH_TOKEN');
       LPublishOptions.Token := GetEnvironmentVariable(LTokenEnvironment);
@@ -696,7 +736,28 @@ begin
       try
         LPublishPayload := LPublishService.Execute(GetCurrentDir,
           LPublishOptions);
-        if LPublishOutput <> '' then
+        if LPublishOptions.Official then
+        begin
+          if LPublishOptions.SigningKey = '' then
+            raise Exception.Create('signing key is required');
+          LPublishService.BuildOfficialDocument(GetCurrentDir,
+            StringOfChar('0', 64), LPublishOptions);
+          if LOfficialDryRun then
+            WriteLn('official dry-run approved: artifact=' +
+              ExpandFileName(LPublishOptions.ArtifactOutput) +
+              '; submission=' +
+              ExpandFileName(LPublishOptions.SubmissionOutput))
+          else
+          begin
+            LOfficialPublishResult := LPublishService.PrepareOfficial(
+              GetCurrentDir, LPublishOptions);
+            WriteLn('official bundle prepared: ' +
+              LOfficialPublishResult.ArtifactPath);
+            WriteLn('registry PR document: ' +
+              LOfficialPublishResult.SubmissionPath);
+          end;
+        end
+        else if LPublishOutput <> '' then
         begin
           LItems := TStringList.Create;
           try
