@@ -16,6 +16,10 @@ type
     [Test]
     procedure TestComponentPackageIdentityIncludesRoleAndProfile;
     [Test]
+    procedure TestRuntimePackageCannotDependOnDesignPackage;
+    [Test]
+    procedure TestDuplicateLogicalPackageTargetIsRejected;
+    [Test]
     procedure TestExplicitSelectionFiltersTargets;
     [Test]
     procedure TestSelectionCanExpandAxesIndependently;
@@ -147,6 +151,78 @@ begin
     Assert.AreEqual('default', LIdentity.Profile);
   finally
     LTarget.Free;
+  end;
+end;
+
+procedure TTestsBuildMatrix.TestRuntimePackageCannotDependOnDesignPackage;
+var
+  LPackage: TBoss4DPackage;
+  LRuntime: TBoss4DBuildProject;
+  LDesign: TBoss4DBuildProject;
+begin
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'invalid-dependency';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Configurations.Add('Debug');
+    LDesign := TBoss4DBuildProject.Create;
+    LDesign.Path := 'Design.dproj';
+    LDesign.Role := TBoss4DBuildProjectRole.DesignPackage;
+    LPackage.BuildMatrix.Projects.Add(LDesign);
+    LRuntime := TBoss4DBuildProject.Create;
+    LRuntime.Path := 'Runtime.dproj';
+    LRuntime.Role := TBoss4DBuildProjectRole.RuntimePackage;
+    LRuntime.DependsOn.Add('Design.dproj');
+    LPackage.BuildMatrix.Projects.Add(LRuntime);
+
+    Assert.WillRaise(
+      procedure
+      var
+        LTargets: TBoss4DBuildTargetList;
+      begin
+        LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+          TBoss4DBuildSelection.All);
+        LTargets.Free;
+      end,
+      EArgumentException);
+  finally
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsBuildMatrix.TestDuplicateLogicalPackageTargetIsRejected;
+var
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+begin
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'duplicate-output';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'RuntimeOne.dproj';
+    LProject.PackageName := 'SharedPackage';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'RuntimeTwo.dproj';
+    LProject.PackageName := 'sharedpackage';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+
+    Assert.WillRaise(
+      procedure
+      var
+        LTargets: TBoss4DBuildTargetList;
+      begin
+        LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+          TBoss4DBuildSelection.All);
+        LTargets.Free;
+      end,
+      EArgumentException);
+  finally
+    LPackage.Free;
   end;
 end;
 

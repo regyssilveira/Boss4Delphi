@@ -79,6 +79,7 @@ end;
 procedure ValidateMatrix(const AMatrix: TBoss4DBuildMatrix);
 var
   LSeenProjects: TDictionary<string, Boolean>;
+  LProjectsByPath: TDictionary<string, TBoss4DBuildProject>;
 begin
   if AMatrix.Compilers.Count = 0 then
     raise EArgumentException.Create(
@@ -126,6 +127,8 @@ begin
         [LConfiguration]);
 
   LSeenProjects := TDictionary<string, Boolean>.Create;
+  LProjectsByPath :=
+    TDictionary<string, TBoss4DBuildProject>.Create;
   try
     for var LProject in AMatrix.Projects do
     begin
@@ -138,6 +141,7 @@ begin
         raise EArgumentException.CreateFmt(
           'Projeto duplicado na matriz: %s.', [LProject.Path]);
       LSeenProjects.Add(LKey, True);
+      LProjectsByPath.Add(LKey, LProject);
       ValidateUniqueValues(LProject.Compilers,
         'compilers do projeto ' + LProject.Path);
       ValidateUniqueValues(LProject.Platforms,
@@ -151,8 +155,50 @@ begin
       ValidateSubset(LProject.Path, 'configuracao',
         LProject.Configurations, AMatrix.Configurations);
     end;
+
+    for var LProject in AMatrix.Projects do
+      if LProject.Role = TBoss4DBuildProjectRole.RuntimePackage then
+        for var LDependencyPath in LProject.DependsOn do
+        begin
+          var LDependency: TBoss4DBuildProject;
+          if LProjectsByPath.TryGetValue(
+            LDependencyPath.ToLower, LDependency) and
+             (LDependency.Role =
+               TBoss4DBuildProjectRole.DesignPackage) then
+            raise EArgumentException.CreateFmt(
+              'Package runtime %s nao pode depender do package design %s.',
+              [LProject.Path, LDependency.Path]);
+        end;
   finally
+    LProjectsByPath.Free;
     LSeenProjects.Free;
+  end;
+end;
+
+procedure ValidateUniquePackageTargets(
+  const ATargets: TBoss4DBuildTargetList);
+var
+  LSeen: TDictionary<string, string>;
+begin
+  LSeen := TDictionary<string, string>.Create;
+  try
+    for var LTarget in ATargets do
+    begin
+      if not LTarget.ComponentNameDeclared then
+        Continue;
+      var LKey := LowerCase(LTarget.PackageName + '|' +
+        LTarget.ComponentName + '|' + LTarget.Compiler + '|' +
+        LTarget.Platform + '|' + LTarget.Configuration);
+      var LExistingProject: string;
+      if LSeen.TryGetValue(LKey, LExistingProject) then
+        raise EArgumentException.CreateFmt(
+          'Package logico duplicado "%s" para %s/%s/%s: %s e %s.',
+          [LTarget.ComponentName, LTarget.Compiler, LTarget.Platform,
+           LTarget.Configuration, LExistingProject, LTarget.ProjectPath]);
+      LSeen.Add(LKey, LTarget.ProjectPath);
+    end;
+  finally
+    LSeen.Free;
   end;
 end;
 
@@ -267,6 +313,8 @@ begin
                         var LTarget := TBoss4DBuildTarget.Create;
                         LTarget.PackageName := APackage.Name;
                         LTarget.ComponentName := LProject.PackageName;
+                        LTarget.ComponentNameDeclared :=
+                          not LProject.PackageName.IsEmpty;
                         if LTarget.ComponentName.IsEmpty then
                           LTarget.ComponentName :=
                             TPath.GetFileNameWithoutExtension(
@@ -296,6 +344,7 @@ begin
     if Result.Count = 0 then
       raise EArgumentException.Create(
         'A selecao nao produz nenhum target de build.');
+    ValidateUniquePackageTargets(Result);
     Result.Sort(TComparer<TBoss4DBuildTarget>.Construct(
       function(const ALeft, ARight: TBoss4DBuildTarget): Integer
       begin

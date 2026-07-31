@@ -95,6 +95,7 @@ type
   private
     FPackageName: string;
     FComponentName: string;
+    FComponentNameDeclared: Boolean;
     FProjectPath: string;
     FProjectKind: string;
     FCompiler: string;
@@ -109,6 +110,8 @@ type
     function Identity: string;
     property PackageName: string read FPackageName write FPackageName;
     property ComponentName: string read FComponentName write FComponentName;
+    property ComponentNameDeclared: Boolean read FComponentNameDeclared
+      write FComponentNameDeclared;
     property ProjectPath: string read FProjectPath write FProjectPath;
     property ProjectKind: string read FProjectKind write FProjectKind;
     property Role: TBoss4DBuildProjectRole read GetRole write SetRole;
