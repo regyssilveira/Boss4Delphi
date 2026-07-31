@@ -44,6 +44,7 @@ uses
   Boss4D.Core.Services.Progress in 'Core/Services/Boss4D.Core.Services.Progress.pas',
   Boss4D.Core.Services.Transaction in 'Core/Services/Boss4D.Core.Services.Transaction.pas',
   Boss4D.Core.Services.Dependencies in 'Core/Services/Boss4D.Core.Services.Dependencies.pas',
+  Boss4D.Core.Services.VersionHistory in 'Core/Services/Boss4D.Core.Services.VersionHistory.pas',
   Boss4D.Core.Services.Audit in 'Core/Services/Boss4D.Core.Services.Audit.pas',
   Boss4D.Core.Services.PackageIndex in 'Core/Services/Boss4D.Core.Services.PackageIndex.pas',
   Boss4D.Core.Services.DependencySubmission in 'Core/Services/Boss4D.Core.Services.DependencySubmission.pas',
