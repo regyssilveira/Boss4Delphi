@@ -29,7 +29,7 @@ estado da IDE específico da máquina.
 | Conformidade e auditoria | Gerar CycloneDX/SPDX, publicar VEX, aplicar política de vulnerabilidade e criar atestações | Evidências precisam ser completas e reproduzíveis | [Fluxos de conformidade e auditoria](use-cases-compliance.pt-BR.md) |
 | Build Multi-Delphi | Detectar packages, selecionar compilador/plataforma/configuração e usar incremental/paralelismo | Identidade incorreta pode misturar DCUs/BPLs incompatíveis | [Fluxos de build Multi-Delphi](use-cases-build-matrix.pt-BR.md) |
 | Ciclo da IDE | Instalar, registrar, atualizar, remover, reparar e recuperar falha de design package | Registro e Library Path afetam a IDE globalmente | [Instalação e recuperação da IDE](use-cases-ide.pt-BR.md) |
-| Linux e automação | Executar FPC/Linux, CI, empacotamento de release, autoatualização e rollback | Automação deve ser determinística e não interativa | Planejado para a fase 7 |
+| Linux e automação | Executar FPC/Linux, CI, empacotamento de release, autoatualização e rollback | Automação deve ser determinística e não interativa | [Fluxos Linux, CI, release e atualização](use-cases-operations-release.pt-BR.md) |
 
 ## Níveis de segurança
 

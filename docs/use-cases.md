@@ -29,7 +29,7 @@ trees, or machine-specific IDE state.
 | Compliance and audit | Generate CycloneDX/SPDX, publish VEX, enforce vulnerability policy, create attestations | Compliance evidence must be complete and reproducible | [Compliance and audit workflows](use-cases-compliance.md) |
 | Multi-Delphi build | Detect packages, select compiler/platform/configuration, use incremental and parallel builds | Wrong target identity can mix incompatible DCUs/BPLs | [Multi-Delphi build workflows](use-cases-build-matrix.md) |
 | IDE lifecycle | Install, register, update, unregister, repair, and recover from a failed design-package change | Registry and Library Path changes affect the IDE globally | [IDE installation and recovery](use-cases-ide.md) |
-| Linux and automation | Run FPC/Linux, CI validation, release packaging, self-update, and rollback | Automation must be deterministic and non-interactive | Planned in phase 7 |
+| Linux and automation | Run FPC/Linux, CI validation, release packaging, self-update, and rollback | Automation must be deterministic and non-interactive | [Linux, CI, release, and update workflows](use-cases-operations-release.md) |
 
 ## Safety levels
 

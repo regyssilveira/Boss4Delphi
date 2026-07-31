@@ -16,13 +16,16 @@ $hubPairs = @(
   @('docs\use-cases-build-matrix.md',
     'docs\use-cases-build-matrix.pt-BR.md'),
   @('docs\use-cases-ide.md',
-    'docs\use-cases-ide.pt-BR.md')
+    'docs\use-cases-ide.pt-BR.md'),
+  @('docs\use-cases-operations-release.md',
+    'docs\use-cases-operations-release.pt-BR.md')
 )
 $knownCommands = @(
-  'add', 'audit', 'build', 'cache', 'ci', 'config', 'doctor', 'getit',
-  'ide', 'init', 'install', 'license', 'outdated', 'plugin', 'publish',
-  'registry', 'remove', 'run', 'sbom', 'spec', 'tool', 'tree', 'update',
-  'version', 'why'
+  'add', 'audit', 'build', 'cache', 'ci', 'config', 'dependencies',
+  'doctor', 'getit', 'ide', 'info', 'init', 'install', 'license',
+  'outdated', 'plugin', 'publish', 'registry', 'remove', 'run', 'sbom',
+  'search', 'self-update', 'spec', 'tool', 'tree', 'update', 'version',
+  'why'
 )
 
 foreach ($pair in $hubPairs) {
