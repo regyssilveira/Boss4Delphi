@@ -24,6 +24,8 @@ type
     procedure TestClonePackagesAndPersistenceAreIndependent;
     [Test]
     procedure TestExportImportAndLaunchRegistryBranch;
+    [Test]
+    procedure TestRemoveRejectsProfileWithInstalledPackages;
   end;
 
 implementation
@@ -204,6 +206,35 @@ begin
   finally
     LImportedService.Free;
     LImportedStore.Free;
+  end;
+end;
+
+procedure TTestsIDEProfiles.TestRemoveRejectsProfileWithInstalledPackages;
+begin
+  var LService := TBoss4DIDEProfileService.Create(
+    TBoss4DIDEProfileStore(FStore),
+    TPath.Combine(FDirectory, 'data'));
+  try
+    var LProfile := LService.CreateProfile('Disposable', '', 'd13',
+      'C:\Delphi13\bin\bds.exe');
+    LProfile.Free;
+    LService.AddPackage('disposable', 'Horse');
+    Assert.WillRaise(
+      procedure
+      begin
+        LService.Remove('disposable');
+      end,
+      EBoss4DIDEProfileError);
+    LService.RemovePackage('disposable', 'Horse');
+    LService.Remove('disposable');
+    Assert.WillRaise(
+      procedure
+      begin
+        LService.Get('disposable').Free;
+      end,
+      EBoss4DIDEProfileError);
+  finally
+    LService.Free;
   end;
 end;
 

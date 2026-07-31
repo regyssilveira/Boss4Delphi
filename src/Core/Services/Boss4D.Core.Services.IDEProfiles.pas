@@ -405,6 +405,10 @@ begin
     if SameText(LProfile.Id, 'default') then
       raise EBoss4DIDEProfileError.Create(
         'O perfil default nao pode ser removido.');
+    if LProfile.Packages.Count > 0 then
+      raise EBoss4DIDEProfileError.CreateFmt(
+        'O perfil %s ainda possui %d package(s). Remova-os antes de ' +
+        'excluir o perfil.', [LProfile.Id, LProfile.Packages.Count]);
     LProfiles.Remove(LProfile);
     FStore.Save(LProfiles);
   finally

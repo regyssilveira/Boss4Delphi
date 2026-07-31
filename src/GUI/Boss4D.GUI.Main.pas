@@ -5,15 +5,20 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.ComCtrls,
-  Boss4D.Core.Ports, Boss4D.Core.Domain.Dependency, Boss4D.Core.Domain.Package;
+  Boss4D.Core.Ports, Boss4D.Core.Domain.Dependency, Boss4D.Core.Domain.Package,
+  Boss4D.Core.Services.BuildInventory, Boss4D.Core.Services.IDEProfiles,
+  Boss4D.Core.Services.IDEProfileApplication,
+  Boss4D.Core.Services.IDEManagementQuery,
+  Boss4D.GUI.IDE.Presenter;
 
 type
-  TFormMain = class(TForm)
+  TFormMain = class(TForm, IBoss4DIDEManagementView)
     PanelSidebar: TPanel;
     BtnPageProject: TButton;
     BtnPageCatalog: TButton;
     BtnPageDoctor: TButton;
     BtnPageCache: TButton;
+    BtnPageIDE: TButton;
     Splitter1: TSplitter;
     PanelContent: TPanel;
     PageControlMain: TPageControl;
@@ -21,6 +26,7 @@ type
     TabCatalog: TTabSheet;
     TabDoctor: TTabSheet;
     TabCache: TTabSheet;
+    TabIDE: TTabSheet;
     PanelProjTop: TPanel;
     LblProjPath: TLabel;
     EditProjPath: TEdit;
@@ -44,13 +50,31 @@ type
     BtnCacheClean: TButton;
     BtnCachePrune: TButton;
     MemoCache: TMemo;
+    PanelIDEProfile: TPanel;
+    ComboIDEProfiles: TComboBox;
+    BtnIDERefresh: TButton;
+    BtnIDECreateProfile: TButton;
+    BtnIDECloneProfile: TButton;
+    BtnIDERemoveProfile: TButton;
+    BtnIDELaunch: TButton;
+    ListIDEPackages: TListView;
+    PanelIDEActions: TPanel;
+    BtnIDEPreviewInstall: TButton;
+    BtnIDEInstall: TButton;
+    BtnIDERepair: TButton;
+    BtnIDEPreviewRemove: TButton;
+    BtnIDERemove: TButton;
+    ListIDETargets: TListBox;
+    LblIDEStatus: TLabel;
     PanelLogs: TPanel;
     MemoLogs: TMemo;
     procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
     procedure BtnPageProjectClick(Sender: TObject);
     procedure BtnPageCatalogClick(Sender: TObject);
     procedure BtnPageDoctorClick(Sender: TObject);
     procedure BtnPageCacheClick(Sender: TObject);
+    procedure BtnPageIDEClick(Sender: TObject);
     procedure BtnSelectProjClick(Sender: TObject);
     procedure BtnProjInitClick(Sender: TObject);
     procedure BtnProjInstallClick(Sender: TObject);
@@ -62,12 +86,44 @@ type
     procedure BtnDocFixClick(Sender: TObject);
     procedure BtnCacheCleanClick(Sender: TObject);
     procedure BtnCachePruneClick(Sender: TObject);
+    procedure ComboIDEProfilesChange(Sender: TObject);
+    procedure BtnIDERefreshClick(Sender: TObject);
+    procedure BtnIDECreateProfileClick(Sender: TObject);
+    procedure BtnIDECloneProfileClick(Sender: TObject);
+    procedure BtnIDERemoveProfileClick(Sender: TObject);
+    procedure BtnIDELaunchClick(Sender: TObject);
+    procedure BtnIDEPreviewInstallClick(Sender: TObject);
+    procedure BtnIDEInstallClick(Sender: TObject);
+    procedure BtnIDERepairClick(Sender: TObject);
+    procedure BtnIDEPreviewRemoveClick(Sender: TObject);
+    procedure BtnIDERemoveClick(Sender: TObject);
   private
     FCurrentProjectDir: string;
+    FIDEProfileIds: TStringList;
+    FIDEProfileStore: TBoss4DIDEProfileStore;
+    FIDEProfiles: TBoss4DIDEProfileService;
+    FIDEBuildInventory: TBoss4DBuildInventory;
+    FIDEOperations: TBoss4DIDEProfileApplication;
+    FIDEQuery: TBoss4DIDEManagementQuery;
+    FIDEBackend: IBoss4DIDEManagementBackend;
+    FIDEPresenter: TBoss4DIDEManagementPresenter;
+    procedure InitializeIDEManagement;
+    function SelectedIDEPackage: string;
     procedure LoadProjectDependencies(const AProjectDir: string);
     procedure LogMessage(const AMessage: string);
     procedure PopulateCatalog;
     procedure RunAsyncCommand(const ATitle, ACommand: string; const AArgs: string = '');
+    procedure ClearProfiles;
+    procedure AddProfile(const AId, AName, ACompiler,
+      ARegistryBranch: string; const APackageCount: Integer);
+    procedure SelectProfile(const AId: string);
+    procedure ClearPackages;
+    procedure AddPackage(const AName, ARootDirectory: string;
+      const AInstalled: Boolean);
+    procedure ClearTargets;
+    procedure AddTarget(const AIdentity: string);
+    procedure ShowIDEStatus(const AMessage: string);
+    procedure ShowIDEError(const AMessage: string);
   end;
 
 var
@@ -91,7 +147,13 @@ uses
   Boss4D.Core.Services.Cache,
   Boss4D.Core.Services.Tree,
   Boss4D.Core.Services.Outdated,
-  Boss4D.Core.Services.PackageIndex;
+  Boss4D.Core.Services.PackageIndex,
+  Boss4D.Core.Domain.Env,
+  Boss4D.Core.Domain.IDEProfile,
+  Boss4D.Core.Services.IDERegistration,
+  Boss4D.Core.Services.IDEOperationResult,
+  Boss4D.Core.Services.IDEProcessPolicy,
+  Boss4D.GUI.IDE.Backend;
 
 type
   TGUILogger = class(TInterfacedObject, IBoss4DLogger)
@@ -144,8 +206,58 @@ begin
     PageControlMain.Pages[I].TabVisible := False;
 
   PageControlMain.ActivePage := TabProject;
+  FIDEProfileIds := TStringList.Create;
+  InitializeIDEManagement;
   PopulateCatalog;
   LogMessage('Boss4D GUI Inicializada com sucesso.');
+end;
+
+procedure TFormMain.FormDestroy(Sender: TObject);
+begin
+  FIDEPresenter.Free;
+  FIDEBackend := nil;
+  FIDEQuery.Free;
+  FIDEOperations.Free;
+  FIDEBuildInventory.Free;
+  FIDEProfiles.Free;
+  FIDEProfileStore.Free;
+  FIDEProfileIds.Free;
+end;
+
+procedure TFormMain.InitializeIDEManagement;
+begin
+  FIDEProfileStore := TBoss4DIDEProfileStore.Create(TPath.Combine(
+    GetBossHome, 'ide-profiles.json'));
+  FIDEProfiles := TBoss4DIDEProfileService.Create(FIDEProfileStore,
+    TPath.Combine(GetBossHome, 'ide-profiles'));
+  FIDEBuildInventory := TBoss4DBuildInventory.Create(TPath.Combine(
+    GetBossHome, 'build-inventory.json'));
+  FIDEBuildInventory.Load;
+  var LRegistry: IBoss4DRegistryService :=
+    TBoss4DWindowsRegistryAdapter.Create;
+  var LCompiler: IBoss4DCompiler :=
+    TBoss4DDelphiCompilerAdapter.Create(LRegistry, TGUILogger.Create(Self));
+  FIDEOperations := TBoss4DIDEProfileApplication.Create(
+    FIDEProfiles, FIDEBuildInventory,
+    TBoss4DPackageJsonRepository.Create,
+    TBoss4DLockJsonRepository.Create, LCompiler, TGUILogger.Create(Self),
+    function(const AProfile: TBoss4DIDEProfile):
+      TBoss4DIDERegistrationService
+    begin
+      Result := TBoss4DIDERegistrationService.Create(
+        TBoss4DWindowsIDERegistryStore.Create,
+        AProfile.InventoryPath, nil, nil, AProfile.Id, 30000,
+        nil, AProfile.Executable, AProfile.RegistryRoot);
+    end,
+    TBoss4DJsonIDEOperationResultStore.Create(TPath.Combine(
+      GetBossHome, 'ide-operation-results')));
+  FIDEQuery := TBoss4DIDEManagementQuery.Create(
+    FIDEProfiles, FIDEBuildInventory, FIDEOperations);
+  FIDEBackend := TBoss4DGUIIDEManagementBackend.Create(
+    FIDEQuery, FIDEProfiles, FIDEOperations);
+  FIDEPresenter := TBoss4DIDEManagementPresenter.Create(
+    FIDEBackend, Self);
+  FIDEPresenter.Refresh;
 end;
 
 procedure TFormMain.BtnPageProjectClick(Sender: TObject);
@@ -166,6 +278,12 @@ end;
 procedure TFormMain.BtnPageCacheClick(Sender: TObject);
 begin
   PageControlMain.ActivePage := TabCache;
+end;
+
+procedure TFormMain.BtnPageIDEClick(Sender: TObject);
+begin
+  PageControlMain.ActivePage := TabIDE;
+  FIDEPresenter.Refresh;
 end;
 
 procedure TFormMain.BtnSelectProjClick(Sender: TObject);
@@ -642,6 +760,158 @@ begin
       end;
     end
   );
+end;
+
+procedure TFormMain.ClearProfiles;
+begin
+  ComboIDEProfiles.Items.BeginUpdate;
+  try
+    ComboIDEProfiles.Clear;
+    FIDEProfileIds.Clear;
+  finally
+    ComboIDEProfiles.Items.EndUpdate;
+  end;
+end;
+
+procedure TFormMain.AddProfile(const AId, AName, ACompiler,
+  ARegistryBranch: string; const APackageCount: Integer);
+begin
+  FIDEProfileIds.Add(AId);
+  ComboIDEProfiles.Items.Add(Format('%s — Delphi %s — %d package(s)',
+    [AName, ACompiler, APackageCount]));
+end;
+
+procedure TFormMain.SelectProfile(const AId: string);
+begin
+  var LIndex := FIDEProfileIds.IndexOf(AId);
+  if LIndex >= 0 then
+    ComboIDEProfiles.ItemIndex := LIndex;
+end;
+
+procedure TFormMain.ClearPackages;
+begin
+  ListIDEPackages.Items.Clear;
+end;
+
+procedure TFormMain.AddPackage(const AName, ARootDirectory: string;
+  const AInstalled: Boolean);
+begin
+  var LItem := ListIDEPackages.Items.Add;
+  LItem.Caption := AName;
+  if AInstalled then
+    LItem.SubItems.Add('Instalado')
+  else
+    LItem.SubItems.Add('Disponivel');
+  LItem.SubItems.Add(ARootDirectory);
+end;
+
+procedure TFormMain.ClearTargets;
+begin
+  ListIDETargets.Clear;
+end;
+
+procedure TFormMain.AddTarget(const AIdentity: string);
+begin
+  ListIDETargets.Items.Add(AIdentity);
+end;
+
+procedure TFormMain.ShowIDEStatus(const AMessage: string);
+begin
+  LblIDEStatus.Caption := AMessage;
+  LogMessage('[IDE] ' + AMessage);
+end;
+
+procedure TFormMain.ShowIDEError(const AMessage: string);
+begin
+  LblIDEStatus.Caption := 'Erro: ' + AMessage;
+  LogMessage('[IDE][ERRO] ' + AMessage);
+  MessageDlg(AMessage, mtError, [mbOK], 0);
+end;
+
+function TFormMain.SelectedIDEPackage: string;
+begin
+  if Assigned(ListIDEPackages.Selected) then
+    Result := ListIDEPackages.Selected.Caption
+  else
+    Result := '';
+end;
+
+procedure TFormMain.ComboIDEProfilesChange(Sender: TObject);
+begin
+  if (ComboIDEProfiles.ItemIndex >= 0) and
+     (ComboIDEProfiles.ItemIndex < FIDEProfileIds.Count) then
+    FIDEPresenter.ChooseProfile(
+      FIDEProfileIds[ComboIDEProfiles.ItemIndex]);
+end;
+
+procedure TFormMain.BtnIDERefreshClick(Sender: TObject);
+begin
+  FIDEPresenter.Refresh;
+end;
+
+procedure TFormMain.BtnIDECreateProfileClick(Sender: TObject);
+begin
+  var LName := '';
+  var LCompiler := '37.0';
+  var LExecutable := '';
+  if not InputQuery('Novo perfil IDE', 'Nome do perfil:', LName) then
+    Exit;
+  if not InputQuery('Novo perfil IDE', 'Versao BDS/compilador:',
+    LCompiler) then
+    Exit;
+  if not InputQuery('Novo perfil IDE',
+    'Executavel bds.exe (opcional):', LExecutable) then
+    Exit;
+  FIDEPresenter.CreateProfile(LName, '', LCompiler, LExecutable);
+end;
+
+procedure TFormMain.BtnIDECloneProfileClick(Sender: TObject);
+begin
+  var LName := '';
+  if InputQuery('Clonar perfil IDE', 'Nome do novo perfil:', LName) then
+    FIDEPresenter.CloneProfile(LName);
+end;
+
+procedure TFormMain.BtnIDERemoveProfileClick(Sender: TObject);
+begin
+  if MessageDlg('Remover o perfil selecionado? O perfil default nao pode ' +
+    'ser removido.', mtConfirmation, [mbYes, mbNo], 0) = mrYes then
+    FIDEPresenter.RemoveProfile;
+end;
+
+procedure TFormMain.BtnIDELaunchClick(Sender: TObject);
+begin
+  FIDEPresenter.Launch;
+end;
+
+procedure TFormMain.BtnIDEPreviewInstallClick(Sender: TObject);
+begin
+  FIDEPresenter.PreviewInstall(SelectedIDEPackage);
+end;
+
+procedure TFormMain.BtnIDEInstallClick(Sender: TObject);
+begin
+  if MessageDlg('Compilar e registrar o package selecionado neste perfil?',
+    mtConfirmation, [mbYes, mbNo], 0) = mrYes then
+    FIDEPresenter.Install(SelectedIDEPackage,
+      TBoss4DIDEConflictPolicy.Fail, TBoss4DIDEOpenPolicy.Fail);
+end;
+
+procedure TFormMain.BtnIDERepairClick(Sender: TObject);
+begin
+  FIDEPresenter.Repair;
+end;
+
+procedure TFormMain.BtnIDEPreviewRemoveClick(Sender: TObject);
+begin
+  FIDEPresenter.PreviewUninstall(SelectedIDEPackage);
+end;
+
+procedure TFormMain.BtnIDERemoveClick(Sender: TObject);
+begin
+  if MessageDlg('Remover os registros e artefatos gerenciados deste ' +
+    'package?', mtConfirmation, [mbYes, mbNo], 0) = mrYes then
+    FIDEPresenter.Uninstall(SelectedIDEPackage);
 end;
 
 end.
