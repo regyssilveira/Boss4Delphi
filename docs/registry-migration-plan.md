@@ -8,17 +8,17 @@ request checks.
 
 ## Current baseline
 
-- 48 discoverable legacy v1 packages;
+- 47 discoverable legacy v1 packages;
 - 18 repository owners;
 - 16 packages in the already registered `regyssilveira` namespace;
 - 10 packages in the `HashLoad` namespace;
-- 7 signed schema-v2 packages and one authorized signer fingerprint;
-- 7 publisher-controlled packages published through the reproducibility gates;
-- 9 publisher-controlled packages requiring a release or corrected tag;
-- catalog health: 55 packages, 96 migration warnings, zero structural errors.
+- 8 signed schema-v2 packages and one authorized signer fingerprint;
+- 8 publisher-controlled packages published through the reproducibility gates;
+- 8 publisher-controlled packages requiring a release or corrected tag;
+- catalog health: 55 packages, 94 migration warnings, zero structural errors.
 
 The generated Registry portal is the public progress ledger. It currently
-reports 7 verified packages, 48 legacy packages, and 12% verified migration.
+reports 8 verified packages, 47 legacy packages, and 14% verified migration.
 Each accepted schema-v2 package with an authorized publisher fingerprint
 increments that metric automatically.
 
@@ -59,7 +59,7 @@ registered publisher scope:
 | horse-rate-limit | v1.0.1 | Published; repaired suite, 14/14 tests and verified installation pass |
 | horse-compression-v2 | v2.0.0 | Published; tag/manifest match, 3/3 tests and verified installation pass |
 | horse-static | v1.0.1 | Published; 6/6 stable integration tests and verified installation pass |
-| horse-dto | v1.0.0 | Blocked: does not compile against resolved Horse 3.2.0 |
+| horse-dto | v1.0.1 | Published; Horse 3.2 compatibility, 9/9 tests and verified installation pass |
 | horse-rbac | v1.0.0 | Blocked: tests do not compile against resolved Horse 3.2.0 |
 | horse-schema-validation | v1.0.0 | Published; install, signature, provenance, and 10/10 tests pass |
 | horse-multipart | v1.0.0 | Published; install, signature, provenance, and upload integration test pass |
@@ -102,6 +102,14 @@ declaring test dependencies, and updating test-only Horse/task APIs for
 Seattle. Four complete 14-test runs passed, including concurrency, Redis,
 CIDR, metrics, and sliding-window scenarios, before verified publication.
 
+`horse-dto` `v1.0.1` then restored Horse 3.2 request, exception, routing, and
+shutdown compatibility and corrected JSON-only binding without a live web
+request. Four consecutive 9-test runs plus a clean post-merge run passed on
+Seattle. Its package also drove a regression fix that excludes Git worktree
+pointers from deterministic artifacts; the corrected 11-file bundle passed
+independent signature, provenance, digest, conformance, and no-fallback
+installation checks.
+
 ### First publication batch
 
 The first publication batch completed in this order:
@@ -119,7 +127,7 @@ Never reuse one package's evidence URL for another package.
 ## Wave 2 — publisher-controlled packages needing a release
 
 `Dext`, `horse-crud`, and `horse-sanitize` have no published tag/release.
-The six blocked Wave 1 packages additionally need corrected manifests, tests,
+The five blocked Wave 1 packages additionally need corrected manifests, tests,
 or Horse compatibility in new immutable releases. Before Registry migration
 these packages need an exact SemVer tag, tests, immutable release assets, and
 the same signed publication workflow.

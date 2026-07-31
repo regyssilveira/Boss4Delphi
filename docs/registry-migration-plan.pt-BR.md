@@ -8,17 +8,17 @@ passarem nos checks do pull request do Registry.
 
 ## Ponto de partida
 
-- 48 pacotes legados v1 pesquisáveis;
+- 47 pacotes legados v1 pesquisáveis;
 - 18 responsáveis por repositórios;
 - 16 pacotes no namespace `regyssilveira`, já cadastrado;
 - 10 pacotes no namespace `HashLoad`;
-- 7 pacotes schema v2 assinados e um fingerprint autorizado;
-- 7 pacotes do publisher publicados pelos gates de reprodutibilidade;
-- 9 pacotes do publisher que precisam de release ou correção da tag;
-- saúde: 55 pacotes, 96 avisos de migração e zero erros estruturais.
+- 8 pacotes schema v2 assinados e um fingerprint autorizado;
+- 8 pacotes do publisher publicados pelos gates de reprodutibilidade;
+- 8 pacotes do publisher que precisam de release ou correção da tag;
+- saúde: 55 pacotes, 94 avisos de migração e zero erros estruturais.
 
 O portal gerado do Registry é o painel público do progresso. No momento ele
-informa 7 pacotes verificados, 48 pacotes legados e 12% de migração verificada.
+informa 8 pacotes verificados, 47 pacotes legados e 14% de migração verificada.
 Cada pacote schema v2 aceito com fingerprint autorizado para o publisher
 incrementa essa métrica automaticamente.
 
@@ -60,7 +60,7 @@ do publisher cadastrado:
 | horse-rate-limit | v1.0.1 | Publicado; suíte reparada, 14/14 testes e instalação verificada aprovados |
 | horse-compression-v2 | v2.0.0 | Publicado; tag e manifesto coerentes, 3/3 testes e instalação verificada aprovados |
 | horse-static | v1.0.1 | Publicado; 6/6 testes de integração estáveis e instalação verificada aprovados |
-| horse-dto | v1.0.0 | Bloqueado: não compila com o Horse 3.2.0 resolvido |
+| horse-dto | v1.0.1 | Publicado; compatibilidade com Horse 3.2, 9/9 testes e instalação verificada aprovados |
 | horse-rbac | v1.0.0 | Bloqueado: testes não compilam com o Horse 3.2.0 resolvido |
 | horse-schema-validation | v1.0.0 | Publicado; instalação, assinatura, proveniência e 10/10 testes aprovados |
 | horse-multipart | v1.0.0 | Publicado; instalação, assinatura, proveniência e teste real de upload aprovados |
@@ -106,6 +106,15 @@ usadas apenas nos testes para o Seattle. Quatro execuções completas dos 14
 testes passaram, incluindo concorrência, Redis, CIDR, métricas e sliding
 window, antes da publicação verificada.
 
+O `horse-dto` `v1.0.1` restaurou em seguida a compatibilidade das APIs de
+request, exceção, roteamento e encerramento com o Horse 3.2, além de corrigir o
+binding somente por JSON sem uma requisição web ativa. Quatro execuções
+consecutivas dos 9 testes, mais uma execução limpa após o merge, passaram no
+Seattle. Seu pacote também motivou uma correção de regressão que exclui
+ponteiros de worktree Git dos artefatos determinísticos; o bundle corrigido de
+11 arquivos passou nas verificações independentes de assinatura, proveniência,
+digest, conformidade e instalação sem fallback.
+
 ### Primeiro lote de publicação
 
 O primeiro lote de publicação foi concluído nesta ordem:
@@ -123,7 +132,7 @@ reutilize a URL de evidência de um pacote em outro.
 ## Onda 2 — pacotes do publisher que precisam de release
 
 `Dext`, `horse-crud` e `horse-sanitize` ainda não possuem tag/release
-publicada. Os seis pacotes bloqueados da Onda 1 também precisam de manifestos,
+publicada. Os cinco pacotes bloqueados da Onda 1 também precisam de manifestos,
 testes ou compatibilidade com Horse corrigidos em novas releases imutáveis.
 Antes da migração esses pacotes precisam de tag SemVer exata, testes, assets
 imutáveis e o mesmo fluxo de publicação assinada.
