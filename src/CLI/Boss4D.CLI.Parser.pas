@@ -1894,6 +1894,10 @@ begin
           LEntry.LatestVersion);
         try
           LRequest := Default(TBoss4DPackageInstallRequest);
+          LRequest.PackageName := LEntry.Name;
+          LRequest.Version := LEntry.LatestVersion;
+          LRequest.Platform := LPlatform;
+          LRequest.Compiler := LCompiler;
           LRequest.ArtifactUrl := LEntry.ArtifactUrl;
           LRequest.Sha256 := LEntry.ArtifactDigest;
           LRequest.SignatureUrl := LEntry.SignatureUrl;

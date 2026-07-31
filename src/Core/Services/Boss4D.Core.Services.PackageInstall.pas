@@ -7,6 +7,10 @@ uses
 
 type
   TBoss4DPackageInstallRequest = record
+    PackageName: string;
+    Version: string;
+    Platform: string;
+    Compiler: string;
     ArtifactUrl: string;
     Sha256: string;
     SignatureUrl: string;
@@ -170,6 +174,27 @@ begin
       end;
     finally
       LRoot.Free;
+    end;
+
+    var LReceipt := TJSONObject.Create;
+    try
+      LReceipt.AddPair('schemaVersion', TJSONNumber.Create(1));
+      LReceipt.AddPair('name', ARequest.PackageName);
+      LReceipt.AddPair('version', ARequest.Version);
+      LReceipt.AddPair('platform', ARequest.Platform);
+      LReceipt.AddPair('compiler', ARequest.Compiler);
+      LReceipt.AddPair('artifact', ARequest.ArtifactUrl);
+      LReceipt.AddPair('sha256', Result.Digest);
+      LReceipt.AddPair('signature', ARequest.SignatureUrl);
+      LReceipt.AddPair('provenance', ARequest.ProvenanceUrl);
+      LReceipt.AddPair('signatureVerified',
+        TJSONBool.Create(not ARequest.SignatureUrl.Trim.IsEmpty));
+      LReceipt.AddPair('provenanceVerified',
+        TJSONBool.Create(not ARequest.ProvenanceUrl.Trim.IsEmpty));
+      TFile.WriteAllText(TPath.Combine(LStage, '.boss4d-package.json'),
+        LReceipt.Format(2), TEncoding.UTF8);
+    finally
+      LReceipt.Free;
     end;
 
     if TDirectory.Exists(ARequest.TargetDirectory) then

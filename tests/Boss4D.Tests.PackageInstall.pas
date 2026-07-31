@@ -97,6 +97,10 @@ begin
     TPackageVerifierMock.Create(True));
   try
     LRequest := Default(TBoss4DPackageInstallRequest);
+    LRequest.PackageName := 'verified';
+    LRequest.Version := '1.0.0';
+    LRequest.Platform := 'Win64';
+    LRequest.Compiler := '37.0';
     LRequest.ArtifactUrl := ARTIFACT_URL;
     LRequest.Sha256 := LPackResult.Digest;
     LRequest.SignatureUrl := SIGNATURE_URL;
@@ -107,6 +111,14 @@ begin
     Assert.AreEqual<Integer>(2, LResult.FileCount);
     Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget, 'boss.json')));
     Assert.IsTrue(TFile.Exists(TPath.Combine(LTarget, 'verified.pas')));
+    var LReceipt := TFile.ReadAllText(TPath.Combine(LTarget,
+      '.boss4d-package.json'), TEncoding.UTF8);
+    Assert.IsTrue(LReceipt.Contains('"version": "1.0.0"'));
+    Assert.IsTrue(LReceipt.Contains('"platform": "Win64"'));
+    Assert.IsTrue(LReceipt.Contains('"compiler": "37.0"'));
+    Assert.IsTrue(LReceipt.Contains(LPackResult.Digest));
+    Assert.IsTrue(LReceipt.Contains('"signatureVerified": true'));
+    Assert.IsTrue(LReceipt.Contains('"provenanceVerified": true'));
   finally
     LService.Free;
     if TDirectory.Exists(LTarget) then TDirectory.Delete(LTarget, True);
