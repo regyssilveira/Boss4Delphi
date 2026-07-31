@@ -7,12 +7,14 @@ uses
   System.Generics.Collections,
   Boss4D.Core.Ports,
   Boss4D.Core.Domain.Dependency,
-  Boss4D.Core.Domain.Lock;
+  Boss4D.Core.Domain.Lock,
+  Boss4D.Core.Services.IDEDiscovery;
 
 type
   TCoordinatorCompilerMock = class(TInterfacedObject, IBoss4DCompiler)
   private
     FProjects: TList<string>;
+    FTargets: TList<string>;
   public
     constructor Create;
     destructor Destroy; override;
@@ -29,6 +31,13 @@ type
     function BuildSearchPath(const ADep: TBoss4DDependency;
       const APlatform: string = ''): string;
     property Projects: TList<string> read FProjects;
+    property Targets: TList<string> read FTargets;
+  end;
+
+  TCoordinatorDiscoveryMock = class(TInterfacedObject,
+    IBoss4DIDEDiscovery)
+  public
+    function Discover: TBoss4DIDEInstallationList;
   end;
 
   [TestFixture]
@@ -44,6 +53,8 @@ type
     procedure TearDown;
     [Test]
     procedure TestBuildsChangedPackageAndTransitiveDependentsInOrder;
+    [Test]
+    procedure TestBuildsEveryCompatibleInstalledIDE;
   end;
 
 implementation
@@ -63,10 +74,12 @@ constructor TCoordinatorCompilerMock.Create;
 begin
   inherited Create;
   FProjects := TList<string>.Create;
+  FTargets := TList<string>.Create;
 end;
 
 destructor TCoordinatorCompilerMock.Destroy;
 begin
+  FTargets.Free;
   FProjects.Free;
   inherited Destroy;
 end;
@@ -96,7 +109,21 @@ function TCoordinatorCompilerMock.Compile(const AProjectPath: string;
   const APlatform, ACompilerVersion, AConfiguration: string): Boolean;
 begin
   FProjects.Add(TPath.GetFileName(AProjectPath));
+  FTargets.Add(ACompilerVersion + '|' + APlatform + '|' + AConfiguration);
   Result := True;
+end;
+
+function TCoordinatorDiscoveryMock.Discover: TBoss4DIDEInstallationList;
+begin
+  Result := TBoss4DIDEInstallationList.Create(True);
+  var LInstallation := TBoss4DIDEInstallation.Create;
+  LInstallation.Compiler := '23.0';
+  LInstallation.Platforms.Add('Win32');
+  Result.Add(LInstallation);
+  LInstallation := TBoss4DIDEInstallation.Create;
+  LInstallation.Compiler := '37.0';
+  LInstallation.Platforms.Add('Win64');
+  Result.Add(LInstallation);
 end;
 
 procedure TTestsBuildCoordinator.Setup;
@@ -104,6 +131,56 @@ begin
   FRoot := TPath.Combine(TPath.GetTempPath,
     'boss4d-coordinator-' + TGUID.NewGuid.ToString);
   TDirectory.CreateDirectory(FRoot);
+end;
+
+procedure TTestsBuildCoordinator.TestBuildsEveryCompatibleInstalledIDE;
+var
+  LPackageRoot: string;
+  LInventory: TBoss4DBuildInventory;
+  LCompiler: TCoordinatorCompilerMock;
+  LCoordinator: TBoss4DBuildCoordinator;
+  LOptions: TBoss4DBuildCommandOptions;
+  LPackage: TBoss4DPackage;
+  LRepository: IBoss4DPackageRepository;
+begin
+  LPackageRoot := TPath.Combine(FRoot, 'component');
+  CreatePackage(LPackageRoot, 'component');
+  LRepository := TBoss4DPackageJsonRepository.Create;
+  LPackage := LRepository.Load(TPath.Combine(LPackageRoot, 'boss.json'));
+  try
+    LPackage.BuildMatrix.Compilers.Clear;
+    LPackage.BuildMatrix.Compilers.Add('23.0');
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Clear;
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Platforms.Add('Win64');
+    LRepository.Save(LPackage, TPath.Combine(LPackageRoot, 'boss.json'));
+  finally
+    LPackage.Free;
+  end;
+  LInventory := TBoss4DBuildInventory.Create(
+    TPath.Combine(FRoot, 'inventory.json'));
+  LCompiler := TCoordinatorCompilerMock.Create;
+  try
+    LOptions := TBoss4DBuildCommandOptions.Parse(
+      TArray<string>.Create('build', '--all-installed', '--force'));
+    LOptions.RegisterTargets := False;
+    LCoordinator := TBoss4DBuildCoordinator.Create(LCompiler, nil,
+      LRepository, TBoss4DLockJsonRepository.Create, nil, LInventory,
+      TCoordinatorDiscoveryMock.Create);
+    try
+      LCoordinator.Execute(LPackageRoot, LOptions);
+      Assert.AreEqual<Integer>(2, LCompiler.Targets.Count);
+      Assert.AreEqual<string>('23.0|Win32|Release',
+        LCompiler.Targets[0]);
+      Assert.AreEqual<string>('37.0|Win64|Release',
+        LCompiler.Targets[1]);
+    finally
+      LCoordinator.Free;
+    end;
+  finally
+    LInventory.Free;
+  end;
 end;
 
 procedure TTestsBuildCoordinator.TearDown;

@@ -5,7 +5,8 @@ interface
 uses
   Boss4D.Core.Ports,
   Boss4D.Core.Services.BuildCommand,
-  Boss4D.Core.Services.BuildInventory;
+  Boss4D.Core.Services.BuildInventory,
+  Boss4D.Core.Services.IDEDiscovery;
 
 type
   TBoss4DBuildCoordinator = class
@@ -16,13 +17,15 @@ type
     FLockRepository: IBoss4DLockRepository;
     FRegistrationHandler: TBoss4DIDERegistrationHandler;
     FInventory: TBoss4DBuildInventory;
+    FIDEDiscovery: IBoss4DIDEDiscovery;
   public
     constructor Create(const ACompiler: IBoss4DCompiler;
       const ALogger: IBoss4DLogger;
       const APackageRepository: IBoss4DPackageRepository;
       const ALockRepository: IBoss4DLockRepository;
       const ARegistrationHandler: TBoss4DIDERegistrationHandler;
-      const AInventory: TBoss4DBuildInventory);
+      const AInventory: TBoss4DBuildInventory;
+      const AIDEDiscovery: IBoss4DIDEDiscovery = nil);
     function Execute(const ARootDirectory: string;
       const AOptions: TBoss4DBuildCommandOptions): TBoss4DBuildCommandResult;
   end;
@@ -35,6 +38,7 @@ uses
   System.Generics.Collections,
   Boss4D.Core.Domain.Package,
   Boss4D.Core.Domain.Lock,
+  Boss4D.Core.Domain.BuildMatrix,
   Boss4D.Core.Domain.Consts;
 
 constructor TBoss4DBuildCoordinator.Create(const ACompiler: IBoss4DCompiler;
@@ -42,7 +46,8 @@ constructor TBoss4DBuildCoordinator.Create(const ACompiler: IBoss4DCompiler;
   const APackageRepository: IBoss4DPackageRepository;
   const ALockRepository: IBoss4DLockRepository;
   const ARegistrationHandler: TBoss4DIDERegistrationHandler;
-  const AInventory: TBoss4DBuildInventory);
+  const AInventory: TBoss4DBuildInventory;
+  const AIDEDiscovery: IBoss4DIDEDiscovery);
 begin
   inherited Create;
   if not Assigned(ACompiler) then
@@ -59,6 +64,7 @@ begin
   FLockRepository := ALockRepository;
   FRegistrationHandler := ARegistrationHandler;
   FInventory := AInventory;
+  FIDEDiscovery := AIDEDiscovery;
 end;
 
 function TBoss4DBuildCoordinator.Execute(const ARootDirectory: string;
@@ -68,6 +74,7 @@ var
   LSelected: TList<string>;
   LRoots: TDictionary<string, string>;
   LOrder: TArray<string>;
+  LInstallations: TBoss4DIDEInstallationList;
 begin
   Result := Default(TBoss4DBuildCommandResult);
   var LSeedRoot := TPath.GetFullPath(ARootDirectory);
@@ -79,7 +86,18 @@ begin
   LSeedPackage := FPackageRepository.Load(LSeedManifest);
   LSelected := TList<string>.Create;
   LRoots := TDictionary<string, string>.Create;
+  LInstallations := nil;
   try
+    if AOptions.AllInstalledIDEs then
+    begin
+      if not Assigned(FIDEDiscovery) then
+        raise EInvalidOpException.Create(
+          'A descoberta de IDEs nao esta disponivel neste ambiente.');
+      LInstallations := FIDEDiscovery.Discover;
+      if LInstallations.Count = 0 then
+        raise EInvalidOpException.Create(
+          'Nenhuma instalacao Delphi com compilador foi detectada.');
+    end;
     var LSeedName := LSeedPackage.Name.Trim.ToLower;
     if LSeedName.IsEmpty then
       raise EBoss4DBuildInventoryError.Create(
@@ -122,13 +140,29 @@ begin
           var LCommand := TBoss4DBuildCommand.Create(FCompiler, FLogger,
             FRegistrationHandler, FInventory);
           try
-            var LPartial := LCommand.Execute(LPackage, LLock, LRoot,
-              AOptions);
-            Inc(Result.Scheduled, LPartial.Scheduled);
-            Inc(Result.Built, LPartial.Built);
-            Inc(Result.Skipped, LPartial.Skipped);
-            Inc(Result.Restored, LPartial.Restored);
-            Inc(Result.Registered, LPartial.Registered);
+            var LSelections: TArray<TBoss4DBuildSelection>;
+            if AOptions.AllInstalledIDEs then
+              LSelections := TBoss4DMultiIDEPlanner.Plan(LPackage,
+                LInstallations)
+            else
+              LSelections := TArray<TBoss4DBuildSelection>.Create(
+                AOptions.Selection);
+            if Length(LSelections) = 0 then
+              raise EInvalidOpException.CreateFmt(
+                'Nenhum target instalado e compativel com o pacote %s.',
+                [LPackage.Name]);
+            for var LSelection in LSelections do
+            begin
+              var LTargetOptions := AOptions;
+              LTargetOptions.Selection := LSelection;
+              var LPartial := LCommand.Execute(LPackage, LLock, LRoot,
+                LTargetOptions);
+              Inc(Result.Scheduled, LPartial.Scheduled);
+              Inc(Result.Built, LPartial.Built);
+              Inc(Result.Skipped, LPartial.Skipped);
+              Inc(Result.Restored, LPartial.Restored);
+              Inc(Result.Registered, LPartial.Registered);
+            end;
           finally
             LCommand.Free;
           end;
@@ -140,6 +174,7 @@ begin
       end;
     end;
   finally
+    LInstallations.Free;
     LRoots.Free;
     LSelected.Free;
     LSeedPackage.Free;

@@ -12,7 +12,7 @@ uses
   Boss4D.Core.Services.GetIt, Boss4D.Core.Services.Clean,
   Boss4D.Core.Services.Sbom, Boss4D.Core.Services.Scaffold,
   Boss4D.Core.Services.BuildCommand, Boss4D.Core.Services.BuildInventory,
-  Boss4D.Core.Services.BuildCoordinator;
+  Boss4D.Core.Services.BuildCoordinator, Boss4D.Core.Services.IDEDiscovery;
 
 
 type
@@ -264,7 +264,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  conformance registry|package <arq> Valida o protocolo publico.');
   FLogger.Log(TBoss4DLogLevel.Info, '  spec --detect [--compiler <versao>] Detecta projetos e gera buildMatrix.');
   FLogger.Log(TBoss4DLogLevel.Info, '  build                Compila a matriz declarada.');
-  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --compiler, --platform, --configuration, --jobs, --force, --full, --explain, --register, --affected, --with-dependents.');
+  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --compiler, --platform, --configuration, --jobs, --force, --full, --explain, --register, --all-installed, --affected, --with-dependents.');
   FLogger.Log(TBoss4DLogLevel.Info, '  ide unregister <pacote> --compiler <versao> --platform <Win32|Win64>');
   FLogger.Log(TBoss4DLogLevel.Info, '  ide repair           Repara registros da IDE a partir do inventario.');
   FLogger.Log(TBoss4DLogLevel.Info, '  help, -h, --help     Exibe este menu de ajuda.');
@@ -479,7 +479,8 @@ begin
     try
       LInventory.Load;
       LCoordinator := TBoss4DBuildCoordinator.Create(LCompiler, FLogger,
-        FPackageRepo, LLockRepo, LHandler, LInventory);
+        FPackageRepo, LLockRepo, LHandler, LInventory,
+        TBoss4DRegistryIDEDiscovery.Create(FRegistry));
       try
         LCoordinator.Execute(GetCurrentDir,
           TBoss4DBuildCommandOptions.Parse(AArgs));

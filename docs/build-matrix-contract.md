@@ -218,6 +218,7 @@ boss4d build
 boss4d build --compiler d13 --platform Win64 --configuration Release
 boss4d build --compiler all --platform Win32 --configuration Release --jobs 4
 boss4d build --compiler d13 --platform Win32 --configuration Release --explain
+boss4d build --all-installed
 boss4d build --affected
 boss4d build --with-dependents
 boss4d build --full
@@ -230,6 +231,10 @@ boss4d build --full
 - `--full` selects every axis and forces recompilation.
 - `--explain` prints the incremental decision for every target.
 - `--register` registers BPLs produced by selected design-time targets.
+- `--all-installed` discovers BDS installations from the Registry, confirms
+  available Win32/Win64 compiler executables, intersects them with the package
+  matrix, and builds/registers every compatible target. Missing or modeled-only
+  IDEs are never treated as installed.
 - `--with-dependents` builds the current package and all direct/transitive
   consumers recorded in the global inventory, in dependency order.
 - `--affected` is the incremental affected-build workflow: it selects the same

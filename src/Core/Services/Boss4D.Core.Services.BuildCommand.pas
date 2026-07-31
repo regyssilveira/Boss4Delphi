@@ -21,6 +21,7 @@ type
     RegisterTargets: Boolean;
     WithDependents: Boolean;
     Affected: Boolean;
+    AllInstalledIDEs: Boolean;
     Jobs: Integer;
     class function Parse(
       const AArgs: TArray<string>): TBoss4DBuildCommandOptions; static;
@@ -98,6 +99,11 @@ begin
     begin
       Result.Affected := True;
       Result.WithDependents := True;
+    end
+    else if SameText(AArgs[I], '--all-installed') then
+    begin
+      Result.AllInstalledIDEs := True;
+      Result.RegisterTargets := True;
     end
     else if SameText(AArgs[I], '--full') then
     begin
