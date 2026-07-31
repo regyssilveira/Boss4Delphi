@@ -57,6 +57,10 @@ type
     BtnIDECloneProfile: TButton;
     BtnIDERemoveProfile: TButton;
     BtnIDELaunch: TButton;
+    ComboIDETargetPlatform: TComboBox;
+    ComboIDETargetConfiguration: TComboBox;
+    BtnIDESaveTarget: TButton;
+    LblIDETarget: TLabel;
     ListIDEPackages: TListView;
     PanelIDEActions: TPanel;
     BtnIDEPreviewInstall: TButton;
@@ -96,6 +100,7 @@ type
     procedure BtnIDECloneProfileClick(Sender: TObject);
     procedure BtnIDERemoveProfileClick(Sender: TObject);
     procedure BtnIDELaunchClick(Sender: TObject);
+    procedure BtnIDESaveTargetClick(Sender: TObject);
     procedure BtnIDEPreviewInstallClick(Sender: TObject);
     procedure BtnIDEInstallClick(Sender: TObject);
     procedure BtnIDERepairClick(Sender: TObject);
@@ -121,6 +126,7 @@ type
     procedure AddProfile(const AId, AName, ACompiler,
       ARegistryBranch: string; const APackageCount: Integer);
     procedure SelectProfile(const AId: string);
+    procedure SelectTarget(const APlatform, AConfiguration: string);
     procedure ClearPackages;
     procedure AddPackage(const AName, ARootDirectory: string;
       const AInstalled: Boolean);
@@ -792,6 +798,19 @@ begin
     ComboIDEProfiles.ItemIndex := LIndex;
 end;
 
+procedure TFormMain.SelectTarget(const APlatform,
+  AConfiguration: string);
+begin
+  var LIndex := ComboIDETargetPlatform.Items.IndexOf(APlatform);
+  if LIndex < 0 then
+    LIndex := ComboIDETargetPlatform.Items.Add(APlatform);
+  ComboIDETargetPlatform.ItemIndex := LIndex;
+  LIndex := ComboIDETargetConfiguration.Items.IndexOf(AConfiguration);
+  if LIndex < 0 then
+    LIndex := ComboIDETargetConfiguration.Items.Add(AConfiguration);
+  ComboIDETargetConfiguration.ItemIndex := LIndex;
+end;
+
 procedure TFormMain.ClearPackages;
 begin
   ListIDEPackages.Items.Clear;
@@ -886,6 +905,13 @@ end;
 procedure TFormMain.BtnIDELaunchClick(Sender: TObject);
 begin
   FIDEPresenter.Launch;
+end;
+
+procedure TFormMain.BtnIDESaveTargetClick(Sender: TObject);
+begin
+  FIDEPresenter.ConfigureTarget(
+    ComboIDETargetPlatform.Text,
+    ComboIDETargetConfiguration.Text);
 end;
 
 procedure TFormMain.BtnIDEPreviewInstallClick(Sender: TObject);

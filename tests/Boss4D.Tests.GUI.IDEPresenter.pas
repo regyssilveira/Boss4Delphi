@@ -49,6 +49,8 @@ type
       AExecutable: string);
     procedure CloneProfile(const ASourceId, AName: string);
     procedure RemoveProfile(const AProfileId: string);
+    procedure ConfigureTarget(const AProfileId, APlatform,
+      AConfiguration: string);
   end;
 
   TViewMock = class(TInterfacedObject, IBoss4DIDEManagementView)
@@ -59,12 +61,15 @@ type
     Selected: string;
     Status: string;
     Error: string;
+    Platform: string;
+    Configuration: string;
     constructor Create;
     destructor Destroy; override;
     procedure ClearProfiles;
     procedure AddProfile(const AId, AName, ACompiler,
       ARegistryBranch: string; const APackageCount: Integer);
     procedure SelectProfile(const AId: string);
+    procedure SelectTarget(const APlatform, AConfiguration: string);
     procedure ClearPackages;
     procedure AddPackage(const AName, ARootDirectory: string;
       const AInstalled: Boolean);
@@ -84,6 +89,8 @@ begin
   LProfile.Name := 'Daily';
   LProfile.Compiler := '37.0';
   LProfile.RegistryBranch := 'Boss4D-daily';
+  LProfile.DefaultPlatform := 'Win32';
+  LProfile.DefaultConfiguration := 'Release';
   LProfile.PackageCount := 1;
   Result.Add(LProfile);
 end;
@@ -161,6 +168,13 @@ begin
   LastAction := 'remove:' + AProfileId;
 end;
 
+procedure TBackendMock.ConfigureTarget(const AProfileId, APlatform,
+  AConfiguration: string);
+begin
+  LastAction := 'target:' + AProfileId + ':' + APlatform + ':' +
+    AConfiguration;
+end;
+
 constructor TViewMock.Create;
 begin
   inherited Create;
@@ -191,6 +205,13 @@ end;
 procedure TViewMock.SelectProfile(const AId: string);
 begin
   Selected := AId;
+end;
+
+procedure TViewMock.SelectTarget(const APlatform,
+  AConfiguration: string);
+begin
+  Platform := APlatform;
+  Configuration := AConfiguration;
 end;
 
 procedure TViewMock.ClearPackages;
@@ -238,6 +259,8 @@ begin
     Assert.AreEqual('daily', LViewObject.Selected);
     Assert.AreEqual<Integer>(1, LViewObject.Profiles.Count);
     Assert.AreEqual<Integer>(1, LViewObject.Packages.Count);
+    Assert.AreEqual('Win32', LViewObject.Platform);
+    Assert.AreEqual('Release', LViewObject.Configuration);
     LPresenter.PreviewInstall('horse');
     Assert.AreEqual('HorseDesign|37.0|Win32|Release',
       LViewObject.Targets[0]);
@@ -262,6 +285,9 @@ begin
     Assert.AreEqual('create:Clean', LBackendObject.LastAction);
     LPresenter.RemoveProfile;
     Assert.AreEqual('remove:daily', LBackendObject.LastAction);
+    LPresenter.ConfigureTarget('Win64', 'Debug');
+    Assert.AreEqual('target:daily:Win64:Debug',
+      LBackendObject.LastAction);
   finally
     LPresenter.Free;
   end;

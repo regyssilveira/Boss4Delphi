@@ -39,6 +39,8 @@ type
       AExecutable: string);
     procedure CloneProfile(const ASourceId, AName: string);
     procedure RemoveProfile(const AProfileId: string);
+    procedure ConfigureTarget(const AProfileId, APlatform,
+      AConfiguration: string);
   end;
 
 implementation
@@ -135,6 +137,12 @@ procedure TBoss4DGUIIDEManagementBackend.RemoveProfile(
   const AProfileId: string);
 begin
   FProfiles.Remove(AProfileId);
+end;
+
+procedure TBoss4DGUIIDEManagementBackend.ConfigureTarget(
+  const AProfileId, APlatform, AConfiguration: string);
+begin
+  FProfiles.ConfigureTarget(AProfileId, APlatform, AConfiguration);
 end;
 
 end.

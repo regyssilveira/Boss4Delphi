@@ -28,6 +28,8 @@ type
       AExecutable: string);
     procedure CloneProfile(const ASourceId, AName: string);
     procedure RemoveProfile(const AProfileId: string);
+    procedure ConfigureTarget(const AProfileId, APlatform,
+      AConfiguration: string);
   end;
 
   IBoss4DIDEManagementView = interface
@@ -36,6 +38,7 @@ type
     procedure AddProfile(const AId, AName, ACompiler,
       ARegistryBranch: string; const APackageCount: Integer);
     procedure SelectProfile(const AId: string);
+    procedure SelectTarget(const APlatform, AConfiguration: string);
     procedure ClearPackages;
     procedure AddPackage(const AName, ARootDirectory: string;
       const AInstalled: Boolean);
@@ -68,6 +71,7 @@ type
       AExecutable: string);
     procedure CloneProfile(const AName: string);
     procedure RemoveProfile;
+    procedure ConfigureTarget(const APlatform, AConfiguration: string);
     property SelectedProfile: string read FSelectedProfile;
   end;
 
@@ -111,10 +115,16 @@ begin
         if SameText(LProfile.Id, FSelectedProfile) then
         begin
           LFound := True;
+          FView.SelectTarget(LProfile.DefaultPlatform,
+            LProfile.DefaultConfiguration);
           Break;
         end;
       if not LFound then
+      begin
         FSelectedProfile := LProfiles[0].Id;
+        FView.SelectTarget(LProfiles[0].DefaultPlatform,
+          LProfiles[0].DefaultConfiguration);
+      end;
       FView.SelectProfile(FSelectedProfile);
       LoadPackages;
       FView.ShowIDEStatus(Format('%d perfil(is) carregado(s).',
@@ -151,6 +161,18 @@ begin
     Exit;
   try
     FSelectedProfile := AProfileId.Trim;
+    var LProfiles := FBackend.Profiles;
+    try
+      for var LProfile in LProfiles do
+        if SameText(LProfile.Id, FSelectedProfile) then
+        begin
+          FView.SelectTarget(LProfile.DefaultPlatform,
+            LProfile.DefaultConfiguration);
+          Break;
+        end;
+    finally
+      LProfiles.Free;
+    end;
     LoadPackages;
   except
     on E: Exception do
@@ -306,6 +328,22 @@ begin
     FBackend.RemoveProfile(FSelectedProfile);
     FSelectedProfile := '';
     Refresh;
+  except
+    on E: Exception do
+      FView.ShowIDEError(E.Message);
+  end;
+end;
+
+procedure TBoss4DIDEManagementPresenter.ConfigureTarget(
+  const APlatform, AConfiguration: string);
+begin
+  try
+    if FSelectedProfile.IsEmpty then
+      raise EArgumentException.Create('Selecione um perfil.');
+    FBackend.ConfigureTarget(FSelectedProfile,
+      APlatform, AConfiguration);
+    Refresh;
+    FView.ShowIDEStatus('Target padrao do perfil atualizado.');
   except
     on E: Exception do
       FView.ShowIDEError(E.Message);

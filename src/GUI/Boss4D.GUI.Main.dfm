@@ -345,7 +345,7 @@ object FormMain: TFormMain
           Left = 0
           Top = 0
           Width = 689
-          Height = 72
+          Height = 100
           Align = alTop
           BevelOuter = bvNone
           TabOrder = 0
@@ -407,10 +407,53 @@ object FormMain: TFormMain
             Left = 400
             Top = 12
             Width = 270
-            Height = 45
+            Height = 23
             AutoSize = False
             Caption = 'Pronto.'
             WordWrap = True
+          end
+          object LblIDETarget: TLabel
+            Left = 8
+            Top = 77
+            Width = 76
+            Height = 15
+            Caption = 'Target padrao:'
+          end
+          object ComboIDETargetPlatform: TComboBox
+            Left = 90
+            Top = 72
+            Width = 100
+            Height = 23
+            Style = csDropDownList
+            ItemIndex = 0
+            TabOrder = 6
+            Text = 'Win32'
+            Items.Strings = (
+              'Win32'
+              'Win64'
+              'Linux64')
+          end
+          object ComboIDETargetConfiguration: TComboBox
+            Left = 196
+            Top = 72
+            Width = 100
+            Height = 23
+            Style = csDropDownList
+            ItemIndex = 1
+            TabOrder = 7
+            Text = 'Release'
+            Items.Strings = (
+              'Debug'
+              'Release')
+          end
+          object BtnIDESaveTarget: TButton
+            Left = 302
+            Top = 71
+            Width = 86
+            Height = 25
+            Caption = 'Aplicar target'
+            TabOrder = 8
+            OnClick = BtnIDESaveTargetClick
           end
         end
         object PanelIDEActions: TPanel
@@ -522,9 +565,9 @@ object FormMain: TFormMain
         end
         object ListIDEPackages: TListView
           Left = 0
-          Top = 72
+          Top = 100
           Width = 689
-          Height = 223
+          Height = 195
           Align = alClient
           Columns = <
             item
