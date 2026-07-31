@@ -5,7 +5,8 @@ interface
 uses
   System.SysUtils,
   System.Generics.Collections,
-  Boss4D.Core.Domain.IDEProfile;
+  Boss4D.Core.Domain.IDEProfile,
+  Boss4D.Core.Domain.Package;
 
 type
   EBoss4DIDEProfileError = class(Exception);
@@ -50,6 +51,8 @@ type
       AConfiguration: string);
     procedure ExportProfile(const AIdOrName, APath: string);
     function ImportProfile(const APath: string): TBoss4DIDEProfile;
+    function ResolveForPackage(
+      const APackage: TBoss4DPackage): TBoss4DIDEProfile;
     procedure CreateSnapshot(const AIdOrName, APath: string);
     function CompareSnapshot(const AIdOrName, APath: string): TList<string>;
     function RestoreSnapshot(const APath: string): TBoss4DIDEProfile;
@@ -673,6 +676,35 @@ begin
   finally
     LImported.Free;
     LObject.Free;
+  end;
+end;
+
+function TBoss4DIDEProfileService.ResolveForPackage(
+  const APackage: TBoss4DPackage): TBoss4DIDEProfile;
+begin
+  if not Assigned(APackage) then
+    raise EArgumentNilException.Create('APackage');
+  if APackage.IDEProfile.Trim.IsEmpty then
+    raise EBoss4DIDEProfileError.Create(
+      'O projeto nao declara ideProfile no boss.json.');
+  Result := Get(APackage.IDEProfile);
+  try
+    var LCompiler := APackage.BuildMatrix.DefaultCompiler;
+    if LCompiler.Trim.IsEmpty then
+      LCompiler := APackage.Toolchain.Compiler;
+    if LCompiler.Trim.IsEmpty then
+      LCompiler := APackage.Engines.Compiler;
+    if not LCompiler.Trim.IsEmpty then
+      LCompiler :=
+        TBoss4DBuildConventions.ResolveCompiler(LCompiler).BDSVersion;
+    if not LCompiler.Trim.IsEmpty and
+       not SameText(Result.Compiler, LCompiler) then
+      raise EBoss4DIDEProfileError.CreateFmt(
+        'O projeto requer Delphi %s, mas o perfil %s usa Delphi %s.',
+        [LCompiler, Result.Id, Result.Compiler]);
+  except
+    Result.Free;
+    raise;
   end;
 end;
 

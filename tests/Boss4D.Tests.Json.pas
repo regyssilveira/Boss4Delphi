@@ -215,6 +215,7 @@ begin
   try
     LPackage.Name := 'matrix-component';
     LPackage.Version := '2.0.0';
+    LPackage.IDEProfile := 'team-components';
     LPackage.BuildMatrix.Compilers.Add('37.0');
     LPackage.BuildMatrix.Compilers.Add('22.0');
     LPackage.BuildMatrix.Platforms.Add('Win32');
@@ -259,6 +260,7 @@ begin
   LLoaded := FPackageRepo.Load(LFilePath);
   try
     Assert.IsTrue(LLoaded.BuildMatrix.IsDeclared);
+    Assert.AreEqual('team-components', LLoaded.IDEProfile);
     Assert.AreEqual<Integer>(2, LLoaded.BuildMatrix.Compilers.Count);
     Assert.AreEqual('22.0', LLoaded.BuildMatrix.Compilers[0]);
     Assert.AreEqual('37.0', LLoaded.BuildMatrix.DefaultCompiler);

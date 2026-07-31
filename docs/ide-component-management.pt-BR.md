@@ -101,6 +101,19 @@ SHA-256, detecta drift e restaura o estado capturado com substituicao atomica do
 arquivo. Em outra maquina, o path do inventario e recalculado sob o diretorio
 de perfis do Boss4D daquela maquina.
 
+Projetos podem se vincular a um perfil no `boss.json`:
+
+```json
+{
+  "ideProfile": "equipe-a"
+}
+```
+
+Execute `boss4d ide profile project` no diretorio do projeto para resolver o
+vinculo. O Boss4D recusa um perfil cujo compilador Delphi seja diferente do
+compilador solicitado pelo projeto, evitando build ou instalacao acidental em
+outro ambiente da IDE.
+
 Faça preview e execute as operações:
 
 ```console

@@ -550,7 +550,8 @@ begin
   if Length(AArgs) < 3 then
     raise EArgumentException.Create(
       'Uso: boss4d ide profile list|create|show|target|clone|remove|' +
-      'export|import|snapshot|diff|restore|launch|preview-install|install|' +
+      'export|import|snapshot|diff|restore|project|launch|' +
+      'preview-install|install|' +
       'preview-uninstall|uninstall|repair.');
   LStore := TBoss4DIDEProfileStore.Create(TPath.Combine(
     GetBossHome, 'ide-profiles.json'));
@@ -778,6 +779,33 @@ begin
           'Perfil restaurado: %s.', [LProfile.Id]);
       finally
         LProfile.Free;
+      end;
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'project') then
+    begin
+      if Length(AArgs) > 4 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile project [boss.json].');
+      var LManifestPath := TPath.Combine(
+        TDirectory.GetCurrentDirectory, 'boss.json');
+      if Length(AArgs) = 4 then
+        LManifestPath := AArgs[3];
+      var LProjectPackage := FPackageRepo.Load(
+        TPath.GetFullPath(LManifestPath));
+      try
+        LProfile := LService.ResolveForPackage(LProjectPackage);
+        try
+          FLogger.Log(TBoss4DLogLevel.Info,
+            'Perfil do projeto: %s (Delphi %s, %s/%s).',
+            [LProfile.Id, LProfile.Compiler, LProfile.DefaultPlatform,
+             LProfile.DefaultConfiguration]);
+        finally
+          LProfile.Free;
+        end;
+      finally
+        LProjectPackage.Free;
       end;
       Exit;
     end;

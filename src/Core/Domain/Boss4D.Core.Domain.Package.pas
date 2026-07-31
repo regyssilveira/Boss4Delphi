@@ -119,6 +119,7 @@ type
     FSbomComponents: TObjectList<TBoss4DManualComponent>;
     FBuildMatrix: TBoss4DBuildMatrix;
     FIDEAssets: TBoss4DIDEAssets;
+    FIDEProfile: string;
   public
     constructor Create;
     destructor Destroy; override;
@@ -150,6 +151,7 @@ type
     property SbomComponents: TObjectList<TBoss4DManualComponent> read FSbomComponents;
     property BuildMatrix: TBoss4DBuildMatrix read FBuildMatrix;
     property IDEAssets: TBoss4DIDEAssets read FIDEAssets;
+    property IDEProfile: string read FIDEProfile write FIDEProfile;
   end;
 
 implementation

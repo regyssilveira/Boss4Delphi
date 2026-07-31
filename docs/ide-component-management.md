@@ -101,6 +101,19 @@ inventory with SHA-256, detects drift, and restores the captured state with an
 atomic file replacement. On another machine, the inventory path is rebased
 under that machine's Boss4D profile directory.
 
+Projects can bind themselves to a profile in `boss.json`:
+
+```json
+{
+  "ideProfile": "team-a"
+}
+```
+
+Run `boss4d ide profile project` from the project directory to resolve the
+binding. Boss4D rejects a profile whose Delphi compiler differs from the
+compiler requested by the project, preventing an accidental build or install
+against another IDE environment.
+
 Preview and perform component operations:
 
 ```console

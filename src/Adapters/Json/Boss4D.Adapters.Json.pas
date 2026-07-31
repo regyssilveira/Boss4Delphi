@@ -747,6 +747,7 @@ begin
       Result.Description := ReadString(LJSONObj, 'description');
       Result.Version := ReadString(LJSONObj, 'version');
       Result.Homepage := ReadString(LJSONObj, 'homepage');
+      Result.IDEProfile := ReadString(LJSONObj, 'ideProfile');
       Result.License := ReadString(LJSONObj, 'license');
       Result.MainSrc := ReadString(LJSONObj, 'mainsrc');
       Result.BrowsingPath := ReadString(LJSONObj, 'browsingpath');
@@ -783,6 +784,8 @@ begin
     LJSONObj.AddPair('description', APackage.Description);
     LJSONObj.AddPair('version', APackage.Version);
     LJSONObj.AddPair('homepage', APackage.Homepage);
+    if not APackage.IDEProfile.IsEmpty then
+      LJSONObj.AddPair('ideProfile', APackage.IDEProfile);
 
     if not APackage.License.IsEmpty then
       LJSONObj.AddPair('license', APackage.License);

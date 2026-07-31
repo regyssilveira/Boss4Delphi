@@ -32,6 +32,10 @@ type
     procedure TestSnapshotDetectsDriftAndRestoresExactInventory;
     [Test]
     procedure TestSnapshotRejectsTamperedInventory;
+    [Test]
+    procedure TestProjectBindingResolvesCompatibleProfile;
+    [Test]
+    procedure TestProjectBindingRejectsCompilerMismatch;
   end;
 
 implementation
@@ -41,7 +45,64 @@ uses
   System.IOUtils,
   System.Generics.Collections,
   Boss4D.Core.Domain.IDEProfile,
+  Boss4D.Core.Domain.Package,
   Boss4D.Core.Services.IDEProfiles;
+
+procedure TTestsIDEProfiles.TestProjectBindingResolvesCompatibleProfile;
+var
+  LService: TBoss4DIDEProfileService;
+  LPackage: TBoss4DPackage;
+  LProfile: TBoss4DIDEProfile;
+begin
+  LService := TBoss4DIDEProfileService.Create(
+    TBoss4DIDEProfileStore(FStore),
+    TPath.Combine(FDirectory, 'data'));
+  LPackage := TBoss4DPackage.Create;
+  try
+    LProfile := LService.CreateProfile('Project Team', '', 'd13',
+      'C:\Delphi13\bin\bds.exe');
+    LProfile.Free;
+    LPackage.IDEProfile := 'project-team';
+    LPackage.BuildMatrix.DefaultCompiler := '37.0';
+    LProfile := LService.ResolveForPackage(LPackage);
+    try
+      Assert.AreEqual('project-team', LProfile.Id);
+      Assert.AreEqual('37.0', LProfile.Compiler);
+    finally
+      LProfile.Free;
+    end;
+  finally
+    LPackage.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsIDEProfiles.TestProjectBindingRejectsCompilerMismatch;
+var
+  LService: TBoss4DIDEProfileService;
+  LPackage: TBoss4DPackage;
+begin
+  LService := TBoss4DIDEProfileService.Create(
+    TBoss4DIDEProfileStore(FStore),
+    TPath.Combine(FDirectory, 'data'));
+  LPackage := TBoss4DPackage.Create;
+  try
+    var LProfile := LService.CreateProfile('Legacy Team', '', 'd10',
+      'C:\Delphi10\bin\bds.exe');
+    LProfile.Free;
+    LPackage.IDEProfile := 'legacy-team';
+    LPackage.BuildMatrix.DefaultCompiler := '37.0';
+    Assert.WillRaise(
+      procedure
+      begin
+        LService.ResolveForPackage(LPackage).Free;
+      end,
+      EBoss4DIDEProfileError);
+  finally
+    LPackage.Free;
+    LService.Free;
+  end;
+end;
 
 procedure TTestsIDEProfiles.TestSnapshotDetectsDriftAndRestoresExactInventory;
 var
