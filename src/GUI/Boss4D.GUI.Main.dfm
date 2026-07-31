@@ -733,9 +733,9 @@ object FormMain: TFormMain
   end
   object PanelLogs: TPanel
     Left = 0
-    Top = 453
+    Top = 400
     Width = 900
-    Height = 147
+    Height = 200
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 2
@@ -785,15 +785,96 @@ object FormMain: TFormMain
         OnClick = BtnRetryOperationClick
       end
     end
-    object MemoLogs: TMemo
+    object PanelLogFilters: TPanel
       Left = 0
       Top = 34
       Width = 900
-      Height = 113
-      Align = alClient
-      ReadOnly = True
-      ScrollBars = ssVertical
+      Height = 34
+      Align = alTop
+      BevelOuter = bvNone
       TabOrder = 1
+      object ComboLogLevel: TComboBox
+        Left = 8
+        Top = 5
+        Width = 105
+        Height = 23
+        Style = csDropDownList
+        ItemIndex = 0
+        TabOrder = 0
+        Text = 'Todos'
+        OnChange = ComboLogLevelChange
+        Items.Strings = (
+          'Todos'
+          'Debug'
+          'Info'
+          'Avisos'
+          'Erros')
+      end
+      object EditLogSearch: TEdit
+        Left = 120
+        Top = 5
+        Width = 270
+        Height = 23
+        TextHint = 'Pesquisar nos logs'
+        TabOrder = 1
+        OnChange = EditLogSearchChange
+      end
+      object BtnLogErrors: TButton
+        Left = 400
+        Top = 4
+        Width = 100
+        Height = 25
+        Caption = 'Ir para erros'
+        TabOrder = 2
+        OnClick = BtnLogErrorsClick
+      end
+      object BtnLogExport: TButton
+        Left = 506
+        Top = 4
+        Width = 110
+        Height = 25
+        Caption = 'Exportar JSON'
+        TabOrder = 3
+        OnClick = BtnLogExportClick
+      end
+      object BtnLogClear: TButton
+        Left = 622
+        Top = 4
+        Width = 82
+        Height = 25
+        Caption = 'Limpar'
+        TabOrder = 4
+        OnClick = BtnLogClearClick
+      end
+    end
+    object ListLogs: TListView
+      Left = 0
+      Top = 68
+      Width = 900
+      Height = 132
+      Align = alClient
+      Columns = <
+        item
+          Caption = 'Horario'
+          Width = 155
+        end
+        item
+          Caption = 'Nivel'
+          Width = 65
+        end
+        item
+          Caption = 'Origem'
+          Width = 85
+        end
+        item
+          Caption = 'Mensagem'
+          Width = 570
+        end>
+      GridLines = True
+      ReadOnly = True
+      RowSelect = True
+      TabOrder = 2
+      ViewStyle = vsReport
     end
   end
   object TimerOperation: TTimer

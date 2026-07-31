@@ -12,6 +12,7 @@ uses
   Boss4D.GUI.IDE.Presenter,
   Boss4D.GUI.IDE.Timeline,
   Boss4D.GUI.IDE.Dashboard,
+  Boss4D.GUI.Logs,
   Boss4D.GUI.Catalog.Presenter,
   Boss4D.GUI.Install.Presenter,
   Boss4D.GUI.Operation.Presenter,
@@ -98,7 +99,13 @@ type
     ProgressOperation: TProgressBar;
     BtnCancelOperation: TButton;
     BtnRetryOperation: TButton;
-    MemoLogs: TMemo;
+    PanelLogFilters: TPanel;
+    ComboLogLevel: TComboBox;
+    EditLogSearch: TEdit;
+    BtnLogErrors: TButton;
+    BtnLogExport: TButton;
+    BtnLogClear: TButton;
+    ListLogs: TListView;
     TimerOperation: TTimer;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -145,6 +152,11 @@ type
     procedure BtnCancelOperationClick(Sender: TObject);
     procedure BtnRetryOperationClick(Sender: TObject);
     procedure TimerOperationTimer(Sender: TObject);
+    procedure ComboLogLevelChange(Sender: TObject);
+    procedure EditLogSearchChange(Sender: TObject);
+    procedure BtnLogErrorsClick(Sender: TObject);
+    procedure BtnLogExportClick(Sender: TObject);
+    procedure BtnLogClearClick(Sender: TObject);
   private
     FCurrentProjectDir: string;
     FIDEProfileIds: TStringList;
@@ -157,6 +169,7 @@ type
     FIDEPresenter: TBoss4DIDEManagementPresenter;
     FCatalogRows: TArray<TBoss4DGUICatalogRow>;
     FOperationPresenter: TBoss4DGUIOperationPresenter;
+    FLogStore: TBoss4DGUILogStore;
     FCancelRequested: Integer;
     FLastInstallRequest: TBoss4DGUIInstallRequest;
     FHasLastInstallRequest: Boolean;
@@ -164,6 +177,11 @@ type
     function SelectedIDEPackage: string;
     procedure LoadProjectDependencies(const AProjectDir: string);
     procedure LogMessage(const AMessage: string);
+    procedure LogStructured(const ALevel: TBoss4DLogLevel;
+      const ASource, AMessage: string);
+    procedure QueueLogEntry(const AEntry: TBoss4DGUILogEntry);
+    procedure RefreshLogs;
+    function CurrentLogFilter: TBoss4DGUILogFilter;
     procedure PopulateCatalog;
     procedure ShowCatalogDetails(const AIndex: Integer);
     procedure RunAsyncCommand(const ATitle, ACommand: string; const AArgs: string = '');
@@ -248,16 +266,8 @@ begin
 end;
 
 procedure TGUILogger.Log(const ALevel: TBoss4DLogLevel; const AMessage: string);
-var
-  LPrefix: string;
 begin
-  case ALevel of
-    Debug: LPrefix := '[DEBUG] ';
-    Info: LPrefix := '[INFO] ';
-    Warning: LPrefix := '[WARN] ';
-    Error: LPrefix := '[ERRO] ';
-  end;
-  FForm.LogMessage(LPrefix + AMessage);
+  FForm.LogStructured(ALevel, 'Core', AMessage);
 end;
 
 procedure TGUILogger.Log(const ALevel: TBoss4DLogLevel; const AMessage: string; const AArgs: array of const);
@@ -280,6 +290,7 @@ begin
 
   PageControlMain.ActivePage := TabProject;
   FOperationPresenter := TBoss4DGUIOperationPresenter.Create;
+  FLogStore := TBoss4DGUILogStore.Create;
   FIDEProfileIds := TStringList.Create;
   InitializeIDEManagement;
   PopulateCatalog;
@@ -297,6 +308,7 @@ begin
   FIDEProfiles.Free;
   FIDEProfileStore.Free;
   FIDEProfileIds.Free;
+  FLogStore.Free;
   FOperationPresenter.Free;
 end;
 
@@ -544,18 +556,114 @@ begin
 end;
 
 procedure TFormMain.LogMessage(const AMessage: string);
-var
-  LMsg: string;
 begin
-  LMsg := AMessage;
+  QueueLogEntry(TBoss4DGUILogs.ParseLegacy(AMessage));
+end;
+
+procedure TFormMain.LogStructured(const ALevel: TBoss4DLogLevel;
+  const ASource, AMessage: string);
+begin
+  QueueLogEntry(TBoss4DGUILogEntry.Create(
+    ALevel, ASource, AMessage));
+end;
+
+procedure TFormMain.QueueLogEntry(const AEntry: TBoss4DGUILogEntry);
+begin
+  var LEntry := AEntry;
   TThread.Queue(nil,
     TThreadProcedure(
       procedure
       begin
-        MemoLogs.Lines.Add(LMsg);
+        if not Assigned(FLogStore) then
+          Exit;
+        FLogStore.Add(LEntry);
+        RefreshLogs;
       end
     )
   );
+end;
+
+function TFormMain.CurrentLogFilter: TBoss4DGUILogFilter;
+begin
+  case ComboLogLevel.ItemIndex of
+    1: Result := TBoss4DGUILogFilter.DebugLogs;
+    2: Result := TBoss4DGUILogFilter.InfoLogs;
+    3: Result := TBoss4DGUILogFilter.WarningLogs;
+    4: Result := TBoss4DGUILogFilter.ErrorLogs;
+  else
+    Result := TBoss4DGUILogFilter.AllLogs;
+  end;
+end;
+
+procedure TFormMain.RefreshLogs;
+begin
+  if not Assigned(FLogStore) then
+    Exit;
+  var LEntries := FLogStore.Query(
+    CurrentLogFilter, EditLogSearch.Text);
+  ListLogs.Items.BeginUpdate;
+  try
+    ListLogs.Items.Clear;
+    for var LEntry in LEntries do
+    begin
+      var LItem := ListLogs.Items.Add;
+      LItem.Caption := LEntry.OccurredAt;
+      LItem.SubItems.Add(LEntry.LevelName);
+      LItem.SubItems.Add(LEntry.Source);
+      LItem.SubItems.Add(LEntry.MessageText);
+    end;
+  finally
+    ListLogs.Items.EndUpdate;
+  end;
+  if ListLogs.Items.Count > 0 then
+    ListLogs.Items[ListLogs.Items.Count - 1].MakeVisible(False);
+end;
+
+procedure TFormMain.ComboLogLevelChange(Sender: TObject);
+begin
+  RefreshLogs;
+end;
+
+procedure TFormMain.EditLogSearchChange(Sender: TObject);
+begin
+  RefreshLogs;
+end;
+
+procedure TFormMain.BtnLogErrorsClick(Sender: TObject);
+begin
+  ComboLogLevel.ItemIndex := 4;
+  RefreshLogs;
+  if ListLogs.Items.Count > 0 then
+  begin
+    ListLogs.Selected := ListLogs.Items[ListLogs.Items.Count - 1];
+    ListLogs.Selected.MakeVisible(False);
+    ListLogs.SetFocus;
+  end;
+end;
+
+procedure TFormMain.BtnLogExportClick(Sender: TObject);
+begin
+  var LDialog := TSaveDialog.Create(Self);
+  try
+    LDialog.Title := 'Exportar diagnostico da GUI';
+    LDialog.Filter := 'JSON (*.json)|*.json';
+    LDialog.DefaultExt := 'json';
+    LDialog.FileName := 'boss4d-gui-diagnostics.json';
+    if LDialog.Execute then
+    begin
+      TBoss4DGUILogs.SaveJson(LDialog.FileName,
+        FLogStore.Query(TBoss4DGUILogFilter.AllLogs));
+      ShowMessage('Diagnostico exportado para ' + LDialog.FileName);
+    end;
+  finally
+    LDialog.Free;
+  end;
+end;
+
+procedure TFormMain.BtnLogClearClick(Sender: TObject);
+begin
+  FLogStore.Clear;
+  RefreshLogs;
 end;
 
 procedure TFormMain.RunAsyncCommand(const ATitle, ACommand: string; const AArgs: string);
