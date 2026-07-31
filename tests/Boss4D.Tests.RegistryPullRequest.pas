@@ -96,6 +96,7 @@ begin
   Result.PushRemote := 'origin';
   Result.BaseBranch := 'main';
   Result.PullRequestRepository := 'regyssilveira/Boss4Delphi';
+  Result.PullRequestHead := Result.Branch;
 end;
 
 procedure TTestsRegistryPullRequest.TestStartAndSubmitUseExactFiles;
@@ -124,6 +125,8 @@ begin
     Assert.IsFalse(LRunner.Commands[3].Contains('git add .'));
     Assert.IsTrue(LRunner.Commands[5].Contains(
       'push --set-upstream "origin"'));
+    Assert.IsTrue(LRunner.Commands[6].Contains(
+      '--head "boss4d/package-horse-3.2.1"'));
   finally
     LService.Free;
   end;

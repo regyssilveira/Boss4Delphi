@@ -171,7 +171,9 @@ uses
   Boss4D.Core.Services.DependencySubmission,
   Boss4D.Core.Services.Publish,
   Boss4D.Core.Services.OfficialPublish,
+  Boss4D.Core.Services.RegistrySubmission,
   Boss4D.Core.Services.RegistryCheckout,
+  Boss4D.Core.Services.RegistryPullRequest,
   Boss4D.Core.Services.SelfUpdate,
   Boss4D.Core.Services.Pack,
   Boss4D.Core.Services.Resolver,
@@ -278,7 +280,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  package versions <pacote> Lista versoes publicadas e revogadas.');
   FLogger.Log(TBoss4DLogLevel.Info, '  dependency submit    Envia snapshot ao GitHub Dependency Graph.');
   FLogger.Log(TBoss4DLogLevel.Info, '  publish              Publica pacote com validacoes; use --dry-run para inspecionar.');
-  FLogger.Log(TBoss4DLogLevel.Info, '  publish --official [--registry-root dir] Prepara bundle e atualiza checkout para PR.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  publish --official [--registry-root dir] [--open-pr] Publica bundle assinado no Registry.');
   FLogger.Log(TBoss4DLogLevel.Info, '  ci [--offline]       Reinstala limpo usando o lock sem altera-lo; aceita --jobs, --progress, --json e --quiet.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config delphi use <caminho>  Configura o caminho global do compilador Delphi.');
   FLogger.Log(TBoss4DLogLevel.Info, '  config git shallow <true/false> Configura uso de shallow clones globais.');
@@ -1367,8 +1369,9 @@ var
   LHttp: IBoss4DHttpClient;
   LPayload, LOutputPath, LTokenEnvironment, LPublisher, LRepository,
     LFingerprint, LSigningKey, LArtifactUrl, LArtifactOutput,
-    LSubmissionOutput, LRegistryRoot: string;
-  LOfficial, LUserDryRun, LAppendVersion: Boolean;
+    LSubmissionOutput, LRegistryRoot, LRegistryBranch, LRegistryRemote,
+    LRegistryBase, LRegistryPrRepository, LRegistryPrHead: string;
+  LOfficial, LUserDryRun, LAppendVersion, LOpenPr: Boolean;
   I: Integer;
   LEncoding: TEncoding;
 begin
@@ -1379,6 +1382,10 @@ begin
   LOfficial := False;
   LUserDryRun := False;
   LAppendVersion := False;
+  LOpenPr := False;
+  LRegistryRemote := 'origin';
+  LRegistryBase := 'main';
+  LRegistryPrRepository := 'regyssilveira/Boss4Delphi';
   I := 1;
   while I < Length(AArgs) do
   begin
@@ -1391,6 +1398,8 @@ begin
       LOfficial := True
     else if SameText(AArgs[I], '--append-version') then
       LAppendVersion := True
+    else if SameText(AArgs[I], '--open-pr') then
+      LOpenPr := True
     else if SameText(AArgs[I], '--allow-dirty') then
       LOptions.RequireCleanGit := False
     else if SameText(AArgs[I], '--skip-tests') then
@@ -1405,7 +1414,12 @@ begin
             SameText(AArgs[I], '--artifact-url') or
             SameText(AArgs[I], '--artifact-output') or
             SameText(AArgs[I], '--submission-output') or
-            SameText(AArgs[I], '--registry-root') then
+            SameText(AArgs[I], '--registry-root') or
+            SameText(AArgs[I], '--registry-branch') or
+            SameText(AArgs[I], '--registry-remote') or
+            SameText(AArgs[I], '--registry-base') or
+            SameText(AArgs[I], '--registry-pr-repo') or
+            SameText(AArgs[I], '--registry-pr-head') then
     begin
       if I + 1 >= Length(AArgs) then
         raise EArgumentException.Create('Informe um valor para ' + AArgs[I]);
@@ -1430,6 +1444,16 @@ begin
         LSubmissionOutput := AArgs[I]
       else if SameText(AArgs[I - 1], '--registry-root') then
         LRegistryRoot := AArgs[I]
+      else if SameText(AArgs[I - 1], '--registry-branch') then
+        LRegistryBranch := AArgs[I]
+      else if SameText(AArgs[I - 1], '--registry-remote') then
+        LRegistryRemote := AArgs[I]
+      else if SameText(AArgs[I - 1], '--registry-base') then
+        LRegistryBase := AArgs[I]
+      else if SameText(AArgs[I - 1], '--registry-pr-repo') then
+        LRegistryPrRepository := AArgs[I]
+      else if SameText(AArgs[I - 1], '--registry-pr-head') then
+        LRegistryPrHead := AArgs[I]
       else
         LOutputPath := AArgs[I];
     end
@@ -1440,6 +1464,11 @@ begin
   end;
   if LOfficial then
     LOptions.DryRun := True;
+  if LOpenPr and not LOfficial then
+    raise EArgumentException.Create('--open-pr exige --official.');
+  if LOpenPr and LRegistryRoot.IsEmpty then
+    raise EArgumentException.Create(
+      '--open-pr exige --registry-root.');
   LOptions.Token := GetEnvironmentVariable(LTokenEnvironment);
   LLockRepo := TBoss4DLockJsonRepository.Create;
   LHttp := TBoss4DHttpNativeAdapter.Create;
@@ -1474,6 +1503,23 @@ begin
         LOfficialOptions.ArtifactOutput := LArtifactOutput;
         LOfficialOptions.SubmissionOutput := LSubmissionOutput;
         TBoss4DOfficialPublishService.ValidateOptions(LOfficialOptions);
+        if LRegistryBranch.IsEmpty then
+          LRegistryBranch :=
+            TBoss4DRegistryPullRequestService.DefaultBranch(
+              LPackage.Name, LPackage.Version);
+        if LRegistryPrHead.IsEmpty then
+          LRegistryPrHead := LRegistryBranch;
+        var LPullRequestOptions :=
+          Default(TBoss4DRegistryPullRequestOptions);
+        LPullRequestOptions.RegistryRoot := LRegistryRoot;
+        LPullRequestOptions.PackageName := LPackage.Name;
+        LPullRequestOptions.Version := LPackage.Version;
+        LPullRequestOptions.Branch := LRegistryBranch;
+        LPullRequestOptions.PushRemote := LRegistryRemote;
+        LPullRequestOptions.BaseBranch := LRegistryBase;
+        LPullRequestOptions.PullRequestRepository :=
+          LRegistryPrRepository;
+        LPullRequestOptions.PullRequestHead := LRegistryPrHead;
         if LUserDryRun then
         begin
           FLogger.Log(TBoss4DLogLevel.Info,
@@ -1489,17 +1535,59 @@ begin
           try
             if not LRegistryRoot.IsEmpty then
             begin
+              var LPullRequestService:
+                TBoss4DRegistryPullRequestService := nil;
+              var LPullRequestSession :=
+                Default(TBoss4DRegistryPullRequestSession);
+              if LOpenPr then
+              begin
+                LPullRequestService :=
+                  TBoss4DRegistryPullRequestService.Create(
+                    Boss4DProcessRunner);
+                LPullRequestSession :=
+                  LPullRequestService.Start(LPullRequestOptions);
+              end;
               var LCheckoutService :=
                 TBoss4DRegistryCheckoutService.Create;
               try
-                var LCheckoutResult := LCheckoutService.Apply(
-                  LRegistryRoot, LResult.SubmissionPath,
-                  LAppendVersion);
+                var LCheckoutResult:
+                  TBoss4DRegistryCheckoutResult;
+                try
+                  LCheckoutResult := LCheckoutService.Apply(
+                    LRegistryRoot, LResult.SubmissionPath,
+                    LAppendVersion);
+                except
+                  if Assigned(LPullRequestService) then
+                  begin
+                    var LExpectedPackage := TPath.Combine(
+                      LRegistryRoot, 'registry\packages\' +
+                      TBoss4DRegistrySubmissionService.PackageSlug(
+                        LPackage.Name) + '.json');
+                    var LExpectedIndex := TPath.Combine(
+                      LRegistryRoot, 'registry\index-v2.json');
+                    LPullRequestService.Cancel(
+                      LPullRequestOptions, LPullRequestSession,
+                      LExpectedPackage, LExpectedIndex);
+                  end;
+                  raise;
+                end;
                 FLogger.Log(TBoss4DLogLevel.Info,
                   'Checkout do Registry atualizado: ' +
                   LCheckoutResult.PackagePath);
+                if Assigned(LPullRequestService) then
+                begin
+                  var LPullRequestResult :=
+                    LPullRequestService.Submit(
+                      LPullRequestOptions, LPullRequestSession,
+                      LCheckoutResult.PackagePath,
+                      LCheckoutResult.IndexPath);
+                  FLogger.Log(TBoss4DLogLevel.Info,
+                    'Pull request criado: ' +
+                    LPullRequestResult.PullRequestUrl);
+                end;
               finally
                 LCheckoutService.Free;
+                LPullRequestService.Free;
               end;
             end;
             FLogger.Log(TBoss4DLogLevel.Info,

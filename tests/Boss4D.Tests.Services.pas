@@ -3559,6 +3559,12 @@ begin
       '--fingerprint', StringOfChar('a', 40),
       '--sign', 'release@example.com',
       '--registry-root', TPath.Combine(FTempDir, 'registry-preview'),
+      '--open-pr',
+      '--registry-branch', 'boss4d/package-cli-test-1.0.0',
+      '--registry-remote', 'origin',
+      '--registry-base', 'main',
+      '--registry-pr-repo', 'regyssilveira/Boss4Delphi',
+      '--registry-pr-head', 'regys:boss4d/package-cli-test-1.0.0',
       '--append-version',
       '--artifact-url',
       'https://github.com/example/cli-test/releases/download/v1.0.0/' +

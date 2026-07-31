@@ -14,6 +14,7 @@ type
     PushRemote: string;
     BaseBranch: string;
     PullRequestRepository: string;
+    PullRequestHead: string;
   end;
 
   TBoss4DRegistryPullRequestSession = record
@@ -33,7 +34,8 @@ type
     FRunner: IBoss4DProcessRunner;
     class function Quote(const AValue: string): string; static;
     class procedure ValidateToken(const AName, AValue: string;
-      const AAllowSlash: Boolean = False); static;
+      const AAllowSlash: Boolean = False;
+      const AAllowColon: Boolean = False); static;
     class function ManagedPath(const ARoot, APath: string;
       const APackage: Boolean): string; static;
     procedure Run(const ACommand, ARoot, AFailure: string;
@@ -70,13 +72,15 @@ begin
 end;
 
 class procedure TBoss4DRegistryPullRequestService.ValidateToken(
-  const AName, AValue: string; const AAllowSlash: Boolean);
+  const AName, AValue: string; const AAllowSlash,
+  AAllowColon: Boolean);
 begin
   if AValue.Trim.IsEmpty then
     raise EBoss4DRegistryPullRequest.Create(AName + ' obrigatorio.');
   for var LChar in AValue do
     if not (LChar.IsLetterOrDigit or CharInSet(LChar,
-      ['-', '_', '.']) or (AAllowSlash and (LChar = '/'))) then
+      ['-', '_', '.']) or (AAllowSlash and (LChar = '/')) or
+      (AAllowColon and (LChar = ':'))) then
       raise EBoss4DRegistryPullRequest.Create(
         AName + ' contem caracteres invalidos.');
 end;
@@ -148,6 +152,7 @@ begin
   ValidateToken('remote', AOptions.PushRemote);
   ValidateToken('base branch', AOptions.BaseBranch, True);
   ValidateToken('PR repository', AOptions.PullRequestRepository, True);
+  ValidateToken('PR head', AOptions.PullRequestHead, True, True);
   if not TDirectory.Exists(TPath.GetFullPath(AOptions.RegistryRoot)) then
     raise EBoss4DRegistryPullRequest.Create(
       'Checkout do Registry nao encontrado.');
@@ -220,7 +225,7 @@ begin
     'Nao foi possivel enviar a branch', LOutput);
   Run('gh pr create --repo ' + Quote(AOptions.PullRequestRepository) +
     ' --base ' + Quote(AOptions.BaseBranch) + ' --head ' +
-    Quote(AOptions.Branch) + ' --title ' + Quote(LTitle) +
+    Quote(AOptions.PullRequestHead) + ' --title ' + Quote(LTitle) +
     ' --body ' + Quote(LBody), AOptions.RegistryRoot,
     'Nao foi possivel abrir o pull request', LOutput);
   Result.Branch := AOptions.Branch;
