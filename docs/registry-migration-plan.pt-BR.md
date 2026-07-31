@@ -8,17 +8,17 @@ passarem nos checks do pull request do Registry.
 
 ## Ponto de partida
 
-- 47 pacotes legados v1 pesquisáveis;
+- 46 pacotes legados v1 pesquisáveis;
 - 18 responsáveis por repositórios;
 - 16 pacotes no namespace `regyssilveira`, já cadastrado;
 - 10 pacotes no namespace `HashLoad`;
-- 8 pacotes schema v2 assinados e um fingerprint autorizado;
-- 8 pacotes do publisher publicados pelos gates de reprodutibilidade;
-- 8 pacotes do publisher que precisam de release ou correção da tag;
-- saúde: 55 pacotes, 94 avisos de migração e zero erros estruturais.
+- 9 pacotes schema v2 assinados e um fingerprint autorizado;
+- 9 pacotes do publisher publicados pelos gates de reprodutibilidade;
+- 7 pacotes do publisher que precisam de release ou correção da tag;
+- saúde: 55 pacotes, 92 avisos de migração e zero erros estruturais.
 
 O portal gerado do Registry é o painel público do progresso. No momento ele
-informa 8 pacotes verificados, 47 pacotes legados e 14% de migração verificada.
+informa 9 pacotes verificados, 46 pacotes legados e 16% de migração verificada.
 Cada pacote schema v2 aceito com fingerprint autorizado para o publisher
 incrementa essa métrica automaticamente.
 
@@ -61,7 +61,7 @@ do publisher cadastrado:
 | horse-compression-v2 | v2.0.0 | Publicado; tag e manifesto coerentes, 3/3 testes e instalação verificada aprovados |
 | horse-static | v1.0.1 | Publicado; 6/6 testes de integração estáveis e instalação verificada aprovados |
 | horse-dto | v1.0.1 | Publicado; compatibilidade com Horse 3.2, 9/9 testes e instalação verificada aprovados |
-| horse-rbac | v1.0.0 | Bloqueado: testes não compilam com o Horse 3.2.0 resolvido |
+| horse-rbac | v1.0.1 | Publicado; 6/6 testes de integração de autorização e instalação verificada aprovados |
 | horse-schema-validation | v1.0.0 | Publicado; instalação, assinatura, proveniência e 10/10 testes aprovados |
 | horse-multipart | v1.0.0 | Publicado; instalação, assinatura, proveniência e teste real de upload aprovados |
 | horse-helmet | v1.0.1 | Publicado; manifesto reparado, 12/12 testes e instalação verificada aprovados |
@@ -115,6 +115,13 @@ ponteiros de worktree Git dos artefatos determinísticos; o bundle corrigido de
 11 arquivos passou nas verificações independentes de assinatura, proveniência,
 digest, conformidade e instalação sem fallback.
 
+O `horse-rbac` `v1.0.1` veio em seguida com a adaptação dos testes de middleware
+por rota e posse da sessão para o Horse 3.2 e um runner Seattle não interativo.
+Quatro execuções completas dos seis cenários HTTP, além de uma execução limpa
+após o merge, cobriram decisões sem autenticação, sem claim, OR e AND antes de
+o bundle de 10 arquivos passar na verificação independente da assinatura e na
+instalação verificada sem fallback.
+
 ### Primeiro lote de publicação
 
 O primeiro lote de publicação foi concluído nesta ordem:
@@ -132,7 +139,7 @@ reutilize a URL de evidência de um pacote em outro.
 ## Onda 2 — pacotes do publisher que precisam de release
 
 `Dext`, `horse-crud` e `horse-sanitize` ainda não possuem tag/release
-publicada. Os cinco pacotes bloqueados da Onda 1 também precisam de manifestos,
+publicada. Os quatro pacotes bloqueados da Onda 1 também precisam de manifestos,
 testes ou compatibilidade com Horse corrigidos em novas releases imutáveis.
 Antes da migração esses pacotes precisam de tag SemVer exata, testes, assets
 imutáveis e o mesmo fluxo de publicação assinada.

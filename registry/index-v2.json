@@ -15,6 +15,7 @@
                    "packages/horse-helmet.json",
                    "packages/horse-multipart.json",
                    "packages/horse-rate-limit.json",
+                   "packages/horse-rbac.json",
                    "packages/horse-schema-validation.json",
                    "packages/horse-static.json"
                ],

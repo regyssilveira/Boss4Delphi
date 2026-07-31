@@ -358,15 +358,6 @@
                          "sha256":  ""
                      },
                      {
-                         "name":  "horse-rbac",
-                         "repository":  "github.com/regyssilveira/horse-rbac",
-                         "description":  "Role and scope based access control middleware for Horse",
-                         "version":  "",
-                         "license":  "Apache-2.0",
-                         "artifact":  "",
-                         "sha256":  ""
-                     },
-                     {
                          "name":  "horse-ssl-redirect",
                          "repository":  "github.com/regyssilveira/horse-ssl-redirect",
                          "description":  "HTTP to HTTPS redirect middleware for Horse",
