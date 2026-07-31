@@ -66,6 +66,7 @@ uses
   System.IOUtils,
   System.Generics.Defaults,
   Boss4D.Core.Domain.Env,
+  Boss4D.Core.Domain.Consts,
   Boss4D.Core.Services.BuildMatrix,
   Boss4D.Core.Services.BuildGraph,
   Boss4D.Core.Services.BuildPaths;
@@ -141,8 +142,10 @@ begin
   LTargets := TBoss4DBuildMatrixExpander.Expand(APackage,
     AOptions.Selection);
   TDirectory.CreateDirectory(TPath.Combine(GetBossHome, 'artifact-cache'));
+  var LModulesDirectory := TPath.Combine(ARootDirectory,
+    FOLDER_DEPENDENCIES);
   for var LTarget in LTargets do
-    TDirectory.CreateDirectory(TBoss4DBuildPaths.TargetRoot(GetModulesDir,
+    TDirectory.CreateDirectory(TBoss4DBuildPaths.TargetRoot(LModulesDirectory,
       ADependency.StorageName, LTarget.Compiler, LTarget.Platform,
       LTarget.Configuration));
   LFingerprints := TDictionary<string, string>.Create;
@@ -152,7 +155,7 @@ begin
       begin
         var LProjectPath := ResolveProjectPath(ARootDirectory,
           LTarget.ProjectPath);
-        var LTargetRoot := TBoss4DBuildPaths.TargetRoot(GetModulesDir,
+        var LTargetRoot := TBoss4DBuildPaths.TargetRoot(LModulesDirectory,
           ADependency.StorageName, LTarget.Compiler, LTarget.Platform,
           LTarget.Configuration);
         var LDependencyFingerprints := TList<string>.Create;

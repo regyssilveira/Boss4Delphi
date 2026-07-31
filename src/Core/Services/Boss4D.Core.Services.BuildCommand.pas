@@ -19,6 +19,8 @@ type
     Force: Boolean;
     Explain: Boolean;
     RegisterTargets: Boolean;
+    WithDependents: Boolean;
+    Affected: Boolean;
     Jobs: Integer;
     class function Parse(
       const AArgs: TArray<string>): TBoss4DBuildCommandOptions; static;
@@ -90,6 +92,13 @@ begin
       Result.Explain := True
     else if SameText(AArgs[I], '--register') then
       Result.RegisterTargets := True
+    else if SameText(AArgs[I], '--with-dependents') then
+      Result.WithDependents := True
+    else if SameText(AArgs[I], '--affected') then
+    begin
+      Result.Affected := True;
+      Result.WithDependents := True;
+    end
     else if SameText(AArgs[I], '--full') then
     begin
       Result.Force := True;
@@ -227,7 +236,8 @@ begin
         for var LTarget in LTargets do
           if SameText(LTarget.ProjectKind, 'design') then
           begin
-            var LRoot := TBoss4DBuildPaths.TargetRoot(GetModulesDir,
+            var LRoot := TBoss4DBuildPaths.TargetRoot(TPath.Combine(
+              ARootDirectory, FOLDER_DEPENDENCIES),
               LDependency.StorageName, LTarget.Compiler, LTarget.Platform,
               LTarget.Configuration);
             var LBplDirectory := TPath.Combine(LRoot, 'bpl');

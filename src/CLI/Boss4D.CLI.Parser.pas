@@ -11,7 +11,8 @@ uses
   Boss4D.Core.Services.Tool, Boss4D.Core.Services.IDEIntegration,
   Boss4D.Core.Services.GetIt, Boss4D.Core.Services.Clean,
   Boss4D.Core.Services.Sbom, Boss4D.Core.Services.Scaffold,
-  Boss4D.Core.Services.BuildCommand, Boss4D.Core.Services.BuildInventory;
+  Boss4D.Core.Services.BuildCommand, Boss4D.Core.Services.BuildInventory,
+  Boss4D.Core.Services.BuildCoordinator;
 
 
 type
@@ -263,7 +264,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  conformance registry|package <arq> Valida o protocolo publico.');
   FLogger.Log(TBoss4DLogLevel.Info, '  spec --detect [--compiler <versao>] Detecta projetos e gera buildMatrix.');
   FLogger.Log(TBoss4DLogLevel.Info, '  build                Compila a matriz declarada.');
-  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --compiler, --platform, --configuration, --jobs, --force, --full, --explain, --register.');
+  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --compiler, --platform, --configuration, --jobs, --force, --full, --explain, --register, --affected, --with-dependents.');
   FLogger.Log(TBoss4DLogLevel.Info, '  ide unregister <pacote> --compiler <versao> --platform <Win32|Win64>');
   FLogger.Log(TBoss4DLogLevel.Info, '  ide repair           Repara registros da IDE a partir do inventario.');
   FLogger.Log(TBoss4DLogLevel.Info, '  help, -h, --help     Exibe este menu de ajuda.');
@@ -451,9 +452,7 @@ procedure TBoss4DCommandLineParser.HandleBuild(
 var
   LCompiler: IBoss4DCompiler;
   LLockRepo: IBoss4DLockRepository;
-  LPackage: TBoss4DPackage;
-  LLock: TBoss4DLock;
-  LCommand: TBoss4DBuildCommand;
+  LCoordinator: TBoss4DBuildCoordinator;
   LIDEIntegration: TBoss4DIDEIntegrationService;
   LHandler: TBoss4DIDERegistrationHandler;
   LInventory: TBoss4DBuildInventory;
@@ -462,49 +461,36 @@ begin
   if not Assigned(LCompiler) then
     LCompiler := TBoss4DDelphiCompilerAdapter.Create(FRegistry, FLogger);
   LLockRepo := TBoss4DLockJsonRepository.Create;
-  LPackage := FPackageRepo.Load(GetBossFile);
-  try
-    if LLockRepo.Exists(TPath.Combine(GetCurrentDir, FILE_PACKAGE_LOCK)) then
-      LLock := LLockRepo.Load(TPath.Combine(GetCurrentDir, FILE_PACKAGE_LOCK))
-    else
-      LLock := TBoss4DLock.Create;
-    try
-      LIDEIntegration := nil;
-      LHandler := FRegistrationHandler;
-      if not Assigned(LHandler) then
+  LIDEIntegration := nil;
+  LHandler := FRegistrationHandler;
+  if not Assigned(LHandler) then
+  begin
+    LIDEIntegration := TBoss4DIDEIntegrationService.Create(
+      FRegistry, FLogger);
+    LHandler :=
+      procedure(const ARegistration: TBoss4DIDERegistration)
       begin
-        LIDEIntegration := TBoss4DIDEIntegrationService.Create(
-          FRegistry, FLogger);
-        LHandler :=
-          procedure(const ARegistration: TBoss4DIDERegistration)
-          begin
-            LIDEIntegration.RegisterTarget(ARegistration);
-          end;
+        LIDEIntegration.RegisterTarget(ARegistration);
       end;
+  end;
+  try
+    LInventory := TBoss4DBuildInventory.Create(TPath.Combine(
+      GetBossHome, 'build-inventory.json'));
+    try
+      LInventory.Load;
+      LCoordinator := TBoss4DBuildCoordinator.Create(LCompiler, FLogger,
+        FPackageRepo, LLockRepo, LHandler, LInventory);
       try
-        LInventory := TBoss4DBuildInventory.Create(TPath.Combine(
-          GetBossHome, 'build-inventory.json'));
-        try
-          LInventory.Load;
-          LCommand := TBoss4DBuildCommand.Create(LCompiler, FLogger, LHandler,
-            LInventory);
-          try
-            LCommand.Execute(LPackage, LLock, GetCurrentDir,
-              TBoss4DBuildCommandOptions.Parse(AArgs));
-          finally
-            LCommand.Free;
-          end;
-        finally
-          LInventory.Free;
-        end;
+        LCoordinator.Execute(GetCurrentDir,
+          TBoss4DBuildCommandOptions.Parse(AArgs));
       finally
-        LIDEIntegration.Free;
+        LCoordinator.Free;
       end;
     finally
-      LLock.Free;
+      LInventory.Free;
     end;
   finally
-    LPackage.Free;
+    LIDEIntegration.Free;
   end;
 end;
 
