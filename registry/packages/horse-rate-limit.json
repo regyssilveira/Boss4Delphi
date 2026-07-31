@@ -1,0 +1,22 @@
+{
+    "schemaVersion":  2,
+    "packages":  [
+                     {
+                         "name":  "horse-rate-limit",
+                         "publisher":  "boss4d",
+                         "repository":  "github.com/regyssilveira/horse-rate-limit",
+                         "signerFingerprint":  "A91FA178E7A1DE7FB10148C8308C9045E23B0279",
+                         "description":  "Rate limiting middleware for Horse with fixed/sliding windows, IP rules, metrics, and Redis integration",
+                         "license":  "Apache-2.0",
+                         "versions":  [
+                                          {
+                                              "version":  "1.0.1",
+                                              "artifact":  "https://github.com/regyssilveira/horse-rate-limit/releases/download/v1.0.1/horse-rate-limit-1.0.1.b4dpkg",
+                                              "sha256":  "96f68e6732073aa8b0779461f5739a330b25a9950680315d551e67823b2004e4",
+                                              "signature":  "https://github.com/regyssilveira/horse-rate-limit/releases/download/v1.0.1/horse-rate-limit-1.0.1.b4dpkg.asc",
+                                              "provenance":  "https://github.com/regyssilveira/horse-rate-limit/releases/download/v1.0.1/horse-rate-limit-1.0.1.b4dpkg.intoto.json"
+                                          }
+                                      ]
+                     }
+                 ]
+}

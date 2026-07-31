@@ -358,15 +358,6 @@
                          "sha256":  ""
                      },
                      {
-                         "name":  "horse-rate-limit",
-                         "repository":  "github.com/regyssilveira/horse-rate-limit",
-                         "description":  "Rate limiting middleware for Horse with memory and Redis stores",
-                         "version":  "",
-                         "license":  "Apache-2.0",
-                         "artifact":  "",
-                         "sha256":  ""
-                     },
-                     {
                          "name":  "horse-dto",
                          "repository":  "github.com/regyssilveira/horse-dto",
                          "description":  "DTO binding and declarative validation middleware for Horse",

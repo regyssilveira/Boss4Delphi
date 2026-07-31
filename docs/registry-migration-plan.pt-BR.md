@@ -8,17 +8,17 @@ passarem nos checks do pull request do Registry.
 
 ## Ponto de partida
 
-- 49 pacotes legados v1 pesquisáveis;
+- 48 pacotes legados v1 pesquisáveis;
 - 18 responsáveis por repositórios;
 - 16 pacotes no namespace `regyssilveira`, já cadastrado;
 - 10 pacotes no namespace `HashLoad`;
-- 6 pacotes schema v2 assinados e um fingerprint autorizado;
-- 6 pacotes do publisher publicados pelos gates de reprodutibilidade;
-- 10 pacotes do publisher que precisam de release ou correção da tag;
-- saúde: 55 pacotes, 98 avisos de migração e zero erros estruturais.
+- 7 pacotes schema v2 assinados e um fingerprint autorizado;
+- 7 pacotes do publisher publicados pelos gates de reprodutibilidade;
+- 9 pacotes do publisher que precisam de release ou correção da tag;
+- saúde: 55 pacotes, 96 avisos de migração e zero erros estruturais.
 
 O portal gerado do Registry é o painel público do progresso. No momento ele
-informa 6 pacotes verificados, 49 pacotes legados e 10% de migração verificada.
+informa 7 pacotes verificados, 48 pacotes legados e 12% de migração verificada.
 Cada pacote schema v2 aceito com fingerprint autorizado para o publisher
 incrementa essa métrica automaticamente.
 
@@ -57,7 +57,7 @@ do publisher cadastrado:
 | Pacote | Candidato | Estado |
 |---|---:|---|
 | Boss4Delphi | v1.6.0 | Publicado e verificado ponta a ponta |
-| horse-rate-limit | v1.0.0 | Bloqueado: dependência REST de teste não declarada e unit ausente |
+| horse-rate-limit | v1.0.1 | Publicado; suíte reparada, 14/14 testes e instalação verificada aprovados |
 | horse-compression-v2 | v2.0.0 | Publicado; tag e manifesto coerentes, 3/3 testes e instalação verificada aprovados |
 | horse-static | v1.0.1 | Publicado; 6/6 testes de integração estáveis e instalação verificada aprovados |
 | horse-dto | v1.0.0 | Bloqueado: não compila com o Horse 3.2.0 resolvido |
@@ -100,6 +100,12 @@ dependência de testes e adicionar um runner reproduzível. Três execuções
 consecutivas dos 12 testes, além de uma execução limpa após o merge, passaram
 no Seattle antes da publicação assinada e da instalação verificada.
 
+O `horse-rate-limit` `v1.0.1` veio em seguida após restaurar a unit de limpeza
+ausente, declarar as dependências de teste e atualizar as APIs de Horse/tasks
+usadas apenas nos testes para o Seattle. Quatro execuções completas dos 14
+testes passaram, incluindo concorrência, Redis, CIDR, métricas e sliding
+window, antes da publicação verificada.
+
 ### Primeiro lote de publicação
 
 O primeiro lote de publicação foi concluído nesta ordem:
@@ -117,7 +123,7 @@ reutilize a URL de evidência de um pacote em outro.
 ## Onda 2 — pacotes do publisher que precisam de release
 
 `Dext`, `horse-crud` e `horse-sanitize` ainda não possuem tag/release
-publicada. Os sete pacotes bloqueados da Onda 1 também precisam de manifestos,
+publicada. Os seis pacotes bloqueados da Onda 1 também precisam de manifestos,
 testes ou compatibilidade com Horse corrigidos em novas releases imutáveis.
 Antes da migração esses pacotes precisam de tag SemVer exata, testes, assets
 imutáveis e o mesmo fluxo de publicação assinada.

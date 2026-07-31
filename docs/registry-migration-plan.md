@@ -8,17 +8,17 @@ request checks.
 
 ## Current baseline
 
-- 49 discoverable legacy v1 packages;
+- 48 discoverable legacy v1 packages;
 - 18 repository owners;
 - 16 packages in the already registered `regyssilveira` namespace;
 - 10 packages in the `HashLoad` namespace;
-- 6 signed schema-v2 packages and one authorized signer fingerprint;
-- 6 publisher-controlled packages published through the reproducibility gates;
-- 10 publisher-controlled packages requiring a release or corrected tag;
-- catalog health: 55 packages, 98 migration warnings, zero structural errors.
+- 7 signed schema-v2 packages and one authorized signer fingerprint;
+- 7 publisher-controlled packages published through the reproducibility gates;
+- 9 publisher-controlled packages requiring a release or corrected tag;
+- catalog health: 55 packages, 96 migration warnings, zero structural errors.
 
 The generated Registry portal is the public progress ledger. It currently
-reports 6 verified packages, 49 legacy packages, and 10% verified migration.
+reports 7 verified packages, 48 legacy packages, and 12% verified migration.
 Each accepted schema-v2 package with an authorized publisher fingerprint
 increments that metric automatically.
 
@@ -56,7 +56,7 @@ registered publisher scope:
 | Package | Candidate | State |
 |---|---:|---|
 | Boss4Delphi | v1.6.0 | Published and verified end to end |
-| horse-rate-limit | v1.0.0 | Blocked: undeclared REST test dependency and missing test unit |
+| horse-rate-limit | v1.0.1 | Published; repaired suite, 14/14 tests and verified installation pass |
 | horse-compression-v2 | v2.0.0 | Published; tag/manifest match, 3/3 tests and verified installation pass |
 | horse-static | v1.0.1 | Published; 6/6 stable integration tests and verified installation pass |
 | horse-dto | v1.0.0 | Blocked: does not compile against resolved Horse 3.2.0 |
@@ -97,6 +97,11 @@ identity and adding a reproducible runner. Three consecutive 12-test runs plus
 a clean post-merge run passed on Seattle before signed publication and verified
 installation.
 
+`horse-rate-limit` `v1.0.1` followed after restoring its missing cleanup unit,
+declaring test dependencies, and updating test-only Horse/task APIs for
+Seattle. Four complete 14-test runs passed, including concurrency, Redis,
+CIDR, metrics, and sliding-window scenarios, before verified publication.
+
 ### First publication batch
 
 The first publication batch completed in this order:
@@ -114,7 +119,7 @@ Never reuse one package's evidence URL for another package.
 ## Wave 2 — publisher-controlled packages needing a release
 
 `Dext`, `horse-crud`, and `horse-sanitize` have no published tag/release.
-The seven blocked Wave 1 packages additionally need corrected manifests, tests,
+The six blocked Wave 1 packages additionally need corrected manifests, tests,
 or Horse compatibility in new immutable releases. Before Registry migration
 these packages need an exact SemVer tag, tests, immutable release assets, and
 the same signed publication workflow.
