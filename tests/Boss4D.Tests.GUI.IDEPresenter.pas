@@ -13,6 +13,10 @@ type
     procedure TestRefreshSelectionAndPreviewsDriveView;
     [Test]
     procedure TestBackendFailureIsReportedByView;
+    [Test]
+    procedure TestTimelineMapsOperationAndRecovery;
+    [Test]
+    procedure TestTimelineRejectsNilOperation;
   end;
 
 implementation
@@ -23,6 +27,8 @@ uses
   Boss4D.Core.Services.IDEManagementQuery,
   Boss4D.Core.Services.IDERegistration,
   Boss4D.Core.Services.IDEProcessPolicy,
+  Boss4D.Core.Services.IDEOperationResult,
+  Boss4D.GUI.IDE.Timeline,
   Boss4D.GUI.IDE.Presenter;
 
 type
@@ -359,6 +365,40 @@ begin
   finally
     LPresenter.Free;
   end;
+end;
+
+procedure TTestsGUIIDEPresenter.TestTimelineMapsOperationAndRecovery;
+begin
+  var LOperation := TBoss4DIDEOperationResult.New(
+    'profile-install', 'daily', 'horse');
+  try
+    LOperation.Status := TBoss4DIDEOperationStatus.Succeeded;
+    LOperation.CompletedAt := '2026-07-31T12:01:00';
+    LOperation.UndoSnapshot := 'before.json';
+    LOperation.CompletedActions.Add('package registered');
+    LOperation.CompletedActions.Add('library path updated');
+    var LRow := TBoss4DGUITimeline.FromOperation(LOperation);
+    Assert.AreEqual('succeeded', LRow.Status);
+    Assert.AreEqual('profile-install', LRow.Kind);
+    Assert.AreEqual('daily', LRow.Profile);
+    Assert.AreEqual('horse', LRow.Target);
+    Assert.AreEqual('package registered, library path updated',
+      LRow.Actions);
+    Assert.IsTrue(LRow.CanUndo);
+    Assert.IsTrue(LRow.Detail.Contains('Desfazer: disponivel'));
+  finally
+    LOperation.Free;
+  end;
+end;
+
+procedure TTestsGUIIDEPresenter.TestTimelineRejectsNilOperation;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      TBoss4DGUITimeline.FromOperation(nil);
+    end,
+    EArgumentNilException);
 end;
 
 initialization
