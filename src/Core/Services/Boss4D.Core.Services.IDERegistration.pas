@@ -1193,6 +1193,8 @@ var
   LSnapshots: TObjectList<TBoss4DRegistrySnapshot>;
   LStagedFiles: TDictionary<string, string>;
   LStagingDirectory: string;
+  LCompilers: TList<string>;
+  LLeases: TList<IBoss4DIDEOperationLease>;
 
   function Selected(const ARegistration: TBoss4DIDERegistration): Boolean;
   begin
@@ -1232,6 +1234,20 @@ var
     end;
   end;
 
+  function ArtifactUsedOutsideSelection(const AArtifact: string): Boolean;
+  begin
+    Result := False;
+    for var LOther in LInventory do
+    begin
+      if Selected(LOther) then
+        Continue;
+      for var LOtherArtifact in LOther.Artifacts do
+        if SameText(TPath.GetFullPath(LOtherArtifact),
+          TPath.GetFullPath(AArtifact)) then
+          Exit(True);
+    end;
+  end;
+
   procedure StageArtifacts(const ARegistration: TBoss4DIDERegistration);
   begin
     if ARegistration.ArtifactRoot.Trim.IsEmpty then
@@ -1245,7 +1261,8 @@ var
         raise EBoss4DIDERegistrationError.CreateFmt(
           'Artefato gerenciado fora da raiz permitida: %s.', [LArtifact]);
       if LStagedFiles.ContainsKey(LArtifact) or
-         not TFile.Exists(LArtifact) then
+         not TFile.Exists(LArtifact) or
+         ArtifactUsedOutsideSelection(LArtifact) then
         Continue;
       TDirectory.CreateDirectory(LStagingDirectory);
       var LStaged := TPath.Combine(LStagingDirectory,
@@ -1260,9 +1277,19 @@ begin
   LInventory := LoadInventory;
   LSnapshots := TObjectList<TBoss4DRegistrySnapshot>.Create(True);
   LStagedFiles := TDictionary<string, string>.Create;
+  LCompilers := TList<string>.Create;
+  LLeases := TList<IBoss4DIDEOperationLease>.Create;
   LStagingDirectory := FInventoryPath + '.uninstall-' +
     TGUID.NewGuid.ToString;
   try
+    for var LRegistration in LInventory do
+      if Selected(LRegistration) and
+         not LCompilers.Contains(LRegistration.Compiler) then
+        LCompilers.Add(LRegistration.Compiler);
+    LCompilers.Sort;
+    for var LCompiler in LCompilers do
+      LLeases.Add(FOperationLock.Acquire(FProfileName, LCompiler,
+        FLockTimeoutMilliseconds));
     try
       for var LRegistration in LInventory do
         if Selected(LRegistration) then
@@ -1344,6 +1371,8 @@ begin
     if TDirectory.Exists(LStagingDirectory) then
       TDirectory.Delete(LStagingDirectory, True);
   finally
+    LLeases.Free;
+    LCompilers.Free;
     LStagedFiles.Free;
     LSnapshots.Free;
     LInventory.Free;

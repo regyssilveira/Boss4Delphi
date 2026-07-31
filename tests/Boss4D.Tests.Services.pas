@@ -107,6 +107,8 @@ type
     [Test]
     procedure TestIDEUnregisterPreservesPathsOwnedByAnotherPackage;
     [Test]
+    procedure TestIDEUnregisterPreservesArtifactsOwnedByAnotherPackage;
+    [Test]
     procedure TestIDEUnregisterRemovesOnlyManagedArtifacts;
     [Test]
     procedure TestIDEUnregisterRestoresArtifactsOnRegistryFailure;
@@ -2495,6 +2497,50 @@ begin
     Assert.AreEqual(1, LService.Unregister('PackageB', '37.0', 'Win32'));
     Assert.IsFalse(LStore.TryRead(LLibraryKey, 'Search Path', LValue));
     Assert.IsFalse(LStore.TryRead('Environment', 'Path', LValue));
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDEUnregisterPreservesArtifactsOwnedByAnotherPackage;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LRoot: string;
+  LSharedArtifact: string;
+begin
+  LRoot := TPath.Combine(FTempDir, 'shared-artifact-root');
+  TDirectory.CreateDirectory(LRoot);
+  LSharedArtifact := TPath.Combine(LRoot, 'SharedRuntime.dll');
+  TFile.WriteAllText(LSharedArtifact, 'shared', TEncoding.UTF8);
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'shared-artifact-inventory.json'));
+  try
+    for var LName in TArray<string>.Create('PackageA', 'PackageB') do
+    begin
+      LRegistration := TBoss4DIDERegistration.Create;
+      try
+        LRegistration.PackageName := LName;
+        LRegistration.OwnerPackage := LName;
+        LRegistration.Compiler := '37.0';
+        LRegistration.Platform := 'Win32';
+        LRegistration.BplPath := TPath.Combine(LRoot, LName + '.bpl');
+        LRegistration.ArtifactRoot := LRoot;
+        LRegistration.Artifacts.Add(LSharedArtifact);
+        LService.RegisterTarget(LRegistration);
+      finally
+        LRegistration.Free;
+      end;
+    end;
+
+    Assert.AreEqual<Integer>(1, LService.Uninstall('PackageA'));
+    Assert.IsTrue(TFile.Exists(LSharedArtifact),
+      'Artefato ainda referenciado por outro produto deve ser preservado.');
+    Assert.AreEqual<Integer>(1, LService.Uninstall('PackageB'));
+    Assert.IsFalse(TFile.Exists(LSharedArtifact),
+      'Ultimo proprietario deve remover o artefato gerenciado.');
   finally
     LService.Free;
   end;
