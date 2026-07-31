@@ -82,6 +82,20 @@ type
     property Conflicts: TList<TBoss4DIDEPackageConflict> read FConflicts;
   end;
 
+  TBoss4DIDERemovalPlan = class
+  private
+    FTargets: TList<string>;
+    FChanges: TObjectList<TBoss4DIDERegistryChange>;
+    FFiles: TList<string>;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    function IsNoOp: Boolean;
+    property Targets: TList<string> read FTargets;
+    property Changes: TObjectList<TBoss4DIDERegistryChange> read FChanges;
+    property Files: TList<string> read FFiles;
+  end;
+
   TBoss4DIDEManagedRegistryValue = class
   private
     FKey: string;
@@ -170,6 +184,8 @@ type
     function IsHealthy(const ARegistration: TBoss4DIDERegistration): Boolean;
     function RemoveMatching(const AName, ACompiler, APlatform: string;
       const AByOwner: Boolean): Integer;
+    function PlanRemoval(const AName, ACompiler, APlatform: string;
+      const AByOwner: Boolean): TBoss4DIDERemovalPlan;
   public
     constructor Create(const AStore: IBoss4DIDERegistryStore;
       const AInventoryPath: string;
@@ -191,6 +207,10 @@ type
     function Unregister(const APackageName, ACompiler,
       APlatform: string): Integer;
     function Uninstall(const AOwnerPackage: string): Integer;
+    function PlanUnregister(const APackageName, ACompiler,
+      APlatform: string): TBoss4DIDERemovalPlan;
+    function PlanUninstall(
+      const AOwnerPackage: string): TBoss4DIDERemovalPlan;
     function Repair: Integer;
     function FindDrift: TArray<string>;
   end;
@@ -201,6 +221,7 @@ uses
   System.Classes,
   System.IOUtils,
   System.JSON,
+  System.Generics.Defaults,
   System.Win.Registry,
   Boss4D.Core.Services.BuildConventions;
 
@@ -302,6 +323,27 @@ function TBoss4DIDERegistrationPlan.IsNoOp: Boolean;
 begin
   Result := (FDisposition = TBoss4DIDEPlanDisposition.Ready) and
     not FInventoryChangeRequired and (FChanges.Count = 0);
+end;
+
+constructor TBoss4DIDERemovalPlan.Create;
+begin
+  inherited Create;
+  FTargets := TList<string>.Create;
+  FChanges := TObjectList<TBoss4DIDERegistryChange>.Create(True);
+  FFiles := TList<string>.Create;
+end;
+
+destructor TBoss4DIDERemovalPlan.Destroy;
+begin
+  FFiles.Free;
+  FChanges.Free;
+  FTargets.Free;
+  inherited Destroy;
+end;
+
+function TBoss4DIDERemovalPlan.IsNoOp: Boolean;
+begin
+  Result := FTargets.Count = 0;
 end;
 
 constructor TBoss4DIDERegistration.Create;
@@ -1185,6 +1227,219 @@ begin
     end;
 end;
 
+function TBoss4DIDERegistrationService.PlanRemoval(
+  const AName, ACompiler, APlatform: string;
+  const AByOwner: Boolean): TBoss4DIDERemovalPlan;
+var
+  LInventory: TObjectList<TBoss4DIDERegistration>;
+  LPlan: TBoss4DIDERemovalPlan;
+
+  function Selected(const ARegistration: TBoss4DIDERegistration): Boolean;
+  begin
+    if AByOwner then
+      Result := SameText(ARegistration.OwnerPackage, AName)
+    else
+      Result := SameText(ARegistration.PackageName, AName);
+    Result := Result and
+      (ACompiler.IsEmpty or SameText(ARegistration.Compiler, ACompiler)) and
+      (APlatform.IsEmpty or SameText(ARegistration.Platform, APlatform));
+  end;
+
+  function PathUsedOutsideSelection(
+    const ARegistration: TBoss4DIDERegistration;
+    const APath, AKind: string): Boolean;
+  begin
+    Result := False;
+    if APath.Trim.IsEmpty then
+      Exit;
+    for var LOther in LInventory do
+    begin
+      if Selected(LOther) or
+         not SameText(LOther.Compiler, ARegistration.Compiler) or
+         not SameText(LOther.Platform, ARegistration.Platform) then
+        Continue;
+      if (SameText(AKind, 'search') and
+          SameText(LOther.SearchPath, APath)) or
+         (SameText(AKind, 'browsing') and
+          SameText(LOther.BrowsingPath, APath)) or
+         (SameText(AKind, 'debug') and
+          SameText(LOther.DebugDcuPath, APath)) or
+         (SameText(AKind, 'runtime') and
+          SameText(LOther.RuntimePath, APath)) or
+         (SameText(AKind, 'tool') and
+          SameText(LOther.ToolPath, APath)) then
+        Exit(True);
+    end;
+  end;
+
+  function ArtifactUsedOutsideSelection(const AArtifact: string): Boolean;
+  begin
+    Result := False;
+    for var LOther in LInventory do
+      if not Selected(LOther) then
+        for var LOtherArtifact in LOther.Artifacts do
+          if SameText(TPath.GetFullPath(LOtherArtifact),
+            TPath.GetFullPath(AArtifact)) then
+            Exit(True);
+  end;
+
+  function FindChange(const AKey, AValueName: string): Integer;
+  begin
+    for var I := LPlan.Changes.Count - 1 downto 0 do
+      if SameText(LPlan.Changes[I].Key, AKey) and
+         SameText(LPlan.Changes[I].Name, AValueName) then
+        Exit(I);
+    Result := -1;
+  end;
+
+  function ReadProjected(const AKey, AValueName: string;
+    out AValue: string): Boolean;
+  begin
+    var LIndex := FindChange(AKey, AValueName);
+    if LIndex >= 0 then
+    begin
+      AValue := LPlan.Changes[LIndex].ProposedValue;
+      Exit(LPlan.Changes[LIndex].Kind =
+        TBoss4DIDERegistryChangeKind.WriteValue);
+    end;
+    Result := FStore.TryRead(AKey, AValueName, AValue);
+  end;
+
+  procedure PlanWrite(const AKey, AValueName, AValue: string);
+  begin
+    var LOriginal := '';
+    var LExisted := FStore.TryRead(AKey, AValueName, LOriginal);
+    var LIndex := FindChange(AKey, AValueName);
+    if LIndex >= 0 then
+    begin
+      if LExisted and (LOriginal = AValue) then
+        LPlan.Changes.Delete(LIndex)
+      else
+      begin
+        LPlan.Changes[LIndex].FKind :=
+          TBoss4DIDERegistryChangeKind.WriteValue;
+        LPlan.Changes[LIndex].FProposedValue := AValue;
+      end;
+      Exit;
+    end;
+    if not LExisted or (LOriginal <> AValue) then
+      LPlan.Changes.Add(TBoss4DIDERegistryChange.Create(
+        TBoss4DIDERegistryChangeKind.WriteValue, AKey, AValueName,
+        LOriginal, AValue));
+  end;
+
+  procedure PlanDelete(const AKey, AValueName: string);
+  begin
+    var LOriginal := '';
+    if not FStore.TryRead(AKey, AValueName, LOriginal) then
+      Exit;
+    var LIndex := FindChange(AKey, AValueName);
+    if LIndex >= 0 then
+    begin
+      LPlan.Changes[LIndex].FKind :=
+        TBoss4DIDERegistryChangeKind.DeleteValue;
+      LPlan.Changes[LIndex].FProposedValue := '';
+    end
+    else
+      LPlan.Changes.Add(TBoss4DIDERegistryChange.Create(
+        TBoss4DIDERegistryChangeKind.DeleteValue, AKey, AValueName,
+        LOriginal, ''));
+  end;
+
+  procedure PlanRemovePath(const AKey, AValueName, APath: string);
+  begin
+    if APath.Trim.IsEmpty then
+      Exit;
+    var LCurrent := '';
+    if not ReadProjected(AKey, AValueName, LCurrent) then
+      Exit;
+    var LUpdated := RemovePath(LCurrent, APath);
+    if LUpdated.IsEmpty then
+      PlanDelete(AKey, AValueName)
+    else
+      PlanWrite(AKey, AValueName, LUpdated);
+  end;
+
+begin
+  if AName.Trim.IsEmpty then
+    raise EArgumentException.Create(
+      'O package ou produto para remocao e obrigatorio.');
+  Result := TBoss4DIDERemovalPlan.Create;
+  LPlan := Result;
+  LInventory := LoadInventory;
+  try
+    for var LRegistration in LInventory do
+    begin
+      if not Selected(LRegistration) then
+        Continue;
+      LPlan.Targets.Add(LRegistration.Identity);
+      if not PathUsedOutsideSelection(LRegistration,
+        LRegistration.SearchPath, 'search') then
+        PlanRemovePath(LibraryKey(LRegistration), 'Search Path',
+          LRegistration.SearchPath);
+      if not PathUsedOutsideSelection(LRegistration,
+        LRegistration.BrowsingPath, 'browsing') then
+        PlanRemovePath(LibraryKey(LRegistration), 'Browsing Path',
+          LRegistration.BrowsingPath);
+      if not PathUsedOutsideSelection(LRegistration,
+        LRegistration.DebugDcuPath, 'debug') then
+        PlanRemovePath(LibraryKey(LRegistration), 'Debug DCU Path',
+          LRegistration.DebugDcuPath);
+      if not PathUsedOutsideSelection(LRegistration,
+        LRegistration.RuntimePath, 'runtime') then
+        PlanRemovePath('Environment', 'Path',
+          LRegistration.RuntimePath);
+      if not PathUsedOutsideSelection(LRegistration,
+        LRegistration.ToolPath, 'tool') then
+        PlanRemovePath('Environment', 'Path',
+          LRegistration.ToolPath);
+      PlanDelete(PackageKey(LRegistration), LRegistration.BplPath);
+      PlanDelete(IDEPackageKey(LRegistration), LRegistration.BplPath);
+      for var LHelpFile in LRegistration.HelpFiles do
+        PlanDelete('Software\Embarcadero\BDS\' +
+          LRegistration.Compiler + '\Help\HtmlHelp1Files',
+          LRegistration.OwnerPackage + ':' + TPath.GetFileName(LHelpFile));
+      for var LRegistryValue in LRegistration.RegistryValues do
+        PlanDelete(LRegistryValue.Key, LRegistryValue.Name);
+      for var LDisplacedValue in
+        LRegistration.DisplacedRegistryValues do
+        PlanWrite(LDisplacedValue.Key, LDisplacedValue.Name,
+          LDisplacedValue.Value);
+      if not LRegistration.ArtifactRoot.Trim.IsEmpty then
+      begin
+        var LRoot := IncludeTrailingPathDelimiter(TPath.GetFullPath(
+          LRegistration.ArtifactRoot));
+        for var LDeclaredArtifact in LRegistration.Artifacts do
+        begin
+          var LArtifact := TPath.GetFullPath(LDeclaredArtifact);
+          if not LArtifact.StartsWith(LRoot, True) then
+            raise EBoss4DIDERegistrationError.CreateFmt(
+              'Artefato gerenciado fora da raiz permitida: %s.',
+              [LArtifact]);
+          if TFile.Exists(LArtifact) and
+             not ArtifactUsedOutsideSelection(LArtifact) and
+             not LPlan.Files.Contains(LArtifact) then
+            LPlan.Files.Add(LArtifact);
+        end;
+      end;
+    end;
+    LPlan.Targets.Sort;
+    LPlan.Files.Sort;
+    LPlan.Changes.Sort(
+      TComparer<TBoss4DIDERegistryChange>.Construct(
+        function(const ALeft, ARight: TBoss4DIDERegistryChange): Integer
+        begin
+          Result := CompareText(ALeft.Key + '|' + ALeft.Name,
+            ARight.Key + '|' + ARight.Name);
+        end));
+  except
+    LInventory.Free;
+    Result.Free;
+    raise;
+  end;
+  LInventory.Free;
+end;
+
 function TBoss4DIDERegistrationService.RemoveMatching(
   const AName, ACompiler, APlatform: string;
   const AByOwner: Boolean): Integer;
@@ -1385,12 +1640,25 @@ begin
   Result := RemoveMatching(APackageName, ACompiler, APlatform, False);
 end;
 
+function TBoss4DIDERegistrationService.PlanUnregister(
+  const APackageName, ACompiler,
+  APlatform: string): TBoss4DIDERemovalPlan;
+begin
+  Result := PlanRemoval(APackageName, ACompiler, APlatform, False);
+end;
+
 function TBoss4DIDERegistrationService.Uninstall(
   const AOwnerPackage: string): Integer;
 begin
   if AOwnerPackage.Trim.IsEmpty then
     raise EArgumentException.Create('OwnerPackage nao pode ser vazio.');
   Result := RemoveMatching(AOwnerPackage, '', '', True);
+end;
+
+function TBoss4DIDERegistrationService.PlanUninstall(
+  const AOwnerPackage: string): TBoss4DIDERemovalPlan;
+begin
+  Result := PlanRemoval(AOwnerPackage, '', '', True);
 end;
 
 function TBoss4DIDERegistrationService.ArtifactsHealthy(

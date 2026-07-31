@@ -109,6 +109,8 @@ type
     [Test]
     procedure TestIDEUnregisterPreservesArtifactsOwnedByAnotherPackage;
     [Test]
+    procedure TestIDEUninstallPreviewListsOnlyOwnedMutations;
+    [Test]
     procedure TestIDEUnregisterRemovesOnlyManagedArtifacts;
     [Test]
     procedure TestIDEUnregisterRestoresArtifactsOnRegistryFailure;
@@ -2541,6 +2543,73 @@ begin
     Assert.AreEqual<Integer>(1, LService.Uninstall('PackageB'));
     Assert.IsFalse(TFile.Exists(LSharedArtifact),
       'Ultimo proprietario deve remover o artefato gerenciado.');
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDEUninstallPreviewListsOnlyOwnedMutations;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LPlan: TBoss4DIDERemovalPlan;
+  LRoot: string;
+  LSharedArtifact: string;
+  LOwnedArtifact: string;
+  LWriteCount: Integer;
+begin
+  LRoot := TPath.Combine(FTempDir, 'preview-removal-root');
+  TDirectory.CreateDirectory(LRoot);
+  LSharedArtifact := TPath.Combine(LRoot, 'Shared.dll');
+  LOwnedArtifact := TPath.Combine(LRoot, 'OnlyA.dll');
+  TFile.WriteAllText(LSharedArtifact, 'shared', TEncoding.UTF8);
+  TFile.WriteAllText(LOwnedArtifact, 'owned', TEncoding.UTF8);
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'preview-removal-inventory.json'));
+  try
+    for var LName in TArray<string>.Create('ProductA', 'ProductB') do
+    begin
+      LRegistration := TBoss4DIDERegistration.Create;
+      try
+        LRegistration.PackageName := LName + 'Design';
+        LRegistration.OwnerPackage := LName;
+        LRegistration.Compiler := '37.0';
+        LRegistration.Platform := 'Win32';
+        LRegistration.BplPath := TPath.Combine(LRoot,
+          LName + 'Design.bpl');
+        LRegistration.SearchPath := TPath.Combine(LRoot, 'dcu');
+        LRegistration.ArtifactRoot := LRoot;
+        LRegistration.Artifacts.Add(LSharedArtifact);
+        if SameText(LName, 'ProductA') then
+          LRegistration.Artifacts.Add(LOwnedArtifact);
+        LService.RegisterTarget(LRegistration);
+      finally
+        LRegistration.Free;
+      end;
+    end;
+    LWriteCount := LStore.WriteCount;
+
+    LPlan := LService.PlanUninstall('ProductA');
+    try
+      Assert.IsFalse(LPlan.IsNoOp);
+      Assert.AreEqual<Integer>(1, LPlan.Targets.Count);
+      Assert.AreEqual<Integer>(1, LPlan.Files.Count);
+      Assert.AreEqual(TPath.GetFullPath(LOwnedArtifact), LPlan.Files[0]);
+      Assert.IsFalse(LPlan.Files.Contains(
+        TPath.GetFullPath(LSharedArtifact)));
+      Assert.IsTrue(LPlan.Changes.Count > 0);
+      for var LChange in LPlan.Changes do
+        Assert.IsFalse(SameText(LChange.Name, 'Search Path'),
+          'Path compartilhado nao pode constar na remocao.');
+    finally
+      LPlan.Free;
+    end;
+    Assert.AreEqual(LWriteCount, LStore.WriteCount,
+      'Preview de uninstall nao pode alterar o Registro.');
+    Assert.IsTrue(TFile.Exists(LSharedArtifact));
+    Assert.IsTrue(TFile.Exists(LOwnedArtifact));
   finally
     LService.Free;
   end;
