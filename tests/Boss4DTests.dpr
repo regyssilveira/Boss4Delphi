@@ -58,6 +58,7 @@ uses
   Boss4D.Core.Services.ArtifactCache in '..\src\Core\Services\Boss4D.Core.Services.ArtifactCache.pas',
   Boss4D.Core.Services.BuildMatrix in '..\src\Core\Services\Boss4D.Core.Services.BuildMatrix.pas',
   Boss4D.Core.Services.BuildConventions in '..\src\Core\Services\Boss4D.Core.Services.BuildConventions.pas',
+  Boss4D.Core.Services.BuildCapabilities in '..\src\Core\Services\Boss4D.Core.Services.BuildCapabilities.pas',
   Boss4D.Core.Services.BuildSpec in '..\src\Core\Services\Boss4D.Core.Services.BuildSpec.pas',
   Boss4D.Core.Services.BuildCommand in '..\src\Core\Services\Boss4D.Core.Services.BuildCommand.pas',
   Boss4D.Core.Services.BuildDoctor in '..\src\Core\Services\Boss4D.Core.Services.BuildDoctor.pas',

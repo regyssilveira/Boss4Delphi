@@ -142,7 +142,8 @@ uses
   System.Classes,
   System.IOUtils,
   System.JSON,
-  System.Win.Registry;
+  System.Win.Registry,
+  Boss4D.Core.Services.BuildConventions;
 
 type
   TBoss4DRegistrySnapshot = class
@@ -411,13 +412,12 @@ begin
     raise EArgumentNilException.Create('ARegistration');
   if ARegistration.PackageName.Trim.IsEmpty then
     raise EArgumentException.Create('PackageName nao pode ser vazio.');
-  if (ARegistration.Compiler <> '17.0') and
-     (ARegistration.Compiler <> '18.0') and
-     (ARegistration.Compiler <> '22.0') and
-     (ARegistration.Compiler <> '23.0') and
-     (ARegistration.Compiler <> '37.0') then
+  var LConvention := TBoss4DBuildConventions.ResolveCompiler(
+    ARegistration.Compiler);
+  if not SameText(LConvention.BDSVersion, ARegistration.Compiler) then
     raise EArgumentException.CreateFmt(
-      'Toolchain Delphi nao suportada: %s.', [ARegistration.Compiler]);
+      'O registro IDE exige a versao BDS canonica; use %s em vez de %s.',
+      [LConvention.BDSVersion, ARegistration.Compiler]);
   if not SameText(ARegistration.Platform, 'Win32') and
      not SameText(ARegistration.Platform, 'Win64') then
     raise EArgumentException.CreateFmt(

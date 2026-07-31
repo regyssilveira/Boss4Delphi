@@ -20,6 +20,12 @@ type
     [Test]
     procedure TestDelphiConventionsExpandTargetPath;
     [Test]
+    procedure TestCapabilityLevelsCoverLegacyPlatformsAndCppBuilder;
+    [Test]
+    procedure TestMatrixExpandsSupportedCrossPlatformApplication;
+    [Test]
+    procedure TestMatrixRejectsUnsupportedDesignPlatform;
+    [Test]
     procedure TestMatrixExpandsTokensInProjectsAndDependencies;
     [Test]
     procedure TestLegacyManifestExpandsSingleCompatibleTarget;
@@ -60,6 +66,7 @@ uses
   Boss4D.Core.Domain.BuildMatrix,
   Boss4D.Core.Services.BuildMatrix,
   Boss4D.Core.Services.BuildConventions,
+  Boss4D.Core.Services.BuildCapabilities,
   Boss4D.Core.Services.BuildPaths,
   Boss4D.Core.Services.ArtifactCache,
   Boss4D.Core.Services.BuildGraph,
@@ -69,6 +76,16 @@ procedure TTestsBuildMatrix.TestDelphiConventionsCoverSupportedCompilers;
 var
   LConvention: TBoss4DDelphiConvention;
 begin
+  LConvention := TBoss4DBuildConventions.ResolveCompiler('xe');
+  Assert.AreEqual('8.0', LConvention.BDSVersion);
+  Assert.AreEqual('150', LConvention.PackageSuffix);
+  Assert.AreEqual('VER220', LConvention.CompilerSymbol);
+
+  LConvention := TBoss4DBuildConventions.ResolveCompiler('d104');
+  Assert.AreEqual('21.0', LConvention.BDSVersion);
+  Assert.AreEqual('270', LConvention.PackageSuffix);
+  Assert.AreEqual('VER340', LConvention.CompilerSymbol);
+
   LConvention := TBoss4DBuildConventions.ResolveCompiler('d10');
   Assert.AreEqual('17.0', LConvention.BDSVersion);
   Assert.AreEqual('230', LConvention.PackageSuffix);
@@ -451,6 +468,93 @@ begin
     LPackage.Free;
     LGuard.Free;
     LOrder.Free;
+  end;
+end;
+
+procedure TTestsBuildMatrix.TestCapabilityLevelsCoverLegacyPlatformsAndCppBuilder;
+var
+  LCapability: TBoss4DBuildCapability;
+begin
+  LCapability := TBoss4DBuildCapabilities.Evaluate('17.0', 'Win32',
+    'runtime', 'Runtime.dproj');
+  Assert.AreEqual(TBoss4DSupportLevel.Certified, LCapability.Level);
+
+  LCapability := TBoss4DBuildCapabilities.Evaluate('8.0', 'Win32',
+    'runtime', 'Legacy.dproj');
+  Assert.AreEqual(TBoss4DSupportLevel.Experimental, LCapability.Level);
+
+  LCapability := TBoss4DBuildCapabilities.Evaluate('8.0', 'Win64',
+    'runtime', 'Legacy.dproj');
+  Assert.AreEqual(TBoss4DSupportLevel.Unsupported, LCapability.Level);
+
+  LCapability := TBoss4DBuildCapabilities.Evaluate('23.0', 'Linux64',
+    'application', 'Server.dproj');
+  Assert.AreEqual(TBoss4DSupportLevel.Compatible, LCapability.Level);
+
+  LCapability := TBoss4DBuildCapabilities.Evaluate('37.0', 'Win64',
+    'application', 'CppApp.cbproj');
+  Assert.AreEqual(TBoss4DSupportLevel.Experimental, LCapability.Level);
+
+  LCapability := TBoss4DBuildCapabilities.Evaluate('23.0', 'Linux64',
+    'design', 'Design.dproj');
+  Assert.AreEqual(TBoss4DSupportLevel.Unsupported, LCapability.Level);
+end;
+
+procedure TTestsBuildMatrix.TestMatrixExpandsSupportedCrossPlatformApplication;
+var
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+  LTargets: TBoss4DBuildTargetList;
+begin
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'linux-server';
+    LPackage.BuildMatrix.Compilers.Add('23.0');
+    LPackage.BuildMatrix.Platforms.Add('Linux64');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'Server.dproj';
+    LProject.Kind := 'application';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+    LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+      TBoss4DBuildSelection.All);
+    try
+      Assert.AreEqual<Integer>(1, LTargets.Count);
+      Assert.AreEqual('Linux64', LTargets[0].Platform);
+      Assert.AreEqual('application', LTargets[0].ProjectKind);
+    finally
+      LTargets.Free;
+    end;
+  finally
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsBuildMatrix.TestMatrixRejectsUnsupportedDesignPlatform;
+var
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+begin
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'invalid-design';
+    LPackage.BuildMatrix.Compilers.Add('23.0');
+    LPackage.BuildMatrix.Platforms.Add('Linux64');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'Design.dproj';
+    LProject.Kind := 'design';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+    Assert.WillRaise(
+      procedure
+      begin
+        var LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+          TBoss4DBuildSelection.All);
+        LTargets.Free;
+      end,
+      EArgumentException);
+  finally
+    LPackage.Free;
   end;
 end;
 

@@ -66,6 +66,7 @@ uses
   Boss4D.Core.Domain.Env,
   Boss4D.Core.Domain.Consts,
   Boss4D.Core.Services.BuildConventions,
+  Boss4D.Core.Services.BuildCapabilities,
   Boss4D.Core.Services.BuildExecutor,
   Boss4D.Core.Services.BuildMatrix,
   Boss4D.Core.Services.BuildPaths;
@@ -140,13 +141,8 @@ begin
         LPlatformAll := SameText(AArgs[I], 'all');
         if LPlatformAll then
           LPlatform := ''
-        else if SameText(AArgs[I], 'Win32') then
-          LPlatform := 'Win32'
-        else if SameText(AArgs[I], 'Win64') then
-          LPlatform := 'Win64'
         else
-          raise EArgumentException.CreateFmt(
-            'Plataforma Delphi nao suportada: %s.', [AArgs[I]]);
+          LPlatform := TBoss4DBuildCapabilities.NormalizePlatform(AArgs[I]);
       end
       else if LOption = '--configuration' then
       begin

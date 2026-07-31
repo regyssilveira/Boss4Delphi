@@ -111,6 +111,8 @@ type
     [Test]
     procedure TestIDERegistrationAcceptsDelphi10Seattle;
     [Test]
+    procedure TestIDERegistrationAcceptsModeledLegacyDelphi;
+    [Test]
     procedure TestIDERegistrationRollsBackOnFailure;
     [Test]
     procedure TestIDERegistrationRepairRestoresDrift;
@@ -2428,6 +2430,35 @@ begin
   finally
     LService.Free;
     LDep.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDERegistrationAcceptsModeledLegacyDelphi;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LPackageKey: string;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'ide-inventory-xe.json'));
+  LRegistration := TBoss4DIDERegistration.Create;
+  try
+    LRegistration.PackageName := 'LegacyXE';
+    LRegistration.Compiler := '8.0';
+    LRegistration.Platform := 'Win32';
+    LRegistration.BplPath := 'C:\artifacts\LegacyXE.bpl';
+    LRegistration.Description := 'Delphi XE package';
+    LService.RegisterTarget(LRegistration);
+    LPackageKey := 'Software\Embarcadero\BDS\8.0\Known Packages';
+    Assert.AreEqual('Delphi XE package',
+      LStore.GetValue(LPackageKey, LRegistration.BplPath));
+    Assert.AreEqual<Integer>(1,
+      LService.Unregister('LegacyXE', '8.0', 'Win32'));
+  finally
+    LRegistration.Free;
+    LService.Free;
   end;
 end;
 

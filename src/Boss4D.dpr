@@ -50,6 +50,7 @@ uses
   Boss4D.Core.Services.ArtifactCache in 'Core/Services/Boss4D.Core.Services.ArtifactCache.pas',
   Boss4D.Core.Services.BuildMatrix in 'Core/Services/Boss4D.Core.Services.BuildMatrix.pas',
   Boss4D.Core.Services.BuildConventions in 'Core/Services/Boss4D.Core.Services.BuildConventions.pas',
+  Boss4D.Core.Services.BuildCapabilities in 'Core/Services/Boss4D.Core.Services.BuildCapabilities.pas',
   Boss4D.Core.Services.BuildSpec in 'Core/Services/Boss4D.Core.Services.BuildSpec.pas',
   Boss4D.Core.Services.BuildCommand in 'Core/Services/Boss4D.Core.Services.BuildCommand.pas',
   Boss4D.Core.Services.BuildDoctor in 'Core/Services/Boss4D.Core.Services.BuildDoctor.pas',
