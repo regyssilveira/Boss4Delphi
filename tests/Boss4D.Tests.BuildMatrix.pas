@@ -12,6 +12,8 @@ type
     [Test]
     procedure TestDeclarativeMatrixExpandsDeterministically;
     [Test]
+    procedure TestProjectRolesAreTypedAndBackwardCompatible;
+    [Test]
     procedure TestExplicitSelectionFiltersTargets;
     [Test]
     procedure TestSelectionCanExpandAxesIndependently;
@@ -76,6 +78,41 @@ uses
   Boss4D.Core.Services.BuildGraph,
   Boss4D.Core.Services.BuildScheduler,
   Boss4D.Adapters.Compiler;
+
+procedure TTestsBuildMatrix.TestProjectRolesAreTypedAndBackwardCompatible;
+var
+  LProject: TBoss4DBuildProject;
+  LTarget: TBoss4DBuildTarget;
+  LRaised: Boolean;
+begin
+  LProject := TBoss4DBuildProject.Create;
+  LTarget := TBoss4DBuildTarget.Create;
+  try
+    Assert.AreEqual(TBoss4DBuildProjectRole.RuntimePackage,
+      LProject.Role);
+    LProject.Role := TBoss4DBuildProjectRole.DesignPackage;
+    Assert.AreEqual('design', LProject.Kind);
+    LProject.Kind := 'APPLICATION';
+    Assert.AreEqual(TBoss4DBuildProjectRole.Application, LProject.Role);
+
+    LTarget.Role := TBoss4DBuildProjectRole.Binary;
+    Assert.AreEqual('binary', LTarget.ProjectKind);
+    LTarget.ProjectKind := 'tool';
+    Assert.AreEqual(TBoss4DBuildProjectRole.Tool, LTarget.Role);
+
+    LRaised := False;
+    try
+      TBoss4DBuildProjectRoles.Parse('unknown-role');
+    except
+      on E: EArgumentException do
+        LRaised := E.Message.Contains('unknown-role');
+    end;
+    Assert.IsTrue(LRaised);
+  finally
+    LTarget.Free;
+    LProject.Free;
+  end;
+end;
 
 procedure TTestsBuildMatrix.TestDelphiConventionsCoverSupportedCompilers;
 var

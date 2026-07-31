@@ -131,13 +131,7 @@ begin
       if LProject.Path.Trim.IsEmpty then
         raise EArgumentException.Create(
           'Um projeto da matriz possui path vazio.');
-      if not SameText(LProject.Kind, 'runtime') and
-         not SameText(LProject.Kind, 'design') and
-         not SameText(LProject.Kind, 'application') and
-         not SameText(LProject.Kind, 'tool') and
-         not SameText(LProject.Kind, 'binary') then
-        raise EArgumentException.CreateFmt(
-          'Tipo de projeto nao suportado: %s.', [LProject.Kind]);
+      TBoss4DBuildProjectRoles.Parse(LProject.Kind);
       var LKey := LProject.Path.ToLower;
       if LSeenProjects.ContainsKey(LKey) then
         raise EArgumentException.CreateFmt(

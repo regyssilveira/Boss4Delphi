@@ -6,6 +6,17 @@ uses
   System.Generics.Collections;
 
 type
+  TBoss4DBuildProjectRole = (RuntimePackage, DesignPackage, Application,
+    Tool, Binary);
+
+  TBoss4DBuildProjectRoles = class
+  public
+    class function Parse(const AValue: string): TBoss4DBuildProjectRole;
+      static;
+    class function NameOf(const AValue: TBoss4DBuildProjectRole): string;
+      static;
+  end;
+
   TBoss4DBuildProject = class
   private
     FPath: string;
@@ -14,11 +25,14 @@ type
     FCompilers: TList<string>;
     FPlatforms: TList<string>;
     FConfigurations: TList<string>;
+    function GetRole: TBoss4DBuildProjectRole;
+    procedure SetRole(const AValue: TBoss4DBuildProjectRole);
   public
     constructor Create;
     destructor Destroy; override;
     property Path: string read FPath write FPath;
     property Kind: string read FKind write FKind;
+    property Role: TBoss4DBuildProjectRole read GetRole write SetRole;
     property DependsOn: TList<string> read FDependsOn;
     property Compilers: TList<string> read FCompilers;
     property Platforms: TList<string> read FPlatforms;
@@ -84,6 +98,8 @@ type
     FPlatform: string;
     FConfiguration: string;
     FDependsOn: TList<string>;
+    function GetRole: TBoss4DBuildProjectRole;
+    procedure SetRole(const AValue: TBoss4DBuildProjectRole);
   public
     constructor Create;
     destructor Destroy; override;
@@ -91,6 +107,7 @@ type
     property PackageName: string read FPackageName write FPackageName;
     property ProjectPath: string read FProjectPath write FProjectPath;
     property ProjectKind: string read FProjectKind write FProjectKind;
+    property Role: TBoss4DBuildProjectRole read GetRole write SetRole;
     property Compiler: string read FCompiler write FCompiler;
     property Platform: string read FPlatform write FPlatform;
     property Configuration: string read FConfiguration write FConfiguration;
@@ -104,6 +121,40 @@ implementation
 uses
   System.SysUtils;
 
+class function TBoss4DBuildProjectRoles.Parse(
+  const AValue: string): TBoss4DBuildProjectRole;
+begin
+  if SameText(AValue, 'runtime') then
+    Exit(TBoss4DBuildProjectRole.RuntimePackage);
+  if SameText(AValue, 'design') then
+    Exit(TBoss4DBuildProjectRole.DesignPackage);
+  if SameText(AValue, 'application') then
+    Exit(TBoss4DBuildProjectRole.Application);
+  if SameText(AValue, 'tool') then
+    Exit(TBoss4DBuildProjectRole.Tool);
+  if SameText(AValue, 'binary') then
+    Exit(TBoss4DBuildProjectRole.Binary);
+  raise EArgumentException.CreateFmt(
+    'Tipo de projeto nao suportado: %s.', [AValue]);
+end;
+
+class function TBoss4DBuildProjectRoles.NameOf(
+  const AValue: TBoss4DBuildProjectRole): string;
+begin
+  case AValue of
+    TBoss4DBuildProjectRole.DesignPackage:
+      Result := 'design';
+    TBoss4DBuildProjectRole.Application:
+      Result := 'application';
+    TBoss4DBuildProjectRole.Tool:
+      Result := 'tool';
+    TBoss4DBuildProjectRole.Binary:
+      Result := 'binary';
+  else
+    Result := 'runtime';
+  end;
+end;
+
 constructor TBoss4DBuildProject.Create;
 begin
   inherited Create;
@@ -112,6 +163,17 @@ begin
   FCompilers := TList<string>.Create;
   FPlatforms := TList<string>.Create;
   FConfigurations := TList<string>.Create;
+end;
+
+function TBoss4DBuildProject.GetRole: TBoss4DBuildProjectRole;
+begin
+  Result := TBoss4DBuildProjectRoles.Parse(FKind);
+end;
+
+procedure TBoss4DBuildProject.SetRole(
+  const AValue: TBoss4DBuildProjectRole);
+begin
+  FKind := TBoss4DBuildProjectRoles.NameOf(AValue);
 end;
 
 destructor TBoss4DBuildProject.Destroy;
@@ -187,6 +249,17 @@ constructor TBoss4DBuildTarget.Create;
 begin
   inherited Create;
   FDependsOn := TList<string>.Create;
+end;
+
+function TBoss4DBuildTarget.GetRole: TBoss4DBuildProjectRole;
+begin
+  Result := TBoss4DBuildProjectRoles.Parse(FProjectKind);
+end;
+
+procedure TBoss4DBuildTarget.SetRole(
+  const AValue: TBoss4DBuildProjectRole);
+begin
+  FProjectKind := TBoss4DBuildProjectRoles.NameOf(AValue);
 end;
 
 destructor TBoss4DBuildTarget.Destroy;
