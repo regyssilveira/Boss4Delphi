@@ -4,6 +4,9 @@
 
 O **Boss4D** é uma suíte completa de gerenciamento de dependências projetada especificamente para o ecossistema Delphi. Ele oferece uma interface de linha de comando (CLI) rápida, um aplicativo gráfico moderno (GUI) standalone, assistentes integrados dentro do RAD Studio (Plugin) e um instalador offline centralizado.
 
+Se você quer resolver uma tarefa cotidiana em vez de consultar uma flag,
+comece pelo [guia de casos de uso orientado a risco](use-cases.pt-BR.md).
+
 ---
 
 ## 📦 0. Início Rápido com o Instalador Offline
@@ -13,7 +16,7 @@ Para usuários finais, o Boss4D fornece um instalador offline executável unific
 1. **Baixar o Setup**: Baixe o instalador `Boss4D_Setup.exe` da seção de releases no GitHub.
 2. **Execução de Privilégios Mínimos**: O instalador roda de forma segura no escopo do usuário atual (não requer privilégios de administrador/UAC).
 3. **Autodetecção e Integração com Delphi**:
-   * O instalador consulta automaticamente o Registro do Windows e localiza as instalações do **Delphi 11 (Alexandria)**, **Delphi 12 (Athens)** e **Delphi 13 (Florence)**.
+   * O instalador consulta automaticamente o Registro do Windows e localiza as instalações do **Delphi 10 (Seattle)**, **Delphi 10.1 (Berlin)**, **Delphi 11 (Alexandria)**, **Delphi 12 (Athens)** e **Delphi 13 (Florence)**.
    * Ele exibe caixas de seleção interativas para que você selecione em quais IDEs deseja ativar a integração do Boss4D (outras versões desmarcadas ou desinstaladas são removidas automaticamente).
 4. **Variáveis de Ambiente**: O instalador injeta o caminho binário do Boss4D no seu `PATH` de usuário e notifica o Windows instantaneamente, tornando a CLI disponível em novos terminais de forma imediata sem necessidade de reiniciar.
 

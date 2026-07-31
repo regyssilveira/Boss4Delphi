@@ -1,0 +1,107 @@
+[CmdletBinding()]
+param(
+  [string]$RepositoryRoot = (Join-Path $PSScriptRoot '..')
+)
+
+$ErrorActionPreference = 'Stop'
+$root = (Resolve-Path -LiteralPath $RepositoryRoot).Path
+$hubPairs = @(
+  @('docs\use-cases.md', 'docs\use-cases.pt-BR.md'),
+  @('docs\use-cases-project-lifecycle.md',
+    'docs\use-cases-project-lifecycle.pt-BR.md'),
+  @('docs\use-cases-registry-security.md',
+    'docs\use-cases-registry-security.pt-BR.md'),
+  @('docs\use-cases-compliance.md',
+    'docs\use-cases-compliance.pt-BR.md'),
+  @('docs\use-cases-build-matrix.md',
+    'docs\use-cases-build-matrix.pt-BR.md'),
+  @('docs\use-cases-ide.md',
+    'docs\use-cases-ide.pt-BR.md'),
+  @('docs\use-cases-operations-release.md',
+    'docs\use-cases-operations-release.pt-BR.md')
+)
+$knownCommands = @(
+  'add', 'audit', 'build', 'cache', 'ci', 'config', 'dependencies',
+  'doctor', 'getit', 'ide', 'info', 'init', 'install', 'license',
+  'outdated', 'plugin', 'publish', 'registry', 'remove', 'run', 'sbom',
+  'search', 'self-update', 'spec', 'tool', 'tree', 'update', 'version',
+  'why'
+)
+
+foreach ($pair in $hubPairs) {
+  $englishPath = Join-Path $root $pair[0]
+  $portuguesePath = Join-Path $root $pair[1]
+  foreach ($path in @($englishPath, $portuguesePath)) {
+    if (-not (Test-Path -LiteralPath $path)) {
+      throw "Required use-case document is missing: $path"
+    }
+    $content = Get-Content -Raw -LiteralPath $path
+    if ($content -notmatch '(?m)^## ') {
+      throw "Use-case document has no sections: $path"
+    }
+    foreach ($match in [regex]::Matches(
+      $content, '(?m)^\s*boss4d\s+([a-z][a-z0-9-]*)')) {
+      $command = $match.Groups[1].Value
+      if ($knownCommands -notcontains $command) {
+        throw "Unknown Boss4D command '$command' in $path"
+      }
+    }
+  }
+
+  $englishCases = ([regex]::Matches(
+    (Get-Content -Raw -LiteralPath $englishPath), '(?m)^## \d+\.')).Count
+  $portugueseCases = ([regex]::Matches(
+    (Get-Content -Raw -LiteralPath $portuguesePath), '(?m)^## \d+\.')).Count
+  if ($englishCases -ne $portugueseCases) {
+    throw "Use-case parity mismatch for $($pair[0]): " +
+      "EN=$englishCases PT-BR=$portugueseCases"
+  }
+}
+
+$englishHub = Get-Content -Raw -LiteralPath (
+  Join-Path $root 'docs\use-cases.md')
+$portugueseHub = Get-Content -Raw -LiteralPath (
+  Join-Path $root 'docs\use-cases.pt-BR.md')
+if ($englishHub.Contains('Planned in phase') -or
+    $portugueseHub.Contains('Planejado para a fase')) {
+  throw 'Use-case hub still contains unfinished phase placeholders.'
+}
+
+$topicDocuments = Get-ChildItem -LiteralPath (Join-Path $root 'docs') `
+  -Filter 'use-cases-*.md'
+foreach ($document in $topicDocuments) {
+  $content = Get-Content -Raw -LiteralPath $document.FullName
+  $requiredLabels = if ($document.Name.EndsWith('.pt-BR.md')) {
+    @('**Situação:**', '**Resultado esperado:**',
+      '**Controles de risco:**', '**Recuperação:**')
+  } else {
+    @('**Situation:**', '**Expected result:**',
+      '**Risk controls:**', '**Recovery:**')
+  }
+  foreach ($label in $requiredLabels) {
+    if (-not $content.Contains($label)) {
+      throw "Required use-case label '$label' is missing in " +
+        $document.FullName
+    }
+  }
+}
+
+$missingLinks = @()
+Get-ChildItem -LiteralPath (Join-Path $root 'docs') -Filter 'use-cases*.md' |
+  ForEach-Object {
+    $document = $_
+    $content = Get-Content -Raw -LiteralPath $document.FullName
+    foreach ($match in [regex]::Matches(
+      $content, '\[[^\]]+\]\((?!https?://|mailto:|#)([^)]+)\)')) {
+      $target = $match.Groups[1].Value.Split('#')[0].Trim('<', '>')
+      if ($target -and -not (Test-Path -LiteralPath (
+        Join-Path $document.DirectoryName $target))) {
+        $missingLinks += "$($document.Name): $target"
+      }
+    }
+  }
+if ($missingLinks.Count -gt 0) {
+  throw "Broken use-case links:`n$($missingLinks -join "`n")"
+}
+
+Write-Output 'Use-case documentation contract: OK'

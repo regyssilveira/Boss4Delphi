@@ -4,6 +4,9 @@
 
 ### Added
 
+- Bilingual, risk-aware use-case guides covering 53 everyday workflows across
+  project dependencies, Registry/credentials, secure publication, compliance,
+  Multi-Delphi builds, IDE recovery, Linux/CI, releases, and self-update.
 - Declarative, backward-compatible build matrix for Delphi 10 (`17.0`), 10.1
   (`18.0`), 11 (`22.0`), 12 (`23.0`), and 13 (`37.0`) across Win32/Win64 and
   Debug/Release.
