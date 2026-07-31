@@ -26,9 +26,12 @@ type
       const APublisher: TJSONObject): Boolean;
     procedure AnnotatePublishers(const APackages: TJSONArray;
       const APublisherContent: string);
+    function ComposeFromFile(const ARegistryPath: string): string;
   public
     function Generate(const ARegistryContent: string): string;
     function GenerateFromFile(const ARegistryPath: string): string;
+    function GenerateSearchIndexFromFile(
+      const ARegistryPath: string): string;
   end;
 
 implementation
@@ -247,7 +250,7 @@ begin
   end;
 end;
 
-function TBoss4DRegistryPortalService.GenerateFromFile(
+function TBoss4DRegistryPortalService.ComposeFromFile(
   const ARegistryPath: string): string;
 var
   LRoot: TJSONObject;
@@ -272,12 +275,61 @@ begin
     LRoot.AddPair('schemaVersion', TJSONNumber.Create(2));
     LRoot.AddPair('packages', LPackages);
     LPackages := nil;
-    Result := Generate(LRoot.ToJSON);
+    Result := LRoot.ToJSON;
   finally
     LVisited.Free;
     LRevocations.Free;
     LPackages.Free;
     LRoot.Free;
+  end;
+end;
+
+function TBoss4DRegistryPortalService.GenerateFromFile(
+  const ARegistryPath: string): string;
+begin
+  Result := Generate(ComposeFromFile(ARegistryPath));
+end;
+
+function TBoss4DRegistryPortalService.GenerateSearchIndexFromFile(
+  const ARegistryPath: string): string;
+var
+  LComposed: TJSONObject;
+  LOutput: TJSONObject;
+  LOutputPackages: TJSONArray;
+begin
+  LComposed := TJSONObject.ParseJSONValue(
+    ComposeFromFile(ARegistryPath)) as TJSONObject;
+  LOutput := TJSONObject.Create;
+  LOutputPackages := TJSONArray.Create;
+  try
+    var LPackages := LComposed.GetValue<TJSONArray>('packages');
+    for var LPackageValue in LPackages do
+    begin
+      var LPackage := TJSONObject(LPackageValue);
+      var LProjection := LPackage.Clone as TJSONObject;
+      var LPublisherName := LProjection.GetValue<string>(
+        '_publisherDisplayName', '');
+      var LPublisherTrust := LProjection.GetValue<string>(
+        '_publisherTrust', '');
+      LProjection.RemovePair('_publisherDisplayName').Free;
+      LProjection.RemovePair('_publisherTrust').Free;
+      if not LPublisherName.IsEmpty then
+        LProjection.AddPair('publisherDisplayName', LPublisherName);
+      if not LPublisherTrust.IsEmpty then
+        LProjection.AddPair('publisherTrust', LPublisherTrust);
+      LOutputPackages.AddElement(LProjection);
+    end;
+    LOutput.AddPair('schemaVersion', TJSONNumber.Create(1));
+    LOutput.AddPair('sourceProtocol', 'boss4d-registry-v2');
+    LOutput.AddPair('packageCount',
+      TJSONNumber.Create(LOutputPackages.Count));
+    LOutput.AddPair('packages', LOutputPackages);
+    LOutputPackages := nil;
+    Result := LOutput.ToJSON;
+  finally
+    LOutputPackages.Free;
+    LOutput.Free;
+    LComposed.Free;
   end;
 end;
 

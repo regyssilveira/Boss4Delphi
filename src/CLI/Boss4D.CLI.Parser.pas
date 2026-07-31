@@ -266,6 +266,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  rollback             Restaura o ultimo snapshot de versao.');
   FLogger.Log(TBoss4DLogLevel.Info, '  audit               Consulta vulnerabilidades OSV por revisao do lock.');
   FLogger.Log(TBoss4DLogLevel.Info, '  registry add|remove|list Gerencia indices publicos e privados.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  registry portal|search-index <entrada> <saida> Gera artefatos estaticos do catalogo.');
   FLogger.Log(TBoss4DLogLevel.Info, '  search <termo>       Pesquisa pacotes nos indices configurados.');
   FLogger.Log(TBoss4DLogLevel.Info, '  info <pacote>        Exibe metadados de um pacote indexado.');
   FLogger.Log(TBoss4DLogLevel.Info, '  package install <pacote>[@range] Instala .b4dpkg versionado e verificado.');
@@ -1717,6 +1718,21 @@ begin
         TEncoding.UTF8);
       FLogger.Log(TBoss4DLogLevel.Info,
         'Portal de registry gerado: ' + TPath.GetFullPath(AArgs[3]));
+    finally
+      LPortal.Free;
+    end;
+    Exit;
+  end;
+  if (Length(AArgs) = 4) and SameText(AArgs[1], 'search-index') then
+  begin
+    var LPortal := TBoss4DRegistryPortalService.Create;
+    try
+      var LIndex := LPortal.GenerateSearchIndexFromFile(
+        TPath.GetFullPath(AArgs[2]));
+      TFile.WriteAllText(TPath.GetFullPath(AArgs[3]), LIndex,
+        TEncoding.UTF8);
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Indice de busca gerado: ' + TPath.GetFullPath(AArgs[3]));
     finally
       LPortal.Free;
     end;

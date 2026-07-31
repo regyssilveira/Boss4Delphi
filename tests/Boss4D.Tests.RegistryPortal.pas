@@ -15,12 +15,14 @@ type
     [Test] procedure GeneratesVersionedV2CatalogWithTrustEvidence;
     [Test] procedure ComposesLocalIncludesSparseAndRevocations;
     [Test] procedure RejectsReferenceOutsideRegistryRoot;
+    [Test] procedure GeneratesConsolidatedSearchIndex;
   end;
 
 implementation
 
 uses
-  System.SysUtils, System.IOUtils, Boss4D.Core.Services.RegistryPortal;
+  System.SysUtils, System.IOUtils, System.JSON,
+  Boss4D.Core.Services.RegistryPortal;
 
 function CountOccurrences(const AText, AValue: string): Integer;
 var
@@ -138,6 +140,55 @@ begin
       end, EArgumentException);
   finally
     LService.Free;
+  end;
+end;
+
+procedure TBoss4DRegistryPortalTests.GeneratesConsolidatedSearchIndex;
+var
+  LService: TBoss4DRegistryPortalService;
+  LRootDirectory: string;
+  LIndex: TJSONObject;
+begin
+  LRootDirectory := TPath.Combine(TPath.GetTempPath,
+    'boss4d-search-index-' + TGUID.NewGuid.ToString);
+  TDirectory.CreateDirectory(LRootDirectory);
+  try
+    TFile.WriteAllText(TPath.Combine(LRootDirectory, 'publishers.json'),
+      '{"schemaVersion":1,"publishers":[{"id":"boss4d",' +
+      '"displayName":"Boss4D Project","repositories":[' +
+      '"github.com/regyssilveira/"],"allowedSigners":[]}]}',
+      TEncoding.UTF8);
+    TFile.WriteAllText(TPath.Combine(LRootDirectory, 'index.json'),
+      '{"schemaVersion":2,"packages":[{"name":"Dext",' +
+      '"repository":"github.com/regyssilveira/dext",' +
+      '"description":"Framework","license":"Apache-2.0"}]}',
+      TEncoding.UTF8);
+    LService := TBoss4DRegistryPortalService.Create;
+    try
+      LIndex := TJSONObject.ParseJSONValue(
+        LService.GenerateSearchIndexFromFile(
+          TPath.Combine(LRootDirectory, 'index.json'))) as TJSONObject;
+      try
+        Assert.AreEqual(1, LIndex.GetValue<Integer>('schemaVersion'));
+        Assert.AreEqual(1, LIndex.GetValue<Integer>('packageCount'));
+        Assert.AreEqual('boss4d-registry-v2',
+          LIndex.GetValue<string>('sourceProtocol'));
+        var LPackages := LIndex.GetValue<TJSONArray>('packages');
+        var LPackage := LPackages.Items[0] as TJSONObject;
+        Assert.AreEqual('Dext', LPackage.GetValue<string>('name'));
+        Assert.AreEqual('Boss4D Project',
+          LPackage.GetValue<string>('publisherDisplayName'));
+        Assert.AreEqual('namespace',
+          LPackage.GetValue<string>('publisherTrust'));
+        Assert.IsFalse(LIndex.ToJSON.Contains('_publisher'));
+      finally
+        LIndex.Free;
+      end;
+    finally
+      LService.Free;
+    end;
+  finally
+    TDirectory.Delete(LRootDirectory, True);
   end;
 end;
 
