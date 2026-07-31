@@ -60,14 +60,37 @@ var
 begin
   LRoot := TPath.Combine(TPath.GetTempPath, TPath.GetRandomFileName);
   TDirectory.CreateDirectory(TPath.Combine(LRoot, 'modules\dep'));
+  for var LDirectory in TArray<string>.Create(
+    '.ci-build', '.fpc-build', '.release', '.release-test', '.scannerwork',
+    'tests\scratch', 'tests\Win64', 'src\Win32', 'installer\Output',
+    'bin') do
+    TDirectory.CreateDirectory(TPath.Combine(LRoot, LDirectory));
   TFile.WriteAllText(TPath.Combine(LRoot, 'boss.json'), '{}');
   TFile.WriteAllText(TPath.Combine(LRoot, 'modules\dep\secret.pas'), 'skip');
+  TFile.WriteAllText(TPath.Combine(LRoot, '.ci-build\cache.jar'), 'skip-ci');
+  TFile.WriteAllText(TPath.Combine(LRoot, '.fpc-build\unit.o'), 'skip-fpc');
+  TFile.WriteAllText(TPath.Combine(LRoot, '.release\old.zip'), 'skip-release');
+  TFile.WriteAllText(TPath.Combine(LRoot, '.release-test\old.tar'),
+    'skip-release-test');
+  TFile.WriteAllText(TPath.Combine(LRoot, '.scannerwork\report'),
+    'skip-scanner');
+  TFile.WriteAllText(TPath.Combine(LRoot, 'tests\scratch\tests.map'),
+    'skip-tests');
+  TFile.WriteAllText(TPath.Combine(LRoot, 'tests\Win64\tests.drc'),
+    'skip-win64');
+  TFile.WriteAllText(TPath.Combine(LRoot, 'src\Win32\app.map'), 'skip-win32');
+  TFile.WriteAllText(TPath.Combine(LRoot, 'installer\Output\setup.zip'),
+    'skip-installer');
+  TFile.WriteAllText(TPath.Combine(LRoot, 'bin\artifact.json'), 'skip-bin');
+  TFile.WriteAllText(TPath.Combine(LRoot, 'keep.pas'), 'keep-source');
   LOutput := TPath.Combine(TPath.GetTempPath, TPath.GetRandomFileName + '.b4dpkg');
   LService := TBoss4DPackService.Create;
   try
     LService.Execute(LRoot, LOutput);
     LContent := TFile.ReadAllText(LOutput);
     Assert.IsFalse(LContent.Contains('secret.pas'));
+    Assert.IsFalse(LContent.Contains('skip-'));
+    Assert.IsTrue(LContent.Contains('keep.pas'));
   finally
     LService.Free;
     TDirectory.Delete(LRoot, True);

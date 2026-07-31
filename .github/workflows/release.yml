@@ -65,13 +65,28 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             throw 'Inno Setup compilation failed.'
           }
+      - name: Build immutable Boss4D package
+        shell: pwsh
+        run: |
+          $version = (Get-Content boss.json -Raw | ConvertFrom-Json).version
+          $packageName = "boss4d-$version.b4dpkg"
+          New-Item -ItemType Directory -Force .release | Out-Null
+          & dist\bin\boss4d.exe pack --output "dist\$packageName"
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Boss4D package generation failed.'
+          }
+          Move-Item "dist\$packageName" ".release\$packageName"
+          Move-Item "dist\$packageName.intoto.json" `
+            ".release\$packageName.intoto.json"
       - name: Archive Windows distribution
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force .release | Out-Null
           Compress-Archive -Path dist\* -DestinationPath .release\boss4d-windows.zip
           Copy-Item installer\Output\Boss4D_Setup.exe .release\Boss4D_Setup.exe
-          @('boss4d-windows.zip', 'Boss4D_Setup.exe') | ForEach-Object {
+          $artifacts = @('boss4d-windows.zip', 'Boss4D_Setup.exe') +
+            @(Get-ChildItem .release -Filter *.b4dpkg | Select-Object -ExpandProperty Name)
+          $artifacts | ForEach-Object {
             $hash = (Get-FileHash (Join-Path .release $_) -Algorithm SHA256).Hash.ToLowerInvariant()
             "$hash  $_"
           } | Set-Content -Encoding ascii .release\SHA256SUMS-windows.txt
@@ -82,6 +97,8 @@ jobs:
             .release/boss4d-windows.zip
             .release/Boss4D_Setup.exe
             .release/SHA256SUMS-windows.txt
+            .release/*.b4dpkg
+            .release/*.b4dpkg.intoto.json
             dist/sbom/*
           if-no-files-found: error
 
@@ -103,7 +120,8 @@ jobs:
       - name: Create combined checksums
         working-directory: release
         run: |
-          sha256sum boss4d-linux-x86_64.tar.gz boss4d-windows.zip Boss4D_Setup.exe > SHA256SUMS.txt
+          sha256sum boss4d-linux-x86_64.tar.gz boss4d-windows.zip \
+            Boss4D_Setup.exe *.b4dpkg > SHA256SUMS.txt
       - name: Attest release archives
         uses: actions/attest-build-provenance@v2
         with:
@@ -111,6 +129,7 @@ jobs:
             release/boss4d-linux-x86_64.tar.gz
             release/boss4d-windows.zip
             release/Boss4D_Setup.exe
+            release/*.b4dpkg
       - name: Publish GitHub release assets
         uses: softprops/action-gh-release@v2
         with:
@@ -121,4 +140,6 @@ jobs:
             release/Boss4D_Setup.exe
             release/SHA256SUMS.txt
             release/artifact-matrix.json
+            release/*.b4dpkg
+            release/*.b4dpkg.intoto.json
             release/*.json
