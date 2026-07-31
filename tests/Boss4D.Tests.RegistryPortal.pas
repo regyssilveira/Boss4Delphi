@@ -231,7 +231,8 @@ begin
       '{"name":"Horse","repository":"github.com/hashload/horse",' +
       '"description":"Web framework","versions":[' +
       '{"version":"3.2.1","sha256":"abc","signature":"horse.asc",' +
-      '"provenance":"horse.intoto.json"},{"version":"3.1.0",' +
+      '"provenance":"horse.intoto.json","variants":[{"platform":"Win64",' +
+      '"compiler":"37.0"}]},{"version":"3.1.0",' +
       '"revoked":true}]}]}');
     Assert.IsTrue(LHtml.Contains('Protocol v2'));
     Assert.IsTrue(LHtml.Contains('3.2.1'));
@@ -240,6 +241,13 @@ begin
     Assert.IsTrue(LHtml.Contains('provenance'));
     Assert.IsTrue(LHtml.Contains('3.1.0 (revoked)'));
     Assert.IsTrue(LHtml.Contains('id="package-search"'));
+    Assert.IsTrue(LHtml.Contains('id="trust-filter"'));
+    Assert.IsTrue(LHtml.Contains('id="platform-filter"'));
+    Assert.IsTrue(LHtml.Contains('id="compiler-filter"'));
+    Assert.IsTrue(LHtml.Contains('data-platform="Win64"'));
+    Assert.IsTrue(LHtml.Contains('data-compiler="37.0"'));
+    Assert.IsTrue(LHtml.Contains('id="visible-count"'));
+    Assert.IsTrue(LHtml.Contains('@media(max-width:700px)'));
   finally
     LService.Free;
   end;

@@ -27,6 +27,10 @@ type
     procedure AnnotatePublishers(const APackages: TJSONArray;
       const APublisherContent: string);
     function ComposeFromFile(const ARegistryPath: string): string;
+    function PackageTrust(const APackage: TJSONObject): string;
+    function PackageSelectorData(const APackage: TJSONObject;
+      const ASelector: string): string;
+    function PackageVersionCount(const APackage: TJSONObject): Integer;
   public
     function Generate(const ARegistryContent: string): string;
     function GenerateFromFile(const ARegistryPath: string): string;
@@ -339,12 +343,66 @@ begin
   Result := TNetEncoding.HTML.Encode(AValue);
 end;
 
+function TBoss4DRegistryPortalService.PackageTrust(
+  const APackage: TJSONObject): string;
+begin
+  Result := APackage.GetValue<string>('_publisherTrust', '');
+  if Result.IsEmpty then
+    Result := 'unregistered';
+end;
+
+function TBoss4DRegistryPortalService.PackageSelectorData(
+  const APackage: TJSONObject; const ASelector: string): string;
+var
+  LValues: TList<string>;
+  procedure AddVariants(const AVariantsValue: TJSONValue);
+  begin
+    if not (AVariantsValue is TJSONArray) then
+      Exit;
+    for var LVariantValue in TJSONArray(AVariantsValue) do
+      if LVariantValue is TJSONObject then
+      begin
+        var LValue := TJSONObject(LVariantValue).GetValue<string>(
+          ASelector, '');
+        if not LValue.IsEmpty and not LValues.Contains(LValue) then
+          LValues.Add(LValue);
+      end;
+  end;
+begin
+  LValues := TList<string>.Create;
+  try
+    AddVariants(APackage.GetValue('variants'));
+    var LVersionsValue := APackage.GetValue('versions');
+    if LVersionsValue is TJSONArray then
+      for var LVersionValue in TJSONArray(LVersionsValue) do
+        if LVersionValue is TJSONObject then
+          AddVariants(TJSONObject(LVersionValue).GetValue('variants'));
+    LValues.Sort;
+    Result := string.Join(',', LValues.ToArray);
+  finally
+    LValues.Free;
+  end;
+end;
+
+function TBoss4DRegistryPortalService.PackageVersionCount(
+  const APackage: TJSONObject): Integer;
+begin
+  var LVersionsValue := APackage.GetValue('versions');
+  if LVersionsValue is TJSONArray then
+    Exit(TJSONArray(LVersionsValue).Count);
+  if not APackage.GetValue<string>('version', '').IsEmpty then
+    Exit(1);
+  Result := 0;
+end;
+
 function TBoss4DRegistryPortalService.Generate(
   const ARegistryContent: string): string;
 var
   LRoot: TJSONObject;
   LPackages: TJSONArray;
   LSchemaVersion: Integer;
+  LVersionCount: Integer;
+  LRegisteredCount: Integer;
 begin
   LRoot := TJSONObject.ParseJSONValue(ARegistryContent) as TJSONObject;
   if not Assigned(LRoot) then
@@ -359,20 +417,61 @@ begin
     LPackages := LRoot.GetValue<TJSONArray>('packages');
     if not Assigned(LPackages) then
       raise EArgumentException.Create('Registry sem packages.');
+    LVersionCount := 0;
+    LRegisteredCount := 0;
+    for var LPackageValue in LPackages do
+      if LPackageValue is TJSONObject then
+      begin
+        Inc(LVersionCount,
+          PackageVersionCount(TJSONObject(LPackageValue)));
+        if PackageTrust(TJSONObject(LPackageValue)) <> 'unregistered' then
+          Inc(LRegisteredCount);
+      end;
     Result := '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
       '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-      '<title>Boss4D Public Registry</title></head><body>' +
-      '<main><h1>Boss4D Public Registry</h1><p>Protocol v' +
-      LSchemaVersion.ToString + '</p>' +
-      '<label for="package-search">Search packages</label>' +
-      '<input id="package-search" type="search" placeholder="name or repository">' +
-      '<ul id="packages">';
+      '<title>Boss4D Public Registry</title><style>' +
+      ':root{color-scheme:light dark;font-family:system-ui,sans-serif}' +
+      'body{margin:0;background:#0b1020;color:#e8ecf7}' +
+      'main{max-width:1180px;margin:auto;padding:2rem 1rem}' +
+      'header{padding:2rem;border-radius:1.2rem;background:linear-gradient(135deg,#172554,#0f766e)}' +
+      '.stats,.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1rem;margin:1.2rem 0}' +
+      '.stat,.controls>*{padding:.85rem;border:1px solid #334155;border-radius:.75rem;background:#111827}' +
+      '.stat strong{display:block;font-size:1.5rem}.controls label{display:grid;gap:.35rem}' +
+      'input,select{font:inherit;padding:.7rem;border-radius:.5rem;border:1px solid #475569;background:#0f172a;color:inherit}' +
+      '#packages{list-style:none;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}' +
+      '#packages li{padding:1rem;border:1px solid #334155;border-radius:.9rem;background:#111827}' +
+      '.publisher,code,#packages span{display:inline-block;margin:.2rem;padding:.2rem .45rem;border-radius:.4rem;background:#1e293b}' +
+      'a{color:#5eead4} [hidden]{display:none!important}' +
+      '@media(max-width:700px){.stats,.controls{grid-template-columns:1fr}header{padding:1.25rem}}' +
+      '</style></head><body><main><header><h1>Boss4D Public Registry</h1>' +
+      '<p>Discover Delphi and Lazarus packages with explicit trust evidence.</p>' +
+      '<p>Protocol v' + LSchemaVersion.ToString + '</p></header>' +
+      '<section class="stats" aria-label="Catalog statistics">' +
+      '<div class="stat"><strong id="visible-count">' +
+      LPackages.Count.ToString + '</strong>visible packages</div>' +
+      '<div class="stat"><strong>' + LVersionCount.ToString +
+      '</strong>indexed versions</div><div class="stat"><strong>' +
+      LRegisteredCount.ToString + '</strong>registered namespaces</div>' +
+      '</section><section class="controls">' +
+      '<label>Search<input id="package-search" type="search" placeholder="name or repository"></label>' +
+      '<label>Trust<select id="trust-filter"><option value="">all</option>' +
+      '<option value="authorized">authorized publisher</option>' +
+      '<option value="namespace">registered namespace</option>' +
+      '<option value="unregistered">unregistered</option></select></label>' +
+      '<label>Platform<select id="platform-filter"><option value="">all</option></select></label>' +
+      '<label>Compiler<select id="compiler-filter"><option value="">all</option></select></label>' +
+      '</section><ul id="packages">';
     for var LValue in LPackages do
     begin
       var LPackage := TJSONObject(LValue);
       Result := Result + '<li data-package="' +
         EscapeHtml(LPackage.GetValue<string>('name', '') + ' ' +
-          LPackage.GetValue<string>('repository', '')) + '"><strong>' +
+          LPackage.GetValue<string>('repository', '')) +
+        '" data-trust="' + EscapeHtml(PackageTrust(LPackage)) +
+        '" data-platform="' + EscapeHtml(
+          PackageSelectorData(LPackage, 'platform')) +
+        '" data-compiler="' + EscapeHtml(
+          PackageSelectorData(LPackage, 'compiler')) + '"><strong>' +
         EscapeHtml(LPackage.GetValue<string>('name', '')) +
         '</strong>';
       var LPublisherName := LPackage.GetValue<string>(
@@ -425,9 +524,18 @@ begin
         '">repository</a></li>';
     end;
     Result := Result + '</ul></main><script>' +
-      'document.getElementById("package-search").addEventListener("input",function(){' +
-      'var q=this.value.toLowerCase();document.querySelectorAll("#packages li").forEach(' +
-      'function(x){x.hidden=x.dataset.package.toLowerCase().indexOf(q)<0;});});' +
+      'const cards=[...document.querySelectorAll("#packages li")];' +
+      'const search=document.getElementById("package-search"),trust=document.getElementById("trust-filter"),' +
+      'platform=document.getElementById("platform-filter"),compiler=document.getElementById("compiler-filter");' +
+      'function options(select,key){const values=new Set();cards.forEach(c=>(c.dataset[key]||"").split(",").filter(Boolean).forEach(v=>values.add(v)));' +
+      '[...values].sort().forEach(v=>select.add(new Option(v,v)));}' +
+      'options(platform,"platform");options(compiler,"compiler");' +
+      'function apply(){const q=search.value.toLowerCase();let visible=0;cards.forEach(c=>{' +
+      'const show=c.dataset.package.toLowerCase().includes(q)&&(!trust.value||c.dataset.trust===trust.value)&&' +
+      '(!platform.value||c.dataset.platform.split(",").includes(platform.value))&&' +
+      '(!compiler.value||c.dataset.compiler.split(",").includes(compiler.value));c.hidden=!show;if(show)visible++;});' +
+      'document.getElementById("visible-count").textContent=visible;}' +
+      '[search,trust,platform,compiler].forEach(x=>x.addEventListener("input",apply));' +
       '</script></body></html>';
   finally
     LRoot.Free;
