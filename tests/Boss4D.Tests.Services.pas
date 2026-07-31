@@ -114,6 +114,8 @@ type
     procedure TestIDERegistrationManagesRestrictedRegistryValues;
     [Test]
     procedure TestIDERegistrationRejectsRegistryOutsideCompilerScope;
+    [Test]
+    procedure TestIDERegistrationDetectsSameNamedPackageConflict;
 
     [Test]
     procedure TestCLICommandLineParser;
@@ -1942,6 +1944,40 @@ begin
         LService.RegisterTarget(LRegistration);
       end,
       EArgumentException);
+  finally
+    LRegistration.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDERegistrationDetectsSameNamedPackageConflict;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LConflicts: TArray<TBoss4DIDEPackageConflict>;
+  LKey: string;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'conflict-inventory.json'));
+  LRegistration := TBoss4DIDERegistration.Create;
+  try
+    LRegistration.PackageName := 'Conflict';
+    LRegistration.Compiler := '37.0';
+    LRegistration.Platform := 'Win32';
+    LRegistration.BplPath := 'C:\new\ComponentDesign.bpl';
+    LKey := 'Software\Embarcadero\BDS\37.0\Known Packages';
+    LStore.SeedValue(LKey, 'C:\old\ComponentDesign.bpl',
+      'Existing component');
+    LStore.SeedValue(LKey, 'C:\old\Unrelated.bpl',
+      'Unrelated component');
+
+    LConflicts := LService.DetectConflicts(LRegistration);
+    Assert.AreEqual<Integer>(1, Length(LConflicts));
+    Assert.AreEqual('c:\old\componentdesign.bpl',
+      LConflicts[0].ExistingPath);
+    Assert.AreEqual('Existing component', LConflicts[0].Description);
   finally
     LRegistration.Free;
     LService.Free;

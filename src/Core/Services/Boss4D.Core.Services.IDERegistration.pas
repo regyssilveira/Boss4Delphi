@@ -15,6 +15,7 @@ type
     function TryRead(const AKey, AName: string; out AValue: string): Boolean;
     procedure WriteValue(const AKey, AName, AValue: string);
     procedure DeleteValue(const AKey, AName: string);
+    function ListValueNames(const AKey: string): TArray<string>;
   end;
 
   TBoss4DWindowsIDERegistryStore = class(TInterfacedObject,
@@ -26,6 +27,13 @@ type
     function TryRead(const AKey, AName: string; out AValue: string): Boolean;
     procedure WriteValue(const AKey, AName, AValue: string);
     procedure DeleteValue(const AKey, AName: string);
+    function ListValueNames(const AKey: string): TArray<string>;
+  end;
+
+  TBoss4DIDEPackageConflict = record
+    RegistryKey: string;
+    ExistingPath: string;
+    Description: string;
   end;
 
   TBoss4DIDEManagedRegistryValue = class
@@ -99,6 +107,9 @@ type
     constructor Create(const AStore: IBoss4DIDERegistryStore;
       const AInventoryPath: string);
     procedure RegisterTarget(const ARegistration: TBoss4DIDERegistration);
+    function DetectConflicts(
+      const ARegistration: TBoss4DIDERegistration):
+      TArray<TBoss4DIDEPackageConflict>;
     function Unregister(const APackageName, ACompiler,
       APlatform: string): Integer;
     function Uninstall(const AOwnerPackage: string): Integer;
@@ -109,6 +120,7 @@ type
 implementation
 
 uses
+  System.Classes,
   System.IOUtils,
   System.JSON,
   System.Win.Registry;
@@ -188,6 +200,25 @@ begin
   FRegistryValues := TObjectList<TBoss4DIDEManagedRegistryValue>.Create(True);
 end;
 
+function TBoss4DWindowsIDERegistryStore.ListValueNames(
+  const AKey: string): TArray<string>;
+var
+  LRegistry: TRegistry;
+  LNames: TStringList;
+begin
+  LRegistry := TRegistry.Create(KEY_READ);
+  LNames := TStringList.Create;
+  try
+    LRegistry.RootKey := FRootKey;
+    if LRegistry.OpenKeyReadOnly(AKey) then
+      LRegistry.GetValueNames(LNames);
+    Result := LNames.ToStringArray;
+  finally
+    LNames.Free;
+    LRegistry.Free;
+  end;
+end;
+
 destructor TBoss4DIDERegistration.Destroy;
 begin
   FRegistryValues.Free;
@@ -229,6 +260,39 @@ begin
   Result.Key := FKey;
   Result.Name := FName;
   Result.Value := FValue;
+end;
+
+function TBoss4DIDERegistrationService.DetectConflicts(
+  const ARegistration: TBoss4DIDERegistration):
+  TArray<TBoss4DIDEPackageConflict>;
+var
+  LConflicts: TList<TBoss4DIDEPackageConflict>;
+
+  procedure InspectKey(const AKey: string);
+  begin
+    for var LExistingPath in FStore.ListValueNames(AKey) do
+    begin
+      if SameText(LExistingPath, ARegistration.BplPath) or
+         not SameText(TPath.GetFileName(LExistingPath),
+           TPath.GetFileName(ARegistration.BplPath)) then
+        Continue;
+      var LConflict := Default(TBoss4DIDEPackageConflict);
+      LConflict.RegistryKey := AKey;
+      LConflict.ExistingPath := LExistingPath;
+      FStore.TryRead(AKey, LExistingPath, LConflict.Description);
+      LConflicts.Add(LConflict);
+    end;
+  end;
+begin
+  Validate(ARegistration);
+  LConflicts := TList<TBoss4DIDEPackageConflict>.Create;
+  try
+    InspectKey(PackageKey(ARegistration));
+    InspectKey(IDEPackageKey(ARegistration));
+    Result := LConflicts.ToArray;
+  finally
+    LConflicts.Free;
+  end;
 end;
 
 function ContainsPath(const AValue, APath: string): Boolean;
