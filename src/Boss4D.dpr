@@ -53,6 +53,7 @@ uses
   Boss4D.Core.Services.Publish in 'Core/Services/Boss4D.Core.Services.Publish.pas',
   Boss4D.Core.Services.RegistrySubmission in 'Core/Services/Boss4D.Core.Services.RegistrySubmission.pas',
   Boss4D.Core.Services.RegistryCheckout in 'Core/Services/Boss4D.Core.Services.RegistryCheckout.pas',
+  Boss4D.Core.Services.RegistryHealth in 'Core/Services/Boss4D.Core.Services.RegistryHealth.pas',
   Boss4D.Core.Services.RegistryPullRequest in 'Core/Services/Boss4D.Core.Services.RegistryPullRequest.pas',
   Boss4D.Core.Services.OfficialPublish in 'Core/Services/Boss4D.Core.Services.OfficialPublish.pas',
   Boss4D.Core.Services.ArtifactCache in 'Core/Services/Boss4D.Core.Services.ArtifactCache.pas',
