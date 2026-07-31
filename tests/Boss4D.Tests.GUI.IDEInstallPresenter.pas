@@ -75,9 +75,12 @@ begin
 end;
 
 procedure TTestsGUIIDEInstallPresenter.TestBuildRequestRejectsMissingPackage;
+var
+  LProfile: TBoss4DIDEProfileView;
+  LTargets: TObjectList<TBoss4DIDETargetView>;
 begin
-  var LProfile := NewProfile;
-  var LTargets := NewTargets;
+  LProfile := NewProfile;
+  LTargets := NewTargets;
   try
     Assert.WillRaise(
       procedure
@@ -94,9 +97,12 @@ begin
 end;
 
 procedure TTestsGUIIDEInstallPresenter.TestBuildRequestRejectsEmptyTargets;
+var
+  LProfile: TBoss4DIDEProfileView;
+  LTargets: TObjectList<TBoss4DIDETargetView>;
 begin
-  var LProfile := NewProfile;
-  var LTargets := TObjectList<TBoss4DIDETargetView>.Create(True);
+  LProfile := NewProfile;
+  LTargets := TObjectList<TBoss4DIDETargetView>.Create(True);
   try
     Assert.WillRaise(
       procedure

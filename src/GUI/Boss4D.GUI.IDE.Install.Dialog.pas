@@ -165,8 +165,8 @@ begin
   try
     for var LProfile in LProfiles do
     begin
-      FProfile.Items.Add(Format('%s - Delphi %s [%s]',
-        [LProfile.Name, LProfile.Compiler, LProfile.RegistryBranch]));
+      FProfile.Items.Add(LProfile.Name + ' - Delphi ' +
+        LProfile.Compiler + ' [' + LProfile.RegistryBranch + ']');
       FProfileIds.Add(LProfile.Id);
       if SameText(LProfile.Id, ASelectedProfile) then
         FProfile.ItemIndex := FProfile.Items.Count - 1;
