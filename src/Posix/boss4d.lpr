@@ -7,7 +7,7 @@ uses
   Boss4D.Posix.Config, Boss4D.Posix.Package, Boss4D.Posix.Operations,
   Boss4D.Posix.Compliance, Boss4D.Posix.Audit, Boss4D.Posix.Workflows,
   Boss4D.Posix.Update, Boss4D.Posix.Tools, Boss4D.Posix.Publish,
-  Boss4D.Posix.Project;
+  Boss4D.Posix.Project, Boss4D.Posix.Documentation;
 
 procedure Help;
 begin
@@ -15,7 +15,7 @@ begin
   WriteLn('Commands: version, platform, init, install, ci, add, remove, list,');
   WriteLn('          search, info, registry, package, doctor, sbom, audit,');
   WriteLn('          config, cache, self-update, tool, publish, update,');
-  WriteLn('          dependencies, tree, why, run, outdated');
+  WriteLn('          dependencies, tree, why, run, outdated, doc');
   WriteLn('Install options: --locked --frozen-lockfile --offline --production');
   WriteLn('                 --resolution=highest|minimal');
   WriteLn('                 --progress plain|interactive --json --quiet');
@@ -35,6 +35,7 @@ begin
   WriteLn('       boss4d tool update <name> <source>|uninstall <name>|list');
   WriteLn('Publish: boss4d publish --dry-run [--output <file>]');
   WriteLn('         boss4d publish --registry <url> [--allow-dirty]');
+  WriteLn('Docs: boss4d doc [-o <folder>] [--no-dependencies]');
 end;
 
 function OptionValue(const APrefix, ADefault: string): string;
@@ -121,6 +122,8 @@ var
   LPublishOptions: TBoss4DPublishOptions;
   LPublishPayload, LPublishOutput, LTokenEnvironment: string;
   LFoundFlag: Boolean;
+  LDocumentationResult: TBoss4DDocumentationResult;
+  LDocumentationOutput: string;
   I: Integer;
 begin
   InstallCancellationHandler;
@@ -233,6 +236,18 @@ begin
     begin
       UpdateProject(GetCurrentDir);
       WriteLn('dependencies updated');
+    end
+    else if LCommand = 'doc' then
+    begin
+      LDocumentationOutput := OptionValue('--output',
+        OptionValue('-o', 'docs-api'));
+      if Trim(LDocumentationOutput) = '' then
+        raise Exception.Create('documentation output directory cannot be empty');
+      LDocumentationResult := GenerateDocumentation(GetCurrentDir,
+        LDocumentationOutput, not HasOption('--no-dependencies'));
+      WriteLn(Format('%d documented symbols from %d source files written to %s',
+        [LDocumentationResult.Symbols, LDocumentationResult.Files,
+         LDocumentationResult.OutputDirectory]));
     end
     else if (LCommand = 'search') or (LCommand = 'info') then
     begin

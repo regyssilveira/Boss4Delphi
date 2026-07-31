@@ -35,6 +35,10 @@ grep -q CVE-2099-0001 .fpc-build/package-smoke/project/sbom.cdx.json
 grep -q SPDX-2.3 .fpc-build/package-smoke/project/sbom.spdx.json
 (cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d audit --offline > audit.txt)
 grep -q 'audited packages' .fpc-build/package-smoke/project/audit.txt
+(cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d doc --no-dependencies -o docs-api > doc.txt)
+test -f .fpc-build/package-smoke/project/docs-api/index.html
+test -f .fpc-build/package-smoke/project/docs-api/search-index.json
+grep -q 'documented symbols' .fpc-build/package-smoke/project/doc.txt
 (cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d publish --dry-run --allow-dirty --skip-tests --output publish.json)
 grep -q '"artifact"' .fpc-build/package-smoke/project/publish.json
 grep -q '"content"' .fpc-build/package-smoke/project/publish.json

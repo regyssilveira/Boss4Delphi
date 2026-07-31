@@ -188,6 +188,8 @@ type
     procedure TestProjectWorkflowCommands;
     procedure TestUpdateRollback;
     procedure TestUpdatePreservesRegistryArtifact;
+    procedure TestDocumentationGeneratesSearchableSite;
+    procedure TestDocumentationCanExcludeDependencies;
   end;
 
 implementation
@@ -197,9 +199,11 @@ uses
   Boss4D.Posix.Config,
   Boss4D.Posix.Package,
   Boss4D.Posix.Operations, Boss4D.Posix.Compliance, Boss4D.Posix.Audit,
-  Boss4D.Posix.Workflows, Boss4D.Posix.Update, Boss4D.Posix.Tools;
+  Boss4D.Posix.Workflows, Boss4D.Posix.Update, Boss4D.Posix.Tools,
+  Boss4D.Posix.Documentation;
 
 procedure SaveFixture(const APath, AContent: string); forward;
+function LoadFixture(const APath: string): string; forward;
 
 function TRegistryFetcherMock.Fetch(const ASource: string): string;
 begin
@@ -1992,6 +1996,88 @@ begin
   AssertFalse('module backup removed',
     DirectoryExists(IncludeTrailingPathDelimiter(LDir) +
       'modules.boss4d-update-backup'));
+end;
+
+function LoadFixture(const APath: string): string;
+var
+  LContent: TStringList;
+begin
+  LContent := TStringList.Create;
+  try
+    LContent.LoadFromFile(APath);
+    Result := LContent.Text;
+  finally
+    LContent.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestDocumentationGeneratesSearchableSite;
+var
+  LDir, LModules, LOutput, LHtml, LJson: string;
+  LResult: TBoss4DDocumentationResult;
+  LRoot: TJSONData;
+begin
+  LDir := NewTempDirectory;
+  LModules := IncludeTrailingPathDelimiter(LDir) + 'modules' +
+    DirectorySeparator + 'demo';
+  ForceDirectories(LModules);
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'Sample.pas',
+    'unit Sample;' + LineEnding + 'interface' + LineEnding +
+    '/// <summary>Greets a user.</summary>' + LineEnding +
+    'procedure Greet;' + LineEnding +
+    '{** Stores a person. }' + LineEnding +
+    'TPerson = class' + LineEnding + 'end;' + LineEnding +
+    'implementation' + LineEnding + 'end.');
+  SaveFixture(IncludeTrailingPathDelimiter(LModules) + 'Dependency.pp',
+    'unit Dependency;' + LineEnding + 'interface' + LineEnding +
+    '/// Dependency API' + LineEnding + 'function Resolve: Boolean;' +
+    LineEnding + 'implementation' + LineEnding + 'end.');
+  LOutput := IncludeTrailingPathDelimiter(LDir) + 'docs-api';
+  LResult := GenerateDocumentation(LDir, LOutput, True);
+  AssertEquals(2, LResult.Files);
+  AssertEquals(3, LResult.Symbols);
+  LHtml := LoadFixture(IncludeTrailingPathDelimiter(LOutput) + 'index.html');
+  AssertTrue(Pos('id="api-search"', LHtml) > 0);
+  AssertTrue(Pos('Greet', LHtml) > 0);
+  AssertTrue(Pos('TPerson', LHtml) > 0);
+  AssertTrue(Pos('Resolve', LHtml) > 0);
+  LJson := LoadFixture(IncludeTrailingPathDelimiter(LOutput) +
+    'search-index.json');
+  LRoot := GetJSON(LJson);
+  try
+    AssertEquals(3, LRoot.FindPath('symbolCount').AsInteger);
+  finally
+    LRoot.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestDocumentationCanExcludeDependencies;
+var
+  LDir, LModules, LOutput, LHtml: string;
+  LResult: TBoss4DDocumentationResult;
+begin
+  LDir := NewTempDirectory;
+  LModules := IncludeTrailingPathDelimiter(LDir) + 'modules' +
+    DirectorySeparator + 'demo';
+  ForceDirectories(LModules);
+  SaveFixture(IncludeTrailingPathDelimiter(LDir) + 'Safe.pas',
+    'unit Safe;' + LineEnding + 'interface' + LineEnding +
+    '/// Safe & searchable <script>alert(1)</script>' + LineEnding +
+    'procedure LocalApi;' + LineEnding + 'implementation' + LineEnding +
+    'end.');
+  SaveFixture(IncludeTrailingPathDelimiter(LModules) + 'Dependency.pas',
+    'unit Dependency;' + LineEnding + 'interface' + LineEnding +
+    '/// Dependency API' + LineEnding + 'procedure RemoteApi;' + LineEnding +
+    'implementation' + LineEnding + 'end.');
+  LOutput := IncludeTrailingPathDelimiter(LDir) + 'site';
+  LResult := GenerateDocumentation(LDir, LOutput, False);
+  AssertEquals(1, LResult.Files);
+  AssertEquals(1, LResult.Symbols);
+  LHtml := LoadFixture(IncludeTrailingPathDelimiter(LOutput) + 'index.html');
+  AssertTrue(Pos('LocalApi', LHtml) > 0);
+  AssertTrue(Pos('RemoteApi', LHtml) = 0);
+  AssertTrue(Pos('<script>alert(1)</script>', LHtml) = 0);
+  AssertTrue(Pos('alert(1)', LHtml) > 0);
 end;
 
 initialization
