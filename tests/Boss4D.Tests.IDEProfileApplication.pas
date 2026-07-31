@@ -158,6 +158,15 @@ begin
       Assert.AreEqual<Integer>(1, LSummary.Affected, 'registered');
       Assert.IsTrue(Length(LRegistryMock.ListValueNames(
         'Software\Embarcadero\Boss4D-isolated\37.0\Known Packages')) > 0);
+      Assert.AreEqual<Integer>(0,
+        Length(LApplication.FindDrift('isolated')));
+      var LKnownPackageKey :=
+        'Software\Embarcadero\Boss4D-isolated\37.0\Known Packages';
+      var LKnownPackageNames := LRegistryMock.ListValueNames(
+        LKnownPackageKey);
+      LRegistryMock.DeleteValue(LKnownPackageKey,
+        LKnownPackageNames[0]);
+      Assert.IsTrue(Length(LApplication.FindDrift('isolated')) > 0);
       LProfile := LProfiles.Get('isolated');
       try
         Assert.AreEqual<Integer>(1, LProfile.Packages.Count,
@@ -168,7 +177,9 @@ begin
       end;
 
       LSummary := LApplication.Repair('isolated');
-      Assert.AreEqual<Integer>(0, LSummary.Affected);
+      Assert.IsTrue(LSummary.Affected > 0);
+      Assert.AreEqual<Integer>(0,
+        Length(LApplication.FindDrift('isolated')));
       LQuery := TBoss4DIDEManagementQuery.Create(
         LProfiles, LBuildInventory, LApplication);
       try

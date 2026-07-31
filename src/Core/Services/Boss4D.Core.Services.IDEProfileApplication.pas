@@ -59,6 +59,7 @@ type
       AOwnerPackage: string): TBoss4DIDEProfileOperationSummary;
     function Repair(const AProfileId: string):
       TBoss4DIDEProfileOperationSummary;
+    function FindDrift(const AProfileId: string): TArray<string>;
     function UndoLatest: TBoss4DIDEProfileOperationSummary;
     function History: TObjectList<TBoss4DIDEOperationResult>;
   end;
@@ -380,6 +381,22 @@ begin
     raise EBoss4DIDEProfileError.Create(
       'Historico requer um store de resultados de operacoes IDE.');
   Result := FResultStore.History;
+end;
+
+function TBoss4DIDEProfileApplication.FindDrift(
+  const AProfileId: string): TArray<string>;
+begin
+  var LProfile := FProfiles.Get(AProfileId);
+  try
+    var LRegistrationService := FRegistrationFactory(LProfile);
+    try
+      Result := LRegistrationService.FindDrift;
+    finally
+      LRegistrationService.Free;
+    end;
+  finally
+    LProfile.Free;
+  end;
 end;
 
 function TBoss4DIDEProfileApplication.Repair(
