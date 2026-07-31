@@ -9,6 +9,7 @@ uses
   Boss4D.Posix.Update, Boss4D.Posix.Tools, Boss4D.Posix.Publish,
   Boss4D.Posix.RegistryCheckout, Boss4D.Posix.Project,
   Boss4D.Posix.RegistryPullRequest,
+  Boss4D.Posix.RegistryHealth,
   Boss4D.Posix.Documentation;
 
 procedure Help;
@@ -23,6 +24,7 @@ begin
   WriteLn('                 --progress plain|interactive --json --quiet');
   WriteLn('Add options: boss4d add <repository> [version] [--dev]');
   WriteLn('Registry options: --registry=<index-v1-or-v2-path-or-url>');
+  WriteLn('Registry health: boss4d registry health [checkout-root]');
   WriteLn('Package: boss4d package install <name> [--platform <name>]');
   WriteLn('         [--compiler <version>] [--no-source-fallback]');
   WriteLn('SBOM: boss4d sbom --format cyclonedx|spdx --lock-only');
@@ -130,6 +132,7 @@ var
   LPublishOptions: TBoss4DPublishOptions;
   LOfficialPublishResult: TBoss4DOfficialPublishResult;
   LRegistryCheckoutResult: TBoss4DRegistryCheckoutResult;
+  LRegistryHealthResult: TBoss4DRegistryHealthResult;
   LRegistryPullRequestOptions: TBoss4DRegistryPullRequestOptions;
   LRegistryPullRequestSession: TBoss4DRegistryPullRequestSession;
   LRegistryPullRequestResult: TBoss4DRegistryPullRequestResult;
@@ -349,7 +352,8 @@ begin
     else if LCommand = 'registry' then
     begin
       if ParamCount < 2 then
-        raise Exception.Create('usage: boss4d registry add|remove|list [source]');
+        raise Exception.Create(
+          'usage: boss4d registry add|remove|list|health [source]');
       LConfig := TBoss4DPosixConfig.Create;
       try
         if SameText(ParamStr(2), 'add') then
@@ -372,6 +376,15 @@ begin
           finally
             LConfigured.Free;
           end;
+        end
+        else if SameText(ParamStr(2), 'health') then
+        begin
+          if ParamCount >= 3 then LSource := ParamStr(3)
+          else LSource := GetCurrentDir;
+          LRegistryHealthResult := AuditRegistryHealth(LSource);
+          WriteLn('Registry health: ' + LRegistryHealthResult.Summary);
+          if not LRegistryHealthResult.Passed then
+            raise Exception.Create('Registry health audit failed');
         end
         else
           raise Exception.Create('unknown registry command: ' + ParamStr(2));

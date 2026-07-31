@@ -214,7 +214,7 @@ var
     LSparsePath, LOriginalIndex, LOriginalPackage, LPublisherId,
     LRepository, LFingerprint: string;
   LSubmission, LPublishers, LIndex, LExisting,
-    LPackage, LVersion, LExistingPackage: TJSONObject;
+    LVersion, LExistingPackage: TJSONObject;
   LSparseArray, LExistingPackages,
     LExistingVersions: TJSONArray;
   LPackageExisted, LSparsePresent: Boolean;
@@ -240,7 +240,6 @@ begin
   LExisting := nil;
   try
     LIdentity := ReadSubmission(LSubmission);
-    LPackage := LIdentity.PackageObject;
     LVersion := LIdentity.VersionObject;
     Result.PackageName := LIdentity.PackageName;
     Result.Version := LIdentity.VersionName;

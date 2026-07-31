@@ -216,6 +216,8 @@ type
     procedure TestRegistryPullRequestCommands;
     procedure TestRegistryPullRequestRejectsDirtyCheckout;
     procedure TestRegistryPullRequestFailurePreservesMetadata;
+    procedure TestRegistryHealthMixedCatalog;
+    procedure TestRegistryHealthRejectsMissingSparseFile;
     procedure TestProjectWorkflowCommands;
     procedure TestUpdateRollback;
     procedure TestUpdatePreservesRegistryArtifact;
@@ -232,7 +234,7 @@ uses
   Boss4D.Posix.Operations, Boss4D.Posix.Compliance, Boss4D.Posix.Audit,
   Boss4D.Posix.Workflows, Boss4D.Posix.Update, Boss4D.Posix.Tools,
   Boss4D.Posix.Documentation, Boss4D.Posix.RegistryCheckout,
-  Boss4D.Posix.RegistryPullRequest;
+  Boss4D.Posix.RegistryPullRequest, Boss4D.Posix.RegistryHealth;
 
 procedure SaveFixture(const APath, AContent: string); forward;
 
@@ -2264,6 +2266,55 @@ begin
   finally
     LRunner.Free;
   end;
+end;
+
+procedure TPosixCoreTests.TestRegistryHealthMixedCatalog;
+var
+  LRoot, LRegistry: string;
+  LResult: TBoss4DRegistryHealthResult;
+begin
+  LRoot := NewTempDirectory;
+  LRegistry := IncludeTrailingPathDelimiter(LRoot) + 'registry';
+  ForceDirectories(IncludeTrailingPathDelimiter(LRegistry) + 'packages');
+  SaveFixture(IncludeTrailingPathDelimiter(LRegistry) + 'publishers.json',
+    '{"schemaVersion":1,"publishers":[{"id":"demo",' +
+    '"repositories":["github.com/demo/"],"allowedSigners":["' +
+    StringOfChar('A', 40) + '"]}]}');
+  SaveFixture(IncludeTrailingPathDelimiter(LRegistry) + 'index-v2.json',
+    '{"schemaVersion":2,"includes":["index-v1.json"],' +
+    '"sparse":["packages/secure.json"],"packages":[]}');
+  SaveFixture(IncludeTrailingPathDelimiter(LRegistry) + 'index-v1.json',
+    '{"schemaVersion":1,"packages":[{"name":"Legacy",' +
+    '"repository":"github.com/demo/legacy"}]}');
+  SaveFixture(IncludeTrailingPathDelimiter(LRegistry) +
+    'packages/secure.json',
+    '{"schemaVersion":2,"packages":[{"name":"Secure",' +
+    '"publisher":"demo","repository":"github.com/demo/secure",' +
+    '"signerFingerprint":"' + StringOfChar('A', 40) +
+    '","versions":[{"version":"1.0.0"}]}]}');
+  LResult := AuditRegistryHealth(LRoot);
+  AssertTrue(LResult.Passed);
+  AssertEquals(2, LResult.PackageCount);
+  AssertEquals(1, LResult.LegacyPackageCount);
+  AssertEquals(1, LResult.TrustedPackageCount);
+end;
+
+procedure TPosixCoreTests.TestRegistryHealthRejectsMissingSparseFile;
+var
+  LRoot, LRegistry: string;
+  LResult: TBoss4DRegistryHealthResult;
+begin
+  LRoot := NewTempDirectory;
+  LRegistry := IncludeTrailingPathDelimiter(LRoot) + 'registry';
+  ForceDirectories(LRegistry);
+  SaveFixture(IncludeTrailingPathDelimiter(LRegistry) + 'publishers.json',
+    '{"schemaVersion":1,"publishers":[]}');
+  SaveFixture(IncludeTrailingPathDelimiter(LRegistry) + 'index-v2.json',
+    '{"schemaVersion":2,"includes":[],' +
+    '"sparse":["packages/missing.json"],"packages":[]}');
+  LResult := AuditRegistryHealth(LRoot);
+  AssertFalse(LResult.Passed);
+  AssertEquals(1, LResult.ErrorCount);
 end;
 
 procedure TPosixCoreTests.TestProjectWorkflowCommands;
