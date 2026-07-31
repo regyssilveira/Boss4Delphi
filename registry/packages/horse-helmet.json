@@ -1,0 +1,22 @@
+{
+    "schemaVersion":  2,
+    "packages":  [
+                     {
+                         "name":  "horse-helmet",
+                         "publisher":  "boss4d",
+                         "repository":  "github.com/regyssilveira/horse-helmet",
+                         "signerFingerprint":  "A91FA178E7A1DE7FB10148C8308C9045E23B0279",
+                         "description":  "Security header middleware for Horse with configurable CSP, HSTS, frame, content type, XSS, and referrer policies",
+                         "license":  "Apache-2.0",
+                         "versions":  [
+                                          {
+                                              "version":  "1.0.1",
+                                              "artifact":  "https://github.com/regyssilveira/horse-helmet/releases/download/v1.0.1/horse-helmet-1.0.1.b4dpkg",
+                                              "sha256":  "cb6b9e8199a5774ad3bdc88b0200ef57d15875fa7b6876688a134515a4983f85",
+                                              "signature":  "https://github.com/regyssilveira/horse-helmet/releases/download/v1.0.1/horse-helmet-1.0.1.b4dpkg.asc",
+                                              "provenance":  "https://github.com/regyssilveira/horse-helmet/releases/download/v1.0.1/horse-helmet-1.0.1.b4dpkg.intoto.json"
+                                          }
+                                      ]
+                     }
+                 ]
+}

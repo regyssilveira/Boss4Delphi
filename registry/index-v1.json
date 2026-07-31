@@ -385,15 +385,6 @@
                          "sha256":  ""
                      },
                      {
-                         "name":  "horse-helmet",
-                         "repository":  "github.com/regyssilveira/horse-helmet",
-                         "description":  "HTTP security headers middleware for Horse",
-                         "version":  "",
-                         "license":  "Apache-2.0",
-                         "artifact":  "",
-                         "sha256":  ""
-                     },
-                     {
                          "name":  "horse-ssl-redirect",
                          "repository":  "github.com/regyssilveira/horse-ssl-redirect",
                          "description":  "HTTP to HTTPS redirect middleware for Horse",

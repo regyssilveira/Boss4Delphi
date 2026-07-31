@@ -8,17 +8,17 @@ request checks.
 
 ## Current baseline
 
-- 50 discoverable legacy v1 packages;
+- 49 discoverable legacy v1 packages;
 - 18 repository owners;
 - 16 packages in the already registered `regyssilveira` namespace;
 - 10 packages in the `HashLoad` namespace;
-- 5 signed schema-v2 packages and one authorized signer fingerprint;
-- 5 publisher-controlled packages published through the reproducibility gates;
-- 11 publisher-controlled packages requiring a release or corrected tag;
-- catalog health: 55 packages, 100 migration warnings, zero structural errors.
+- 6 signed schema-v2 packages and one authorized signer fingerprint;
+- 6 publisher-controlled packages published through the reproducibility gates;
+- 10 publisher-controlled packages requiring a release or corrected tag;
+- catalog health: 55 packages, 98 migration warnings, zero structural errors.
 
 The generated Registry portal is the public progress ledger. It currently
-reports 5 verified packages, 50 legacy packages, and 9% verified migration.
+reports 6 verified packages, 49 legacy packages, and 10% verified migration.
 Each accepted schema-v2 package with an authorized publisher fingerprint
 increments that metric automatically.
 
@@ -63,7 +63,7 @@ registered publisher scope:
 | horse-rbac | v1.0.0 | Blocked: tests do not compile against resolved Horse 3.2.0 |
 | horse-schema-validation | v1.0.0 | Published; install, signature, provenance, and 10/10 tests pass |
 | horse-multipart | v1.0.0 | Published; install, signature, provenance, and upload integration test pass |
-| horse-helmet | v1.0.0 | Blocked: test manifest references a nonexistent repository |
+| horse-helmet | v1.0.1 | Published; repaired manifest, 12/12 tests and verified installation pass |
 | horse-ssl-redirect | v1.0.0 | Blocked: tests do not compile against resolved Horse 3.2.0 |
 | horse-request-id | v1.0.0 | Blocked: uses Horse request services absent from 3.2.0 |
 | horse-opentelemetry | v1.0.0 | Blocked: legacy dependency value resolves to `https://horse/` |
@@ -92,6 +92,11 @@ fallback.
 test isolation. Five consecutive six-test runs passed before the clean,
 detached-tag package was signed and installed without source fallback.
 
+`horse-helmet` `v1.0.1` completed next after repairing its test dependency
+identity and adding a reproducible runner. Three consecutive 12-test runs plus
+a clean post-merge run passed on Seattle before signed publication and verified
+installation.
+
 ### First publication batch
 
 The first publication batch completed in this order:
@@ -109,7 +114,7 @@ Never reuse one package's evidence URL for another package.
 ## Wave 2 — publisher-controlled packages needing a release
 
 `Dext`, `horse-crud`, and `horse-sanitize` have no published tag/release.
-The eight blocked Wave 1 packages additionally need corrected manifests, tests,
+The seven blocked Wave 1 packages additionally need corrected manifests, tests,
 or Horse compatibility in new immutable releases. Before Registry migration
 these packages need an exact SemVer tag, tests, immutable release assets, and
 the same signed publication workflow.

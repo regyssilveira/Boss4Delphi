@@ -8,17 +8,17 @@ passarem nos checks do pull request do Registry.
 
 ## Ponto de partida
 
-- 50 pacotes legados v1 pesquisáveis;
+- 49 pacotes legados v1 pesquisáveis;
 - 18 responsáveis por repositórios;
 - 16 pacotes no namespace `regyssilveira`, já cadastrado;
 - 10 pacotes no namespace `HashLoad`;
-- 5 pacotes schema v2 assinados e um fingerprint autorizado;
-- 5 pacotes do publisher publicados pelos gates de reprodutibilidade;
-- 11 pacotes do publisher que precisam de release ou correção da tag;
-- saúde: 55 pacotes, 100 avisos de migração e zero erros estruturais.
+- 6 pacotes schema v2 assinados e um fingerprint autorizado;
+- 6 pacotes do publisher publicados pelos gates de reprodutibilidade;
+- 10 pacotes do publisher que precisam de release ou correção da tag;
+- saúde: 55 pacotes, 98 avisos de migração e zero erros estruturais.
 
 O portal gerado do Registry é o painel público do progresso. No momento ele
-informa 5 pacotes verificados, 50 pacotes legados e 9% de migração verificada.
+informa 6 pacotes verificados, 49 pacotes legados e 10% de migração verificada.
 Cada pacote schema v2 aceito com fingerprint autorizado para o publisher
 incrementa essa métrica automaticamente.
 
@@ -64,7 +64,7 @@ do publisher cadastrado:
 | horse-rbac | v1.0.0 | Bloqueado: testes não compilam com o Horse 3.2.0 resolvido |
 | horse-schema-validation | v1.0.0 | Publicado; instalação, assinatura, proveniência e 10/10 testes aprovados |
 | horse-multipart | v1.0.0 | Publicado; instalação, assinatura, proveniência e teste real de upload aprovados |
-| horse-helmet | v1.0.0 | Bloqueado: manifesto de testes referencia repositório inexistente |
+| horse-helmet | v1.0.1 | Publicado; manifesto reparado, 12/12 testes e instalação verificada aprovados |
 | horse-ssl-redirect | v1.0.0 | Bloqueado: testes não compilam com o Horse 3.2.0 resolvido |
 | horse-request-id | v1.0.0 | Bloqueado: usa request services ausentes no Horse 3.2.0 |
 | horse-opentelemetry | v1.0.0 | Bloqueado: dependência legada resolve para `https://horse/` |
@@ -95,6 +95,11 @@ Seattle, o tamanho do stream de range e o isolamento dos testes. Cinco
 execuções consecutivas dos seis testes passaram antes de o pacote do tag
 detached limpo ser assinado e instalado sem fallback para o código-fonte.
 
+O `horse-helmet` `v1.0.1` foi concluído em seguida após reparar a identidade da
+dependência de testes e adicionar um runner reproduzível. Três execuções
+consecutivas dos 12 testes, além de uma execução limpa após o merge, passaram
+no Seattle antes da publicação assinada e da instalação verificada.
+
 ### Primeiro lote de publicação
 
 O primeiro lote de publicação foi concluído nesta ordem:
@@ -112,7 +117,7 @@ reutilize a URL de evidência de um pacote em outro.
 ## Onda 2 — pacotes do publisher que precisam de release
 
 `Dext`, `horse-crud` e `horse-sanitize` ainda não possuem tag/release
-publicada. Os oito pacotes bloqueados da Onda 1 também precisam de manifestos,
+publicada. Os sete pacotes bloqueados da Onda 1 também precisam de manifestos,
 testes ou compatibilidade com Horse corrigidos em novas releases imutáveis.
 Antes da migração esses pacotes precisam de tag SemVer exata, testes, assets
 imutáveis e o mesmo fluxo de publicação assinada.
