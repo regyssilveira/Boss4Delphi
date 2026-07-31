@@ -48,8 +48,7 @@ type
     function SearchInPath(const AFileName: string): string;
     procedure AddItem(const AReport: TBoss4DDoctorReport;
       const ACode, AGroup: string; const AHealth: TBoss4DEnvironmentHealth;
-      const AMessage, ARemediation: string; const AFixable: Boolean = False;
-      const AFixed: Boolean = False);
+      const AMessage, ARemediation: string; const AFixed: Boolean = False);
   public
     constructor Create(const ARegistry: IBoss4DRegistryService;
       const ALogger: IBoss4DLogger);
@@ -101,7 +100,7 @@ end;
 
 procedure TBoss4DDoctorService.AddItem(const AReport: TBoss4DDoctorReport;
   const ACode, AGroup: string; const AHealth: TBoss4DEnvironmentHealth;
-  const AMessage, ARemediation: string; const AFixable, AFixed: Boolean);
+  const AMessage, ARemediation: string; const AFixed: Boolean);
 var
   LItem: TBoss4DDoctorItem;
   LLevel: TBoss4DLogLevel;
@@ -113,7 +112,7 @@ begin
   LItem.Health := AHealth;
   LItem.Message := AMessage;
   LItem.Remediation := ARemediation;
-  LItem.Fixable := AFixable;
+  LItem.Fixable := AFixed;
   LItem.Fixed := AFixed;
   AReport.Items.Add(LItem);
   case AHealth of
@@ -217,7 +216,7 @@ begin
             LConfigService.Save(LConfig);
             AddItem(Result, 'CONFIG_DELPHI_PATH', 'Configuracao',
               HealthOk, 'Caminho global do Delphi atualizado para: ' +
-              LLastPath, '', True, True);
+              LLastPath, '', True);
           end;
         finally
           LConfig.Free;
