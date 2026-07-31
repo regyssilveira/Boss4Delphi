@@ -367,15 +367,6 @@
                          "sha256":  ""
                      },
                      {
-                         "name":  "horse-static",
-                         "repository":  "github.com/regyssilveira/horse-static",
-                         "description":  "Static files and streaming middleware for Horse",
-                         "version":  "",
-                         "license":  "Apache-2.0",
-                         "artifact":  "",
-                         "sha256":  ""
-                     },
-                     {
                          "name":  "horse-dto",
                          "repository":  "github.com/regyssilveira/horse-dto",
                          "description":  "DTO binding and declarative validation middleware for Horse",

@@ -1,0 +1,22 @@
+{
+    "schemaVersion":  2,
+    "packages":  [
+                     {
+                         "name":  "horse-static",
+                         "publisher":  "boss4d",
+                         "repository":  "github.com/regyssilveira/horse-static",
+                         "signerFingerprint":  "A91FA178E7A1DE7FB10148C8308C9045E23B0279",
+                         "description":  "Static file middleware with range requests, ETags, SPA fallback, and pluggable storage for Horse",
+                         "license":  "Apache-2.0",
+                         "versions":  [
+                                          {
+                                              "version":  "1.0.1",
+                                              "artifact":  "https://github.com/regyssilveira/horse-static/releases/download/v1.0.1/horse-static-1.0.1.b4dpkg",
+                                              "sha256":  "0fdb84836c1cfa2d87fa64957867d7fef9d6030d1ca9e4ece6eb269ecd24d374",
+                                              "signature":  "https://github.com/regyssilveira/horse-static/releases/download/v1.0.1/horse-static-1.0.1.b4dpkg.asc",
+                                              "provenance":  "https://github.com/regyssilveira/horse-static/releases/download/v1.0.1/horse-static-1.0.1.b4dpkg.intoto.json"
+                                          }
+                                      ]
+                     }
+                 ]
+}
