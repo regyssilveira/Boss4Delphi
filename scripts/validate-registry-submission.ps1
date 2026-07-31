@@ -26,8 +26,15 @@ function Get-BaseJson([string]$RelativePath) {
   }
   if ($BaseRef) {
     $normalized = $RelativePath.Replace('\', '/')
-    $content = & git -C $Root show "${BaseRef}:$normalized" 2>$null
-    if ($LASTEXITCODE -eq 0) {
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+      $ErrorActionPreference = 'SilentlyContinue'
+      $content = & git -C $Root show "${BaseRef}:$normalized" 2>$null
+      $gitExitCode = $LASTEXITCODE
+    } finally {
+      $ErrorActionPreference = $previousErrorActionPreference
+    }
+    if ($gitExitCode -eq 0) {
       return ($content -join "`n") | ConvertFrom-Json
     }
   }

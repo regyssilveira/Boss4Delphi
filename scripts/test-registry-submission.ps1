@@ -118,6 +118,25 @@ try {
       -ChangedFiles 'registry/packages/demo.json' -Submitter 'demo-owner'
   } 'requires signature and provenance'
 
+  $gitRoot = Join-Path $temp 'git-base-ref'
+  New-Item -ItemType Directory -Force $gitRoot | Out-Null
+  Write-Utf8 (Join-Path $gitRoot 'registry\publishers.json') $publishers
+  Write-Utf8 (Join-Path $gitRoot 'registry\index-v2.json') `
+    '{"schemaVersion":2,"sparse":[],"packages":[]}'
+  & git -C $gitRoot init --quiet
+  & git -C $gitRoot config user.name 'Registry Test'
+  & git -C $gitRoot config user.email 'registry-test@example.invalid'
+  & git -C $gitRoot add registry
+  & git -C $gitRoot commit --quiet -m 'base registry'
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Unable to create BaseRef regression fixture.'
+  }
+  Write-Utf8 (Join-Path $gitRoot 'registry\index-v2.json') $index
+  Write-Utf8 (Join-Path $gitRoot 'registry\packages\demo.json') $v1
+  & $validator -Root $gitRoot -BaseRef HEAD `
+    -ChangedFiles @('registry/index-v2.json', 'registry/packages/demo.json') `
+    -Submitter 'demo-owner'
+
   Write-Output 'Registry submission validator tests: OK'
 } finally {
   if (Test-Path -LiteralPath $temp) {
