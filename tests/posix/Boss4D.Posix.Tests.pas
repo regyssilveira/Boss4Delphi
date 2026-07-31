@@ -1997,24 +1997,12 @@ begin
       'modules.boss4d-update-backup'));
 end;
 
-function LoadFixture(const APath: string): string;
-var
-  LContent: TStringList;
-begin
-  LContent := TStringList.Create;
-  try
-    LContent.LoadFromFile(APath);
-    Result := LContent.Text;
-  finally
-    LContent.Free;
-  end;
-end;
-
 procedure TPosixCoreTests.TestDocumentationGeneratesSearchableSite;
 var
   LDir, LModules, LOutput, LHtml, LJson: string;
   LResult: TBoss4DDocumentationResult;
   LRoot: TJSONData;
+  LContent: TStringList;
 begin
   LDir := NewTempDirectory;
   LModules := IncludeTrailingPathDelimiter(LDir) + 'modules' +
@@ -2035,13 +2023,20 @@ begin
   LResult := GenerateDocumentation(LDir, LOutput, True);
   AssertEquals(2, LResult.Files);
   AssertEquals(3, LResult.Symbols);
-  LHtml := LoadFixture(IncludeTrailingPathDelimiter(LOutput) + 'index.html');
-  AssertTrue(Pos('id="api-search"', LHtml) > 0);
-  AssertTrue(Pos('Greet', LHtml) > 0);
-  AssertTrue(Pos('TPerson', LHtml) > 0);
-  AssertTrue(Pos('Resolve', LHtml) > 0);
-  LJson := LoadFixture(IncludeTrailingPathDelimiter(LOutput) +
-    'search-index.json');
+  LContent := TStringList.Create;
+  try
+    LContent.LoadFromFile(IncludeTrailingPathDelimiter(LOutput) + 'index.html');
+    LHtml := LContent.Text;
+    AssertTrue(Pos('id="api-search"', LHtml) > 0);
+    AssertTrue(Pos('Greet', LHtml) > 0);
+    AssertTrue(Pos('TPerson', LHtml) > 0);
+    AssertTrue(Pos('Resolve', LHtml) > 0);
+    LContent.LoadFromFile(IncludeTrailingPathDelimiter(LOutput) +
+      'search-index.json');
+    LJson := LContent.Text;
+  finally
+    LContent.Free;
+  end;
   LRoot := GetJSON(LJson);
   try
     AssertEquals(3, LRoot.FindPath('symbolCount').AsInteger);
@@ -2054,6 +2049,7 @@ procedure TPosixCoreTests.TestDocumentationCanExcludeDependencies;
 var
   LDir, LModules, LOutput, LHtml: string;
   LResult: TBoss4DDocumentationResult;
+  LContent: TStringList;
 begin
   LDir := NewTempDirectory;
   LModules := IncludeTrailingPathDelimiter(LDir) + 'modules' +
@@ -2072,7 +2068,13 @@ begin
   LResult := GenerateDocumentation(LDir, LOutput, False);
   AssertEquals(1, LResult.Files);
   AssertEquals(1, LResult.Symbols);
-  LHtml := LoadFixture(IncludeTrailingPathDelimiter(LOutput) + 'index.html');
+  LContent := TStringList.Create;
+  try
+    LContent.LoadFromFile(IncludeTrailingPathDelimiter(LOutput) + 'index.html');
+    LHtml := LContent.Text;
+  finally
+    LContent.Free;
+  end;
   AssertTrue(Pos('LocalApi', LHtml) > 0);
   AssertTrue(Pos('RemoteApi', LHtml) = 0);
   AssertTrue(Pos('<script>alert(1)</script>', LHtml) = 0);
