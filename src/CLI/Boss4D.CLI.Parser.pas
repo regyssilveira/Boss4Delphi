@@ -549,8 +549,9 @@ var
 begin
   if Length(AArgs) < 3 then
     raise EArgumentException.Create(
-      'Uso: boss4d ide profile list|create|show|clone|remove|' +
-      'export|import|launch.');
+      'Uso: boss4d ide profile list|create|show|target|clone|remove|' +
+      'export|import|launch|preview-install|install|' +
+      'preview-uninstall|uninstall|repair.');
   LStore := TBoss4DIDEProfileStore.Create(TPath.Combine(
     GetBossHome, 'ide-profiles.json'));
   LService := TBoss4DIDEProfileService.Create(LStore,
@@ -668,6 +669,36 @@ begin
       Exit;
     end;
 
+    if SameText(AArgs[2], 'target') then
+    begin
+      if Length(AArgs) <> 8 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile target <perfil> ' +
+          '--platform <plataforma> --configuration <configuracao>.');
+      var LPlatform := '';
+      var LConfiguration := '';
+      I := 4;
+      while I < Length(AArgs) do
+      begin
+        if I + 1 >= Length(AArgs) then
+          raise EArgumentException.Create(
+            'Informe um valor para ' + AArgs[I] + '.');
+        if SameText(AArgs[I], '--platform') then
+          LPlatform := AArgs[I + 1]
+        else if SameText(AArgs[I], '--configuration') then
+          LConfiguration := AArgs[I + 1]
+        else
+          raise EArgumentException.Create(
+            'Opcao desconhecida para ide profile target: ' + AArgs[I]);
+        Inc(I, 2);
+      end;
+      LService.ConfigureTarget(AArgs[3], LPlatform, LConfiguration);
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Target do perfil %s: %s/%s.',
+        [AArgs[3], LPlatform, LConfiguration]);
+      Exit;
+    end;
+
     if SameText(AArgs[2], 'remove') then
     begin
       if Length(AArgs) <> 4 then
@@ -778,8 +809,8 @@ begin
       var LSummary := LApplication.Install(AArgs[3], AArgs[4],
         LConflictPolicy, LOpenPolicy);
       FLogger.Log(TBoss4DLogLevel.Info,
-        'Perfil instalado: %d builds, %d registros.',
-        [LSummary.Built, LSummary.Affected]);
+        'Perfil instalado: %d builds, %d restaurados, %d registros.',
+        [LSummary.Built, LSummary.Restored, LSummary.Affected]);
       Exit;
     end;
 

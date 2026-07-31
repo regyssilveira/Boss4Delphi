@@ -1651,6 +1651,10 @@ begin
       'ide', 'profile', 'show', 'developer-ci'));
     Assert.IsTrue(LLogger.LastLogMessage.Contains('Boss4D-developer-ci'));
     LParser.ParseAndExecute(TArray<string>.Create(
+      'ide', 'profile', 'target', 'developer-ci',
+      '--platform', 'Win64', '--configuration', 'Debug'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('Win64/Debug'));
+    LParser.ParseAndExecute(TArray<string>.Create(
       'ide', 'profile', 'clone', 'developer-ci', 'QA'));
     Assert.IsTrue(LLogger.LastLogMessage.Contains('qa'));
     LExportPath := TPath.Combine(FTempDir, 'qa-export.json');
@@ -1663,6 +1667,8 @@ begin
     var LContent := TFile.ReadAllText(LStorePath, TEncoding.UTF8);
     Assert.IsFalse(LContent.Contains('"id": "developer-ci"'));
     Assert.IsTrue(LContent.Contains('"id": "qa"'));
+    Assert.IsTrue(LContent.Contains('"defaultPlatform": "Win64"'));
+    Assert.IsTrue(LContent.Contains('"defaultConfiguration": "Debug"'));
   finally
     LParser.Free;
     LConfig.Free;
