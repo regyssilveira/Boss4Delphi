@@ -40,6 +40,23 @@ try {
   if (-not $failed) {
     throw 'Registry Pages validator accepted a stale search index.'
   }
+
+  Copy-Item -LiteralPath (Join-Path $workspace 'registry\search-index.json') `
+    -Destination $searchPath -Force
+  $portalPath = Join-Path $fixtureRegistry 'index.html'
+  $portal = Get-Content -LiteralPath $portalPath -Raw
+  $portal.Replace('id="migration-filter"', 'id="removed-filter"') |
+    Set-Content -LiteralPath $portalPath -Encoding UTF8
+
+  $failed = $false
+  try {
+    & $validator -Root $fixtureRoot
+  } catch {
+    $failed = $_.Exception.Message -like '*migration-filter*'
+  }
+  if (-not $failed) {
+    throw 'Registry Pages validator accepted a portal without migration state.'
+  }
 } finally {
   if (Test-Path -LiteralPath $fixtureRoot) {
     Remove-Item -LiteralPath $fixtureRoot -Recurse -Force

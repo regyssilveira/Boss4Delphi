@@ -13,6 +13,7 @@ type
     [Test] procedure EscapesUntrustedMetadata;
     [Test] procedure RejectsUnknownSchema;
     [Test] procedure GeneratesVersionedV2CatalogWithTrustEvidence;
+    [Test] procedure ReportsVerifiedMigrationProgress;
     [Test] procedure ComposesLocalIncludesSparseAndRevocations;
     [Test] procedure RejectsReferenceOutsideRegistryRoot;
     [Test] procedure GeneratesConsolidatedSearchIndex;
@@ -248,6 +249,36 @@ begin
     Assert.IsTrue(LHtml.Contains('data-compiler="37.0"'));
     Assert.IsTrue(LHtml.Contains('id="visible-count"'));
     Assert.IsTrue(LHtml.Contains('@media(max-width:700px)'));
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DRegistryPortalTests.ReportsVerifiedMigrationProgress;
+var
+  LService: TBoss4DRegistryPortalService;
+  LHtml: string;
+begin
+  LService := TBoss4DRegistryPortalService.Create;
+  try
+    LHtml := LService.Generate('{"schemaVersion":2,"packages":[' +
+      '{"name":"Verified","repository":"github.com/demo/verified",' +
+      '"_publisherTrust":"authorized","versions":[{"version":"1.0.0"}]},' +
+      '{"name":"Reserved","repository":"github.com/demo/reserved",' +
+      '"_publisherTrust":"namespace","version":"1.0.0"},' +
+      '{"name":"Legacy","repository":"github.com/other/legacy"}]}');
+    Assert.IsTrue(LHtml.Contains(
+      '<strong>1</strong>verified packages'));
+    Assert.IsTrue(LHtml.Contains(
+      '<strong>2</strong>legacy packages'));
+    Assert.IsTrue(LHtml.Contains(
+      '<strong>33%</strong>verified migration'));
+    Assert.IsTrue(LHtml.Contains(
+      '<option value="verified">verified package</option>'));
+    Assert.IsTrue(LHtml.Contains(
+      '<option value="legacy">legacy package</option>'));
+    Assert.IsTrue(LHtml.Contains('data-migration="verified"'));
+    Assert.IsTrue(LHtml.Contains('data-migration="legacy"'));
   finally
     LService.Free;
   end;

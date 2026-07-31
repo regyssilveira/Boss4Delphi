@@ -403,6 +403,8 @@ var
   LSchemaVersion: Integer;
   LVersionCount: Integer;
   LRegisteredCount: Integer;
+  LVerifiedCount: Integer;
+  LMigrationPercentage: Integer;
 begin
   LRoot := TJSONObject.ParseJSONValue(ARegistryContent) as TJSONObject;
   if not Assigned(LRoot) then
@@ -419,6 +421,7 @@ begin
       raise EArgumentException.Create('Registry sem packages.');
     LVersionCount := 0;
     LRegisteredCount := 0;
+    LVerifiedCount := 0;
     for var LPackageValue in LPackages do
       if LPackageValue is TJSONObject then
       begin
@@ -426,7 +429,15 @@ begin
           PackageVersionCount(TJSONObject(LPackageValue)));
         if PackageTrust(TJSONObject(LPackageValue)) <> 'unregistered' then
           Inc(LRegisteredCount);
+        if SameText(PackageTrust(TJSONObject(LPackageValue)),
+          'authorized') then
+          Inc(LVerifiedCount);
       end;
+    if LPackages.Count = 0 then
+      LMigrationPercentage := 100
+    else
+      LMigrationPercentage := Trunc(
+        (LVerifiedCount * 100.0) / LPackages.Count);
     Result := '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
       '<meta name="viewport" content="width=device-width,initial-scale=1">' +
       '<title>Boss4D Public Registry</title><style>' +
@@ -452,22 +463,34 @@ begin
       '<div class="stat"><strong>' + LVersionCount.ToString +
       '</strong>indexed versions</div><div class="stat"><strong>' +
       LRegisteredCount.ToString + '</strong>registered namespaces</div>' +
+      '<div class="stat"><strong>' + LVerifiedCount.ToString +
+      '</strong>verified packages</div><div class="stat"><strong>' +
+      (LPackages.Count - LVerifiedCount).ToString +
+      '</strong>legacy packages</div><div class="stat"><strong>' +
+      LMigrationPercentage.ToString + '%</strong>verified migration</div>' +
       '</section><section class="controls">' +
       '<label>Search<input id="package-search" type="search" placeholder="name or repository"></label>' +
       '<label>Trust<select id="trust-filter"><option value="">all</option>' +
       '<option value="authorized">authorized publisher</option>' +
       '<option value="namespace">registered namespace</option>' +
       '<option value="unregistered">unregistered</option></select></label>' +
+      '<label>Migration<select id="migration-filter"><option value="">all</option>' +
+      '<option value="verified">verified package</option>' +
+      '<option value="legacy">legacy package</option></select></label>' +
       '<label>Platform<select id="platform-filter"><option value="">all</option></select></label>' +
       '<label>Compiler<select id="compiler-filter"><option value="">all</option></select></label>' +
       '</section><ul id="packages">';
     for var LValue in LPackages do
     begin
       var LPackage := TJSONObject(LValue);
+      var LMigrationStatus := 'legacy';
+      if SameText(PackageTrust(LPackage), 'authorized') then
+        LMigrationStatus := 'verified';
       Result := Result + '<li data-package="' +
         EscapeHtml(LPackage.GetValue<string>('name', '') + ' ' +
           LPackage.GetValue<string>('repository', '')) +
         '" data-trust="' + EscapeHtml(PackageTrust(LPackage)) +
+        '" data-migration="' + LMigrationStatus +
         '" data-platform="' + EscapeHtml(
           PackageSelectorData(LPackage, 'platform')) +
         '" data-compiler="' + EscapeHtml(
@@ -526,16 +549,18 @@ begin
     Result := Result + '</ul></main><script>' +
       'const cards=[...document.querySelectorAll("#packages li")];' +
       'const search=document.getElementById("package-search"),trust=document.getElementById("trust-filter"),' +
-      'platform=document.getElementById("platform-filter"),compiler=document.getElementById("compiler-filter");' +
+      'migration=document.getElementById("migration-filter"),platform=document.getElementById("platform-filter"),' +
+      'compiler=document.getElementById("compiler-filter");' +
       'function options(select,key){const values=new Set();cards.forEach(c=>(c.dataset[key]||"").split(",").filter(Boolean).forEach(v=>values.add(v)));' +
       '[...values].sort().forEach(v=>select.add(new Option(v,v)));}' +
       'options(platform,"platform");options(compiler,"compiler");' +
       'function apply(){const q=search.value.toLowerCase();let visible=0;cards.forEach(c=>{' +
       'const show=c.dataset.package.toLowerCase().includes(q)&&(!trust.value||c.dataset.trust===trust.value)&&' +
+      '(!migration.value||c.dataset.migration===migration.value)&&' +
       '(!platform.value||c.dataset.platform.split(",").includes(platform.value))&&' +
       '(!compiler.value||c.dataset.compiler.split(",").includes(compiler.value));c.hidden=!show;if(show)visible++;});' +
       'document.getElementById("visible-count").textContent=visible;}' +
-      '[search,trust,platform,compiler].forEach(x=>x.addEventListener("input",apply));' +
+      '[search,trust,migration,platform,compiler].forEach(x=>x.addEventListener("input",apply));' +
       '</script></body></html>';
   finally
     LRoot.Free;

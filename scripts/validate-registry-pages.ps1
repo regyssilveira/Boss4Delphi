@@ -80,9 +80,13 @@ foreach ($marker in @(
     'Protocol v2',
     'id="package-search"',
     'id="trust-filter"',
+    'id="migration-filter"',
     'id="platform-filter"',
     'id="compiler-filter"',
-    'id="visible-count"')) {
+    'id="visible-count"',
+    'verified packages',
+    'legacy packages',
+    'verified migration')) {
   if (-not $portal.Contains($marker)) {
     throw "Registry portal is missing required marker: $marker"
   }
