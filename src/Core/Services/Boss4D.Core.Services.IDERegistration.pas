@@ -38,7 +38,11 @@ type
     FSearchPath: string;
     FBrowsingPath: string;
     FDebugDcuPath: string;
+    FArtifactRoot: string;
+    FArtifacts: TList<string>;
   public
+    constructor Create;
+    destructor Destroy; override;
     function Identity: string;
     function Clone: TBoss4DIDERegistration;
     property PackageName: string read FPackageName write FPackageName;
@@ -49,6 +53,8 @@ type
     property SearchPath: string read FSearchPath write FSearchPath;
     property BrowsingPath: string read FBrowsingPath write FBrowsingPath;
     property DebugDcuPath: string read FDebugDcuPath write FDebugDcuPath;
+    property ArtifactRoot: string read FArtifactRoot write FArtifactRoot;
+    property Artifacts: TList<string> read FArtifacts;
   end;
 
   TBoss4DIDERegistrationService = class
@@ -148,6 +154,18 @@ begin
   end;
 end;
 
+constructor TBoss4DIDERegistration.Create;
+begin
+  inherited Create;
+  FArtifacts := TList<string>.Create;
+end;
+
+destructor TBoss4DIDERegistration.Destroy;
+begin
+  FArtifacts.Free;
+  inherited Destroy;
+end;
+
 function TBoss4DIDERegistration.Identity: string;
 begin
   Result := FPackageName + '|' + FCompiler + '|' + FPlatform;
@@ -164,6 +182,8 @@ begin
   Result.SearchPath := FSearchPath;
   Result.BrowsingPath := FBrowsingPath;
   Result.DebugDcuPath := FDebugDcuPath;
+  Result.ArtifactRoot := FArtifactRoot;
+  Result.Artifacts.AddRange(FArtifacts);
 end;
 
 function ContainsPath(const AValue, APath: string): Boolean;
@@ -289,6 +309,12 @@ begin
         'browsingPath', '');
       LRegistration.DebugDcuPath := LObject.GetValue<string>(
         'debugDcuPath', '');
+      LRegistration.ArtifactRoot := LObject.GetValue<string>(
+        'artifactRoot', '');
+      var LArtifacts := LObject.GetValue<TJSONArray>('artifacts');
+      if Assigned(LArtifacts) then
+        for var J := 0 to LArtifacts.Count - 1 do
+          LRegistration.Artifacts.Add(LArtifacts.Items[J].Value);
       Result.Add(LRegistration);
     end;
   finally
@@ -307,7 +333,7 @@ var
 begin
   LRoot := TJSONObject.Create;
   try
-    LRoot.AddPair('schemaVersion', TJSONNumber.Create(1));
+    LRoot.AddPair('schemaVersion', TJSONNumber.Create(2));
     LItems := TJSONArray.Create;
     for var LRegistration in AInventory do
     begin
@@ -320,6 +346,11 @@ begin
       LObject.AddPair('searchPath', LRegistration.SearchPath);
       LObject.AddPair('browsingPath', LRegistration.BrowsingPath);
       LObject.AddPair('debugDcuPath', LRegistration.DebugDcuPath);
+      LObject.AddPair('artifactRoot', LRegistration.ArtifactRoot);
+      var LArtifacts := TJSONArray.Create;
+      for var LArtifact in LRegistration.Artifacts do
+        LArtifacts.Add(LArtifact);
+      LObject.AddPair('artifacts', LArtifacts);
       LItems.AddElement(LObject);
     end;
     LRoot.AddPair('registrations', LItems);
@@ -500,6 +531,8 @@ function TBoss4DIDERegistrationService.Unregister(
 var
   LInventory: TObjectList<TBoss4DIDERegistration>;
   LSnapshots: TObjectList<TBoss4DRegistrySnapshot>;
+  LStagedFiles: TDictionary<string, string>;
+  LStagingDirectory: string;
 
   function Selected(const ARegistration: TBoss4DIDERegistration): Boolean;
   begin
@@ -531,12 +564,52 @@ var
     end;
   end;
 
+  procedure StageArtifacts(const ARegistration: TBoss4DIDERegistration);
+  begin
+    if ARegistration.ArtifactRoot.Trim.IsEmpty then
+      Exit;
+    var LRoot := IncludeTrailingPathDelimiter(TPath.GetFullPath(
+      ARegistration.ArtifactRoot));
+    for var LDeclaredArtifact in ARegistration.Artifacts do
+    begin
+      var LArtifact := TPath.GetFullPath(LDeclaredArtifact);
+      if not LArtifact.StartsWith(LRoot, True) then
+        raise EBoss4DIDERegistrationError.CreateFmt(
+          'Artefato gerenciado fora da raiz permitida: %s.', [LArtifact]);
+      if LStagedFiles.ContainsKey(LArtifact) or
+         not TFile.Exists(LArtifact) then
+        Continue;
+      TDirectory.CreateDirectory(LStagingDirectory);
+      var LStaged := TPath.Combine(LStagingDirectory,
+        TGUID.NewGuid.ToString + TPath.GetExtension(LArtifact));
+      TFile.Move(LArtifact, LStaged);
+      LStagedFiles.Add(LArtifact, LStaged);
+    end;
+  end;
+
+  procedure RestoreStagedArtifacts;
+  begin
+    for var LPair in LStagedFiles do
+      if TFile.Exists(LPair.Value) then
+      begin
+        var LOriginal := LPair.Key;
+        TDirectory.CreateDirectory(TPath.GetDirectoryName(LOriginal));
+        TFile.Move(LPair.Value, LOriginal);
+      end;
+  end;
+
 begin
   Result := 0;
   LInventory := LoadInventory;
   LSnapshots := TObjectList<TBoss4DRegistrySnapshot>.Create(True);
+  LStagedFiles := TDictionary<string, string>.Create;
+  LStagingDirectory := FInventoryPath + '.uninstall-' +
+    TGUID.NewGuid.ToString;
   try
     try
+      for var LRegistration in LInventory do
+        if Selected(LRegistration) then
+          StageArtifacts(LRegistration);
       for var I := LInventory.Count - 1 downto 0 do
       begin
         var LRegistration := LInventory[I];
@@ -570,13 +643,20 @@ begin
     except
       on E: Exception do
       begin
-        Rollback(FStore, LSnapshots);
+        try
+          Rollback(FStore, LSnapshots);
+        finally
+          RestoreStagedArtifacts;
+        end;
         raise EBoss4DIDERegistrationError.CreateFmt(
           'Falha ao desregistrar pacote IDE %s: %s',
           [APackageName, E.Message]);
       end;
     end;
+    if TDirectory.Exists(LStagingDirectory) then
+      TDirectory.Delete(LStagingDirectory, True);
   finally
+    LStagedFiles.Free;
     LSnapshots.Free;
     LInventory.Free;
   end;

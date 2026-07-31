@@ -101,6 +101,10 @@ type
     [Test]
     procedure TestIDEUnregisterPreservesPathsOwnedByAnotherPackage;
     [Test]
+    procedure TestIDEUnregisterRemovesOnlyManagedArtifacts;
+    [Test]
+    procedure TestIDEUnregisterRestoresArtifactsOnRegistryFailure;
+    [Test]
     procedure TestIDERegistrationAcceptsDelphi10Seattle;
     [Test]
     procedure TestIDERegistrationRollsBackOnFailure;
@@ -1764,6 +1768,93 @@ begin
       'Falha transacional nao pode persistir inventario parcial.');
   finally
     LRegistration.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDEUnregisterRemovesOnlyManagedArtifacts;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LRoot: string;
+  LManaged: string;
+  LExternal: string;
+begin
+  LRoot := TPath.Combine(FTempDir, 'managed-target');
+  TDirectory.CreateDirectory(LRoot);
+  LManaged := TPath.Combine(LRoot, 'Component.bpl');
+  LExternal := TPath.Combine(FTempDir, 'user-file.txt');
+  TFile.WriteAllText(LManaged, 'managed');
+  TFile.WriteAllText(LExternal, 'user');
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'artifact-inventory.json'));
+  try
+    LRegistration := TBoss4DIDERegistration.Create;
+    try
+      LRegistration.PackageName := 'Component';
+      LRegistration.Compiler := '37.0';
+      LRegistration.Platform := 'Win32';
+      LRegistration.BplPath := LManaged;
+      LRegistration.ArtifactRoot := LRoot;
+      LRegistration.Artifacts.Add(LManaged);
+      LService.RegisterTarget(LRegistration);
+    finally
+      LRegistration.Free;
+    end;
+    Assert.AreEqual(1, LService.Unregister(
+      'Component', '37.0', 'Win32'));
+    Assert.IsFalse(TFile.Exists(LManaged));
+    Assert.IsTrue(TFile.Exists(LExternal),
+      'Unmanaged files must never be removed.');
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDEUnregisterRestoresArtifactsOnRegistryFailure;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LRoot: string;
+  LManaged: string;
+begin
+  LRoot := TPath.Combine(FTempDir, 'rollback-target');
+  TDirectory.CreateDirectory(LRoot);
+  LManaged := TPath.Combine(LRoot, 'Component.bpl');
+  TFile.WriteAllText(LManaged, 'managed');
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'rollback-artifact-inventory.json'));
+  try
+    LRegistration := TBoss4DIDERegistration.Create;
+    try
+      LRegistration.PackageName := 'Component';
+      LRegistration.Compiler := '37.0';
+      LRegistration.Platform := 'Win32';
+      LRegistration.BplPath := LManaged;
+      LRegistration.SearchPath := LRoot;
+      LRegistration.ArtifactRoot := LRoot;
+      LRegistration.Artifacts.Add(LManaged);
+      LService.RegisterTarget(LRegistration);
+    finally
+      LRegistration.Free;
+    end;
+    LStore.SeedValue(
+      'Software\Embarcadero\BDS\37.0\Library\Win32',
+      'Search Path', 'C:\other;' + LRoot);
+    LStore.FailOnWrite := LStore.WriteCount + 1;
+    Assert.WillRaise(
+      procedure
+      begin
+        LService.Unregister('Component', '37.0', 'Win32');
+      end,
+      EBoss4DIDERegistrationError);
+    Assert.IsTrue(TFile.Exists(LManaged),
+      'A registry failure must restore staged artifacts.');
+  finally
     LService.Free;
   end;
 end;

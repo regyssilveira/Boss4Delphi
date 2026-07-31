@@ -183,6 +183,13 @@ unregistering one package keeps the path while another registration for the
 same compiler/platform still references it, and removes it only with the last
 owner.
 
+Inventory schema v2 also records the target artifact root and the exact
+BPL/DCU/DCP/output files produced by the registered build. Unregister moves
+only those files to a private staging directory before mutating the Registry.
+If a Registry or inventory operation fails, the Registry snapshots and staged
+files are restored. Files outside the declared target root are rejected, and
+unmanaged user files are never removed.
+
 ## Delphi conventions
 
 The CLI accepts either BDS versions or short aliases:

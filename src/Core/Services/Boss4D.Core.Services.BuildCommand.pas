@@ -270,6 +270,13 @@ begin
                 LRegistration.SearchPath := TPath.Combine(LRoot, 'dcu');
                 LRegistration.BrowsingPath := LRegistration.SearchPath;
                 LRegistration.DebugDcuPath := LRegistration.SearchPath;
+                LRegistration.ArtifactRoot := LRoot;
+                for var LArtifact in TDirectory.GetFiles(LRoot, '*',
+                  TSearchOption.soAllDirectories) do
+                  if not LArtifact.Contains(TPath.DirectorySeparatorChar +
+                    '.boss4d-state' + TPath.DirectorySeparatorChar) then
+                    LRegistration.Artifacts.Add(TPath.GetFullPath(LArtifact));
+                LRegistration.Artifacts.Sort;
                 FRegistrationHandler(LRegistration);
                 Inc(Result.Registered);
               finally
