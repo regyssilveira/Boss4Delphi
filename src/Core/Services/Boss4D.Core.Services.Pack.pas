@@ -41,7 +41,8 @@ var
 begin
   LRelative := AFileName.Substring(IncludeTrailingPathDelimiter(ARoot).Length)
     .Replace('\', '/');
-  Result := LRelative.StartsWith('.git/', True) or
+  Result := SameText(LRelative, '.git') or
+    LRelative.StartsWith('.git/', True) or
     LRelative.StartsWith('modules/', True) or
     LRelative.StartsWith('dist/', True) or
     LRelative.StartsWith('bin/', True) or

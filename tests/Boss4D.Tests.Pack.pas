@@ -66,6 +66,8 @@ begin
     'bin') do
     TDirectory.CreateDirectory(TPath.Combine(LRoot, LDirectory));
   TFile.WriteAllText(TPath.Combine(LRoot, 'boss.json'), '{}');
+  TFile.WriteAllText(TPath.Combine(LRoot, '.git'),
+    'gitdir: C:\private\workspace\.git\worktrees\package');
   TFile.WriteAllText(TPath.Combine(LRoot, 'modules\dep\secret.pas'), 'skip');
   TFile.WriteAllText(TPath.Combine(LRoot, '.ci-build\cache.jar'), 'skip-ci');
   TFile.WriteAllText(TPath.Combine(LRoot, '.fpc-build\unit.o'), 'skip-fpc');
@@ -90,6 +92,7 @@ begin
     LContent := TFile.ReadAllText(LOutput);
     Assert.IsFalse(LContent.Contains('secret.pas'));
     Assert.IsFalse(LContent.Contains('skip-'));
+    Assert.IsFalse(LContent.Contains('C:\private\workspace'));
     Assert.IsTrue(LContent.Contains('keep.pas'));
   finally
     LService.Free;
