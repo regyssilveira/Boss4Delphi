@@ -17,6 +17,16 @@ type
     procedure DeleteSecret(const AName: string);
   end;
 
+  TOfficialPackageSignerMock = class(TInterfacedObject,
+    IBoss4DPackageSigner)
+  private
+    FAccept: Boolean;
+  public
+    constructor Create(const AAccept: Boolean);
+    function Sign(const AArtifactPath, AKeyId: string): string;
+    function Verify(const AArtifactPath, ASignaturePath: string): Boolean;
+  end;
+
   { MockLogger simples para nao poluir o console de testes e capturar saidas }
   TTestLogger = class(TInterfacedObject, IBoss4DLogger)
   private
@@ -99,6 +109,8 @@ type
     procedure TestPublishDryRunAndGates;
     [Test]
     procedure TestOfficialRegistrySubmissionDocument;
+    [Test]
+    procedure TestOfficialPublishPreparesVerifiedBundleTransactionally;
 
     [Test]
     procedure TestCompiledArtifactCacheIsolation;
@@ -278,6 +290,7 @@ uses
   Boss4D.Core.Services.DependencySubmission,
   Boss4D.Core.Services.Publish,
   Boss4D.Core.Services.RegistrySubmission,
+  Boss4D.Core.Services.OfficialPublish,
   Boss4D.Core.Services.ArtifactCache,
   Boss4D.Core.Domain.BuildMatrix,
   Boss4D.Core.Services.BuildExecutor,
@@ -1226,6 +1239,26 @@ begin
   end;
 end;
 
+constructor TOfficialPackageSignerMock.Create(const AAccept: Boolean);
+begin
+  inherited Create;
+  FAccept := AAccept;
+end;
+
+function TOfficialPackageSignerMock.Sign(const AArtifactPath,
+  AKeyId: string): string;
+begin
+  Result := AArtifactPath + '.asc';
+  TFile.WriteAllText(Result, 'signed-by:' + AKeyId, TEncoding.ASCII);
+end;
+
+function TOfficialPackageSignerMock.Verify(const AArtifactPath,
+  ASignaturePath: string): Boolean;
+begin
+  Result := FAccept and TFile.Exists(AArtifactPath) and
+    TFile.Exists(ASignaturePath);
+end;
+
 procedure TTestsServices.TestPinRejectsNonSemVerLockRevision;
 var
   LPackageRepo: IBoss4DPackageRepository;
@@ -1582,6 +1615,77 @@ begin
       TBoss4DRegistrySubmissionService.BuildDocument(LSubmission);
     end,
     EBoss4DRegistrySubmission);
+end;
+
+procedure TTestsServices.TestOfficialPublishPreparesVerifiedBundleTransactionally;
+var
+  LProject, LArtifact, LSubmissionPath: string;
+  LOptions: TBoss4DOfficialPublishOptions;
+  LResult: TBoss4DOfficialPublishResult;
+  LService: TBoss4DOfficialPublishService;
+begin
+  LProject := TPath.Combine(FTempDir, 'official-package');
+  TDirectory.CreateDirectory(LProject);
+  TFile.WriteAllText(TPath.Combine(LProject, 'boss.json'),
+    '{"name":"official-package","version":"1.0.0"}', TEncoding.UTF8);
+  TFile.WriteAllText(TPath.Combine(LProject, 'source.pas'),
+    'unit Source; interface implementation end.', TEncoding.UTF8);
+  LArtifact := TPath.Combine(FTempDir,
+    'out\official-package-1.0.0.b4dpkg');
+  LSubmissionPath := TPath.Combine(FTempDir,
+    'out\registry-submission.json');
+  LOptions := Default(TBoss4DOfficialPublishOptions);
+  LOptions.ProjectDirectory := LProject;
+  LOptions.PackageName := 'official-package';
+  LOptions.Publisher := 'official-publisher';
+  LOptions.Repository := 'github.com/example/official-package';
+  LOptions.SignerFingerprint := StringOfChar('a', 40);
+  LOptions.SigningKey := 'release@example.com';
+  LOptions.Version := '1.0.0';
+  LOptions.ArtifactUrl :=
+    'https://github.com/example/official-package/releases/download/' +
+    'v1.0.0/official-package-1.0.0.b4dpkg';
+  LOptions.Description := 'Official package';
+  LOptions.License := 'MIT';
+  LOptions.ArtifactOutput := LArtifact;
+  LOptions.SubmissionOutput := LSubmissionPath;
+
+  LService := TBoss4DOfficialPublishService.Create(
+    TOfficialPackageSignerMock.Create(True));
+  try
+    LResult := LService.Prepare(LOptions);
+    Assert.IsTrue(TFile.Exists(LResult.ArtifactPath));
+    Assert.IsTrue(TFile.Exists(LResult.ProvenancePath));
+    Assert.IsTrue(TFile.Exists(LResult.SignaturePath));
+    Assert.IsTrue(TFile.Exists(LResult.SubmissionPath));
+    Assert.AreEqual(64, LResult.Digest.Length);
+    Assert.IsTrue(TFile.ReadAllText(LResult.SubmissionPath).Contains(
+      '"name":"official-package"'));
+  finally
+    LService.Free;
+  end;
+
+  LOptions.ArtifactOutput := TPath.Combine(FTempDir,
+    'failed\official-package-1.0.0.b4dpkg');
+  LOptions.SubmissionOutput := TPath.Combine(FTempDir,
+    'failed\registry-submission.json');
+  LService := TBoss4DOfficialPublishService.Create(
+    TOfficialPackageSignerMock.Create(False));
+  try
+    Assert.WillRaise(
+      procedure
+      begin
+        LService.Prepare(LOptions);
+      end,
+      EBoss4DRegistrySubmission);
+    Assert.IsFalse(TFile.Exists(LOptions.ArtifactOutput));
+    Assert.IsFalse(TFile.Exists(LOptions.ArtifactOutput + '.asc'));
+    Assert.IsFalse(TFile.Exists(LOptions.ArtifactOutput +
+      '.intoto.json'));
+    Assert.IsFalse(TFile.Exists(LOptions.SubmissionOutput));
+  finally
+    LService.Free;
+  end;
 end;
 
 procedure TTestsServices.TestCompiledArtifactCacheIsolation;
