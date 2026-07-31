@@ -27,7 +27,7 @@ trees, or machine-specific IDE state.
 | Project lifecycle | Start a project, add/update/remove dependencies, reproduce a restore, investigate the graph, recover from cache or lock problems | A lock change can alter every developer and CI build | [Project and dependency workflows](use-cases-project-lifecycle.md) |
 | Registry and credentials | Select public/private sources, authenticate, work offline, verify packages, publish immutable versions | Secrets and supply-chain trust boundaries | [Registry, credentials, and publication](use-cases-registry-security.md) |
 | Compliance and audit | Generate CycloneDX/SPDX, publish VEX, enforce vulnerability policy, create attestations | Compliance evidence must be complete and reproducible | [Compliance and audit workflows](use-cases-compliance.md) |
-| Multi-Delphi build | Detect packages, select compiler/platform/configuration, use incremental and parallel builds | Wrong target identity can mix incompatible DCUs/BPLs | Planned in phase 5 |
+| Multi-Delphi build | Detect packages, select compiler/platform/configuration, use incremental and parallel builds | Wrong target identity can mix incompatible DCUs/BPLs | [Multi-Delphi build workflows](use-cases-build-matrix.md) |
 | IDE lifecycle | Install, register, update, unregister, repair, and recover from a failed design-package change | Registry and Library Path changes affect the IDE globally | Planned in phase 6 |
 | Linux and automation | Run FPC/Linux, CI validation, release packaging, self-update, and rollback | Automation must be deterministic and non-interactive | Planned in phase 7 |
 
