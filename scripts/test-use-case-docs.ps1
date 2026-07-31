@@ -10,7 +10,9 @@ $hubPairs = @(
   @('docs\use-cases-project-lifecycle.md',
     'docs\use-cases-project-lifecycle.pt-BR.md'),
   @('docs\use-cases-registry-security.md',
-    'docs\use-cases-registry-security.pt-BR.md')
+    'docs\use-cases-registry-security.pt-BR.md'),
+  @('docs\use-cases-compliance.md',
+    'docs\use-cases-compliance.pt-BR.md')
 )
 $knownCommands = @(
   'add', 'audit', 'build', 'cache', 'ci', 'config', 'doctor', 'getit',
