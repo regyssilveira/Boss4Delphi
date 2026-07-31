@@ -15,6 +15,7 @@ type
     License: string;
     VersionSummary: string;
     Versions: string;
+    InstallVersions: TArray<string>;
     VariantSummary: string;
     SupplyChainSummary: string;
   end;
@@ -93,6 +94,14 @@ begin
           Format(', %d revogada(s)', [LRevoked]);
       LRow.Versions := StringReplace(Trim(LVersions.Text),
         sLineBreak, ', ', [rfReplaceAll]);
+      LRow.InstallVersions := nil;
+      for LVersion in LEntry.Versions do
+        if not LVersion.Revoked then
+        begin
+          var LLength := Length(LRow.InstallVersions);
+          SetLength(LRow.InstallVersions, LLength + 1);
+          LRow.InstallVersions[LLength] := LVersion.Version;
+        end;
       if LVariants.Count = 0 then
         LRow.VariantSummary := 'Pacote baseado em codigo-fonte'
       else

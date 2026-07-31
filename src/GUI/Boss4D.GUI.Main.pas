@@ -10,7 +10,8 @@ uses
   Boss4D.Core.Services.IDEProfileApplication,
   Boss4D.Core.Services.IDEManagementQuery,
   Boss4D.GUI.IDE.Presenter,
-  Boss4D.GUI.Catalog.Presenter;
+  Boss4D.GUI.Catalog.Presenter,
+  Boss4D.GUI.Install.Presenter;
 
 type
   TFormMain = class(TForm, IBoss4DIDEManagementView)
@@ -139,6 +140,9 @@ type
     procedure PopulateCatalog;
     procedure ShowCatalogDetails(const AIndex: Integer);
     procedure RunAsyncCommand(const ATitle, ACommand: string; const AArgs: string = '');
+    procedure RunAsyncGuidedInstall(
+      const ARequest: TBoss4DGUIInstallRequest);
+    function FindBoss4DExecutable: string;
     procedure ClearProfiles;
     procedure AddProfile(const AId, AName, ACompiler,
       ARegistryBranch: string; const APackageCount: Integer);
@@ -175,6 +179,8 @@ uses
   Boss4D.Core.Services.Tree,
   Boss4D.Core.Services.Outdated,
   Boss4D.Core.Services.PackageIndex,
+  Boss4D.Core.Platform,
+  Boss4D.GUI.Install.Dialog,
   Boss4D.Core.Domain.Env,
   Boss4D.Core.Domain.IDEProfile,
   Boss4D.Core.Services.IDERegistration,
@@ -590,6 +596,77 @@ begin
   );
 end;
 
+function TFormMain.FindBoss4DExecutable: string;
+var
+  LBuffer: array[0..MAX_PATH] of Char;
+  LLength: DWORD;
+  LFilePart: PChar;
+begin
+  Result := TPath.Combine(ExtractFilePath(ParamStr(0)), 'boss4d.exe');
+  if TFile.Exists(Result) then
+    Exit;
+  LFilePart := nil;
+  LLength := Winapi.Windows.SearchPath(nil, 'boss4d.exe', nil,
+    Length(LBuffer), LBuffer, LFilePart);
+  if (LLength > 0) and (LLength < Length(LBuffer)) then
+    SetString(Result, LBuffer, LLength)
+  else
+    Result := '';
+end;
+
+procedure TFormMain.RunAsyncGuidedInstall(
+  const ARequest: TBoss4DGUIInstallRequest);
+var
+  LExecutable: string;
+  LProjectDirectory: string;
+  LRequest: TBoss4DGUIInstallRequest;
+begin
+  if FCurrentProjectDir = '' then
+  begin
+    ShowMessage('Por favor, selecione a pasta do projeto local primeiro!');
+    Exit;
+  end;
+  LExecutable := FindBoss4DExecutable;
+  if LExecutable = '' then
+  begin
+    ShowMessage('boss4d.exe nao foi encontrado ao lado da GUI ou no PATH.');
+    Exit;
+  end;
+  LProjectDirectory := FCurrentProjectDir;
+  LRequest := ARequest;
+  LogMessage('Iniciando: ' +
+    TBoss4DGUIInstallPresenter.BuildEquivalentCommand(LRequest));
+  TTask.Run(
+    procedure
+    begin
+      var LExecutor := TBoss4DGUIInstallExecutor.Create(
+        Boss4DProcessRunner);
+      try
+        try
+          var LOutput := LExecutor.Execute(LExecutable,
+            LProjectDirectory, LRequest);
+          if LOutput <> '' then
+            LogMessage(LOutput);
+          LogMessage('Instalacao guiada concluida com sucesso.');
+          TThread.Queue(nil,
+            TThreadProcedure(
+              procedure
+              begin
+                LoadProjectDependencies(LProjectDirectory);
+              end
+            )
+          );
+        except
+          on E: Exception do
+            LogMessage('[ERRO] ' + E.Message);
+        end;
+      finally
+        LExecutor.Free;
+      end;
+    end
+  );
+end;
+
 procedure TFormMain.BtnProjInitClick(Sender: TObject);
 begin
   RunAsyncCommand('Boss4D Init', 'init');
@@ -673,8 +750,6 @@ begin
 end;
 
 procedure TFormMain.BtnInstallSelectedClick(Sender: TObject);
-var
-  LRepo: string;
 begin
   if ListCatalog.Selected = nil then
   begin
@@ -682,10 +757,13 @@ begin
     Exit;
   end;
 
-  if ListCatalog.Selected.Index >= Length(FCatalogRows) then
+  var LIndex := ListCatalog.Selected.Index;
+  if LIndex >= Length(FCatalogRows) then
     Exit;
-  LRepo := FCatalogRows[ListCatalog.Selected.Index].Repository;
-  RunAsyncCommand('Instalacao de ' + ListCatalog.Selected.Caption, 'install', LRepo);
+  var LRequest := Default(TBoss4DGUIInstallRequest);
+  if TBoss4DGUIInstallDialog.Execute(Self, FCatalogRows[LIndex].Name,
+    FCatalogRows[LIndex].InstallVersions, LRequest) then
+    RunAsyncGuidedInstall(LRequest);
 end;
 
 procedure TFormMain.BtnDocCheckClick(Sender: TObject);

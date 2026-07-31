@@ -45,6 +45,8 @@ begin
     Assert.AreEqual<Integer>(1, Length(LRows));
     Assert.AreEqual('Horse', LRows[0].Name);
     Assert.AreEqual('3.2.1', LRows[0].Version);
+    Assert.AreEqual<Integer>(1, Length(LRows[0].InstallVersions));
+    Assert.AreEqual('3.2.1', LRows[0].InstallVersions[0]);
     Assert.AreEqual('2 versao(oes), 1 revogada(s)',
       LRows[0].VersionSummary);
   finally

@@ -2,6 +2,9 @@ unit Boss4D.GUI.Install.Presenter;
 
 interface
 
+uses
+  Boss4D.Core.Ports;
+
 type
   TBoss4DGUIInstallRequest = record
     PackageName: string;
@@ -20,6 +23,15 @@ type
       const ARequest: TBoss4DGUIInstallRequest): string; static;
     class function BuildEquivalentCommand(
       const ARequest: TBoss4DGUIInstallRequest): string; static;
+  end;
+
+  TBoss4DGUIInstallExecutor = class
+  private
+    FRunner: IBoss4DProcessRunner;
+  public
+    constructor Create(const ARunner: IBoss4DProcessRunner);
+    function Execute(const AExecutable, AWorkingDirectory: string;
+      const ARequest: TBoss4DGUIInstallRequest): string;
   end;
 
 implementation
@@ -62,6 +74,29 @@ class function TBoss4DGUIInstallPresenter.BuildEquivalentCommand(
   const ARequest: TBoss4DGUIInstallRequest): string;
 begin
   Result := 'boss4d ' + BuildArguments(ARequest);
+end;
+
+constructor TBoss4DGUIInstallExecutor.Create(
+  const ARunner: IBoss4DProcessRunner);
+begin
+  inherited Create;
+  if not Assigned(ARunner) then
+    raise EArgumentNilException.Create('ARunner');
+  FRunner := ARunner;
+end;
+
+function TBoss4DGUIInstallExecutor.Execute(const AExecutable,
+  AWorkingDirectory: string;
+  const ARequest: TBoss4DGUIInstallRequest): string;
+var
+  LCommand: string;
+begin
+  if Trim(AExecutable) = '' then
+    raise EArgumentException.Create('Executavel Boss4D nao encontrado.');
+  LCommand := '"' + AExecutable + '" ' +
+    TBoss4DGUIInstallPresenter.BuildArguments(ARequest);
+  if not FRunner.Execute(LCommand, AWorkingDirectory, Result) then
+    raise Exception.Create('A instalacao falhou.' + sLineBreak + Result);
 end;
 
 end.

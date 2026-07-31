@@ -12,13 +12,35 @@ type
     [Test] procedure BuildsExactVerifiedPackageCommand;
     [Test] procedure IncludesSourceFallbackByDefault;
     [Test] procedure RejectsIncompleteSelection;
+    [Test] procedure ExecutorRunsEquivalentCommandInProject;
+    [Test] procedure ExecutorReportsCommandFailure;
   end;
 
 implementation
 
 uses
   System.SysUtils,
+  Boss4D.Core.Ports,
   Boss4D.GUI.Install.Presenter;
+
+type
+  TProcessRunnerMock = class(TInterfacedObject, IBoss4DProcessRunner)
+  public
+    ShouldSucceed: Boolean;
+    CommandLine: string;
+    WorkingDirectory: string;
+    function Execute(const ACommandLine, AWorkingDirectory: string;
+      out AOutput: string): Boolean;
+  end;
+
+function TProcessRunnerMock.Execute(const ACommandLine,
+  AWorkingDirectory: string; out AOutput: string): Boolean;
+begin
+  CommandLine := ACommandLine;
+  WorkingDirectory := AWorkingDirectory;
+  AOutput := 'output';
+  Result := ShouldSucceed;
+end;
 
 function CompleteRequest: TBoss4DGUIInstallRequest;
 begin
@@ -57,6 +79,41 @@ begin
       TBoss4DGUIInstallPresenter.Validate(LRequest);
     end,
     EArgumentException);
+end;
+
+procedure TBoss4DGUIInstallPresenterTests.ExecutorRunsEquivalentCommandInProject;
+begin
+  var LMock := TProcessRunnerMock.Create;
+  LMock.ShouldSucceed := True;
+  var LExecutor := TBoss4DGUIInstallExecutor.Create(LMock);
+  try
+    Assert.AreEqual('output',
+      LExecutor.Execute('C:\Boss4D\boss4d.exe', 'C:\Project',
+        CompleteRequest));
+    Assert.AreEqual(
+      '"C:\Boss4D\boss4d.exe" package install "Horse@3.2.1" ' +
+      '--compiler "d13" --platform "Win64"', LMock.CommandLine);
+    Assert.AreEqual('C:\Project', LMock.WorkingDirectory);
+  finally
+    LExecutor.Free;
+  end;
+end;
+
+procedure TBoss4DGUIInstallPresenterTests.ExecutorReportsCommandFailure;
+begin
+  var LMock := TProcessRunnerMock.Create;
+  LMock.ShouldSucceed := False;
+  var LExecutor := TBoss4DGUIInstallExecutor.Create(LMock);
+  try
+    Assert.WillRaise(
+      procedure
+      begin
+        LExecutor.Execute('boss4d.exe', 'C:\Project', CompleteRequest);
+      end,
+      Exception);
+  finally
+    LExecutor.Free;
+  end;
 end;
 
 initialization
