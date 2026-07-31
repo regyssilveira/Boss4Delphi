@@ -358,15 +358,6 @@
                          "sha256":  ""
                      },
                      {
-                         "name":  "horse-crud",
-                         "repository":  "github.com/regyssilveira/horse-crud",
-                         "description":  "Automatic CRUD routes middleware for Horse",
-                         "version":  "",
-                         "license":  "Apache-2.0",
-                         "artifact":  "",
-                         "sha256":  ""
-                     },
-                     {
                          "name":  "horse-prometheus-metrics",
                          "repository":  "github.com/marcobreveglieri/horse-prometheus-metrics",
                          "description":  "Prometheus metrics middleware for Horse",

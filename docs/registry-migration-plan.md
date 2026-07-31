@@ -8,17 +8,17 @@ request checks.
 
 ## Current baseline
 
-- 41 discoverable legacy v1 packages;
+- 40 discoverable legacy v1 packages;
 - 18 repository owners;
 - 16 packages in the already registered `regyssilveira` namespace;
 - 10 packages in the `HashLoad` namespace;
-- 14 signed schema-v2 packages and one authorized signer fingerprint;
-- 14 publisher-controlled packages published through the reproducibility gates;
-- 2 publisher-controlled packages requiring a release;
-- catalog health: 55 packages, 82 migration warnings, zero structural errors.
+- 15 signed schema-v2 packages and one authorized signer fingerprint;
+- 15 publisher-controlled packages published through the reproducibility gates;
+- one publisher-controlled package requiring a release;
+- catalog health: 55 packages, 80 migration warnings, zero structural errors.
 
 The generated Registry portal is the public progress ledger. It currently
-reports 14 verified packages, 41 legacy packages, and 25% verified migration.
+reports 15 verified packages, 40 legacy packages, and 27% verified migration.
 Each accepted schema-v2 package with an authorized publisher fingerprint
 increments that metric automatically.
 
@@ -167,9 +167,16 @@ URIs, event attributes, dictionaries, nested JSON, arrays, and concurrency
 without leaks. The signed 13-file bundle passed independent signature,
 conformance, and verified no-fallback installation.
 
-`Dext` and `horse-crud` still need their first published tag/release. Before
-Registry migration they need an exact SemVer tag, tests, immutable release
-assets, and the same signed publication workflow.
+`horse-crud` `v1.0.0` followed after making entity ownership explicit across
+GET-all, GET-by-id, POST, PUT, and DELETE routes and replacing its obsolete
+test harness with DUnitX. Five complete six-test Seattle runs plus a clean
+post-merge run covered successful CRUD operations and HTTP 404 behavior
+without leaks. The signed 16-file bundle passed independent signature,
+provenance, conformance, and verified no-fallback installation.
+
+`Dext` is the remaining publisher-controlled package that needs its first
+published tag/release. Before Registry migration it needs an exact SemVer tag,
+tests, immutable release assets, and the same signed publication workflow.
 
 ## Wave 3 — external publisher onboarding
 

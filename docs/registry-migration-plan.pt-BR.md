@@ -8,17 +8,17 @@ passarem nos checks do pull request do Registry.
 
 ## Ponto de partida
 
-- 41 pacotes legados v1 pesquisáveis;
+- 40 pacotes legados v1 pesquisáveis;
 - 18 responsáveis por repositórios;
 - 16 pacotes no namespace `regyssilveira`, já cadastrado;
 - 10 pacotes no namespace `HashLoad`;
-- 14 pacotes schema v2 assinados e um fingerprint autorizado;
-- 14 pacotes do publisher publicados pelos gates de reprodutibilidade;
-- 2 pacotes do publisher que precisam de release;
-- saúde: 55 pacotes, 82 avisos de migração e zero erros estruturais.
+- 15 pacotes schema v2 assinados e um fingerprint autorizado;
+- 15 pacotes do publisher publicados pelos gates de reprodutibilidade;
+- um pacote do publisher que precisa de release;
+- saúde: 55 pacotes, 80 avisos de migração e zero erros estruturais.
 
 O portal gerado do Registry é o painel público do progresso. No momento ele
-informa 14 pacotes verificados, 41 pacotes legados e 25% de migração verificada.
+informa 15 pacotes verificados, 40 pacotes legados e 27% de migração verificada.
 Cada pacote schema v2 aceito com fingerprint autorizado para o publisher
 incrementa essa métrica automaticamente.
 
@@ -178,9 +178,17 @@ evento, dicionários, JSON aninhado, arrays e concorrência sem leaks. O bundle
 assinado de 13 arquivos passou nas verificações independentes de assinatura,
 conformidade e instalação sem fallback.
 
-`Dext` e `horse-crud` ainda precisam de sua primeira tag/release publicada.
-Antes da migração esses pacotes precisam de tag SemVer exata, testes, assets
-imutáveis e o mesmo fluxo de publicação assinada.
+O `horse-crud` `v1.0.0` veio em seguida após tornar explícita a posse das
+entidades nas rotas GET-all, GET-by-id, POST, PUT e DELETE e substituir seu
+harness de testes obsoleto pelo DUnitX. Cinco execuções completas dos seis
+testes no Seattle, mais uma execução limpa após o merge, cobriram operações
+CRUD bem-sucedidas e o comportamento HTTP 404 sem leaks. O bundle assinado de
+16 arquivos passou nas verificações independentes de assinatura, proveniência,
+conformidade e instalação verificada sem fallback.
+
+O `Dext` é o pacote restante controlado pelo publisher que precisa de sua
+primeira tag/release publicada. Antes da migração ele precisa de tag SemVer
+exata, testes, assets imutáveis e o mesmo fluxo de publicação assinada.
 
 ## Onda 3 — onboarding de publishers externos
 
