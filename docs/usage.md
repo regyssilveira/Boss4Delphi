@@ -657,7 +657,10 @@ The **Boss4D** graphical user interface (**`Boss4D.GUI.exe`**) provides a modern
 ### Key Features
 1. **Lateral Navigation (SPA Sidebar)**:
    * **Project Local**: Open any local project directory. Boss4D reads the `boss.json` and lists the package dependencies, declared version, and installed lock version in real-time. Features quick buttons for `Init`, `Install`, `Check Updates` (outdated), and `Dependency Tree`.
-   * **Search Packages**: A visual catalogue showing the most popular libraries in the Delphi community (Horse, RESTRequest4Delphi, mORMot, Skia, etc.) allowing for filtered search and single-click silent in-process installation.
+   * **Search Packages**: A filterable visual catalog with one-click
+     installation. Selecting a package opens its details with description,
+     license, version/revocation history, compiler/platform variants, and the
+     available digest, signature, and provenance evidence.
    * **Boss4D Doctor**: Run environmental diagnostics and auto-fixes for Delphi compiler installations without writing command lines.
    * **Manage Cache**: Displays global cache disk usage and provides options to clean (`Clean`) or prune (`Otimizar Cache`) stale downloaded versions.
    * **Components and IDEs**: Manage isolated IDE profiles, their default

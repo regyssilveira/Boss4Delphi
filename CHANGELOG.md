@@ -58,6 +58,8 @@
   middleware set.
 - Bounded concurrent Git acquisition with keyed operation gates and preserved
   deterministic installation behavior.
+- Rich GUI catalog details for description, license, version and revocation
+  history, compiler/platform variants, and digest/signature/provenance evidence.
 
 ### Changed
 

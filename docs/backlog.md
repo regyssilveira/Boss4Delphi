@@ -29,8 +29,10 @@ See the [authoritative delivery plan](ide-packages-profiles-gui-plan.md).
 
 ## Epic 24: GUI product experience
 
-- [ ] Rich package cards and a detail view for versions, dependencies,
-  compatibility, license, changelog, SBOM, signature, and provenance.
+- [x] Catalog detail foundation for description, license, version/revocation
+  history, compiler/platform variants, digest, signature, and provenance.
+- [ ] Complete rich package cards with dependency graph, compatibility status,
+  changelog navigation, and SBOM browsing.
 - [ ] Guided installation wizard for package, version, profile, compiler,
   platform, preview, and explicit confirmation.
 - [ ] Per-operation and per-target progress, safe cancellation, retry, elapsed

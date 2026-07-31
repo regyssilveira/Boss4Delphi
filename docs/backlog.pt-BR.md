@@ -30,8 +30,11 @@ Veja o [plano oficial da entrega](ide-packages-profiles-gui-plan.pt-BR.md).
 
 ## Épico 24: Experiência de produto da GUI
 
-- [ ] Cards ricos e detalhes do pacote com versões, dependências,
-  compatibilidade, licença, changelog, SBOM, assinatura e proveniência.
+- [x] Base de detalhes do catálogo com descrição, licença, histórico de
+  versões/revogações, variantes por compilador/plataforma, digest, assinatura
+  e proveniência.
+- [ ] Completar cards ricos com grafo de dependências, estado de
+  compatibilidade, navegação do changelog e consulta do SBOM.
 - [ ] Assistente guiado para pacote, versão, perfil, compilador, plataforma,
   preview e confirmação explícita.
 - [ ] Progresso por operação e target, cancelamento seguro, retry, tempo

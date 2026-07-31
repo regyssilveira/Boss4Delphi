@@ -661,7 +661,10 @@ A interface gráfica do **Boss4D** (**`Boss4D.GUI.exe`**) fornece uma aplicaçã
 ### Funcionalidades
 1. **Navegação Lateral (Sidebar SPA)**:
    * **Projeto Local**: Selecione um diretório de projeto no disco. O Boss4D lerá o arquivo `boss.json` e listará as dependências, a versão declarada e a versão instalada em tempo real. Oferece botões rápidos para `Init`, `Install`, `Verificar Updates` (outdated) e `Árvore de Módulos`.
-   * **Buscar Pacotes**: Catálogo visual contendo as bibliotecas mais populares do ecossistema Delphi (Horse, RESTRequest4Delphi, mORMot, Skia, etc.) permitindo a busca filtrada e instalação silenciosa in-process com um clique.
+   * **Buscar Pacotes**: Catálogo visual filtrável com instalação em um clique.
+     Ao selecionar um pacote, a GUI exibe descrição, licença, histórico de
+     versões/revogações, variantes por compilador/plataforma e as evidências
+     disponíveis de digest, assinatura e proveniência.
    * **Boss4D Doctor**: Executa verificações estruturadas e auto-correções no ambiente do Delphi sem precisar da linha de comando.
    * **Gerenciar Cache**: Exibe o uso de disco do cache global e fornece opções para limpar (`Clean`) ou realizar o prune (`Otimizar Cache`) de versões antigas.
    * **Componentes e IDEs**: Gerencia perfis isolados, targets padrão,
