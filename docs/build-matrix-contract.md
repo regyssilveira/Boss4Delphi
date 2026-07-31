@@ -186,6 +186,14 @@ owner.
 The same ownership rule applies to the user `PATH`, so a shared BPL directory
 is repaired and removed only when appropriate.
 
+DLL outputs are copied into the managed BPL directory before registration, so
+they are available through that target's `PATH` entry and remain covered by
+artifact rollback. CHM outputs are registered per compiler under
+`Help\HtmlHelp1Files` using their absolute paths, as required by the
+[RAD Studio component-help contract](https://docwiki.embarcadero.com/RADStudio/en/Providing_Help_for_Your_Component).
+Help entries participate in registration, drift detection, repair, and
+uninstall.
+
 Inventory schema v2 also records the target artifact root and the exact
 BPL/DCU/DCP/output files produced by the registered build. Unregister moves
 only those files to a private staging directory before mutating the Registry.

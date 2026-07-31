@@ -112,6 +112,12 @@ begin
   TFile.WriteAllText(TPath.Combine(LBplDirectory,
     'Component' + ACompilerVersion.Replace('.', '') + '.bpl'),
     'test-bpl', TEncoding.UTF8);
+  var LBinDirectory := TPath.Combine(LRoot, 'bin');
+  TDirectory.CreateDirectory(LBinDirectory);
+  TFile.WriteAllText(TPath.Combine(LBinDirectory, 'ComponentRuntime.dll'),
+    'test-dll', TEncoding.UTF8);
+  TFile.WriteAllText(TPath.Combine(LRoot, 'ComponentHelp.chm'),
+    'test-help', TEncoding.UTF8);
   Result := True;
 end;
 
@@ -176,6 +182,8 @@ var
   LRegisteredBpl: string;
   LInventory: TBoss4DBuildInventory;
   LInventoryPath: string;
+  LRuntimePath: string;
+  LHelpFile: string;
 begin
   TFile.WriteAllText(TPath.Combine(FRoot, 'Design.dproj'),
     '<Project/>', TEncoding.UTF8);
@@ -209,6 +217,9 @@ begin
         LRegisteredCompiler := ARegistration.Compiler;
         LRegisteredPlatform := ARegistration.Platform;
         LRegisteredBpl := ARegistration.BplPath;
+        LRuntimePath := ARegistration.RuntimePath;
+        if ARegistration.HelpFiles.Count > 0 then
+          LHelpFile := ARegistration.HelpFiles[0];
       end,
       LInventory);
     try
@@ -220,6 +231,9 @@ begin
       Assert.AreEqual('37.0', LRegisteredCompiler);
       Assert.AreEqual('Win64', LRegisteredPlatform);
       Assert.IsTrue(TFile.Exists(LRegisteredBpl));
+      Assert.IsTrue(TFile.Exists(TPath.Combine(LRuntimePath,
+        'ComponentRuntime.dll')));
+      Assert.IsTrue(TFile.Exists(LHelpFile));
       Assert.IsTrue(TFile.Exists(LInventoryPath));
       Assert.IsTrue(LInventory.Contains(LPackage.Name));
       Assert.AreEqual<Integer>(2,

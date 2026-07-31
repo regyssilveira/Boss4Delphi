@@ -251,14 +251,25 @@ begin
               raise EFileNotFoundException.CreateFmt(
                 'Diretorio BPL nao encontrado para %s.',
                 [LTarget.Identity]);
+            for var LDllFile in TDirectory.GetFiles(LRoot, '*.dll',
+              TSearchOption.soAllDirectories) do
+            begin
+              var LDllTarget := TPath.Combine(LBplDirectory,
+                TPath.GetFileName(LDllFile));
+              if not SameText(TPath.GetFullPath(LDllFile),
+                TPath.GetFullPath(LDllTarget)) then
+                TFile.Copy(LDllFile, LDllTarget, True);
+            end;
             var LBplFiles := TDirectory.GetFiles(LBplDirectory, '*.bpl',
               TSearchOption.soAllDirectories);
             if Length(LBplFiles) = 0 then
               raise EFileNotFoundException.CreateFmt(
                 'Nenhum BPL de design-time encontrado para %s.',
                 [LTarget.Identity]);
-            for var LBplFile in LBplFiles do
+            TArray.Sort<string>(LBplFiles);
+            for var LBplIndex := 0 to Length(LBplFiles) - 1 do
             begin
+              var LBplFile := LBplFiles[LBplIndex];
               var LRegistration := TBoss4DIDERegistration.Create;
               try
                 LRegistration.PackageName :=
@@ -271,14 +282,24 @@ begin
                 LRegistration.SearchPath := TPath.Combine(LRoot, 'dcu');
                 LRegistration.BrowsingPath := LRegistration.SearchPath;
                 LRegistration.DebugDcuPath := LRegistration.SearchPath;
-                LRegistration.RuntimePath := LBplDirectory;
-                LRegistration.ArtifactRoot := LRoot;
-                for var LArtifact in TDirectory.GetFiles(LRoot, '*',
-                  TSearchOption.soAllDirectories) do
-                  if not LArtifact.Contains(TPath.DirectorySeparatorChar +
-                    '.boss4d-state' + TPath.DirectorySeparatorChar) then
-                    LRegistration.Artifacts.Add(TPath.GetFullPath(LArtifact));
-                LRegistration.Artifacts.Sort;
+                if LBplIndex = 0 then
+                begin
+                  LRegistration.RuntimePath := LBplDirectory;
+                  LRegistration.ArtifactRoot := LRoot;
+                  for var LArtifact in TDirectory.GetFiles(LRoot, '*',
+                    TSearchOption.soAllDirectories) do
+                    if not LArtifact.Contains(
+                      TPath.DirectorySeparatorChar + '.boss4d-state' +
+                      TPath.DirectorySeparatorChar) then
+                      LRegistration.Artifacts.Add(
+                        TPath.GetFullPath(LArtifact));
+                  LRegistration.Artifacts.Sort;
+                  for var LHelpFile in TDirectory.GetFiles(LRoot, '*.chm',
+                    TSearchOption.soAllDirectories) do
+                    LRegistration.HelpFiles.Add(
+                      TPath.GetFullPath(LHelpFile));
+                  LRegistration.HelpFiles.Sort;
+                end;
                 FRegistrationHandler(LRegistration);
                 Inc(Result.Registered);
               finally

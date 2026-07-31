@@ -42,6 +42,7 @@ type
     FRuntimePath: string;
     FArtifactRoot: string;
     FArtifacts: TList<string>;
+    FHelpFiles: TList<string>;
   public
     constructor Create;
     destructor Destroy; override;
@@ -59,6 +60,7 @@ type
     property RuntimePath: string read FRuntimePath write FRuntimePath;
     property ArtifactRoot: string read FArtifactRoot write FArtifactRoot;
     property Artifacts: TList<string> read FArtifacts;
+    property HelpFiles: TList<string> read FHelpFiles;
   end;
 
   TBoss4DIDERegistrationService = class
@@ -165,10 +167,12 @@ constructor TBoss4DIDERegistration.Create;
 begin
   inherited Create;
   FArtifacts := TList<string>.Create;
+  FHelpFiles := TList<string>.Create;
 end;
 
 destructor TBoss4DIDERegistration.Destroy;
 begin
+  FHelpFiles.Free;
   FArtifacts.Free;
   inherited Destroy;
 end;
@@ -193,6 +197,7 @@ begin
   Result.RuntimePath := FRuntimePath;
   Result.ArtifactRoot := FArtifactRoot;
   Result.Artifacts.AddRange(FArtifacts);
+  Result.HelpFiles.AddRange(FHelpFiles);
 end;
 
 function ContainsPath(const AValue, APath: string): Boolean;
@@ -328,6 +333,10 @@ begin
       if Assigned(LArtifacts) then
         for var J := 0 to LArtifacts.Count - 1 do
           LRegistration.Artifacts.Add(LArtifacts.Items[J].Value);
+      var LHelpFiles := LObject.GetValue<TJSONArray>('helpFiles');
+      if Assigned(LHelpFiles) then
+        for var J := 0 to LHelpFiles.Count - 1 do
+          LRegistration.HelpFiles.Add(LHelpFiles.Items[J].Value);
       Result.Add(LRegistration);
     end;
   finally
@@ -366,6 +375,10 @@ begin
       for var LArtifact in LRegistration.Artifacts do
         LArtifacts.Add(LArtifact);
       LObject.AddPair('artifacts', LArtifacts);
+      var LHelpFiles := TJSONArray.Create;
+      for var LHelpFile in LRegistration.HelpFiles do
+        LHelpFiles.Add(LHelpFile);
+      LObject.AddPair('helpFiles', LHelpFiles);
       LItems.AddElement(LObject);
     end;
     LRoot.AddPair('registrations', LItems);
@@ -453,6 +466,15 @@ begin
     ARegistration.DebugDcuPath, ASnapshots);
   WritePathValue(AStore, 'Environment', 'Path',
     ARegistration.RuntimePath, ASnapshots);
+  for var LHelpFile in ARegistration.HelpFiles do
+  begin
+    var LHelpKey := 'Software\Embarcadero\BDS\' +
+      ARegistration.Compiler + '\Help\HtmlHelp1Files';
+    var LHelpName := ARegistration.OwnerPackage + ':' +
+      TPath.GetFileName(LHelpFile);
+    TakeSnapshot(AStore, LHelpKey, LHelpName, ASnapshots);
+    AStore.WriteValue(LHelpKey, LHelpName, TPath.GetFullPath(LHelpFile));
+  end;
   TakeSnapshot(AStore, LIDEPackageKey, ARegistration.BplPath, ASnapshots);
   AStore.DeleteValue(LIDEPackageKey, ARegistration.BplPath);
   TakeSnapshot(AStore, LPackageKey, ARegistration.BplPath, ASnapshots);
@@ -486,6 +508,15 @@ begin
     ARegistration.DebugDcuPath, ASnapshots);
   RemovePathValue(AStore, 'Environment', 'Path',
     ARegistration.RuntimePath, ASnapshots);
+  for var LHelpFile in ARegistration.HelpFiles do
+  begin
+    var LHelpKey := 'Software\Embarcadero\BDS\' +
+      ARegistration.Compiler + '\Help\HtmlHelp1Files';
+    var LHelpName := ARegistration.OwnerPackage + ':' +
+      TPath.GetFileName(LHelpFile);
+    TakeSnapshot(AStore, LHelpKey, LHelpName, ASnapshots);
+    AStore.DeleteValue(LHelpKey, LHelpName);
+  end;
   TakeSnapshot(AStore, LPackageKey, ARegistration.BplPath, ASnapshots);
   AStore.DeleteValue(LPackageKey, ARegistration.BplPath);
   TakeSnapshot(AStore, LIDEPackageKey, ARegistration.BplPath, ASnapshots);
@@ -665,6 +696,15 @@ begin
           LRegistration.BplPath, LSnapshots);
         FStore.DeleteValue(IDEPackageKey(LRegistration),
           LRegistration.BplPath);
+        for var LHelpFile in LRegistration.HelpFiles do
+        begin
+          var LHelpKey := 'Software\Embarcadero\BDS\' +
+            LRegistration.Compiler + '\Help\HtmlHelp1Files';
+          var LHelpName := LRegistration.OwnerPackage + ':' +
+            TPath.GetFileName(LHelpFile);
+          TakeSnapshot(FStore, LHelpKey, LHelpName, LSnapshots);
+          FStore.DeleteValue(LHelpKey, LHelpName);
+        end;
         LInventory.Delete(I);
         Inc(Result);
       end;
@@ -726,6 +766,17 @@ begin
        ContainsPath(LValue, ARegistration.RuntimePath))) and
     FStore.TryRead(PackageKey(ARegistration), ARegistration.BplPath,
       LValue) and SameText(LValue, ARegistration.Description);
+  if Result then
+    for var LHelpFile in ARegistration.HelpFiles do
+    begin
+      var LHelpKey := 'Software\Embarcadero\BDS\' +
+        ARegistration.Compiler + '\Help\HtmlHelp1Files';
+      var LHelpName := ARegistration.OwnerPackage + ':' +
+        TPath.GetFileName(LHelpFile);
+      if not FStore.TryRead(LHelpKey, LHelpName, LValue) or
+         not SameText(LValue, TPath.GetFullPath(LHelpFile)) then
+        Exit(False);
+    end;
 end;
 
 function TBoss4DIDERegistrationService.Repair: Integer;

@@ -1749,6 +1749,7 @@ begin
   LRegistration := TBoss4DIDERegistration.Create;
   try
     LRegistration.PackageName := 'Sample';
+    LRegistration.OwnerPackage := 'SampleProduct';
     LRegistration.Compiler := '37.0';
     LRegistration.Platform := 'Win32';
     LRegistration.BplPath := 'C:\artifacts\SampleDesign.bpl';
@@ -1757,6 +1758,7 @@ begin
     LRegistration.BrowsingPath := 'C:\sources';
     LRegistration.DebugDcuPath := 'C:\artifacts\debug-dcu';
     LRegistration.RuntimePath := 'C:\artifacts\bpl';
+    LRegistration.HelpFiles.Add('C:\artifacts\help\Sample.chm');
     LService.RegisterTarget(LRegistration);
 
     LLibraryKey := 'Software\Embarcadero\BDS\37.0\Library\Win32';
@@ -1764,6 +1766,9 @@ begin
     LStore.DeleteValue(LLibraryKey, 'Search Path');
     LStore.DeleteValue(LPackageKey, LRegistration.BplPath);
     LStore.DeleteValue('Environment', 'Path');
+    LStore.DeleteValue(
+      'Software\Embarcadero\BDS\37.0\Help\HtmlHelp1Files',
+      'SampleProduct:Sample.chm');
 
     Assert.AreEqual<Integer>(1, Length(LService.FindDrift));
     Assert.AreEqual<Integer>(1, LService.Repair);
@@ -1774,6 +1779,10 @@ begin
       LStore.GetValue(LPackageKey, LRegistration.BplPath));
     Assert.AreEqual('C:\artifacts\bpl',
       LStore.GetValue('Environment', 'Path'));
+    Assert.AreEqual('C:\artifacts\help\Sample.chm',
+      LStore.GetValue(
+        'Software\Embarcadero\BDS\37.0\Help\HtmlHelp1Files',
+        'SampleProduct:Sample.chm'));
   finally
     LRegistration.Free;
     LService.Free;
