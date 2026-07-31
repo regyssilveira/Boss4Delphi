@@ -146,6 +146,8 @@ function TBoss4DIDEProfileApplication.Install(
   const AConflictPolicy: TBoss4DIDEConflictPolicy;
   const AIDEOpenPolicy: TBoss4DIDEOpenPolicy):
   TBoss4DIDEProfileOperationSummary;
+var
+  LRegistrationService: TBoss4DIDERegistrationService;
 begin
   Result := Default(TBoss4DIDEProfileOperationSummary);
   var LProfile := FProfiles.Get(AProfileId);
@@ -165,7 +167,7 @@ begin
         else
           LLock := TBoss4DLock.Create;
         try
-          var LRegistrationService := FRegistrationFactory(LProfile);
+          LRegistrationService := FRegistrationFactory(LProfile);
           try
             var LCommand := TBoss4DBuildCommand.Create(
               FCompiler, FLogger, nil, FBuildInventory,

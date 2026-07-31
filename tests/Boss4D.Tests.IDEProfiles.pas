@@ -212,8 +212,10 @@ begin
 end;
 
 procedure TTestsIDEProfiles.TestRemoveRejectsProfileWithInstalledPackages;
+var
+  LService: TBoss4DIDEProfileService;
 begin
-  var LService := TBoss4DIDEProfileService.Create(
+  LService := TBoss4DIDEProfileService.Create(
     TBoss4DIDEProfileStore(FStore),
     TPath.Combine(FDirectory, 'data'));
   try
@@ -241,8 +243,10 @@ begin
 end;
 
 procedure TTestsIDEProfiles.TestConfigureTargetPersistsProfileDefaults;
+var
+  LService: TBoss4DIDEProfileService;
 begin
-  var LService := TBoss4DIDEProfileService.Create(
+  LService := TBoss4DIDEProfileService.Create(
     TBoss4DIDEProfileStore(FStore),
     TPath.Combine(FDirectory, 'data'));
   try

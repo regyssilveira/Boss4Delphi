@@ -80,6 +80,7 @@ procedure ValidateMatrix(const AMatrix: TBoss4DBuildMatrix);
 var
   LSeenProjects: TDictionary<string, Boolean>;
   LProjectsByPath: TDictionary<string, TBoss4DBuildProject>;
+  LDependency: TBoss4DBuildProject;
 begin
   if AMatrix.Compilers.Count = 0 then
     raise EArgumentException.Create(
@@ -160,7 +161,7 @@ begin
       if LProject.Role = TBoss4DBuildProjectRole.RuntimePackage then
         for var LDependencyPath in LProject.DependsOn do
         begin
-          var LDependency: TBoss4DBuildProject;
+          LDependency := nil;
           if LProjectsByPath.TryGetValue(
             LDependencyPath.ToLower, LDependency) and
              (LDependency.Role =

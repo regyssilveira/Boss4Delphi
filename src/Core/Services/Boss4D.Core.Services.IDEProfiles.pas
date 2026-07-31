@@ -18,7 +18,6 @@ type
     constructor Create(const APath: string);
     function Load: TObjectList<TBoss4DIDEProfile>;
     procedure Save(const AProfiles: TObjectList<TBoss4DIDEProfile>);
-    property Path: string read FPath;
   end;
 
   TBoss4DIDELaunchHandler = reference to procedure(
@@ -507,7 +506,7 @@ begin
       LProfiles.Add(LImported);
       LImported := nil;
       FStore.Save(LProfiles);
-      Result := LProfiles[LProfiles.Count - 1].Clone;
+      Result := LProfiles.Last.Clone;
     finally
       LProfiles.Free;
     end;
