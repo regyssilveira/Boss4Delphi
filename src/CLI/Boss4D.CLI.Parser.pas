@@ -19,6 +19,8 @@ type
   TBoss4DIDEUnregisterHandler = reference to function(
     const APackageName, ACompiler, APlatform: string): Integer;
   TBoss4DIDERepairHandler = reference to function: Integer;
+  TBoss4DIDEUninstallHandler = reference to function(
+    const AOwnerPackage: string): Integer;
 
   TBoss4DParserRuntime = record
   private
@@ -26,11 +28,14 @@ type
     FRegistrationHandler: TBoss4DIDERegistrationHandler;
     FUnregisterHandler: TBoss4DIDEUnregisterHandler;
     FRepairHandler: TBoss4DIDERepairHandler;
+    FUninstallHandler: TBoss4DIDEUninstallHandler;
   public
     class function Create(const ACompiler: IBoss4DCompiler;
       const ARegistrationHandler: TBoss4DIDERegistrationHandler;
       const AUnregisterHandler: TBoss4DIDEUnregisterHandler;
-      const ARepairHandler: TBoss4DIDERepairHandler): TBoss4DParserRuntime;
+      const ARepairHandler: TBoss4DIDERepairHandler;
+      const AUninstallHandler: TBoss4DIDEUninstallHandler = nil):
+      TBoss4DParserRuntime;
       static;
     property Compiler: IBoss4DCompiler read FCompiler;
     property RegistrationHandler: TBoss4DIDERegistrationHandler
@@ -38,6 +43,8 @@ type
     property UnregisterHandler: TBoss4DIDEUnregisterHandler
       read FUnregisterHandler;
     property RepairHandler: TBoss4DIDERepairHandler read FRepairHandler;
+    property UninstallHandler: TBoss4DIDEUninstallHandler
+      read FUninstallHandler;
   end;
 
   TBoss4DSbomCommandOptions = record
@@ -65,6 +72,7 @@ type
     FRegistrationHandler: TBoss4DIDERegistrationHandler;
     FUnregisterHandler: TBoss4DIDEUnregisterHandler;
     FRepairHandler: TBoss4DIDERepairHandler;
+    FUninstallHandler: TBoss4DIDEUninstallHandler;
 
     procedure ShowHelp;
     procedure ShowVersion;
@@ -165,13 +173,16 @@ uses
 class function TBoss4DParserRuntime.Create(const ACompiler: IBoss4DCompiler;
   const ARegistrationHandler: TBoss4DIDERegistrationHandler;
   const AUnregisterHandler: TBoss4DIDEUnregisterHandler;
-  const ARepairHandler: TBoss4DIDERepairHandler): TBoss4DParserRuntime;
+  const ARepairHandler: TBoss4DIDERepairHandler;
+  const AUninstallHandler: TBoss4DIDEUninstallHandler):
+  TBoss4DParserRuntime;
 begin
   Result := Default(TBoss4DParserRuntime);
   Result.FCompiler := ACompiler;
   Result.FRegistrationHandler := ARegistrationHandler;
   Result.FUnregisterHandler := AUnregisterHandler;
   Result.FRepairHandler := ARepairHandler;
+  Result.FUninstallHandler := AUninstallHandler;
 end;
 
 constructor TBoss4DCommandLineParser.Create(
@@ -212,6 +223,7 @@ begin
   FRegistrationHandler := ARuntime.RegistrationHandler;
   FUnregisterHandler := ARuntime.UnregisterHandler;
   FRepairHandler := ARuntime.RepairHandler;
+  FUninstallHandler := ARuntime.UninstallHandler;
 end;
 
 procedure TBoss4DCommandLineParser.ShowHelp;
@@ -265,7 +277,8 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  spec --detect [--compiler <versao>] Detecta projetos e gera buildMatrix.');
   FLogger.Log(TBoss4DLogLevel.Info, '  build                Compila a matriz declarada.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --compiler, --platform, --configuration, --jobs, --force, --full, --explain, --register, --all-installed, --affected, --with-dependents.');
-  FLogger.Log(TBoss4DLogLevel.Info, '  ide unregister <pacote> --compiler <versao> --platform <Win32|Win64>');
+  FLogger.Log(TBoss4DLogLevel.Info, '  ide unregister <bpl> --compiler <versao> --platform <Win32|Win64>');
+  FLogger.Log(TBoss4DLogLevel.Info, '  ide uninstall <pacote> Remove todos os targets gerenciados do pacote.');
   FLogger.Log(TBoss4DLogLevel.Info, '  ide repair           Repara registros da IDE a partir do inventario.');
   FLogger.Log(TBoss4DLogLevel.Info, '  help, -h, --help     Exibe este menu de ajuda.');
   FLogger.Log(TBoss4DLogLevel.Info, '');
@@ -389,6 +402,44 @@ begin
       end;
       FLogger.Log(TBoss4DLogLevel.Info,
         'Registros IDE reparados: %d.', [LCount]);
+      Exit;
+    end;
+
+    if SameText(AArgs[1], 'uninstall') then
+    begin
+      if Length(AArgs) <> 3 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide uninstall <pacote>.');
+      var LInventory := TBoss4DBuildInventory.Create(TPath.Combine(
+        GetBossHome, 'build-inventory.json'));
+      try
+        LInventory.Load;
+        if LInventory.Contains(AArgs[2]) then
+        begin
+          var LDependents := LInventory.DependentsOf(AArgs[2]);
+          if Length(LDependents) > 0 then
+            raise EInvalidOpException.CreateFmt(
+              'Nao e possivel remover %s; dependentes instalados: %s.',
+              [AArgs[2], string.Join(', ', LDependents)]);
+        end;
+        if Assigned(FUninstallHandler) then
+          LCount := FUninstallHandler(AArgs[2])
+        else
+        begin
+          LIDEIntegration := TBoss4DIDEIntegrationService.Create(
+            FRegistry, FLogger);
+          LCount := LIDEIntegration.UninstallPackage(AArgs[2]);
+        end;
+        if LInventory.Contains(AArgs[2]) then
+        begin
+          LInventory.RemovePackage(AArgs[2]);
+          LInventory.Save;
+        end;
+      finally
+        LInventory.Free;
+      end;
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Pacote removido de todas as IDEs: %d registros.', [LCount]);
       Exit;
     end;
 

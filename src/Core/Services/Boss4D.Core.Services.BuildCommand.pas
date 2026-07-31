@@ -263,6 +263,7 @@ begin
               try
                 LRegistration.PackageName :=
                   ChangeFileExt(ExtractFileName(LBplFile), '');
+                LRegistration.OwnerPackage := APackage.Name;
                 LRegistration.Compiler := LTarget.Compiler;
                 LRegistration.Platform := LTarget.Platform;
                 LRegistration.BplPath := LBplFile;

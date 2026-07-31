@@ -255,8 +255,14 @@ IDE lifecycle commands are deliberately exact:
 
 ```console
 boss4d ide unregister ComponentDesign370 --compiler d13 --platform Win32
+boss4d ide uninstall Component
 boss4d ide repair
 ```
+
+`ide unregister` removes one exact Delphi package target. `ide uninstall`
+removes every managed compiler/platform target owned by the product, deletes
+its global build-inventory entry, and refuses the operation while installed
+consumers still depend on that product.
 
 ## Doctor and troubleshooting
 

@@ -1485,6 +1485,7 @@ var
   LCompiler: string;
   LPlatform: string;
   LRepairCalls: Integer;
+  LUninstallPackage: string;
 begin
   LLogger := TTestLogger.Create;
   LPackageRepo := TBoss4DPackageJsonRepository.Create;
@@ -1510,6 +1511,11 @@ begin
       begin
         Inc(LRepairCalls);
         Result := 2;
+      end,
+      function(const AOwnerPackage: string): Integer
+      begin
+        LUninstallPackage := AOwnerPackage;
+        Result := 3;
       end));
   try
     LParser.ParseAndExecute(TArray<string>.Create(
@@ -1523,6 +1529,13 @@ begin
     Assert.AreEqual(1, LRepairCalls);
     Assert.IsTrue(LLogger.LastLogMessage.Contains(
       'Registros IDE reparados: 2.'));
+
+    LPackageName := 'owner-' + TGUID.NewGuid.ToString;
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'ide', 'uninstall', LPackageName));
+    Assert.AreEqual<string>(LPackageName, LUninstallPackage);
+    Assert.IsTrue(LLogger.LastLogMessage.Contains(
+      'Pacote removido de todas as IDEs: 3 registros.'));
 
     Assert.WillRaise(
       procedure
@@ -1794,6 +1807,7 @@ begin
     LRegistration := TBoss4DIDERegistration.Create;
     try
       LRegistration.PackageName := 'Component';
+      LRegistration.OwnerPackage := 'Product';
       LRegistration.Compiler := '37.0';
       LRegistration.Platform := 'Win32';
       LRegistration.BplPath := LManaged;
@@ -1803,8 +1817,7 @@ begin
     finally
       LRegistration.Free;
     end;
-    Assert.AreEqual(1, LService.Unregister(
-      'Component', '37.0', 'Win32'));
+    Assert.AreEqual(1, LService.Uninstall('Product'));
     Assert.IsFalse(TFile.Exists(LManaged));
     Assert.IsTrue(TFile.Exists(LExternal),
       'Unmanaged files must never be removed.');

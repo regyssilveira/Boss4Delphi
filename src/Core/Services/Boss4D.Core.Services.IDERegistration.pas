@@ -31,6 +31,7 @@ type
   TBoss4DIDERegistration = class
   private
     FPackageName: string;
+    FOwnerPackage: string;
     FCompiler: string;
     FPlatform: string;
     FBplPath: string;
@@ -46,6 +47,7 @@ type
     function Identity: string;
     function Clone: TBoss4DIDERegistration;
     property PackageName: string read FPackageName write FPackageName;
+    property OwnerPackage: string read FOwnerPackage write FOwnerPackage;
     property Compiler: string read FCompiler write FCompiler;
     property Platform: string read FPlatform write FPlatform;
     property BplPath: string read FBplPath write FBplPath;
@@ -70,12 +72,15 @@ type
     procedure SaveInventory(
       const AInventory: TObjectList<TBoss4DIDERegistration>);
     function IsHealthy(const ARegistration: TBoss4DIDERegistration): Boolean;
+    function RemoveMatching(const AName, ACompiler, APlatform: string;
+      const AByOwner: Boolean): Integer;
   public
     constructor Create(const AStore: IBoss4DIDERegistryStore;
       const AInventoryPath: string);
     procedure RegisterTarget(const ARegistration: TBoss4DIDERegistration);
     function Unregister(const APackageName, ACompiler,
       APlatform: string): Integer;
+    function Uninstall(const AOwnerPackage: string): Integer;
     function Repair: Integer;
     function FindDrift: TArray<string>;
   end;
@@ -175,6 +180,7 @@ function TBoss4DIDERegistration.Clone: TBoss4DIDERegistration;
 begin
   Result := TBoss4DIDERegistration.Create;
   Result.PackageName := FPackageName;
+  Result.OwnerPackage := FOwnerPackage;
   Result.Compiler := FCompiler;
   Result.Platform := FPlatform;
   Result.BplPath := FBplPath;
@@ -299,6 +305,8 @@ begin
       var LObject := TJSONObject(LItems[I]);
       var LRegistration := TBoss4DIDERegistration.Create;
       LRegistration.PackageName := LObject.GetValue<string>('package', '');
+      LRegistration.OwnerPackage := LObject.GetValue<string>(
+        'ownerPackage', '');
       LRegistration.Compiler := LObject.GetValue<string>('compiler', '');
       LRegistration.Platform := LObject.GetValue<string>('platform', '');
       LRegistration.BplPath := LObject.GetValue<string>('bpl', '');
@@ -339,6 +347,7 @@ begin
     begin
       var LObject := TJSONObject.Create;
       LObject.AddPair('package', LRegistration.PackageName);
+      LObject.AddPair('ownerPackage', LRegistration.OwnerPackage);
       LObject.AddPair('compiler', LRegistration.Compiler);
       LObject.AddPair('platform', LRegistration.Platform);
       LObject.AddPair('bpl', LRegistration.BplPath);
@@ -526,8 +535,9 @@ begin
     AStore.WriteValue(AKey, AName, LUpdated);
 end;
 
-function TBoss4DIDERegistrationService.Unregister(
-  const APackageName, ACompiler, APlatform: string): Integer;
+function TBoss4DIDERegistrationService.RemoveMatching(
+  const AName, ACompiler, APlatform: string;
+  const AByOwner: Boolean): Integer;
 var
   LInventory: TObjectList<TBoss4DIDERegistration>;
   LSnapshots: TObjectList<TBoss4DRegistrySnapshot>;
@@ -536,7 +546,11 @@ var
 
   function Selected(const ARegistration: TBoss4DIDERegistration): Boolean;
   begin
-    Result := SameText(ARegistration.PackageName, APackageName) and
+    if AByOwner then
+      Result := SameText(ARegistration.OwnerPackage, AName)
+    else
+      Result := SameText(ARegistration.PackageName, AName);
+    Result := Result and
       (ACompiler.IsEmpty or SameText(ARegistration.Compiler, ACompiler)) and
       (APlatform.IsEmpty or SameText(ARegistration.Platform, APlatform));
   end;
@@ -650,7 +664,7 @@ begin
         end;
         raise EBoss4DIDERegistrationError.CreateFmt(
           'Falha ao desregistrar pacote IDE %s: %s',
-          [APackageName, E.Message]);
+          [AName, E.Message]);
       end;
     end;
     if TDirectory.Exists(LStagingDirectory) then
@@ -660,6 +674,20 @@ begin
     LSnapshots.Free;
     LInventory.Free;
   end;
+end;
+
+function TBoss4DIDERegistrationService.Unregister(
+  const APackageName, ACompiler, APlatform: string): Integer;
+begin
+  Result := RemoveMatching(APackageName, ACompiler, APlatform, False);
+end;
+
+function TBoss4DIDERegistrationService.Uninstall(
+  const AOwnerPackage: string): Integer;
+begin
+  if AOwnerPackage.Trim.IsEmpty then
+    raise EArgumentException.Create('OwnerPackage nao pode ser vazio.');
+  Result := RemoveMatching(AOwnerPackage, '', '', True);
 end;
 
 function TBoss4DIDERegistrationService.IsHealthy(
