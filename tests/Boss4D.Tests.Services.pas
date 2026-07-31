@@ -117,6 +117,10 @@ type
     [Test]
     procedure TestIDERegistrationRollsBackOnFailure;
     [Test]
+    procedure TestIDERegistrationPreviewIsMutationFreeAndIdempotent;
+    [Test]
+    procedure TestIDERegistrationPreviewReportsBlockedConflict;
+    [Test]
     procedure TestIDERegistrationRepairRestoresDrift;
     [Test]
     procedure TestIDERepairRebuildsMissingManagedArtifacts;
@@ -1846,6 +1850,110 @@ begin
       LStore.GetValue(LLibraryKey, 'Search Path'));
     Assert.IsFalse(TFile.Exists(LInventoryPath),
       'Falha transacional nao pode persistir inventario parcial.');
+  finally
+    LRegistration.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDERegistrationPreviewIsMutationFreeAndIdempotent;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LPlan: TBoss4DIDERegistrationPlan;
+  LEnvironmentChange: TBoss4DIDERegistryChange;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'preview-inventory.json'));
+  LRegistration := TBoss4DIDERegistration.Create;
+  try
+    LRegistration.PackageName := 'PreviewDesign';
+    LRegistration.OwnerPackage := 'PreviewProduct';
+    LRegistration.Compiler := '37.0';
+    LRegistration.Platform := 'Win32';
+    LRegistration.BplPath := 'C:\preview\PreviewDesign.bpl';
+    LRegistration.Description := 'Preview design package';
+    LRegistration.SearchPath := 'C:\preview\dcu';
+    LRegistration.RuntimePath := 'C:\preview\bpl';
+    LRegistration.ToolPath := 'C:\preview\tools';
+
+    LPlan := LService.PlanRegistration(LRegistration);
+    try
+      Assert.AreEqual(TBoss4DIDEPlanDisposition.Ready,
+        LPlan.Disposition);
+      Assert.IsFalse(LPlan.IsNoOp);
+      Assert.IsTrue(LPlan.InventoryChangeRequired);
+      Assert.AreEqual<Integer>(3, LPlan.Changes.Count);
+      Assert.AreEqual<Integer>(0, LStore.WriteCount,
+        'Preview nao pode escrever no Registro.');
+      Assert.IsFalse(TFile.Exists(
+        TPath.Combine(FTempDir, 'preview-inventory.json')),
+        'Preview nao pode persistir inventario.');
+      LEnvironmentChange := nil;
+      for var LChange in LPlan.Changes do
+        if SameText(LChange.Key, 'Environment') and
+           SameText(LChange.Name, 'Path') then
+          LEnvironmentChange := LChange;
+      Assert.IsNotNull(LEnvironmentChange);
+      Assert.AreEqual('C:\preview\bpl;C:\preview\tools',
+        LEnvironmentChange.ProposedValue);
+    finally
+      LPlan.Free;
+    end;
+
+    LService.RegisterTarget(LRegistration);
+    var LWriteCount := LStore.WriteCount;
+    LPlan := LService.PlanRegistration(LRegistration);
+    try
+      Assert.IsTrue(LPlan.IsNoOp,
+        'Repetir uma instalacao identica deve produzir preview vazio.');
+      Assert.IsFalse(LPlan.InventoryChangeRequired);
+    finally
+      LPlan.Free;
+    end;
+    LService.RegisterTarget(LRegistration);
+    Assert.AreEqual(LWriteCount, LStore.WriteCount,
+      'Reinstalacao identica nao pode repetir mutacoes.');
+  finally
+    LRegistration.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDERegistrationPreviewReportsBlockedConflict;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LPlan: TBoss4DIDERegistrationPlan;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'blocked-preview-inventory.json'));
+  LRegistration := TBoss4DIDERegistration.Create;
+  try
+    LStore.SeedValue(
+      'Software\Embarcadero\BDS\37.0\Known Packages',
+      'C:\other\SharedDesign.bpl', 'Other product');
+    LRegistration.PackageName := 'SharedDesign';
+    LRegistration.OwnerPackage := 'CurrentProduct';
+    LRegistration.Compiler := '37.0';
+    LRegistration.Platform := 'Win32';
+    LRegistration.BplPath := 'C:\current\SharedDesign.bpl';
+    LRegistration.ConflictPolicy := TBoss4DIDEConflictPolicy.Fail;
+
+    LPlan := LService.PlanRegistration(LRegistration);
+    try
+      Assert.AreEqual(TBoss4DIDEPlanDisposition.Blocked,
+        LPlan.Disposition);
+      Assert.AreEqual<Integer>(1, LPlan.Conflicts.Count);
+      Assert.AreEqual<Integer>(0, LPlan.Changes.Count);
+      Assert.AreEqual<Integer>(0, LStore.WriteCount);
+    finally
+      LPlan.Free;
+    end;
   finally
     LRegistration.Free;
     LService.Free;

@@ -40,6 +40,45 @@ type
   end;
 
   TBoss4DIDEConflictPolicy = (Fail, Warn, Adopt, Replace);
+  TBoss4DIDEPlanDisposition = (Ready, Blocked, Adopted);
+  TBoss4DIDERegistryChangeKind = (WriteValue, DeleteValue);
+
+  TBoss4DIDERegistryChange = class
+  private
+    FKind: TBoss4DIDERegistryChangeKind;
+    FKey: string;
+    FName: string;
+    FCurrentValue: string;
+    FProposedValue: string;
+  public
+    constructor Create(const AKind: TBoss4DIDERegistryChangeKind;
+      const AKey, AName, ACurrentValue, AProposedValue: string);
+    property Kind: TBoss4DIDERegistryChangeKind read FKind;
+    property Key: string read FKey;
+    property Name: string read FName;
+    property CurrentValue: string read FCurrentValue;
+    property ProposedValue: string read FProposedValue;
+  end;
+
+  TBoss4DIDERegistrationPlan = class
+  private
+    FIdentity: string;
+    FDisposition: TBoss4DIDEPlanDisposition;
+    FInventoryChangeRequired: Boolean;
+    FChanges: TObjectList<TBoss4DIDERegistryChange>;
+    FConflicts: TList<TBoss4DIDEPackageConflict>;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    function IsNoOp: Boolean;
+    property Identity: string read FIdentity write FIdentity;
+    property Disposition: TBoss4DIDEPlanDisposition read FDisposition
+      write FDisposition;
+    property InventoryChangeRequired: Boolean
+      read FInventoryChangeRequired write FInventoryChangeRequired;
+    property Changes: TObjectList<TBoss4DIDERegistryChange> read FChanges;
+    property Conflicts: TList<TBoss4DIDEPackageConflict> read FConflicts;
+  end;
 
   TBoss4DIDEManagedRegistryValue = class
   private
@@ -129,6 +168,9 @@ type
     function DetectConflicts(
       const ARegistration: TBoss4DIDERegistration):
       TArray<TBoss4DIDEPackageConflict>;
+    function PlanRegistration(
+      const ARegistration: TBoss4DIDERegistration):
+      TBoss4DIDERegistrationPlan;
     function Unregister(const APackageName, ACompiler,
       APlatform: string): Integer;
     function Uninstall(const AOwnerPackage: string): Integer;
@@ -210,6 +252,40 @@ begin
   finally
     LRegistry.Free;
   end;
+end;
+
+constructor TBoss4DIDERegistryChange.Create(
+  const AKind: TBoss4DIDERegistryChangeKind;
+  const AKey, AName, ACurrentValue, AProposedValue: string);
+begin
+  inherited Create;
+  FKind := AKind;
+  FKey := AKey;
+  FName := AName;
+  FCurrentValue := ACurrentValue;
+  FProposedValue := AProposedValue;
+end;
+
+constructor TBoss4DIDERegistrationPlan.Create;
+begin
+  inherited Create;
+  FDisposition := TBoss4DIDEPlanDisposition.Ready;
+  FChanges := TObjectList<TBoss4DIDERegistryChange>.Create(True);
+  FConflicts := TList<TBoss4DIDEPackageConflict>.Create;
+end;
+
+destructor TBoss4DIDERegistrationPlan.Destroy;
+begin
+  FConflicts.Free;
+  FChanges.Free;
+  inherited Destroy;
+end;
+
+function TBoss4DIDERegistrationPlan.IsNoOp: Boolean;
+begin
+  Result := (FDisposition <> TBoss4DIDEPlanDisposition.Blocked) and
+    (FDisposition <> TBoss4DIDEPlanDisposition.Adopted) and
+    not FInventoryChangeRequired and (FChanges.Count = 0);
 end;
 
 constructor TBoss4DIDERegistration.Create;
@@ -367,6 +443,173 @@ begin
     Result := string.Join(';', LParts.ToArray);
   finally
     LParts.Free;
+  end;
+end;
+
+function SameStrings(const ALeft, ARight: TList<string>): Boolean;
+begin
+  if ALeft.Count <> ARight.Count then
+    Exit(False);
+  for var I := 0 to ALeft.Count - 1 do
+    if not SameText(ALeft[I], ARight[I]) then
+      Exit(False);
+  Result := True;
+end;
+
+function SameRegistryValues(
+  const ALeft, ARight: TObjectList<TBoss4DIDEManagedRegistryValue>):
+  Boolean;
+begin
+  if ALeft.Count <> ARight.Count then
+    Exit(False);
+  for var I := 0 to ALeft.Count - 1 do
+    if not SameText(ALeft[I].Key, ARight[I].Key) or
+       not SameText(ALeft[I].Name, ARight[I].Name) or
+       (ALeft[I].Value <> ARight[I].Value) then
+      Exit(False);
+  Result := True;
+end;
+
+function SameRegistration(const ALeft,
+  ARight: TBoss4DIDERegistration): Boolean;
+begin
+  Result := SameText(ALeft.Identity, ARight.Identity) and
+    SameText(ALeft.OwnerPackage, ARight.OwnerPackage) and
+    SameText(ALeft.Configuration, ARight.Configuration) and
+    SameText(ALeft.BplPath, ARight.BplPath) and
+    (ALeft.Description = ARight.Description) and
+    SameText(ALeft.SearchPath, ARight.SearchPath) and
+    SameText(ALeft.BrowsingPath, ARight.BrowsingPath) and
+    SameText(ALeft.DebugDcuPath, ARight.DebugDcuPath) and
+    SameText(ALeft.RuntimePath, ARight.RuntimePath) and
+    SameText(ALeft.ToolPath, ARight.ToolPath) and
+    SameText(ALeft.ArtifactRoot, ARight.ArtifactRoot) and
+    SameStrings(ALeft.Artifacts, ARight.Artifacts) and
+    SameStrings(ALeft.HelpFiles, ARight.HelpFiles) and
+    SameRegistryValues(ALeft.RegistryValues, ARight.RegistryValues);
+end;
+
+function TBoss4DIDERegistrationService.PlanRegistration(
+  const ARegistration: TBoss4DIDERegistration):
+  TBoss4DIDERegistrationPlan;
+var
+  LPlan: TBoss4DIDERegistrationPlan;
+
+  function ReadProjected(const AKey, AName: string;
+    out AValue: string): Boolean;
+  begin
+    for var I := LPlan.Changes.Count - 1 downto 0 do
+      if SameText(LPlan.Changes[I].Key, AKey) and
+         SameText(LPlan.Changes[I].Name, AName) then
+      begin
+        AValue := LPlan.Changes[I].ProposedValue;
+        Exit(LPlan.Changes[I].Kind =
+          TBoss4DIDERegistryChangeKind.WriteValue);
+      end;
+    Result := FStore.TryRead(AKey, AName, AValue);
+  end;
+
+  procedure PlanWrite(const AKey, AName, AValue: string);
+  begin
+    var LCurrent := '';
+    var LExists := FStore.TryRead(AKey, AName, LCurrent);
+    for var I := LPlan.Changes.Count - 1 downto 0 do
+      if SameText(LPlan.Changes[I].Key, AKey) and
+         SameText(LPlan.Changes[I].Name, AName) then
+      begin
+        if LExists and (LCurrent = AValue) then
+          LPlan.Changes.Delete(I)
+        else
+        begin
+          LPlan.Changes[I].FKind :=
+            TBoss4DIDERegistryChangeKind.WriteValue;
+          LPlan.Changes[I].FProposedValue := AValue;
+        end;
+        Exit;
+      end;
+    if LCurrent <> AValue then
+      LPlan.Changes.Add(TBoss4DIDERegistryChange.Create(
+        TBoss4DIDERegistryChangeKind.WriteValue, AKey, AName,
+        LCurrent, AValue));
+  end;
+
+  procedure PlanDelete(const AKey, AName: string);
+  begin
+    var LCurrent := '';
+    if FStore.TryRead(AKey, AName, LCurrent) then
+      LPlan.Changes.Add(TBoss4DIDERegistryChange.Create(
+        TBoss4DIDERegistryChangeKind.DeleteValue, AKey, AName,
+        LCurrent, ''));
+  end;
+
+  procedure PlanPath(const AKey, AName, APath: string);
+  begin
+    if APath.Trim.IsEmpty then
+      Exit;
+    var LCurrent := '';
+    ReadProjected(AKey, AName, LCurrent);
+    PlanWrite(AKey, AName, AddPath(LCurrent, APath));
+  end;
+
+begin
+  Validate(ARegistration);
+  Result := TBoss4DIDERegistrationPlan.Create;
+  LPlan := Result;
+  try
+    Result.Identity := ARegistration.Identity;
+    Result.InventoryChangeRequired := True;
+    var LInventory := LoadInventory;
+    try
+      for var LInstalled in LInventory do
+        if SameRegistration(LInstalled, ARegistration) then
+        begin
+          Result.InventoryChangeRequired := False;
+          Break;
+        end;
+    finally
+      LInventory.Free;
+    end;
+    for var LConflict in DetectConflicts(ARegistration) do
+      Result.Conflicts.Add(LConflict);
+    if Result.Conflicts.Count > 0 then
+      case ARegistration.ConflictPolicy of
+        TBoss4DIDEConflictPolicy.Fail:
+          begin
+            Result.Disposition := TBoss4DIDEPlanDisposition.Blocked;
+            Exit;
+          end;
+        TBoss4DIDEConflictPolicy.Adopt:
+          begin
+            Result.Disposition := TBoss4DIDEPlanDisposition.Adopted;
+            Exit;
+          end;
+      end;
+
+    var LLibraryKey := LibraryKey(ARegistration);
+    PlanPath(LLibraryKey, 'Search Path', ARegistration.SearchPath);
+    PlanPath(LLibraryKey, 'Browsing Path', ARegistration.BrowsingPath);
+    PlanPath(LLibraryKey, 'Debug DCU Path',
+      ARegistration.DebugDcuPath);
+    PlanPath('Environment', 'Path', ARegistration.RuntimePath);
+    PlanPath('Environment', 'Path', ARegistration.ToolPath);
+    for var LHelpFile in ARegistration.HelpFiles do
+      PlanWrite('Software\Embarcadero\BDS\' +
+        ARegistration.Compiler + '\Help\HtmlHelp1Files',
+        ARegistration.OwnerPackage + ':' + TPath.GetFileName(LHelpFile),
+        TPath.GetFullPath(LHelpFile));
+    for var LRegistryValue in ARegistration.RegistryValues do
+      PlanWrite(LRegistryValue.Key, LRegistryValue.Name,
+        LRegistryValue.Value);
+    if ARegistration.ConflictPolicy =
+      TBoss4DIDEConflictPolicy.Replace then
+      for var LConflict in Result.Conflicts do
+        PlanDelete(LConflict.RegistryKey, LConflict.ExistingPath);
+    PlanDelete(IDEPackageKey(ARegistration), ARegistration.BplPath);
+    PlanWrite(PackageKey(ARegistration), ARegistration.BplPath,
+      ARegistration.Description);
+  except
+    Result.Free;
+    raise;
   end;
 end;
 
@@ -768,19 +1011,23 @@ var
   LInventory: TObjectList<TBoss4DIDERegistration>;
   LEffectiveRegistration: TBoss4DIDERegistration;
   LConflicts: TArray<TBoss4DIDEPackageConflict>;
+  LPlan: TBoss4DIDERegistrationPlan;
 begin
-  Validate(ARegistration);
-  LConflicts := DetectConflicts(ARegistration);
-  if Length(LConflicts) > 0 then
-    case ARegistration.ConflictPolicy of
-      TBoss4DIDEConflictPolicy.Fail:
+  LPlan := PlanRegistration(ARegistration);
+  try
+    if LPlan.Disposition = TBoss4DIDEPlanDisposition.Blocked then
         raise EBoss4DIDERegistrationError.CreateFmt(
           'Conflito de pacote IDE: %s ja esta registrado em %s.',
           [TPath.GetFileName(ARegistration.BplPath),
-           LConflicts[0].ExistingPath]);
-      TBoss4DIDEConflictPolicy.Adopt:
-        Exit;
-    end;
+           LPlan.Conflicts[0].ExistingPath]);
+    if LPlan.Disposition = TBoss4DIDEPlanDisposition.Adopted then
+      Exit;
+    if LPlan.IsNoOp then
+      Exit;
+    LConflicts := LPlan.Conflicts.ToArray;
+  finally
+    LPlan.Free;
+  end;
   LSnapshots := TObjectList<TBoss4DRegistrySnapshot>.Create(True);
   LInventory := nil;
   LEffectiveRegistration := ARegistration.Clone;
