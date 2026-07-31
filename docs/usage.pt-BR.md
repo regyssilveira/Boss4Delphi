@@ -768,6 +768,23 @@ O `doctor` também verifica matriz/grafo, toolchains instaladas, paths de
 projeto, colisões de outputs/units e divergência do Registro. Consulte o
 [guia completo da matriz](build-matrix-contract.pt-BR.md) e o
 [guia do ciclo de vida do componente](component-build-and-ide.pt-BR.md).
+
+## 20. Documentação estática de APIs (`doc`)
+
+Gere um site pesquisável usando comentários PascalDoc e XML Doc do projeto e
+de suas dependências instaladas:
+
+```console
+boss4d doc
+boss4d doc --output artifacts/api
+boss4d doc --no-dependencies -o artifacts/project-api
+```
+
+A saída contém um `index.html` independente e um `search-index.json` legível
+por máquina. O diretório padrão é `docs-api`. O comando está disponível no
+Windows/Delphi e Linux/FPC. Consulte o
+[guia completo de documentação estática de APIs](api-documentation.pt-BR.md).
+
 ## Gerenciamento de versões
 
 Liste as versões do Registry, instale uma release imutável compatível ou fixe

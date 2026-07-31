@@ -30,6 +30,7 @@ estado da IDE específico da máquina.
 | Build Multi-Delphi | Detectar packages, selecionar compilador/plataforma/configuração e usar incremental/paralelismo | Identidade incorreta pode misturar DCUs/BPLs incompatíveis | [Fluxos de build Multi-Delphi](use-cases-build-matrix.pt-BR.md) |
 | Ciclo da IDE | Instalar, registrar, atualizar, remover, reparar e recuperar falha de design package | Registro e Library Path afetam a IDE globalmente | [Build de componentes e ciclo da IDE](component-build-and-ide.pt-BR.md) |
 | Linux e automação | Executar FPC/Linux, CI, empacotamento de release, autoatualização e rollback | Automação deve ser determinística e não interativa | [Fluxos Linux, CI, release e atualização](use-cases-operations-release.pt-BR.md) |
+| Referência de APIs | Gerar um site pesquisável para projeto e dependências, consultar offline ou publicar pelo CI | O texto deve ser seguro e representar a árvore restaurada | [Documentação estática de APIs](api-documentation.pt-BR.md) |
 
 ## Níveis de segurança
 
@@ -52,4 +53,5 @@ imutável, faça dry run e preserve as evidências geradas.
 - [Contrato da matriz de build](build-matrix-contract.pt-BR.md)
 - [Política de confiança](trust-policy.pt-BR.md)
 - [Guia de SBOM](sbom.pt-BR.md)
+- [Documentação estática de APIs](api-documentation.pt-BR.md)
 - [Publicação de pacotes](publish.pt-BR.md)

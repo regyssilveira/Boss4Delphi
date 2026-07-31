@@ -135,6 +135,10 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d doctor`, `cache`, `tool`, `plugin`, `getit`, and `license report`
   Covers diagnostics, cache maintenance, global tools, Windows integrations,
   and license reports.
+* `boss4d doc [-o <folder>] [--no-dependencies]`
+  Generates a searchable API site from PascalDoc/XML Doc comments in the
+  project and installed dependencies. See the
+  [static API documentation guide](docs/api-documentation.md).
 * `boss4d spec --detect [--compiler <version>]`
   Detects `.dproj`/`.dpk` files, runtime/design directives, and local package
   dependencies, then persists a deterministic `buildMatrix`.
@@ -209,6 +213,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Immutable Package Format](docs/package-format.md)**: Deterministic `.b4dpkg`, verified installation, OpenPGP/in-toto evidence, source fallback, and compiler/platform variants.
 * **[Legacy Delphi Compatibility](docs/legacy-delphi.md)**: Full modern wizard plus legacy integration profiles for Delphi 10 Seattle/BDS 17.0 and Delphi 10.1 Berlin/BDS 18.0.
 * **[FPC/Linux CLI](docs/posix-cli.md)**: Native Linux build, dependency lifecycle, lock v3, frozen/offline CI, SemVer resolution, and FPCUnit tests.
+* **[Static API Documentation](docs/api-documentation.md)**: Motivation, syntax, supported declarations, safe scanning, CI workflows, and current limits.
 * **[Competitive Positioning](docs/competitive-positioning.md)**: Evidence-based comparison with BOSS, DPM, GetIt, Lazarus OPM, and mature package ecosystems.
 * **[Resolution and Secure Credentials](docs/resolution-and-credentials.md)**: Highest/minimal SemVer policies and native credential storage.
 * **[Conformance and Ecosystem](docs/conformance-and-ecosystem.md)**: Public protocol validation, static registry portal, and deterministic benchmarks.

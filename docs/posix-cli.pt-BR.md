@@ -27,6 +27,7 @@ O host portável oferece:
 - SBOM CycloneDX/SPDX, VEX e auditoria OSV;
 - credenciais seguras, cache, workspaces e ferramentas globais FPC;
 - `dependencies`/`tree`, `why`, `outdated`, `update` transacional e `run`;
+- documentação estática pesquisável de APIs com `doc`;
 - autoatualização verificada, empacotamento determinístico e publicação segura.
 
 ```console
@@ -41,6 +42,7 @@ boss4d why horse
 boss4d outdated
 boss4d update
 boss4d run test
+boss4d doc --output docs-api
 ```
 
 O mapa original de dependências não muda:

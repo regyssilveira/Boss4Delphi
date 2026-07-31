@@ -764,6 +764,23 @@ boss4d ide uninstall Component --cascade
 paths, output/unit collisions, and IDE registry drift. See the
 [complete build matrix guide](build-matrix-contract.md) and the
 [complete component lifecycle guide](component-build-and-ide.md).
+
+## 20. Static API documentation (`doc`)
+
+Generate a searchable site from PascalDoc and XML Doc comments in the project
+and installed dependencies:
+
+```console
+boss4d doc
+boss4d doc --output artifacts/api
+boss4d doc --no-dependencies -o artifacts/project-api
+```
+
+The output contains a standalone `index.html` and a machine-readable
+`search-index.json`. The default directory is `docs-api`. The command is
+available on Windows/Delphi and Linux/FPC. See the
+[complete static API documentation guide](api-documentation.md).
+
 ## Version management
 
 List Registry versions, install a compatible immutable release, or pin the

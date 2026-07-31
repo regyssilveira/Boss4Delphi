@@ -28,6 +28,7 @@ The portable host currently supports:
 - CycloneDX/SPDX SBOM, VEX and OSV audit;
 - secure credentials, cache management, workspaces and global FPC tools;
 - `dependencies`/`tree`, `why`, `outdated`, transactional `update`, and `run`;
+- searchable static API documentation with `doc`;
 - verified self-update, deterministic packaging and secure publication.
 
 ```console
@@ -42,6 +43,7 @@ boss4d why horse
 boss4d outdated
 boss4d update
 boss4d run test
+boss4d doc --output docs-api
 ```
 
 The original dependency map remains unchanged:

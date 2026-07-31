@@ -266,7 +266,7 @@ items form the active backlog.
   - Provide thread-safe interactive, plain, JSON Lines, and quiet progress
     modes for installation and CI automation.
 
-- [ ] **[Story] Automated Documentation Generation (`boss4d doc`)**
+- [x] **[Story] Automated Documentation Generation (`boss4d doc`)**
   - Parse PascalDoc/XML Doc comments across all dependencies and compile a local static website of API references.
 - [x] **[Story] Split Development Dependencies (`devDependencies`)**
   - Support developer-only dependencies (e.g., test/mock suites), enabling clean production deployments using the `--production` flag.

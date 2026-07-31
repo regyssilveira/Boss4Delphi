@@ -120,6 +120,10 @@ cd /d d:\Projetos\BossDelphi
   Consulta vulnerabilidades OSV das revisões travadas, com cache offline e VEX.
 * `boss4d doctor`, `cache`, `tool`, `plugin`, `getit` e `license report`
   Cobre diagnóstico, cache, ferramentas globais, integrações Windows e licenças.
+* `boss4d doc [-o <diretório>] [--no-dependencies]`
+  Gera um site pesquisável usando comentários PascalDoc/XML Doc do projeto e
+  das dependências instaladas. Consulte o
+  [guia de documentação estática de APIs](docs/api-documentation.pt-BR.md).
 * `boss4d spec --detect [--compiler <versão>]`
   Detecta `.dproj`/`.dpk`, diretivas runtime/design e dependências locais,
   persistindo uma `buildMatrix` determinística.
@@ -194,6 +198,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Formato de Pacote Imutável](docs/package-format.pt-BR.md)**: `.b4dpkg` determinístico, instalação verificada, evidências OpenPGP/in-toto, fallback para fontes e variantes por compilador/plataforma.
 * **[Compatibilidade com Delphi Legado](docs/legacy-delphi.pt-BR.md)**: Wizard moderno completo e perfis legados para Delphi 10 Seattle/BDS 17.0 e Delphi 10.1 Berlin/BDS 18.0.
 * **[CLI FPC/Linux](docs/posix-cli.pt-BR.md)**: Build Linux nativo, ciclo de dependências, lock v3, CI frozen/offline, resolução SemVer e testes FPCUnit.
+* **[Documentação Estática de APIs](docs/api-documentation.pt-BR.md)**: Motivação, sintaxe, declarações suportadas, varredura segura, uso em CI e limites atuais.
 * **[Posicionamento competitivo](docs/competitive-positioning.pt-BR.md)**: Comparação baseada em evidências com BOSS, DPM, GetIt, OPM do Lazarus e ecossistemas maduros.
 * **[Resolução e Credenciais Seguras](docs/resolution-and-credentials.pt-BR.md)**: Políticas SemVer highest/minimal e armazenamento nativo de segredos.
 * **[Conformidade e Ecossistema](docs/conformance-and-ecosystem.pt-BR.md)**: Validação pública do protocolo, portal estático e benchmarks determinísticos.

@@ -263,7 +263,7 @@ itens ainda abertos formam o backlog ativo.
   - Disponibilizar `--locked`, `--frozen-lockfile`, `--offline` e um fluxo `ci`
     limpo sem regravar o lock.
 
-- [ ] **[Story] Geração Automatizada de Documentação (`boss4d doc`)**
+- [x] **[Story] Geração Automatizada de Documentação (`boss4d doc`)**
   - Varrer os comentários em PascalDoc/XML Doc de todas as dependências e compilar um site local com a documentação estática de referência das APIs.
 - [x] **[Story] Divisão de Dependências de Desenvolvimento (`devDependencies`)**
   - Suportar dependências exclusivas de desenvolvimento/testes, permitindo instalações limpas de produção com a flag `--production`.

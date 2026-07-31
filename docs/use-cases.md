@@ -30,6 +30,7 @@ trees, or machine-specific IDE state.
 | Multi-Delphi build | Detect packages, select compiler/platform/configuration, use incremental and parallel builds | Wrong target identity can mix incompatible DCUs/BPLs | [Multi-Delphi build workflows](use-cases-build-matrix.md) |
 | IDE lifecycle | Install, register, update, unregister, repair, and recover from a failed design-package change | Registry and Library Path changes affect the IDE globally | [Component build and IDE lifecycle](component-build-and-ide.md) |
 | Linux and automation | Run FPC/Linux, CI validation, release packaging, self-update, and rollback | Automation must be deterministic and non-interactive | [Linux, CI, release, and update workflows](use-cases-operations-release.md) |
+| API reference | Generate one searchable site for project and dependency APIs, work offline, or publish from CI | Generated text must be safe and represent the restored dependency tree | [Static API documentation](api-documentation.md) |
 
 ## Safety levels
 
@@ -52,3 +53,4 @@ For immutable publication, use a dry run and preserve the generated evidence.
 - [Trust policy](trust-policy.md)
 - [SBOM guide](sbom.md)
 - [Package publication](publish.md)
+- [Static API documentation](api-documentation.md)
