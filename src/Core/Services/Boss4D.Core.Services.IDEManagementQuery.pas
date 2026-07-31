@@ -70,6 +70,8 @@ type
       TObjectList<TBoss4DIDEPackageView>;
     function InstallTargets(const AProfileId, APackage: string):
       TObjectList<TBoss4DIDETargetView>;
+    function UninstallTargets(const AProfileId, APackage: string):
+      TObjectList<TBoss4DIDETargetView>;
   end;
 
 implementation
@@ -154,6 +156,27 @@ begin
       'As operacoes de perfil IDE nao foram configuradas.');
   Result := TObjectList<TBoss4DIDETargetView>.Create(True);
   var LPlan := FOperations.PreviewInstall(AProfileId, APackage);
+  try
+    for var LTarget in LPlan.Targets do
+    begin
+      var LView := TBoss4DIDETargetView.Create;
+      LView.Identity := LTarget;
+      Result.Add(LView);
+    end;
+  finally
+    LPlan.Free;
+  end;
+end;
+
+function TBoss4DIDEManagementQuery.UninstallTargets(
+  const AProfileId, APackage: string):
+  TObjectList<TBoss4DIDETargetView>;
+begin
+  if not Assigned(FOperations) then
+    raise EInvalidOpException.Create(
+      'As operacoes de perfil IDE nao foram configuradas.');
+  Result := TObjectList<TBoss4DIDETargetView>.Create(True);
+  var LPlan := FOperations.PreviewUninstall(AProfileId, APackage);
   try
     for var LTarget in LPlan.Targets do
     begin

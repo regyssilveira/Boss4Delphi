@@ -169,6 +169,19 @@ begin
 
       LSummary := LApplication.Repair('isolated');
       Assert.AreEqual<Integer>(0, LSummary.Affected);
+      LQuery := TBoss4DIDEManagementQuery.Create(
+        LProfiles, LBuildInventory, LApplication);
+      try
+        var LTargets := LQuery.UninstallTargets(
+          'isolated', 'profile-component');
+        try
+          Assert.AreEqual<Integer>(1, LTargets.Count);
+        finally
+          LTargets.Free;
+        end;
+      finally
+        LQuery.Free;
+      end;
       LRemovalPlan := LApplication.PreviewUninstall(
         'isolated', 'profile-component');
       try
