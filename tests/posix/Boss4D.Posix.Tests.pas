@@ -203,7 +203,6 @@ uses
   Boss4D.Posix.Documentation;
 
 procedure SaveFixture(const APath, AContent: string); forward;
-function LoadFixture(const APath: string): string; forward;
 
 function TRegistryFetcherMock.Fetch(const ASource: string): string;
 begin
