@@ -403,15 +403,6 @@
                          "sha256":  ""
                      },
                      {
-                         "name":  "horse-multipart",
-                         "repository":  "github.com/regyssilveira/horse-multipart",
-                         "description":  "Multipart form-data and file upload middleware for Horse",
-                         "version":  "",
-                         "license":  "Apache-2.0",
-                         "artifact":  "",
-                         "sha256":  ""
-                     },
-                     {
                          "name":  "horse-helmet",
                          "repository":  "github.com/regyssilveira/horse-helmet",
                          "description":  "HTTP security headers middleware for Horse",

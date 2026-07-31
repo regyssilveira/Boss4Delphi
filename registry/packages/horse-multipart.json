@@ -1,0 +1,22 @@
+{
+    "schemaVersion":  2,
+    "packages":  [
+                     {
+                         "name":  "horse-multipart",
+                         "publisher":  "boss4d",
+                         "repository":  "github.com/regyssilveira/horse-multipart",
+                         "signerFingerprint":  "A91FA178E7A1DE7FB10148C8308C9045E23B0279",
+                         "description":  "Multipart form-data and file upload middleware for Horse",
+                         "license":  "Apache-2.0",
+                         "versions":  [
+                                          {
+                                              "version":  "1.0.0",
+                                              "artifact":  "https://github.com/regyssilveira/horse-multipart/releases/download/v1.0.0/horse-multipart-1.0.0.b4dpkg",
+                                              "sha256":  "368043894e5b45818cca185b99ea14e7c0512a064a4a6045cf4cce21789d956f",
+                                              "signature":  "https://github.com/regyssilveira/horse-multipart/releases/download/v1.0.0/horse-multipart-1.0.0.b4dpkg.asc",
+                                              "provenance":  "https://github.com/regyssilveira/horse-multipart/releases/download/v1.0.0/horse-multipart-1.0.0.b4dpkg.intoto.json"
+                                          }
+                                      ]
+                     }
+                 ]
+}
