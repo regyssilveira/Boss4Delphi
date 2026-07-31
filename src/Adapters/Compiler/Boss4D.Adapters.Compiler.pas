@@ -17,12 +17,15 @@ type
     function ExecuteBatch(const ABatchPath: string; const AWorkingDir: string; out AOutput: string): Boolean;
     function CompileLazarus(const AProjectPath, APlatform: string): Boolean;
     function GetCompilerParameters(
+      const AProjectPath: string;
       const ARootPath: string;
       const ADep: TBoss4DDependency;
       const APlatform, ACompilerVersion, AConfiguration: string
     ): string;
   public
     constructor Create(const ARegistry: IBoss4DRegistryService; const ALogger: IBoss4DLogger);
+    class function BuildCppOutputParameters(const ABinPath,
+      AIntermediatePath, ASearchPath: string): string; static;
 
     function FindRsvarsPath(out ARsvarsPath: string; out APlatform: string;
       const ACompilerVersion: string = ''): Boolean;
@@ -223,6 +226,7 @@ begin
 end;
 
 function TBoss4DDelphiCompilerAdapter.GetCompilerParameters(
+  const AProjectPath: string;
   const ARootPath: string;
   const ADep: TBoss4DDependency;
   const APlatform, ACompilerVersion, AConfiguration: string
@@ -276,14 +280,31 @@ begin
   if not TDirectory.Exists(LDcuPath) then
     TDirectory.CreateDirectory(LDcuPath);
 
-  Result := ' /p:DCC_BplOutput="' + LBplPath + '"' +
-            ' /p:DCC_DcpOutput="' + LDcpPath + '"' +
-            ' /p:DCC_DcuOutput="' + LDcuPath + '"' +
-            ' /p:DCC_ExeOutput="' + LBinPath + '"' +
-            ' /target:Build' +
-            ' /p:config=' + LConfiguration +
-            ' /p:DCC_UseMSBuildExternally=true' +
-            ' /p:platform=' + APlatform + ' ';
+  if SameText(TPath.GetExtension(AProjectPath), '.cbproj') then
+    Result := BuildCppOutputParameters(LBinPath, LDcuPath,
+      BuildSearchPath(ADep, APlatform)) +
+      ' /target:Build /p:config=' + LConfiguration +
+      ' /p:platform=' + APlatform + ' '
+  else
+    Result := ' /p:DCC_BplOutput="' + LBplPath + '"' +
+              ' /p:DCC_DcpOutput="' + LDcpPath + '"' +
+              ' /p:DCC_DcuOutput="' + LDcuPath + '"' +
+              ' /p:DCC_ExeOutput="' + LBinPath + '"' +
+              ' /target:Build' +
+              ' /p:config=' + LConfiguration +
+              ' /p:DCC_UseMSBuildExternally=true' +
+              ' /p:platform=' + APlatform + ' ';
+end;
+
+class function TBoss4DDelphiCompilerAdapter.BuildCppOutputParameters(
+  const ABinPath, AIntermediatePath, ASearchPath: string): string;
+begin
+  Result := ' /p:FinalOutputDir="' + ABinPath + '"' +
+    ' /p:IntermediateOutputDir="' + AIntermediatePath + '"';
+  if not ASearchPath.Trim.IsEmpty then
+    Result := Result + ' /p:IncludePath="' + ASearchPath +
+      ';$(IncludePath)" /p:LibraryPath="' + ASearchPath +
+      ';$(LibraryPath)"';
 end;
 
 function TBoss4DDelphiCompilerAdapter.BuildSearchPath(const ADep: TBoss4DDependency; const APlatform: string = ''): string;
@@ -467,11 +488,16 @@ begin
     LBatchContent.Add('call "' + LRsvarsPath + '"');
     LBatchContent.Add('set PATH=%PATH%;' + LBplPath + ';');
 
+    var LAdditionalSwitches := '';
+    if not SameText(TPath.GetExtension(AProjectPath), '.cbproj') then
+      LAdditionalSwitches := ' /p:DCC_AdditionalSwitches="@' +
+        LCfgPath + '"';
     var LMsbuildCmd := 'msbuild "' + TPath.GetFullPath(AProjectPath) +
                        '" /p:Configuration=' + LConfiguration + ' ' +
-                       GetCompilerParameters(GetModulesDir, ADep, LPlatform,
+                       GetCompilerParameters(AProjectPath, GetModulesDir,
+                         ADep, LPlatform,
                          ACompilerVersion, AConfiguration) +
-                       ' /p:DCC_AdditionalSwitches="@' + LCfgPath + '"';
+                       LAdditionalSwitches;
 
     LBatchContent.Add(LMsbuildCmd + ' > "' + LBuildLog + '" 2>&1');
     LBatchContent.SaveToFile(LBuildBat, TEncoding.UTF8);

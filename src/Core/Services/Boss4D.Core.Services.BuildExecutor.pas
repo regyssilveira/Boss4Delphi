@@ -225,7 +225,15 @@ begin
           end
           else
           begin
-            if not FCompiler.Compile(LProjectPath, ADependency, ALock,
+            if SameText(LTarget.ProjectKind, 'binary') then
+            begin
+              var LBinaryDirectory := TPath.Combine(LTargetRoot,
+                FOLDER_BIN);
+              TDirectory.CreateDirectory(LBinaryDirectory);
+              TFile.Copy(LProjectPath, TPath.Combine(LBinaryDirectory,
+                TPath.GetFileName(LProjectPath)), True);
+            end
+            else if not FCompiler.Compile(LProjectPath, ADependency, ALock,
               LTarget.Platform, LTarget.Compiler,
               LTarget.Configuration) then
               raise Exception.CreateFmt('Falha ao compilar target %s.',

@@ -15,6 +15,8 @@ type
     procedure TestDetectionIsDeterministicAndPreservesLegacyProjects;
     [Test]
     procedure TestDetectionRejectsMissingProjectsAndUnsupportedCompiler;
+    [Test]
+    procedure TestDetectsDelphiAndCppBuilderApplications;
   end;
 
 implementation
@@ -139,6 +141,44 @@ begin
       EArgumentException);
   finally
     LPackage.Free;
+    TDirectory.Delete(LRoot, True);
+  end;
+end;
+
+procedure TTestsBuildSpec.TestDetectsDelphiAndCppBuilderApplications;
+var
+  LRoot: string;
+  LPackage: TBoss4DPackage;
+begin
+  LRoot := TPath.Combine(TPath.GetTempPath,
+    'boss4d_spec_apps_' + TGUID.NewGuid.ToString);
+  TDirectory.CreateDirectory(LRoot);
+  try
+    TFile.WriteAllText(TPath.Combine(LRoot, 'Server.dproj'),
+      '<Project><PropertyGroup><MainSource>Server.dpr</MainSource>' +
+      '</PropertyGroup></Project>', TEncoding.UTF8);
+    TFile.WriteAllText(TPath.Combine(LRoot, 'Server.dpr'),
+      'program Server; begin end.', TEncoding.UTF8);
+    TFile.WriteAllText(TPath.Combine(LRoot, 'Client.cbproj'),
+      '<Project><PropertyGroup><ProjectType>Application</ProjectType>' +
+      '</PropertyGroup></Project>', TEncoding.UTF8);
+    LPackage := TBoss4DPackage.Create;
+    try
+      LPackage.Name := 'mixed-apps';
+      TBoss4DBuildSpecDetector.Detect(LPackage, LRoot, ['d13']);
+      Assert.AreEqual<Integer>(2, LPackage.BuildMatrix.Projects.Count);
+      Assert.AreEqual('Client.cbproj',
+        LPackage.BuildMatrix.Projects[0].Path);
+      Assert.AreEqual('application',
+        LPackage.BuildMatrix.Projects[0].Kind);
+      Assert.AreEqual('Server.dproj',
+        LPackage.BuildMatrix.Projects[1].Path);
+      Assert.AreEqual('application',
+        LPackage.BuildMatrix.Projects[1].Kind);
+    finally
+      LPackage.Free;
+    end;
+  finally
     TDirectory.Delete(LRoot, True);
   end;
 end;

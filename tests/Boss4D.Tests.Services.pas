@@ -99,6 +99,8 @@ type
     [Test]
     procedure TestBuildExecutorCompilesExpandedTargets;
     [Test]
+    procedure TestBuildExecutorInstallsBinaryTargetWithoutCompiler;
+    [Test]
     procedure TestIncrementalBuildStateExplainsRebuildReasons;
     [Test]
     procedure TestIDERegistrationTargetsOneToolchainAndUnregistersCleanly;
@@ -1888,6 +1890,51 @@ begin
       'Unmanaged files must never be removed.');
   finally
     LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestBuildExecutorInstallsBinaryTargetWithoutCompiler;
+var
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+  LDep: TBoss4DDependency;
+  LLock: TBoss4DLock;
+  LCompiler: TCompilerMock;
+  LExecutor: TBoss4DBuildExecutor;
+  LBinaryPath: string;
+  LTargetRoot: string;
+  LOptions: TBoss4DBuildExecutionOptions;
+begin
+  LBinaryPath := TPath.Combine(FTempDir, 'vendor-driver.dll');
+  TFile.WriteAllText(LBinaryPath, 'vendor-binary');
+  LPackage := TBoss4DPackage.Create;
+  LDep := TBoss4DDependency.Create('local/vendor-driver', '1.0.0');
+  LLock := TBoss4DLock.Create;
+  LCompiler := TCompilerMock.Create;
+  LExecutor := TBoss4DBuildExecutor.Create(LCompiler);
+  try
+    LPackage.Name := 'vendor-driver';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win64');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'vendor-driver.dll';
+    LProject.Kind := 'binary';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+    LOptions := TBoss4DBuildExecutionOptions.Create(
+      TBoss4DBuildSelection.All, 'binary-checksum');
+    Assert.AreEqual<Integer>(1, LExecutor.Execute(LPackage, LDep, LLock,
+      FTempDir, LOptions));
+    Assert.AreEqual<Integer>(0, LCompiler.CompiledProjects.Count);
+    LTargetRoot := TBoss4DBuildPaths.TargetRoot(GetModulesDir,
+      LDep.StorageName, '37.0', 'Win64', 'Release');
+    Assert.AreEqual('vendor-binary', TFile.ReadAllText(TPath.Combine(
+      TPath.Combine(LTargetRoot, FOLDER_BIN), 'vendor-driver.dll')));
+  finally
+    LExecutor.Free;
+    LLock.Free;
+    LDep.Free;
+    LPackage.Free;
   end;
 end;
 

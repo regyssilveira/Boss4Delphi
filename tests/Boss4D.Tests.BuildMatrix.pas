@@ -26,6 +26,8 @@ type
     [Test]
     procedure TestMatrixRejectsUnsupportedDesignPlatform;
     [Test]
+    procedure TestCppBuilderUsesNativeMSBuildOutputProperties;
+    [Test]
     procedure TestMatrixExpandsTokensInProjectsAndDependencies;
     [Test]
     procedure TestLegacyManifestExpandsSingleCompatibleTarget;
@@ -70,7 +72,8 @@ uses
   Boss4D.Core.Services.BuildPaths,
   Boss4D.Core.Services.ArtifactCache,
   Boss4D.Core.Services.BuildGraph,
-  Boss4D.Core.Services.BuildScheduler;
+  Boss4D.Core.Services.BuildScheduler,
+  Boss4D.Adapters.Compiler;
 
 procedure TTestsBuildMatrix.TestDelphiConventionsCoverSupportedCompilers;
 var
@@ -556,6 +559,22 @@ begin
   finally
     LPackage.Free;
   end;
+end;
+
+procedure TTestsBuildMatrix.TestCppBuilderUsesNativeMSBuildOutputProperties;
+begin
+  var LParameters :=
+    TBoss4DDelphiCompilerAdapter.BuildCppOutputParameters(
+      'C:\target\bin', 'C:\target\obj', 'C:\deps\include');
+  Assert.IsTrue(LParameters.Contains(
+    '/p:FinalOutputDir="C:\target\bin"'));
+  Assert.IsTrue(LParameters.Contains(
+    '/p:IntermediateOutputDir="C:\target\obj"'));
+  Assert.IsTrue(LParameters.Contains(
+    '/p:IncludePath="C:\deps\include;$(IncludePath)"'));
+  Assert.IsTrue(LParameters.Contains(
+    '/p:LibraryPath="C:\deps\include;$(LibraryPath)"'));
+  Assert.IsFalse(LParameters.Contains('DCC_'));
 end;
 
 procedure TTestsBuildMatrix.TestBuildGraphOrdersDependenciesBeforeConsumers;
