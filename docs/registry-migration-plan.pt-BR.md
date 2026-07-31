@@ -8,17 +8,17 @@ passarem nos checks do pull request do Registry.
 
 ## Ponto de partida
 
-- 52 pacotes legados v1 pesquisáveis;
+- 51 pacotes legados v1 pesquisáveis;
 - 18 responsáveis por repositórios;
 - 16 pacotes no namespace `regyssilveira`, já cadastrado;
 - 10 pacotes no namespace `HashLoad`;
-- 3 pacotes schema v2 assinados e um fingerprint autorizado;
-- 3 pacotes do publisher publicados pelos gates de reprodutibilidade;
-- 13 pacotes do publisher que precisam de release ou correção da tag;
-- saúde: 55 pacotes, 104 avisos de migração e zero erros estruturais.
+- 4 pacotes schema v2 assinados e um fingerprint autorizado;
+- 4 pacotes do publisher publicados pelos gates de reprodutibilidade;
+- 12 pacotes do publisher que precisam de release ou correção da tag;
+- saúde: 55 pacotes, 102 avisos de migração e zero erros estruturais.
 
 O portal gerado do Registry é o painel público do progresso. No momento ele
-informa 3 pacotes verificados, 52 pacotes legados e 5% de migração verificada.
+informa 4 pacotes verificados, 51 pacotes legados e 7% de migração verificada.
 Cada pacote schema v2 aceito com fingerprint autorizado para o publisher
 incrementa essa métrica automaticamente.
 
@@ -58,7 +58,7 @@ do publisher cadastrado:
 |---|---:|---|
 | Boss4Delphi | v1.6.0 | Publicado e verificado ponta a ponta |
 | horse-rate-limit | v1.0.0 | Bloqueado: dependência REST de teste não declarada e unit ausente |
-| horse-compression-v2 | v1.0.0 | Bloqueado: tag declara `2.0.0` no `boss.json` |
+| horse-compression-v2 | v2.0.0 | Publicado; tag e manifesto coerentes, 3/3 testes e instalação verificada aprovados |
 | horse-static | v1.0.0 | Bloqueado: manifesto de testes referencia repositório inexistente |
 | horse-dto | v1.0.0 | Bloqueado: não compila com o Horse 3.2.0 resolvido |
 | horse-rbac | v1.0.0 | Bloqueado: testes não compilam com o Horse 3.2.0 resolvido |
@@ -84,6 +84,11 @@ Registry estejam concluídos.
 assinatura, upload, Registry e instalação verificada. A conformidade do pacote
 sozinha continua insuficiente para os demais candidatos.
 
+O incremento seguinte concluiu o `horse-compression-v2` `v2.0.0`. A tag
+imutável agora corresponde ao manifesto, a suíte DUnitX passa no Delphi 10
+Seattle com Horse 3.2.0 e o pacote assinado instala sem fallback para o código
+fonte.
+
 ### Primeiro lote de publicação
 
 O primeiro lote de publicação foi concluído nesta ordem:
@@ -101,7 +106,7 @@ reutilize a URL de evidência de um pacote em outro.
 ## Onda 2 — pacotes do publisher que precisam de release
 
 `Dext`, `horse-crud` e `horse-sanitize` ainda não possuem tag/release
-publicada. Os dez pacotes bloqueados da Onda 1 também precisam de manifestos,
+publicada. Os nove pacotes bloqueados da Onda 1 também precisam de manifestos,
 testes ou compatibilidade com Horse corrigidos em novas releases imutáveis.
 Antes da migração esses pacotes precisam de tag SemVer exata, testes, assets
 imutáveis e o mesmo fluxo de publicação assinada.

@@ -10,6 +10,7 @@
                  ],
     "sparse":  [
                    "packages/boss4delphi.json",
+                   "packages/horse-compression-v2.json",
                    "packages/horse-multipart.json",
                    "packages/horse-schema-validation.json"
                ],

@@ -367,15 +367,6 @@
                          "sha256":  ""
                      },
                      {
-                         "name":  "horse-compression-v2",
-                         "repository":  "github.com/regyssilveira/horse-compression-v2",
-                         "description":  "Gzip, Deflate and Brotli compression middleware for Horse",
-                         "version":  "",
-                         "license":  "Apache-2.0",
-                         "artifact":  "",
-                         "sha256":  ""
-                     },
-                     {
                          "name":  "horse-static",
                          "repository":  "github.com/regyssilveira/horse-static",
                          "description":  "Static files and streaming middleware for Horse",

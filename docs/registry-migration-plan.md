@@ -8,17 +8,17 @@ request checks.
 
 ## Current baseline
 
-- 52 discoverable legacy v1 packages;
+- 51 discoverable legacy v1 packages;
 - 18 repository owners;
 - 16 packages in the already registered `regyssilveira` namespace;
 - 10 packages in the `HashLoad` namespace;
-- 3 signed schema-v2 packages and one authorized signer fingerprint;
-- 3 publisher-controlled packages published through the reproducibility gates;
-- 13 publisher-controlled packages requiring a release or corrected tag;
-- catalog health: 55 packages, 104 migration warnings, zero structural errors.
+- 4 signed schema-v2 packages and one authorized signer fingerprint;
+- 4 publisher-controlled packages published through the reproducibility gates;
+- 12 publisher-controlled packages requiring a release or corrected tag;
+- catalog health: 55 packages, 102 migration warnings, zero structural errors.
 
 The generated Registry portal is the public progress ledger. It currently
-reports 3 verified packages, 52 legacy packages, and 5% verified migration.
+reports 4 verified packages, 51 legacy packages, and 7% verified migration.
 Each accepted schema-v2 package with an authorized publisher fingerprint
 increments that metric automatically.
 
@@ -57,7 +57,7 @@ registered publisher scope:
 |---|---:|---|
 | Boss4Delphi | v1.6.0 | Published and verified end to end |
 | horse-rate-limit | v1.0.0 | Blocked: undeclared REST test dependency and missing test unit |
-| horse-compression-v2 | v1.0.0 | Blocked: tag declares `2.0.0` in `boss.json` |
+| horse-compression-v2 | v2.0.0 | Published; tag/manifest match, 3/3 tests and verified installation pass |
 | horse-static | v1.0.0 | Blocked: test manifest references a nonexistent repository |
 | horse-dto | v1.0.0 | Blocked: does not compile against resolved Horse 3.2.0 |
 | horse-rbac | v1.0.0 | Blocked: tests do not compile against resolved Horse 3.2.0 |
@@ -82,6 +82,11 @@ OpenPGP signatures, release uploads, and Registry submissions are complete.
 project-test, signing, upload, Registry, and verified-install gates. Package
 conformance alone remains insufficient for the other candidates.
 
+The next publication increment completed `horse-compression-v2` `v2.0.0`.
+Its immutable tag now matches the manifest, its DUnitX suite passes on Delphi
+10 Seattle against Horse 3.2.0, and its signed package installs without source
+fallback.
+
 ### First publication batch
 
 The first publication batch completed in this order:
@@ -99,7 +104,7 @@ Never reuse one package's evidence URL for another package.
 ## Wave 2 — publisher-controlled packages needing a release
 
 `Dext`, `horse-crud`, and `horse-sanitize` have no published tag/release.
-The ten blocked Wave 1 packages additionally need corrected manifests, tests,
+The nine blocked Wave 1 packages additionally need corrected manifests, tests,
 or Horse compatibility in new immutable releases. Before Registry migration
 these packages need an exact SemVer tag, tests, immutable release assets, and
 the same signed publication workflow.

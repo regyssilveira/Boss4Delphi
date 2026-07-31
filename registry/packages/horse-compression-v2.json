@@ -1,0 +1,22 @@
+{
+    "schemaVersion":  2,
+    "packages":  [
+                     {
+                         "name":  "horse-compression-v2",
+                         "publisher":  "boss4d",
+                         "repository":  "github.com/regyssilveira/horse-compression-v2",
+                         "signerFingerprint":  "A91FA178E7A1DE7FB10148C8308C9045E23B0279",
+                         "description":  "High-performance gzip, deflate, and optional Brotli compression middleware for Horse",
+                         "license":  "Apache-2.0",
+                         "versions":  [
+                                          {
+                                              "version":  "2.0.0",
+                                              "artifact":  "https://github.com/regyssilveira/horse-compression-v2/releases/download/v2.0.0/horse-compression-v2-2.0.0.b4dpkg",
+                                              "sha256":  "7b9a575c5ad2dec3d7521701450a7f50c14357bea1bf19b48ea23e3c08f0b660",
+                                              "signature":  "https://github.com/regyssilveira/horse-compression-v2/releases/download/v2.0.0/horse-compression-v2-2.0.0.b4dpkg.asc",
+                                              "provenance":  "https://github.com/regyssilveira/horse-compression-v2/releases/download/v2.0.0/horse-compression-v2-2.0.0.b4dpkg.intoto.json"
+                                          }
+                                      ]
+                     }
+                 ]
+}
