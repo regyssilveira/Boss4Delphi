@@ -17,6 +17,8 @@ type
     procedure TestTimelineMapsOperationAndRecovery;
     [Test]
     procedure TestTimelineRejectsNilOperation;
+    [Test]
+    procedure TestProfileDashboardMapsHealthAndComparesPackages;
   end;
 
 implementation
@@ -29,6 +31,7 @@ uses
   Boss4D.Core.Services.IDEProcessPolicy,
   Boss4D.Core.Services.IDEOperationResult,
   Boss4D.GUI.IDE.Timeline,
+  Boss4D.GUI.IDE.Dashboard,
   Boss4D.GUI.IDE.Presenter;
 
 type
@@ -411,6 +414,46 @@ begin
       TBoss4DGUITimeline.FromOperation(nil);
     end,
     EArgumentNilException);
+end;
+
+procedure TTestsGUIIDEPresenter.TestProfileDashboardMapsHealthAndComparesPackages;
+begin
+  var LProfile := TBoss4DIDEProfileView.Create;
+  var LPackages := TObjectList<TBoss4DIDEPackageView>.Create(True);
+  try
+    LProfile.Id := 'daily';
+    LProfile.Name := 'Daily';
+    LProfile.Compiler := '37.0';
+    LProfile.RegistryBranch := 'Boss4D-daily';
+    LProfile.DefaultPlatform := 'Win64';
+    LProfile.DefaultConfiguration := 'Release';
+    for var LName in TArray<string>.Create('horse', 'dext') do
+    begin
+      var LPackage := TBoss4DIDEPackageView.Create;
+      LPackage.Name := LName;
+      LPackage.Installed := True;
+      LPackages.Add(LPackage);
+    end;
+    var LDaily := TBoss4DGUIProfileDashboard.BuildRow(
+      LProfile, LPackages, TArray<string>.Create('Known Packages'));
+    Assert.AreEqual('Com drift', LDaily.State);
+    Assert.AreEqual<Integer>(2, Length(LDaily.Packages));
+
+    var LReview := LDaily;
+    LReview.Name := 'Review';
+    LReview.Packages := TArray<string>.Create('horse', 'jwt');
+    LReview.Drift := nil;
+    Assert.AreEqual('Saudavel', LReview.State);
+    var LComparison := TBoss4DGUIProfileDashboard.Compare(
+      LDaily, LReview);
+    Assert.AreEqual('dext', LComparison.OnlyLeft[0]);
+    Assert.AreEqual('horse', LComparison.Shared[0]);
+    Assert.AreEqual('jwt', LComparison.OnlyRight[0]);
+    Assert.IsTrue(LComparison.Summary.Contains('Compartilhados'));
+  finally
+    LPackages.Free;
+    LProfile.Free;
+  end;
 end;
 
 initialization

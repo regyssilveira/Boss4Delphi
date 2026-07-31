@@ -98,6 +98,7 @@ uses
   Boss4D.Core.Services.IDEManagementQuery in '..\src\Core\Services\Boss4D.Core.Services.IDEManagementQuery.pas',
   Boss4D.GUI.IDE.Presenter in '..\src\GUI\Boss4D.GUI.IDE.Presenter.pas',
   Boss4D.GUI.IDE.Timeline in '..\src\GUI\Boss4D.GUI.IDE.Timeline.pas',
+  Boss4D.GUI.IDE.Dashboard in '..\src\GUI\Boss4D.GUI.IDE.Dashboard.pas',
   Boss4D.GUI.Catalog.Presenter in '..\src\GUI\Boss4D.GUI.Catalog.Presenter.pas',
   Boss4D.GUI.Install.Presenter in '..\src\GUI\Boss4D.GUI.Install.Presenter.pas',
   Boss4D.GUI.Operation.Presenter in '..\src\GUI\Boss4D.GUI.Operation.Presenter.pas',
