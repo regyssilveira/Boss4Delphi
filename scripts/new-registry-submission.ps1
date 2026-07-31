@@ -11,6 +11,7 @@ param(
   [Parameter(Mandatory)][string]$Provenance,
   [string]$Description = '',
   [string]$License = '',
+  [switch]$AppendVersion,
   [string]$Root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 )
 
@@ -78,8 +79,12 @@ foreach ($prefix in @($publisherEntry[0].repositories)) {
 if (-not $repositoryAllowed) {
   throw "Repository is outside publisher '$Publisher' scope."
 }
-if (Test-Path -LiteralPath $packagePath) {
+$packageExists = Test-Path -LiteralPath $packagePath -PathType Leaf
+if ($packageExists -and -not $AppendVersion) {
   throw "Package metadata already exists: $packagePath"
+}
+if (-not $packageExists -and $AppendVersion) {
+  throw "Cannot append a version because package metadata does not exist: $packagePath"
 }
 
 $index = Read-Json $indexPath
@@ -87,8 +92,11 @@ $sparsePath = "packages/$slug.json"
 $existingSparse = @($index.sparse | ForEach-Object {
   if ($_ -is [string]) { $_ } else { $_.path }
 })
-if ($existingSparse -contains $sparsePath) {
+if (-not $AppendVersion -and ($existingSparse -contains $sparsePath)) {
   throw "Sparse entry already exists: $sparsePath"
+}
+if ($AppendVersion -and ($existingSparse -notcontains $sparsePath)) {
+  throw "Existing package is not referenced by sparse metadata: $sparsePath"
 }
 
 $versionEntry = [ordered]@{
@@ -98,21 +106,44 @@ $versionEntry = [ordered]@{
   signature = $Signature
   provenance = $Provenance
 }
-$packageEntry = [ordered]@{
-  name = $PackageName
-  publisher = $Publisher
-  repository = $Repository
-  signerFingerprint = $SignerFingerprint.ToUpperInvariant()
-  description = $Description
-  license = $License
-  versions = @($versionEntry)
+$originalPackage = ''
+if ($AppendVersion) {
+  $originalPackage = Get-Content -LiteralPath $packagePath -Raw
+  $packageDocument = $originalPackage | ConvertFrom-Json
+  if ($packageDocument.schemaVersion -ne 2 -or
+      @($packageDocument.packages).Count -ne 1) {
+    throw 'Existing package metadata must contain one schema-v2 package.'
+  }
+  $packageEntry = @($packageDocument.packages)[0]
+  if ($packageEntry.name -cne $PackageName -or
+      $packageEntry.publisher -cne $Publisher -or
+      $packageEntry.repository -cne $Repository -or
+      $packageEntry.signerFingerprint -cne
+        $SignerFingerprint.ToUpperInvariant()) {
+    throw 'AppendVersion cannot change package identity, repository, or signer.'
+  }
+  if (@($packageEntry.versions | Where-Object {
+        $_.version -ceq $Version }).Count -ne 0) {
+    throw "Version '$Version' already exists in $packagePath."
+  }
+  $packageEntry.versions = @($packageEntry.versions) +
+    [pscustomobject]$versionEntry
+} else {
+  $packageEntry = [ordered]@{
+    name = $PackageName
+    publisher = $Publisher
+    repository = $Repository
+    signerFingerprint = $SignerFingerprint.ToUpperInvariant()
+    description = $Description
+    license = $License
+    versions = @($versionEntry)
+  }
+  $packageDocument = [ordered]@{
+    schemaVersion = 2
+    packages = @($packageEntry)
+  }
+  $index.sparse = @($existingSparse + $sparsePath | Sort-Object -Unique)
 }
-$packageDocument = [ordered]@{
-  schemaVersion = 2
-  packages = @($packageEntry)
-}
-$newSparse = @($existingSparse + $sparsePath | Sort-Object -Unique)
-$index.sparse = $newSparse
 $packageJson = $packageDocument | ConvertTo-Json -Depth 20
 $indexJson = $index | ConvertTo-Json -Depth 20
 $originalIndex = Get-Content -LiteralPath $indexPath -Raw
@@ -122,7 +153,10 @@ try {
   Write-Utf8 $packagePath $packageJson
   Write-Utf8 $indexPath $indexJson
 } catch {
-  if (Test-Path -LiteralPath $packagePath) {
+  if ($AppendVersion -and $originalPackage) {
+    [IO.File]::WriteAllText($packagePath, $originalPackage,
+      [Text.UTF8Encoding]::new($false))
+  } elseif (Test-Path -LiteralPath $packagePath) {
     Remove-Item -LiteralPath $packagePath -Force
   }
   [IO.File]::WriteAllText($indexPath, $originalIndex,
@@ -130,5 +164,9 @@ try {
   throw
 }
 
-Write-Output "Registry submission created: registry/packages/$slug.json"
-Write-Output "Sparse index updated: registry/index-v2.json"
+if ($AppendVersion) {
+  Write-Output "Registry version appended: $PackageName@$Version"
+} else {
+  Write-Output "Registry submission created: registry/packages/$slug.json"
+  Write-Output "Sparse index updated: registry/index-v2.json"
+}

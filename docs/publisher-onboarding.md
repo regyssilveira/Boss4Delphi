@@ -59,6 +59,25 @@ SemVer, SHA-256, and HTTPS evidence URLs before writing anything. It creates a
 normalized `registry/packages/<name>.json` and updates `index-v2.json`
 together; it refuses to overwrite existing package metadata.
 
+For the next release, repeat the evidence parameters with the same package
+identity and add `-AppendVersion`:
+
+```powershell
+./scripts/new-registry-submission.ps1 `
+  -PackageName MyPackage -Publisher my-publisher `
+  -Repository github.com/owner/my-package `
+  -SignerFingerprint 0123456789ABCDEF0123456789ABCDEF01234567 `
+  -Version 1.1.0 `
+  -Artifact https://github.com/owner/my-package/releases/download/v1.1.0/MyPackage-1.1.0.b4dpkg `
+  -Sha256 <64-hexadecimal-characters> `
+  -Signature https://github.com/owner/my-package/releases/download/v1.1.0/MyPackage-1.1.0.b4dpkg.asc `
+  -Provenance https://github.com/owner/my-package/releases/download/v1.1.0/MyPackage-1.1.0.b4dpkg.intoto.json `
+  -AppendVersion
+```
+
+Append mode preserves every existing version, rejects duplicate SemVer, and
+does not allow package identity, repository, or signer changes.
+
 ## Immutability
 
 Existing version objects cannot be edited or removed. A publisher adds another

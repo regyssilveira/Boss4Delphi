@@ -52,6 +52,41 @@ try {
     -ChangedFiles @('registry/packages/demo-package.json',
       'registry/index-v2.json') -Submitter demo-owner
 
+  New-Item -ItemType Directory -Force `
+    (Join-Path $base 'registry\packages') | Out-Null
+  Copy-Item -LiteralPath $packagePath -Destination `
+    (Join-Path $base 'registry\packages\demo-package.json') -Force
+  Copy-Item -LiteralPath (Join-Path $current 'registry\index-v2.json') `
+    -Destination (Join-Path $base 'registry\index-v2.json') -Force
+  & $generator -Root $current -PackageName 'Demo Package' -Publisher demo `
+    -Repository 'github.com/demo/package' -SignerFingerprint $fingerprint `
+    -Version '1.1.0' -Artifact 'https://example.test/demo-1.1.b4dpkg' `
+    -Sha256 ('C' * 64) -Signature 'https://example.test/demo-1.1.asc' `
+    -Provenance 'https://example.test/demo-1.1.intoto.json' -AppendVersion
+  $appended = Get-Content -LiteralPath $packagePath -Raw | ConvertFrom-Json
+  if (@($appended.packages[0].versions).Count -ne 2 -or
+      $appended.packages[0].versions[0].version -cne '1.0.0') {
+    throw 'AppendVersion did not preserve the existing immutable version.'
+  }
+  & $validator -Root $current -BaseRoot $base `
+    -ChangedFiles 'registry/packages/demo-package.json' -Submitter demo-owner
+
+  Expect-Failure {
+    & $generator -Root $current -PackageName 'Demo Package' -Publisher demo `
+      -Repository 'github.com/demo/package' -SignerFingerprint $fingerprint `
+      -Version '1.1.0' -Artifact 'https://example.test/demo-1.1.b4dpkg' `
+      -Sha256 ('c' * 64) -Signature 'https://example.test/demo-1.1.asc' `
+      -Provenance 'https://example.test/demo-1.1.intoto.json' -AppendVersion
+  } 'already exists'
+
+  Expect-Failure {
+    & $generator -Root $current -PackageName 'Demo Package' -Publisher demo `
+      -Repository 'github.com/demo/renamed' -SignerFingerprint $fingerprint `
+      -Version '1.2.0' -Artifact 'https://example.test/demo-1.2.b4dpkg' `
+      -Sha256 ('d' * 64) -Signature 'https://example.test/demo-1.2.asc' `
+      -Provenance 'https://example.test/demo-1.2.intoto.json' -AppendVersion
+  } 'cannot change package identity'
+
   Expect-Failure {
     & $generator -Root $current -PackageName 'Demo Package' -Publisher demo `
       -Repository 'github.com/demo/package' -SignerFingerprint $fingerprint `

@@ -59,6 +59,25 @@ e URLs HTTPS antes de gravar. Ele cria
 `registry/packages/<nome-normalizado>.json` e atualiza `index-v2.json` em
 conjunto, recusando sobrescrever metadados existentes.
 
+Para a release seguinte, repita as evidências com a mesma identidade e use
+`-AppendVersion`:
+
+```powershell
+./scripts/new-registry-submission.ps1 `
+  -PackageName MeuPacote -Publisher meu-publisher `
+  -Repository github.com/owner/meu-pacote `
+  -SignerFingerprint 0123456789ABCDEF0123456789ABCDEF01234567 `
+  -Version 1.1.0 `
+  -Artifact https://github.com/owner/meu-pacote/releases/download/v1.1.0/MeuPacote-1.1.0.b4dpkg `
+  -Sha256 <64-caracteres-hexadecimais> `
+  -Signature https://github.com/owner/meu-pacote/releases/download/v1.1.0/MeuPacote-1.1.0.b4dpkg.asc `
+  -Provenance https://github.com/owner/meu-pacote/releases/download/v1.1.0/MeuPacote-1.1.0.b4dpkg.intoto.json `
+  -AppendVersion
+```
+
+O modo append preserva todas as versões existentes, rejeita SemVer duplicado e
+não permite trocar identidade, repositório ou signatário do pacote.
+
 ## Imutabilidade
 
 Objetos de versões existentes não podem ser alterados nem removidos. O
