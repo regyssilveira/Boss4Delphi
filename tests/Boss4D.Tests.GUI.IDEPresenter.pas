@@ -30,6 +30,8 @@ type
   public
     Fail: Boolean;
     LastAction: string;
+    LastConflictPolicy: TBoss4DIDEConflictPolicy;
+    LastOpenPolicy: TBoss4DIDEOpenPolicy;
     function Profiles: TObjectList<TBoss4DIDEProfileView>;
     function Packages(const AProfileId: string):
       TObjectList<TBoss4DIDEPackageView>;
@@ -120,6 +122,8 @@ function TBackendMock.Install(const AProfileId, APackage: string;
   const AIDEOpenPolicy: TBoss4DIDEOpenPolicy): Integer;
 begin
   LastAction := 'install:' + AProfileId + ':' + APackage;
+  LastConflictPolicy := AConflictPolicy;
+  LastOpenPolicy := AIDEOpenPolicy;
   Result := 1;
 end;
 
@@ -239,9 +243,13 @@ begin
       LViewObject.Targets[0]);
     LPresenter.PreviewUninstall('horse');
     Assert.AreEqual('HorseDesign.bpl', LViewObject.Targets[0]);
-    LPresenter.Install('horse', TBoss4DIDEConflictPolicy.Fail,
-      TBoss4DIDEOpenPolicy.Fail);
+    LPresenter.Install('horse', TBoss4DIDEConflictPolicy.Replace,
+      TBoss4DIDEOpenPolicy.Defer);
     Assert.AreEqual('install:daily:horse', LBackendObject.LastAction);
+    Assert.AreEqual(TBoss4DIDEConflictPolicy.Replace,
+      LBackendObject.LastConflictPolicy);
+    Assert.AreEqual(TBoss4DIDEOpenPolicy.Defer,
+      LBackendObject.LastOpenPolicy);
     LPresenter.Uninstall('horse');
     Assert.AreEqual('uninstall:daily:horse', LBackendObject.LastAction);
     LPresenter.Repair;

@@ -64,6 +64,10 @@ type
     BtnIDERepair: TButton;
     BtnIDEPreviewRemove: TButton;
     BtnIDERemove: TButton;
+    ComboIDEConflictPolicy: TComboBox;
+    ComboIDEOpenPolicy: TComboBox;
+    LblIDEConflictPolicy: TLabel;
+    LblIDEOpenPolicy: TLabel;
     ListIDETargets: TListBox;
     LblIDEStatus: TLabel;
     PanelLogs: TPanel;
@@ -893,8 +897,30 @@ procedure TFormMain.BtnIDEInstallClick(Sender: TObject);
 begin
   if MessageDlg('Compilar e registrar o package selecionado neste perfil?',
     mtConfirmation, [mbYes, mbNo], 0) = mrYes then
-    FIDEPresenter.Install(SelectedIDEPackage,
-      TBoss4DIDEConflictPolicy.Fail, TBoss4DIDEOpenPolicy.Fail);
+  begin
+    var LConflictPolicy := TBoss4DIDEConflictPolicy.Fail;
+    case ComboIDEConflictPolicy.ItemIndex of
+      1: LConflictPolicy := TBoss4DIDEConflictPolicy.Warn;
+      2: LConflictPolicy := TBoss4DIDEConflictPolicy.Adopt;
+      3: LConflictPolicy := TBoss4DIDEConflictPolicy.Replace;
+    end;
+    var LOpenPolicy := TBoss4DIDEOpenPolicy.Fail;
+    case ComboIDEOpenPolicy.ItemIndex of
+      1: LOpenPolicy := TBoss4DIDEOpenPolicy.Defer;
+      2: LOpenPolicy := TBoss4DIDEOpenPolicy.Force;
+    end;
+    Screen.Cursor := crHourGlass;
+    PanelIDEActions.Enabled := False;
+    try
+      ShowIDEStatus('Compilando e registrando o package...');
+      Vcl.Forms.Application.ProcessMessages;
+      FIDEPresenter.Install(SelectedIDEPackage,
+        LConflictPolicy, LOpenPolicy);
+    finally
+      PanelIDEActions.Enabled := True;
+      Screen.Cursor := crDefault;
+    end;
+  end;
 end;
 
 procedure TFormMain.BtnIDERepairClick(Sender: TObject);

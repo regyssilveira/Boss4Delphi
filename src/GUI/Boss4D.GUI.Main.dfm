@@ -415,15 +415,15 @@ object FormMain: TFormMain
         end
         object PanelIDEActions: TPanel
           Left = 0
-          Top = 325
+          Top = 295
           Width = 689
-          Height = 45
+          Height = 75
           Align = alBottom
           BevelOuter = bvNone
           TabOrder = 1
           object BtnIDEPreviewInstall: TButton
             Left = 8
-            Top = 8
+            Top = 39
             Width = 105
             Height = 28
             Caption = 'Preview instalar'
@@ -432,7 +432,7 @@ object FormMain: TFormMain
           end
           object BtnIDEInstall: TButton
             Left = 119
-            Top = 8
+            Top = 39
             Width = 82
             Height = 28
             Caption = 'Instalar'
@@ -441,7 +441,7 @@ object FormMain: TFormMain
           end
           object BtnIDERepair: TButton
             Left = 207
-            Top = 8
+            Top = 39
             Width = 82
             Height = 28
             Caption = 'Reparar'
@@ -450,7 +450,7 @@ object FormMain: TFormMain
           end
           object BtnIDEPreviewRemove: TButton
             Left = 295
-            Top = 8
+            Top = 39
             Width = 105
             Height = 28
             Caption = 'Preview remover'
@@ -459,12 +459,55 @@ object FormMain: TFormMain
           end
           object BtnIDERemove: TButton
             Left = 406
-            Top = 8
+            Top = 39
             Width = 82
             Height = 28
             Caption = 'Remover'
             TabOrder = 4
             OnClick = BtnIDERemoveClick
+          end
+          object LblIDEConflictPolicy: TLabel
+            Left = 8
+            Top = 11
+            Width = 51
+            Height = 15
+            Caption = 'Conflitos:'
+          end
+          object ComboIDEConflictPolicy: TComboBox
+            Left = 64
+            Top = 7
+            Width = 105
+            Height = 23
+            Style = csDropDownList
+            ItemIndex = 0
+            TabOrder = 5
+            Text = 'Falhar'
+            Items.Strings = (
+              'Falhar'
+              'Avisar'
+              'Adotar'
+              'Substituir')
+          end
+          object LblIDEOpenPolicy: TLabel
+            Left = 184
+            Top = 11
+            Width = 62
+            Height = 15
+            Caption = 'IDE aberta:'
+          end
+          object ComboIDEOpenPolicy: TComboBox
+            Left = 252
+            Top = 7
+            Width = 105
+            Height = 23
+            Style = csDropDownList
+            ItemIndex = 0
+            TabOrder = 6
+            Text = 'Falhar'
+            Items.Strings = (
+              'Falhar'
+              'Adiar'
+              'Forcar')
           end
         end
         object ListIDETargets: TListBox
@@ -481,7 +524,7 @@ object FormMain: TFormMain
           Left = 0
           Top = 72
           Width = 689
-          Height = 253
+          Height = 223
           Align = alClient
           Columns = <
             item
