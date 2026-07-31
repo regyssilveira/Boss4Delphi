@@ -12,7 +12,8 @@ uses
   Boss4D.GUI.IDE.Presenter,
   Boss4D.GUI.Catalog.Presenter,
   Boss4D.GUI.Install.Presenter,
-  Boss4D.GUI.Operation.Presenter;
+  Boss4D.GUI.Operation.Presenter,
+  Boss4D.GUI.Health.Presenter;
 
 type
   TFormMain = class(TForm, IBoss4DIDEManagementView)
@@ -50,7 +51,11 @@ type
     PanelDocTop: TPanel;
     BtnDocCheck: TButton;
     BtnDocFix: TButton;
-    MemoDoctor: TMemo;
+    BtnDocRepairIDE: TButton;
+    BtnDocUndoIDE: TButton;
+    BtnDocOptimizeCache: TButton;
+    LblDocSummary: TLabel;
+    ListDoctorHealth: TListView;
     PanelCacheTop: TPanel;
     BtnCacheClean: TButton;
     BtnCachePrune: TButton;
@@ -111,6 +116,9 @@ type
       Selected: Boolean);
     procedure BtnDocCheckClick(Sender: TObject);
     procedure BtnDocFixClick(Sender: TObject);
+    procedure BtnDocRepairIDEClick(Sender: TObject);
+    procedure BtnDocUndoIDEClick(Sender: TObject);
+    procedure BtnDocOptimizeCacheClick(Sender: TObject);
     procedure BtnCacheCleanClick(Sender: TObject);
     procedure BtnCachePruneClick(Sender: TObject);
     procedure ComboIDEProfilesChange(Sender: TObject);
@@ -160,6 +168,9 @@ type
     procedure FinishGuidedInstall(const ACancelled: Boolean;
       const AOutput, AError, AProjectDirectory: string);
     procedure UpdateOperationUI;
+    procedure RunHealthCheck(const AFix: Boolean);
+    procedure PopulateHealth(const ARows: TArray<TBoss4DGUIHealthRow>;
+      const ASummary: string);
     function FindBoss4DExecutable: string;
     procedure ClearProfiles;
     procedure AddProfile(const AId, AName, ACompiler,
@@ -890,74 +901,111 @@ end;
 
 procedure TFormMain.BtnDocCheckClick(Sender: TObject);
 begin
-  MemoDoctor.Clear;
-  MemoDoctor.Lines.Add('Iniciando diagnostico do ambiente...');
-  TTask.Run(
-    procedure
-      var
-        LLogger: IBoss4DLogger;
-        LRegistry: IBoss4DRegistryService;
-        LService: TBoss4DDoctorService;
-      begin
-        try
-          LLogger := TGUILogger.Create(Self);
-          LRegistry := TBoss4DWindowsRegistryAdapter.Create;
-          LService := TBoss4DDoctorService.Create(LRegistry, LLogger);
-          try
-            LService.Check(False);
-            TThread.Queue(nil,
-              TThreadProcedure(
-                procedure
-                begin
-                  MemoDoctor.Lines.Add('Diagnostico finalizado.');
-                end
-              )
-            );
-          finally
-            LService.Free;
-          end;
-      except
-        on E: Exception do
-          MemoDoctor.Lines.Add('[ERRO] ' + E.Message);
-      end;
-    end
-  );
+  RunHealthCheck(False);
 end;
 
 procedure TFormMain.BtnDocFixClick(Sender: TObject);
 begin
-  MemoDoctor.Clear;
-  MemoDoctor.Lines.Add('Iniciando auto-correcao do ambiente...');
+  RunHealthCheck(True);
+end;
+
+procedure TFormMain.RunHealthCheck(const AFix: Boolean);
+var
+  LFix: Boolean;
+begin
+  LFix := AFix;
+  ListDoctorHealth.Items.Clear;
+  if LFix then
+    LblDocSummary.Caption := 'Aplicando correcoes e verificando...'
+  else
+    LblDocSummary.Caption := 'Verificando ambiente...';
+  BtnDocCheck.Enabled := False;
+  BtnDocFix.Enabled := False;
   TTask.Run(
     procedure
-      var
-        LLogger: IBoss4DLogger;
-        LRegistry: IBoss4DRegistryService;
-        LService: TBoss4DDoctorService;
-      begin
+    var
+      LLogger: IBoss4DLogger;
+      LRegistry: IBoss4DRegistryService;
+      LService: TBoss4DDoctorService;
+      LReport: TBoss4DDoctorReport;
+      LRows: TArray<TBoss4DGUIHealthRow>;
+      LSummary: string;
+      LError: string;
+    begin
+      LError := '';
+      LLogger := TGUILogger.Create(Self);
+      LRegistry := TBoss4DWindowsRegistryAdapter.Create;
+      LService := TBoss4DDoctorService.Create(LRegistry, LLogger);
+      try
         try
-          LLogger := TGUILogger.Create(Self);
-          LRegistry := TBoss4DWindowsRegistryAdapter.Create;
-          LService := TBoss4DDoctorService.Create(LRegistry, LLogger);
+          LReport := LService.Diagnose(LFix);
           try
-            LService.Check(True);
-            TThread.Queue(nil,
-              TThreadProcedure(
-                procedure
-                begin
-                  MemoDoctor.Lines.Add('Auto-correcao finalizada.');
-                end
-              )
-            );
+            LRows := TBoss4DGUIHealthPresenter.BuildRows(LReport);
+            LSummary := TBoss4DGUIHealthPresenter.Summarize(LReport).Text;
           finally
-            LService.Free;
+            LReport.Free;
           end;
-      except
-        on E: Exception do
-          MemoDoctor.Lines.Add('[ERRO] ' + E.Message);
+        except
+          on E: Exception do
+            LError := E.Message;
+        end;
+      finally
+        LService.Free;
       end;
+      TThread.Queue(nil,
+        TThreadProcedure(
+          procedure
+          begin
+            BtnDocCheck.Enabled := True;
+            BtnDocFix.Enabled := True;
+            if LError <> '' then
+            begin
+              LblDocSummary.Caption := 'Falha no diagnostico: ' + LError;
+              LogMessage('[ERRO] ' + LError);
+            end
+            else
+              PopulateHealth(LRows, LSummary);
+          end
+        )
+      );
     end
   );
+end;
+
+procedure TFormMain.PopulateHealth(
+  const ARows: TArray<TBoss4DGUIHealthRow>; const ASummary: string);
+begin
+  ListDoctorHealth.Items.BeginUpdate;
+  try
+    ListDoctorHealth.Items.Clear;
+    for var LRow in ARows do
+    begin
+      var LItem := ListDoctorHealth.Items.Add;
+      LItem.Caption := LRow.Group;
+      LItem.SubItems.Add(LRow.Status);
+      LItem.SubItems.Add(LRow.Code);
+      LItem.SubItems.Add(LRow.Message);
+      LItem.SubItems.Add(LRow.Remediation);
+    end;
+    LblDocSummary.Caption := ASummary;
+  finally
+    ListDoctorHealth.Items.EndUpdate;
+  end;
+end;
+
+procedure TFormMain.BtnDocRepairIDEClick(Sender: TObject);
+begin
+  FIDEPresenter.Repair;
+end;
+
+procedure TFormMain.BtnDocUndoIDEClick(Sender: TObject);
+begin
+  FIDEPresenter.Undo;
+end;
+
+procedure TFormMain.BtnDocOptimizeCacheClick(Sender: TObject);
+begin
+  BtnCachePruneClick(Sender);
 end;
 
 procedure TFormMain.BtnCacheCleanClick(Sender: TObject);

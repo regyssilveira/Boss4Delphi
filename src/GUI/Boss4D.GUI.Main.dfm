@@ -293,38 +293,95 @@ object FormMain: TFormMain
           Left = 0
           Top = 0
           Width = 689
-          Height = 60
+          Height = 88
           Align = alTop
           BevelOuter = bvNone
           TabOrder = 0
           object BtnDocCheck: TButton
             Left = 10
-            Top = 15
-            Width = 150
+            Top = 10
+            Width = 125
             Height = 30
             Caption = 'Rodar Diagnostico'
             TabOrder = 0
             OnClick = BtnDocCheckClick
           end
           object BtnDocFix: TButton
-            Left = 170
-            Top = 15
-            Width = 150
+            Left = 142
+            Top = 10
+            Width = 125
             Height = 30
             Caption = 'Corrigir Ambiente'
             TabOrder = 1
             OnClick = BtnDocFixClick
           end
+          object BtnDocRepairIDE: TButton
+            Left = 274
+            Top = 10
+            Width = 125
+            Height = 30
+            Caption = 'Reparar IDE'
+            TabOrder = 2
+            OnClick = BtnDocRepairIDEClick
+          end
+          object BtnDocUndoIDE: TButton
+            Left = 406
+            Top = 10
+            Width = 125
+            Height = 30
+            Caption = 'Desfazer IDE'
+            TabOrder = 3
+            OnClick = BtnDocUndoIDEClick
+          end
+          object BtnDocOptimizeCache: TButton
+            Left = 538
+            Top = 10
+            Width = 125
+            Height = 30
+            Caption = 'Otimizar Cache'
+            TabOrder = 4
+            OnClick = BtnDocOptimizeCacheClick
+          end
+          object LblDocSummary: TLabel
+            Left = 10
+            Top = 56
+            Width = 167
+            Height = 15
+            Caption = 'Diagnostico ainda nao executado'
+          end
         end
-        object MemoDoctor: TMemo
+        object ListDoctorHealth: TListView
           Left = 0
-          Top = 60
+          Top = 88
           Width = 689
-          Height = 350
+          Height = 322
           Align = alClient
+          Columns = <
+            item
+              Caption = 'Grupo'
+              Width = 90
+            end
+            item
+              Caption = 'Estado'
+              Width = 75
+            end
+            item
+              Caption = 'Codigo'
+              Width = 115
+            end
+            item
+              Caption = 'Diagnostico'
+              Width = 260
+            end
+            item
+              Caption = 'Acao recomendada'
+              Width = 300
+            end>
+          GridLines = True
           ReadOnly = True
-          ScrollBars = ssVertical
+          RowSelect = True
           TabOrder = 1
+          ViewStyle = vsReport
         end
       end
       object TabCache: TTabSheet
