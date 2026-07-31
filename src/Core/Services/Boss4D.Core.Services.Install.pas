@@ -9,6 +9,9 @@ uses
   Boss4D.Core.Services.Resolver;
 
 type
+  TBoss4DIDEInstallHandler = reference to procedure(
+    const APackage: TBoss4DPackage);
+
   TBoss4DInstallOptions = record
     Platform: string;
     Locked: Boolean;
@@ -17,6 +20,9 @@ type
     Production: Boolean;
     Development: Boolean;
     InstallSingle: string;
+    InstallIDEs: Boolean;
+    CIMode: Boolean;
+    RemoteCachePath: string;
     ResolutionStrategy: TBoss4DResolutionStrategy;
   end;
 
@@ -35,6 +41,7 @@ type
     FTrust: TBoss4DPackageTrust;
     FProgressOutput: IBoss4DProgressOutput;
     FProgress: IBoss4DProgressReporter;
+    FIDEInstallHandler: TBoss4DIDEInstallHandler;
 
     procedure ProcessDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock;
       const AProcessedDeps: TList<string>);
@@ -64,7 +71,8 @@ type
       const AGitClient: IBoss4DGitClient;
       const AHttpClient: IBoss4DHttpClient;
       const ACompiler: IBoss4DCompiler;
-      const ALogger: IBoss4DLogger
+      const ALogger: IBoss4DLogger;
+      const AIDEInstallHandler: TBoss4DIDEInstallHandler = nil
     );
 
     destructor Destroy; override;
@@ -84,12 +92,18 @@ uses
   Boss4D.Core.Domain.SemVer, Boss4D.Core.Domain.Consts,
   Boss4D.Core.Domain.Env,
   Boss4D.Adapters.Registry,
-  Boss4D.Core.Services.IDEIntegration, Boss4D.Core.Services.Workspace,
+  Boss4D.Core.Services.IDEIntegration,
+  Boss4D.Core.Services.IDERegistration,
+  Boss4D.Core.Services.Workspace,
   Boss4D.Core.Services.SourceNormalizer,
   Boss4D.Core.Services.LazarusProject,
   Boss4D.Core.Services.Transaction,
   Boss4D.Core.Services.ArtifactCache,
-  Boss4D.Core.Services.Progress;
+  Boss4D.Core.Services.Progress,
+  Boss4D.Core.Services.BuildCommand,
+  Boss4D.Core.Services.BuildInventory,
+  Boss4D.Core.Services.BuildCoordinator,
+  Boss4D.Core.Services.IDEDiscovery;
 
 { TBoss4DInstallService }
 
@@ -99,7 +113,8 @@ constructor TBoss4DInstallService.Create(
   const AGitClient: IBoss4DGitClient;
   const AHttpClient: IBoss4DHttpClient;
   const ACompiler: IBoss4DCompiler;
-  const ALogger: IBoss4DLogger
+  const ALogger: IBoss4DLogger;
+  const AIDEInstallHandler: TBoss4DIDEInstallHandler
 );
 begin
   inherited Create;
@@ -109,6 +124,7 @@ begin
   FHttpClient := AHttpClient;
   FCompiler := ACompiler;
   FLogger := ALogger;
+  FIDEInstallHandler := AIDEInstallHandler;
   FGitCriticalSection := TCriticalSection.Create;
   FGlobalProcessedDeps := TList<string>.Create;
   FProgress := TBoss4DNullProgressReporter.Create;
@@ -523,7 +539,11 @@ begin
   LChecksum := '';
   if ALock.GetInstalled(ADep, LLocked) then
     LChecksum := LLocked.Checksum;
-  LArtifactCache := TBoss4DArtifactCacheService.Create;
+  if FOptions.RemoteCachePath.Trim.IsEmpty then
+    LArtifactCache := TBoss4DArtifactCacheService.Create
+  else
+    LArtifactCache := TBoss4DArtifactCacheService.Create('',
+      TBoss4DFileArtifactCacheBackend.Create(FOptions.RemoteCachePath));
   try
     if LArtifactCache.Restore(ADep, LChecksum, APlatform,
       ACompilerVersion) then
@@ -609,7 +629,13 @@ begin
   LTransaction := TBoss4DProjectTransaction.Create(GetCurrentDir);
   try
     FOptions := AOptions;
-    ExecuteCore(AOptions.InstallSingle, AOptions.Platform);
+    if FOptions.CIMode then
+    begin
+      FOptions.Locked := True;
+      FOptions.CleanModules := True;
+      FOptions.InstallIDEs := False;
+    end;
+    ExecuteCore(FOptions.InstallSingle, FOptions.Platform);
     LTransaction.Commit;
   finally
     FOptions := Default(TBoss4DInstallOptions);
@@ -716,6 +742,8 @@ var
   LSubPkg: TBoss4DPackage;
   LEffectivePlatform: string;
   LEffectiveCompiler: string;
+  LBuildIDEIntegration: TBoss4DIDEIntegrationService;
+  LBuildInventory: TBoss4DBuildInventory;
 
   procedure CaptureRootMetadata;
   begin
@@ -945,6 +973,43 @@ begin
     end;
 
     IntegrateLazarusProjectPaths(LPkg, LEffectivePlatform);
+
+    if FOptions.InstallIDEs and FOptions.InstallSingle.IsEmpty and
+       LPkg.BuildMatrix.IsDeclared then
+    begin
+      if Assigned(FIDEInstallHandler) then
+        FIDEInstallHandler(LPkg)
+      else
+      begin
+      var LRegistry: IBoss4DRegistryService :=
+        TBoss4DWindowsRegistryAdapter.Create;
+      LBuildIDEIntegration := TBoss4DIDEIntegrationService.Create(
+        LRegistry, FLogger);
+      LBuildInventory := TBoss4DBuildInventory.Create(TPath.Combine(
+        GetBossHome, 'build-inventory.json'));
+      try
+        LBuildInventory.Load;
+        var LCoordinator := TBoss4DBuildCoordinator.Create(FCompiler, FLogger,
+          FPackageRepo, FLockRepo,
+          procedure(const ARegistration: TBoss4DIDERegistration)
+          begin
+            LBuildIDEIntegration.RegisterTarget(ARegistration);
+          end,
+          LBuildInventory, TBoss4DRegistryIDEDiscovery.Create(LRegistry));
+        try
+          var LBuildOptions := Default(TBoss4DBuildCommandOptions);
+          LBuildOptions.AllInstalledIDEs := True;
+          LBuildOptions.RegisterTargets := True;
+          LCoordinator.Execute(GetCurrentDir, LBuildOptions);
+        finally
+          LCoordinator.Free;
+        end;
+      finally
+        LBuildInventory.Free;
+        LBuildIDEIntegration.Free;
+      end;
+      end;
+    end;
 
     FLogger.Log(TBoss4DLogLevel.Info, 'Instalacao concluida com sucesso!');
 

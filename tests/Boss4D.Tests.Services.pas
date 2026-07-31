@@ -48,6 +48,8 @@ type
 
     [Test]
     procedure TestInstallService;
+    [Test]
+    procedure TestInstallBuildMatrixTriggersAutomaticIDEInstallation;
 
     [Test]
     procedure TestInstallBranchDependency;
@@ -60,6 +62,8 @@ type
 
     [Test]
     procedure TestLockedOfflineAndCI;
+    [Test]
+    procedure TestCIModeIsolatesIDERegistrationAtServiceBoundary;
 
     [Test]
     procedure TestLockedRejectsManifestDrift;
@@ -91,17 +95,39 @@ type
     [Test]
     procedure TestCompiledTargetCacheRestoresCompleteOutputTree;
     [Test]
+    procedure TestRemoteArtifactCacheVerifiesAndRepairsLocalEntries;
+    [Test]
     procedure TestBuildExecutorCompilesExpandedTargets;
+    [Test]
+    procedure TestBuildExecutorInstallsBinaryTargetWithoutCompiler;
     [Test]
     procedure TestIncrementalBuildStateExplainsRebuildReasons;
     [Test]
     procedure TestIDERegistrationTargetsOneToolchainAndUnregistersCleanly;
     [Test]
+    procedure TestIDEUnregisterPreservesPathsOwnedByAnotherPackage;
+    [Test]
+    procedure TestIDEUnregisterRemovesOnlyManagedArtifacts;
+    [Test]
+    procedure TestIDEUnregisterRestoresArtifactsOnRegistryFailure;
+    [Test]
     procedure TestIDERegistrationAcceptsDelphi10Seattle;
+    [Test]
+    procedure TestIDERegistrationAcceptsModeledLegacyDelphi;
     [Test]
     procedure TestIDERegistrationRollsBackOnFailure;
     [Test]
     procedure TestIDERegistrationRepairRestoresDrift;
+    [Test]
+    procedure TestIDERepairRebuildsMissingManagedArtifacts;
+    [Test]
+    procedure TestIDERegistrationManagesRestrictedRegistryValues;
+    [Test]
+    procedure TestIDERegistrationRejectsRegistryOutsideCompilerScope;
+    [Test]
+    procedure TestIDERegistrationDetectsSameNamedPackageConflict;
+    [Test]
+    procedure TestIDEConflictPoliciesAreExplicitAndReversible;
 
     [Test]
     procedure TestCLICommandLineParser;
@@ -230,6 +256,7 @@ uses
   Boss4D.Core.Services.ArtifactCache,
   Boss4D.Core.Domain.BuildMatrix,
   Boss4D.Core.Services.BuildExecutor,
+  Boss4D.Core.Services.BuildInventory,
   Boss4D.Core.Services.BuildState,
   Boss4D.Core.Services.BuildPaths,
   Boss4D.Core.Services.IDERegistration,
@@ -356,6 +383,51 @@ begin
   finally
     LConfig.Free;
     LConfigService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestInstallBuildMatrixTriggersAutomaticIDEInstallation;
+var
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+  LInstall: TBoss4DInstallService;
+  LOptions: TBoss4DInstallOptions;
+  LTriggered: Integer;
+begin
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'matrix-component';
+    LPackage.Version := '1.0.0';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'Component.dproj';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+    LPackageRepo.Save(LPackage, GetBossFile);
+  finally
+    LPackage.Free;
+  end;
+  LTriggered := 0;
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo,
+    TGitClientMock.Create, THttpClientMock.Create, TCompilerMock.Create,
+    TTestLogger.Create,
+    procedure(const APackage: TBoss4DPackage)
+    begin
+      Inc(LTriggered);
+      Assert.AreEqual<string>('matrix-component', APackage.Name);
+    end);
+  try
+    LOptions := Default(TBoss4DInstallOptions);
+    LOptions.InstallIDEs := True;
+    LInstall.Execute(LOptions);
+    Assert.AreEqual(1, LTriggered);
+  finally
+    LInstall.Free;
   end;
 end;
 
@@ -716,6 +788,12 @@ begin
       'ci deve iniciar por uma arvore modules limpa.');
     Assert.AreEqual(LLockBefore, TFile.ReadAllText(
       TPath.Combine(FTempDir, FILE_PACKAGE_LOCK), TEncoding.UTF8));
+    LStalePath := TPath.Combine(GetModulesDir, 'stale-restore.txt');
+    TFile.WriteAllText(LStalePath, 'stale');
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'restore', '--ci', '--offline'));
+    Assert.IsFalse(TFile.Exists(LStalePath),
+      'restore --ci deve usar o mesmo isolamento e limpeza de ci.');
   finally
     LParser.Free;
     LConfig.Free;
@@ -1432,6 +1510,9 @@ var
   LCompiler: string;
   LPlatform: string;
   LRepairCalls: Integer;
+  LUninstallPackage: string;
+  LUninstalledPackages: TList<string>;
+  LPreviousBossHome: string;
 begin
   LLogger := TTestLogger.Create;
   LPackageRepo := TBoss4DPackageJsonRepository.Create;
@@ -1442,6 +1523,9 @@ begin
     LLogger);
   LConfig := TBoss4DConfigService.Create(LLogger);
   LRepairCalls := 0;
+  LUninstalledPackages := TList<string>.Create;
+  LPreviousBossHome := GetEnvironmentVariable('BOSS_HOME');
+  SetEnvironmentVariable('BOSS_HOME', PChar(FTempDir));
   LParser := TBoss4DCommandLineParser.Create(LLogger, LInit, LInstall,
     LConfig, LPackageRepo, TRegistryMock.Create,
     TBoss4DParserRuntime.Create(nil, nil,
@@ -1457,6 +1541,12 @@ begin
       begin
         Inc(LRepairCalls);
         Result := 2;
+      end,
+      function(const AOwnerPackage: string): Integer
+      begin
+        LUninstallPackage := AOwnerPackage;
+        LUninstalledPackages.Add(AOwnerPackage);
+        Result := 3;
       end));
   try
     LParser.ParseAndExecute(TArray<string>.Create(
@@ -1471,6 +1561,13 @@ begin
     Assert.IsTrue(LLogger.LastLogMessage.Contains(
       'Registros IDE reparados: 2.'));
 
+    LPackageName := 'owner-' + TGUID.NewGuid.ToString;
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'ide', 'uninstall', LPackageName));
+    Assert.IsTrue(SameText(LPackageName, LUninstallPackage));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains(
+      'Pacote removido de todas as IDEs: 3 registros.'));
+
     Assert.WillRaise(
       procedure
       begin
@@ -1478,7 +1575,30 @@ begin
           'ide', 'unregister', 'Component370', '--compiler', 'd13'));
       end,
       EArgumentException);
+
+    var LBuildInventory := TBoss4DBuildInventory.Create(TPath.Combine(
+      FTempDir, 'build-inventory.json'));
+    try
+      LBuildInventory.RegisterPackage('core', TPath.Combine(FTempDir, 'core'),
+        []);
+      LBuildInventory.RegisterPackage('app', TPath.Combine(FTempDir, 'app'),
+        TArray<string>.Create('core'));
+      LBuildInventory.Save;
+    finally
+      LBuildInventory.Free;
+    end;
+    LUninstalledPackages.Clear;
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'ide', 'uninstall', 'core', '--cascade'));
+    Assert.AreEqual<Integer>(2, LUninstalledPackages.Count);
+    Assert.AreEqual<string>('app', LUninstalledPackages[0]);
+    Assert.AreEqual<string>('core', LUninstalledPackages[1]);
   finally
+    if LPreviousBossHome.IsEmpty then
+      SetEnvironmentVariable('BOSS_HOME', nil)
+    else
+      SetEnvironmentVariable('BOSS_HOME', PChar(LPreviousBossHome));
+    LUninstalledPackages.Free;
     LParser.Free;
     LConfig.Free;
     LInstall.Free;
@@ -1653,6 +1773,7 @@ begin
   LRegistration := TBoss4DIDERegistration.Create;
   try
     LRegistration.PackageName := 'Sample';
+    LRegistration.OwnerPackage := 'SampleProduct';
     LRegistration.Compiler := '37.0';
     LRegistration.Platform := 'Win32';
     LRegistration.BplPath := 'C:\artifacts\SampleDesign.bpl';
@@ -1660,12 +1781,18 @@ begin
     LRegistration.SearchPath := 'C:\artifacts\dcu';
     LRegistration.BrowsingPath := 'C:\sources';
     LRegistration.DebugDcuPath := 'C:\artifacts\debug-dcu';
+    LRegistration.RuntimePath := 'C:\artifacts\bpl';
+    LRegistration.HelpFiles.Add('C:\artifacts\help\Sample.chm');
     LService.RegisterTarget(LRegistration);
 
     LLibraryKey := 'Software\Embarcadero\BDS\37.0\Library\Win32';
     LPackageKey := 'Software\Embarcadero\BDS\37.0\Known Packages';
     LStore.DeleteValue(LLibraryKey, 'Search Path');
     LStore.DeleteValue(LPackageKey, LRegistration.BplPath);
+    LStore.DeleteValue('Environment', 'Path');
+    LStore.DeleteValue(
+      'Software\Embarcadero\BDS\37.0\Help\HtmlHelp1Files',
+      'SampleProduct:Sample.chm');
 
     Assert.AreEqual<Integer>(1, Length(LService.FindDrift));
     Assert.AreEqual<Integer>(1, LService.Repair);
@@ -1674,6 +1801,12 @@ begin
       LStore.GetValue(LLibraryKey, 'Search Path'));
     Assert.AreEqual('Sample design package',
       LStore.GetValue(LPackageKey, LRegistration.BplPath));
+    Assert.AreEqual('C:\artifacts\bpl',
+      LStore.GetValue('Environment', 'Path'));
+    Assert.AreEqual('C:\artifacts\help\Sample.chm',
+      LStore.GetValue(
+        'Software\Embarcadero\BDS\37.0\Help\HtmlHelp1Files',
+        'SampleProduct:Sample.chm'));
   finally
     LRegistration.Free;
     LService.Free;
@@ -1715,6 +1848,493 @@ begin
       'Falha transacional nao pode persistir inventario parcial.');
   finally
     LRegistration.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDEUnregisterRemovesOnlyManagedArtifacts;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LRoot: string;
+  LManaged: string;
+  LExternal: string;
+begin
+  LRoot := TPath.Combine(FTempDir, 'managed-target');
+  TDirectory.CreateDirectory(LRoot);
+  LManaged := TPath.Combine(LRoot, 'Component.bpl');
+  LExternal := TPath.Combine(FTempDir, 'user-file.txt');
+  TFile.WriteAllText(LManaged, 'managed');
+  TFile.WriteAllText(LExternal, 'user');
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'artifact-inventory.json'));
+  try
+    LRegistration := TBoss4DIDERegistration.Create;
+    try
+      LRegistration.PackageName := 'Component';
+      LRegistration.OwnerPackage := 'Product';
+      LRegistration.Compiler := '37.0';
+      LRegistration.Platform := 'Win32';
+      LRegistration.BplPath := LManaged;
+      LRegistration.ArtifactRoot := LRoot;
+      LRegistration.Artifacts.Add(LManaged);
+      LService.RegisterTarget(LRegistration);
+    finally
+      LRegistration.Free;
+    end;
+    Assert.AreEqual(1, LService.Uninstall('Product'));
+    Assert.IsFalse(TFile.Exists(LManaged));
+    Assert.IsTrue(TFile.Exists(LExternal),
+      'Unmanaged files must never be removed.');
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestBuildExecutorInstallsBinaryTargetWithoutCompiler;
+var
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+  LDep: TBoss4DDependency;
+  LLock: TBoss4DLock;
+  LCompiler: TCompilerMock;
+  LExecutor: TBoss4DBuildExecutor;
+  LBinaryPath: string;
+  LTargetRoot: string;
+  LOptions: TBoss4DBuildExecutionOptions;
+begin
+  LBinaryPath := TPath.Combine(FTempDir, 'vendor-driver.dll');
+  TFile.WriteAllText(LBinaryPath, 'vendor-binary');
+  LPackage := TBoss4DPackage.Create;
+  LDep := TBoss4DDependency.Create('local/vendor-driver', '1.0.0');
+  LLock := TBoss4DLock.Create;
+  LCompiler := TCompilerMock.Create;
+  LExecutor := TBoss4DBuildExecutor.Create(LCompiler);
+  try
+    LPackage.Name := 'vendor-driver';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win64');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'vendor-driver.dll';
+    LProject.Kind := 'binary';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+    LOptions := TBoss4DBuildExecutionOptions.Create(
+      TBoss4DBuildSelection.All, 'binary-checksum');
+    Assert.AreEqual<Integer>(1, LExecutor.Execute(LPackage, LDep, LLock,
+      FTempDir, LOptions));
+    Assert.AreEqual<Integer>(0, LCompiler.CompiledProjects.Count);
+    LTargetRoot := TBoss4DBuildPaths.TargetRoot(GetModulesDir,
+      LDep.StorageName, '37.0', 'Win64', 'Release');
+    Assert.AreEqual('vendor-binary', TFile.ReadAllText(TPath.Combine(
+      TPath.Combine(LTargetRoot, FOLDER_BIN), 'vendor-driver.dll')));
+  finally
+    LExecutor.Free;
+    LLock.Free;
+    LDep.Free;
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsServices.TestCIModeIsolatesIDERegistrationAtServiceBoundary;
+var
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LPackage: TBoss4DPackage;
+  LLock: TBoss4DLock;
+  LInstall: TBoss4DInstallService;
+  LOptions: TBoss4DInstallOptions;
+  LIDECalls: Integer;
+  LStalePath: string;
+begin
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'ci-isolated-component';
+    LPackage.Version := '1.0.0';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackageRepo.Save(LPackage, GetBossFile);
+  finally
+    LPackage.Free;
+  end;
+  LLock := TBoss4DLock.Create;
+  try
+    LLock.HasRootMetadata := True;
+    LLock.RootName := 'ci-isolated-component';
+    LLock.RootVersion := '1.0.0';
+    LLockRepo.Save(LLock, TPath.Combine(FTempDir, FILE_PACKAGE_LOCK));
+  finally
+    LLock.Free;
+  end;
+  LIDECalls := 0;
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo,
+    TGitClientMock.Create, THttpClientMock.Create, TCompilerMock.Create,
+    TTestLogger.Create,
+    procedure(const APackage: TBoss4DPackage)
+    begin
+      Inc(LIDECalls);
+    end);
+  try
+    LOptions := Default(TBoss4DInstallOptions);
+    LOptions.CIMode := True;
+    LOptions.InstallIDEs := True;
+    LInstall.Execute(LOptions);
+    Assert.AreEqual<Integer>(0, LIDECalls,
+      'CIMode deve prevalecer mesmo se InstallIDEs vier habilitado.');
+    LStalePath := TPath.Combine(GetModulesDir, 'stale-ci-file.txt');
+    TDirectory.CreateDirectory(GetModulesDir);
+    TFile.WriteAllText(LStalePath, 'stale');
+    LInstall.Execute(LOptions);
+    Assert.IsFalse(TFile.Exists(LStalePath),
+      'CIMode deve sempre iniciar com modules limpo.');
+  finally
+    LInstall.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDERepairRebuildsMissingManagedArtifacts;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LRoot: string;
+  LBpl: string;
+  LDll: string;
+  LRebuildCount: Integer;
+  LReceivedConfiguration: string;
+begin
+  LRoot := TPath.Combine(FTempDir, 'active-repair-target');
+  TDirectory.CreateDirectory(LRoot);
+  LBpl := TPath.Combine(LRoot, 'RepairDesign.bpl');
+  LDll := TPath.Combine(LRoot, 'RepairRuntime.dll');
+  TFile.WriteAllText(LBpl, 'bpl');
+  TFile.WriteAllText(LDll, 'dll');
+  LStore := TIDERegistryStoreMock.Create;
+  LRebuildCount := 0;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'active-repair-inventory.json'),
+    procedure(const ARegistration: TBoss4DIDERegistration)
+    begin
+      Inc(LRebuildCount);
+      LReceivedConfiguration := ARegistration.Configuration;
+      TFile.WriteAllText(ARegistration.BplPath, 'rebuilt-bpl');
+      TFile.WriteAllText(LDll, 'rebuilt-dll');
+    end);
+  LRegistration := TBoss4DIDERegistration.Create;
+  try
+    LRegistration.PackageName := 'RepairDesign';
+    LRegistration.OwnerPackage := 'RepairProduct';
+    LRegistration.Compiler := '37.0';
+    LRegistration.Platform := 'Win64';
+    LRegistration.Configuration := 'Release';
+    LRegistration.BplPath := LBpl;
+    LRegistration.Description := 'Repair package';
+    LRegistration.ArtifactRoot := LRoot;
+    LRegistration.Artifacts.Add(LBpl);
+    LRegistration.Artifacts.Add(LDll);
+    LService.RegisterTarget(LRegistration);
+
+    TFile.Delete(LBpl);
+    TFile.Delete(LDll);
+    Assert.AreEqual<Integer>(1, Length(LService.FindDrift));
+    Assert.AreEqual<Integer>(1, LService.Repair);
+    Assert.AreEqual<Integer>(1, LRebuildCount);
+    Assert.AreEqual('Release', LReceivedConfiguration);
+    Assert.IsTrue(TFile.Exists(LBpl));
+    Assert.IsTrue(TFile.Exists(LDll));
+    Assert.AreEqual<Integer>(0, Length(LService.FindDrift));
+  finally
+    LRegistration.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDERegistrationManagesRestrictedRegistryValues;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LRegistryValue: TBoss4DIDEManagedRegistryValue;
+  LKey: string;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'managed-registry-inventory.json'));
+  LRegistration := TBoss4DIDERegistration.Create;
+  try
+    LRegistration.PackageName := 'ManagedAssets';
+    LRegistration.OwnerPackage := 'ManagedAssetsProduct';
+    LRegistration.Compiler := '37.0';
+    LRegistration.Platform := 'Win32';
+    LRegistration.BplPath := 'C:\artifacts\ManagedAssets.bpl';
+    LKey := 'Software\Embarcadero\BDS\37.0\ComponentVendor';
+    LRegistryValue := TBoss4DIDEManagedRegistryValue.Create;
+    LRegistryValue.Key := LKey;
+    LRegistryValue.Name := 'TemplatePath';
+    LRegistryValue.Value := 'C:\artifacts\templates';
+    LRegistration.RegistryValues.Add(LRegistryValue);
+
+    LService.RegisterTarget(LRegistration);
+    Assert.AreEqual('C:\artifacts\templates',
+      LStore.GetValue(LKey, 'TemplatePath'));
+    LStore.DeleteValue(LKey, 'TemplatePath');
+    Assert.AreEqual<Integer>(1, LService.Repair);
+    Assert.AreEqual('C:\artifacts\templates',
+      LStore.GetValue(LKey, 'TemplatePath'));
+    Assert.AreEqual<Integer>(1, LService.Uninstall('ManagedAssetsProduct'));
+    var LUnused: string;
+    Assert.IsFalse(LStore.TryRead(LKey, 'TemplatePath', LUnused));
+  finally
+    LRegistration.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDERegistrationRejectsRegistryOutsideCompilerScope;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LRegistryValue: TBoss4DIDEManagedRegistryValue;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'restricted-registry-inventory.json'));
+  LRegistration := TBoss4DIDERegistration.Create;
+  try
+    LRegistration.PackageName := 'RestrictedAssets';
+    LRegistration.Compiler := '37.0';
+    LRegistration.Platform := 'Win32';
+    LRegistration.BplPath := 'C:\artifacts\RestrictedAssets.bpl';
+    LRegistryValue := TBoss4DIDEManagedRegistryValue.Create;
+    LRegistryValue.Key := 'Software\OtherVendor\Unsafe';
+    LRegistryValue.Name := 'Value';
+    LRegistryValue.Value := 'unsafe';
+    LRegistration.RegistryValues.Add(LRegistryValue);
+
+    Assert.WillRaise(
+      procedure
+      begin
+        LService.RegisterTarget(LRegistration);
+      end,
+      EArgumentException);
+  finally
+    LRegistration.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDERegistrationDetectsSameNamedPackageConflict;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LConflicts: TArray<TBoss4DIDEPackageConflict>;
+  LKey: string;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'conflict-inventory.json'));
+  LRegistration := TBoss4DIDERegistration.Create;
+  try
+    LRegistration.PackageName := 'Conflict';
+    LRegistration.Compiler := '37.0';
+    LRegistration.Platform := 'Win32';
+    LRegistration.BplPath := 'C:\new\ComponentDesign.bpl';
+    LKey := 'Software\Embarcadero\BDS\37.0\Known Packages';
+    LStore.SeedValue(LKey, 'C:\old\ComponentDesign.bpl',
+      'Existing component');
+    LStore.SeedValue(LKey, 'C:\old\Unrelated.bpl',
+      'Unrelated component');
+
+    LConflicts := LService.DetectConflicts(LRegistration);
+    Assert.AreEqual<Integer>(1, Length(LConflicts));
+    Assert.AreEqual('c:\old\componentdesign.bpl',
+      LConflicts[0].ExistingPath);
+    Assert.AreEqual('Existing component', LConflicts[0].Description);
+  finally
+    LRegistration.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDEConflictPoliciesAreExplicitAndReversible;
+const
+  PACKAGE_KEY = 'Software\Embarcadero\BDS\37.0\Known Packages';
+  OLD_BPL = 'C:\old\ComponentDesign.bpl';
+  NEW_BPL = 'C:\new\ComponentDesign.bpl';
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LValue: string;
+
+  procedure Prepare(const APolicy: TBoss4DIDEConflictPolicy;
+    const AInventoryName: string);
+  begin
+    LStore := TIDERegistryStoreMock.Create;
+    LStore.SeedValue(PACKAGE_KEY, OLD_BPL, 'Existing component');
+    LService := TBoss4DIDERegistrationService.Create(LStore,
+      TPath.Combine(FTempDir, AInventoryName));
+    LRegistration := TBoss4DIDERegistration.Create;
+    LRegistration.PackageName := 'ComponentDesign';
+    LRegistration.OwnerPackage := 'ComponentProduct';
+    LRegistration.Compiler := '37.0';
+    LRegistration.Platform := 'Win32';
+    LRegistration.BplPath := NEW_BPL;
+    LRegistration.Description := 'New component';
+    LRegistration.ConflictPolicy := APolicy;
+  end;
+
+  procedure Release;
+  begin
+    LRegistration.Free;
+    LService.Free;
+  end;
+begin
+  Prepare(TBoss4DIDEConflictPolicy.Fail, 'conflict-fail.json');
+  try
+    Assert.WillRaise(
+      procedure
+      begin
+        LService.RegisterTarget(LRegistration);
+      end,
+      EBoss4DIDERegistrationError);
+    Assert.IsFalse(LStore.TryRead(PACKAGE_KEY, NEW_BPL, LValue));
+  finally
+    Release;
+  end;
+
+  Prepare(TBoss4DIDEConflictPolicy.Warn, 'conflict-warn.json');
+  try
+    LService.RegisterTarget(LRegistration);
+    Assert.IsTrue(LStore.TryRead(PACKAGE_KEY, OLD_BPL, LValue));
+    Assert.IsTrue(LStore.TryRead(PACKAGE_KEY, NEW_BPL, LValue));
+  finally
+    Release;
+  end;
+
+  Prepare(TBoss4DIDEConflictPolicy.Adopt, 'conflict-adopt.json');
+  try
+    LService.RegisterTarget(LRegistration);
+    Assert.IsTrue(LStore.TryRead(PACKAGE_KEY, OLD_BPL, LValue));
+    Assert.IsFalse(LStore.TryRead(PACKAGE_KEY, NEW_BPL, LValue));
+    Assert.IsFalse(TFile.Exists(TPath.Combine(FTempDir,
+      'conflict-adopt.json')));
+  finally
+    Release;
+  end;
+
+  Prepare(TBoss4DIDEConflictPolicy.Replace, 'conflict-replace.json');
+  try
+    LService.RegisterTarget(LRegistration);
+    Assert.IsFalse(LStore.TryRead(PACKAGE_KEY, OLD_BPL, LValue));
+    Assert.IsTrue(LStore.TryRead(PACKAGE_KEY, NEW_BPL, LValue));
+    Assert.AreEqual<Integer>(1, LService.Uninstall('ComponentProduct'));
+    Assert.IsFalse(LStore.TryRead(PACKAGE_KEY, NEW_BPL, LValue));
+    Assert.IsTrue(LStore.TryRead(PACKAGE_KEY, OLD_BPL, LValue));
+    Assert.AreEqual('Existing component', LValue);
+  finally
+    Release;
+  end;
+end;
+
+procedure TTestsServices.TestIDEUnregisterRestoresArtifactsOnRegistryFailure;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LRoot: string;
+  LManaged: string;
+begin
+  LRoot := TPath.Combine(FTempDir, 'rollback-target');
+  TDirectory.CreateDirectory(LRoot);
+  LManaged := TPath.Combine(LRoot, 'Component.bpl');
+  TFile.WriteAllText(LManaged, 'managed');
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'rollback-artifact-inventory.json'));
+  try
+    LRegistration := TBoss4DIDERegistration.Create;
+    try
+      LRegistration.PackageName := 'Component';
+      LRegistration.Compiler := '37.0';
+      LRegistration.Platform := 'Win32';
+      LRegistration.BplPath := LManaged;
+      LRegistration.SearchPath := LRoot;
+      LRegistration.ArtifactRoot := LRoot;
+      LRegistration.Artifacts.Add(LManaged);
+      LService.RegisterTarget(LRegistration);
+    finally
+      LRegistration.Free;
+    end;
+    LStore.SeedValue(
+      'Software\Embarcadero\BDS\37.0\Library\Win32',
+      'Search Path', 'C:\other;' + LRoot);
+    LStore.FailOnWrite := LStore.WriteCount + 1;
+    Assert.WillRaise(
+      procedure
+      begin
+        LService.Unregister('Component', '37.0', 'Win32');
+      end,
+      EBoss4DIDERegistrationError);
+    Assert.IsTrue(TFile.Exists(LManaged),
+      'A registry failure must restore staged artifacts.');
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDEUnregisterPreservesPathsOwnedByAnotherPackage;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LValue: string;
+  LLibraryKey: string;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'shared-path-inventory.json'));
+  try
+    for var LName in TArray<string>.Create('PackageA', 'PackageB') do
+    begin
+      LRegistration := TBoss4DIDERegistration.Create;
+      try
+        LRegistration.PackageName := LName;
+        LRegistration.Compiler := '37.0';
+        LRegistration.Platform := 'Win32';
+        LRegistration.BplPath := 'C:\bpl\' + LName + '.bpl';
+        LRegistration.SearchPath := 'C:\shared\dcu';
+        LRegistration.BrowsingPath := 'C:\shared\src';
+        LRegistration.DebugDcuPath := 'C:\shared\debug';
+        LRegistration.RuntimePath := 'C:\shared\bpl';
+        LService.RegisterTarget(LRegistration);
+      finally
+        LRegistration.Free;
+      end;
+    end;
+
+    LLibraryKey := 'Software\Embarcadero\BDS\37.0\Library\Win32';
+    Assert.AreEqual(1, LService.Unregister('PackageA', '37.0', 'Win32'));
+    Assert.IsTrue(LStore.TryRead(LLibraryKey, 'Search Path', LValue));
+    Assert.AreEqual<string>('C:\shared\dcu', LValue);
+    Assert.IsTrue(LStore.TryRead('Environment', 'Path', LValue));
+    Assert.AreEqual<string>('C:\shared\bpl', LValue);
+    Assert.IsTrue(LStore.TryRead(
+      'Software\Embarcadero\BDS\37.0\Known Packages',
+      'C:\bpl\PackageB.bpl', LValue));
+    Assert.IsFalse(LStore.TryRead(
+      'Software\Embarcadero\BDS\37.0\Known Packages',
+      'C:\bpl\PackageA.bpl', LValue));
+
+    Assert.AreEqual(1, LService.Unregister('PackageB', '37.0', 'Win32'));
+    Assert.IsFalse(LStore.TryRead(LLibraryKey, 'Search Path', LValue));
+    Assert.IsFalse(LStore.TryRead('Environment', 'Path', LValue));
+  finally
     LService.Free;
   end;
 end;
@@ -1860,6 +2480,110 @@ begin
   end;
 end;
 
+procedure TTestsServices.TestIDERegistrationAcceptsModeledLegacyDelphi;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LPackageKey: string;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'ide-inventory-xe.json'));
+  LRegistration := TBoss4DIDERegistration.Create;
+  try
+    LRegistration.PackageName := 'LegacyXE';
+    LRegistration.Compiler := '8.0';
+    LRegistration.Platform := 'Win32';
+    LRegistration.BplPath := 'C:\artifacts\LegacyXE.bpl';
+    LRegistration.Description := 'Delphi XE package';
+    LService.RegisterTarget(LRegistration);
+    LPackageKey := 'Software\Embarcadero\BDS\8.0\Known Packages';
+    Assert.AreEqual('Delphi XE package',
+      LStore.GetValue(LPackageKey, LRegistration.BplPath));
+    Assert.AreEqual<Integer>(1,
+      LService.Unregister('LegacyXE', '8.0', 'Win32'));
+  finally
+    LRegistration.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestRemoteArtifactCacheVerifiesAndRepairsLocalEntries;
+var
+  LProducer: TBoss4DArtifactCacheService;
+  LConsumer: TBoss4DArtifactCacheService;
+  LCorruptConsumer: TBoss4DArtifactCacheService;
+  LDep: TBoss4DDependency;
+  LSourceRoot: string;
+  LRestoredRoot: string;
+  LLocalProducer: string;
+  LLocalConsumer: string;
+  LLocalCorrupt: string;
+  LRemoteRoot: string;
+  LKey: string;
+  LRemoteArtifact: string;
+  LLocalArtifact: string;
+begin
+  LSourceRoot := TPath.Combine(FTempDir, 'remote-cache-source');
+  LRestoredRoot := TPath.Combine(FTempDir, 'remote-cache-restored');
+  LLocalProducer := TPath.Combine(FTempDir, 'cache-producer');
+  LLocalConsumer := TPath.Combine(FTempDir, 'cache-consumer');
+  LLocalCorrupt := TPath.Combine(FTempDir, 'cache-corrupt-consumer');
+  LRemoteRoot := TPath.Combine(FTempDir, 'cache-remote');
+  TDirectory.CreateDirectory(TPath.Combine(LSourceRoot, 'bpl'));
+  TFile.WriteAllText(TPath.Combine(LSourceRoot, 'bpl\Component.bpl'),
+    'verified-bpl');
+  LDep := TBoss4DDependency.Create('github.com/example/remote-component',
+    '1.0.0');
+  LProducer := TBoss4DArtifactCacheService.Create(LLocalProducer,
+    TBoss4DFileArtifactCacheBackend.Create(LRemoteRoot));
+  try
+    LProducer.Store(LDep, 'remote-source', 'Win64', '37.0', 'Release',
+      LSourceRoot);
+  finally
+    LProducer.Free;
+  end;
+
+  LConsumer := TBoss4DArtifactCacheService.Create(LLocalConsumer,
+    TBoss4DFileArtifactCacheBackend.Create(LRemoteRoot));
+  try
+    Assert.IsTrue(LConsumer.Restore(LDep, 'remote-source', 'Win64',
+      '37.0', 'Release', LRestoredRoot));
+    Assert.AreEqual('verified-bpl', TFile.ReadAllText(
+      TPath.Combine(LRestoredRoot, 'bpl\Component.bpl')));
+
+    LKey := TBoss4DArtifactCacheService.BuildCacheKey(LDep.GetKey,
+      'remote-source', '37.0', 'Win64', 'Release');
+    LLocalArtifact := TPath.Combine(TPath.Combine(LLocalConsumer, LKey),
+      'target\bpl\Component.bpl');
+    TFile.WriteAllText(LLocalArtifact, 'corrupt-local');
+    TDirectory.Delete(LRestoredRoot, True);
+    Assert.IsTrue(LConsumer.Restore(LDep, 'remote-source', 'Win64',
+      '37.0', 'Release', LRestoredRoot),
+      'Uma entrada local corrompida deve ser substituida pelo remoto valido.');
+    Assert.AreEqual('verified-bpl', TFile.ReadAllText(
+      TPath.Combine(LRestoredRoot, 'bpl\Component.bpl')));
+  finally
+    LConsumer.Free;
+  end;
+
+  LRemoteArtifact := TPath.Combine(TPath.Combine(LRemoteRoot, LKey),
+    'target\bpl\Component.bpl');
+  TFile.WriteAllText(LRemoteArtifact, 'corrupt-remote');
+  LCorruptConsumer := TBoss4DArtifactCacheService.Create(LLocalCorrupt,
+    TBoss4DFileArtifactCacheBackend.Create(LRemoteRoot));
+  try
+    Assert.IsFalse(LCorruptConsumer.Restore(LDep, 'remote-source',
+      'Win64', '37.0', 'Release',
+      TPath.Combine(FTempDir, 'must-not-restore')),
+      'Cache remoto com hash invalido deve ser rejeitado.');
+  finally
+    LCorruptConsumer.Free;
+    LDep.Free;
+  end;
+end;
+
 procedure TTestsServices.TestCLICommandLineParser;
 var
   LInit: TBoss4DInitService;
@@ -1897,6 +2621,20 @@ begin
       'conformance registry|package'));
     Assert.IsTrue(LLogger.LastLogMessage.Contains(
       'package install <pacote>'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('support'));
+
+    LLogger.LastLogMessage := '';
+    LParser.ParseAndExecute(TArray<string>.Create('support',
+      '--compiler', 'd13', '--platform', 'Win64',
+      '--kind', 'application', '--project', 'server.dproj'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains(
+      'd13 | Win64 | application | certified'));
+    LLogger.LastLogMessage := '';
+    LParser.ParseAndExecute(TArray<string>.Create('support',
+      '--compiler', 'd13', '--platform', 'Linux64',
+      '--kind', 'application', '--project', 'server.cbproj'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains(
+      'd13 | Linux64 | application | unsupported'));
 
     // Gera um SBOM por meio do parser real, sem escrever JSON no fluxo de logs.
     LInit.Execute(True);

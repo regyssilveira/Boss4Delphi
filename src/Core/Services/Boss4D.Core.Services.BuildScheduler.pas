@@ -128,7 +128,7 @@ begin
     ATarget.Platform + '|' + ATarget.Configuration).ToLower;
 end;
 
-function CreateGroupTask(const AGroup: TList<TBoss4DBuildTarget>;
+function CreateTargetTask(const ATarget: TBoss4DBuildTarget;
   const AWorker: TBoss4DBuildTargetWorker;
   const ACancellation: TBoss4DBuildCancellationProbe;
   const AState: TBoss4DSchedulerState): ITask;
@@ -136,25 +136,19 @@ begin
   Result := TTask.Run(
     procedure
     begin
-      for var LTarget in AGroup do
+      if AState.ShouldStop then
+        Exit;
+      if Assigned(ACancellation) and ACancellation() then
       begin
-        if AState.ShouldStop then
-          Exit;
-        if Assigned(ACancellation) and ACancellation() then
-        begin
-          AState.MarkCancelled;
-          Exit;
-        end;
-        try
-          AWorker(LTarget);
-          AState.MarkCompleted;
-        except
-          on E: Exception do
-          begin
-            AState.MarkFailed(LTarget, E.Message);
-            Exit;
-          end;
-        end;
+        AState.MarkCancelled;
+        Exit;
+      end;
+      try
+        AWorker(ATarget);
+        AState.MarkCompleted;
+      except
+        on E: Exception do
+          AState.MarkFailed(ATarget, E.Message);
       end;
     end);
 end;
@@ -164,11 +158,12 @@ class function TBoss4DBuildScheduler.Execute(
   const AWorker: TBoss4DBuildTargetWorker;
   const ACancellation: TBoss4DBuildCancellationProbe): Integer;
 var
-  LLevels: TDictionary<string, Integer>;
-  LGroups: TObjectDictionary<string, TList<TBoss4DBuildTarget>>;
-  LGroupList: TList<TList<TBoss4DBuildTarget>>;
+  LCompleted: TDictionary<string, Boolean>;
+  LRunningTargets: TList<TBoss4DBuildTarget>;
+  LRunningTasks: TList<ITask>;
+  LBusyResources: TDictionary<string, Boolean>;
+  LPending: TList<TBoss4DBuildTarget>;
   LState: TBoss4DSchedulerState;
-  LMaximumLevel: Integer;
   LJobCount: Integer;
 begin
   if not Assigned(ATargets) then
@@ -187,88 +182,75 @@ begin
     LJobCount := 1;
 
   TBoss4DBuildGraph.Sort(ATargets);
-  LLevels := TDictionary<string, Integer>.Create;
+  LCompleted := TDictionary<string, Boolean>.Create;
+  LRunningTargets := TList<TBoss4DBuildTarget>.Create;
+  LRunningTasks := TList<ITask>.Create;
+  LBusyResources := TDictionary<string, Boolean>.Create;
+  LPending := TList<TBoss4DBuildTarget>.Create;
   LState := TBoss4DSchedulerState.Create;
   try
-    LMaximumLevel := 0;
     for var LTarget in ATargets do
-    begin
-      var LLevel := 0;
-      for var LDependencyPath in LTarget.DependsOn do
-      begin
-        var LDependencyKey := DependencyKey(LTarget, LDependencyPath);
-        if not LLevels.ContainsKey(LDependencyKey) then
-          raise EBoss4DBuildSchedulerError.CreateFmt(
-            'Nivel da dependencia nao encontrado: %s.',
-            [LDependencyPath]);
-        if LLevels[LDependencyKey] + 1 > LLevel then
-          LLevel := LLevels[LDependencyKey] + 1;
-      end;
-      LLevels.Add(TargetKey(LTarget), LLevel);
-      if LLevel > LMaximumLevel then
-        LMaximumLevel := LLevel;
-    end;
+      LPending.Add(LTarget);
 
-    for var LLevel := 0 to LMaximumLevel do
+    while (LPending.Count > 0) or (LRunningTasks.Count > 0) do
     begin
-      if LState.ShouldStop then
-        Break;
       if Assigned(ACancellation) and ACancellation() then
-      begin
         LState.MarkCancelled;
-        Break;
-      end;
 
-      LGroups := TObjectDictionary<string,
-        TList<TBoss4DBuildTarget>>.Create([doOwnsValues]);
-      LGroupList := TList<TList<TBoss4DBuildTarget>>.Create;
-      try
-        for var LTarget in ATargets do
-          if LLevels[TargetKey(LTarget)] = LLevel then
-          begin
-            var LResourceKey := ResourceKey(LTarget);
-            if not LGroups.ContainsKey(LResourceKey) then
-              LGroups.Add(LResourceKey,
-                TList<TBoss4DBuildTarget>.Create);
-            LGroups[LResourceKey].Add(LTarget);
-          end;
-        for var LGroup in LGroups.Values do
-          LGroupList.Add(LGroup);
-        LGroupList.Sort(TComparer<TList<TBoss4DBuildTarget>>.Construct(
-          function(const ALeft,
-            ARight: TList<TBoss4DBuildTarget>): Integer
-          begin
-            Result := CompareText(ALeft[0].Identity, ARight[0].Identity);
-          end));
-
-        var LOffset := 0;
-        while LOffset < LGroupList.Count do
+      if not LState.ShouldStop then
+      begin
+        var I := 0;
+        while (I < LPending.Count) and
+              (LRunningTasks.Count < LJobCount) do
         begin
-          var LBatchSize := LJobCount;
-          if LOffset + LBatchSize > LGroupList.Count then
-            LBatchSize := LGroupList.Count - LOffset;
-          var LTasks: TArray<ITask>;
-          SetLength(LTasks, LBatchSize);
-          for var I := 0 to LBatchSize - 1 do
-            LTasks[I] := CreateGroupTask(LGroupList[LOffset + I],
-              AWorker, ACancellation, LState);
-          TTask.WaitForAll(LTasks);
-          Inc(LOffset, LBatchSize);
-          if LState.ShouldStop then
-            Break;
+          var LTarget := LPending[I];
+          var LReady := True;
+          for var LDependencyPath in LTarget.DependsOn do
+            if not LCompleted.ContainsKey(
+              DependencyKey(LTarget, LDependencyPath)) then
+            begin
+              LReady := False;
+              Break;
+            end;
+          var LResource := ResourceKey(LTarget);
+          if LReady and not LBusyResources.ContainsKey(LResource) then
+          begin
+            LBusyResources.Add(LResource, True);
+            LRunningTargets.Add(LTarget);
+            LRunningTasks.Add(CreateTargetTask(LTarget, AWorker,
+              ACancellation, LState));
+            LPending.Delete(I);
+          end
+          else
+            Inc(I);
         end;
-      finally
-        LGroupList.Free;
-        LGroups.Free;
       end;
+
+      if LRunningTasks.Count = 0 then
+        Break;
+
+      var LTasks := LRunningTasks.ToArray;
+      var LFinished := TTask.WaitForAny(LTasks);
+      var LFinishedTarget := LRunningTargets[LFinished];
+      LBusyResources.Remove(ResourceKey(LFinishedTarget));
+      if not LState.Failed then
+        LCompleted.AddOrSetValue(TargetKey(LFinishedTarget), True);
+      LRunningTasks.Delete(LFinished);
+      LRunningTargets.Delete(LFinished);
     end;
 
+    if LRunningTasks.Count > 0 then
+      TTask.WaitForAll(LRunningTasks.ToArray);
     if LState.Failed then
       raise EBoss4DBuildSchedulerError.Create(LState.ErrorMessage);
     Result := LState.Completed;
   finally
     LState.Free;
-    LLevels.Free;
+    LPending.Free;
+    LBusyResources.Free;
+    LRunningTasks.Free;
+    LRunningTargets.Free;
+    LCompleted.Free;
   end;
 end;
 

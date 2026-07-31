@@ -21,6 +21,7 @@ type
     FForce: Boolean;
     FJobs: Integer;
     FCancellation: TBoss4DBuildCancellationProbe;
+    FRemoteCachePath: string;
   public
     class function Create(const ASelection: TBoss4DBuildSelection;
       const ASourceChecksum: string): TBoss4DBuildExecutionOptions; static;
@@ -32,6 +33,8 @@ type
     property Jobs: Integer read FJobs write FJobs;
     property Cancellation: TBoss4DBuildCancellationProbe read FCancellation
       write FCancellation;
+    property RemoteCachePath: string read FRemoteCachePath
+      write FRemoteCachePath;
   end;
 
   TBoss4DBuildExecutor = class
@@ -66,6 +69,7 @@ uses
   System.IOUtils,
   System.Generics.Defaults,
   Boss4D.Core.Domain.Env,
+  Boss4D.Core.Domain.Consts,
   Boss4D.Core.Services.BuildMatrix,
   Boss4D.Core.Services.BuildGraph,
   Boss4D.Core.Services.BuildPaths;
@@ -126,6 +130,7 @@ function TBoss4DBuildExecutor.Execute(const APackage: TBoss4DPackage;
 var
   LTargets: TBoss4DBuildTargetList;
   LFingerprints: TDictionary<string, string>;
+  LModulesDirectory: string;
 begin
   if not Assigned(APackage) then
     raise EArgumentNilException.Create('APackage');
@@ -138,11 +143,19 @@ begin
   FSkippedCount := 0;
   FRestoredCount := 0;
   FLastExplanations.Clear;
+  FArtifactCache.Free;
+  if AOptions.RemoteCachePath.Trim.IsEmpty then
+    FArtifactCache := TBoss4DArtifactCacheService.Create
+  else
+    FArtifactCache := TBoss4DArtifactCacheService.Create('',
+      TBoss4DFileArtifactCacheBackend.Create(AOptions.RemoteCachePath));
   LTargets := TBoss4DBuildMatrixExpander.Expand(APackage,
     AOptions.Selection);
   TDirectory.CreateDirectory(TPath.Combine(GetBossHome, 'artifact-cache'));
+  LModulesDirectory := TPath.Combine(ARootDirectory,
+    FOLDER_DEPENDENCIES);
   for var LTarget in LTargets do
-    TDirectory.CreateDirectory(TBoss4DBuildPaths.TargetRoot(GetModulesDir,
+    TDirectory.CreateDirectory(TBoss4DBuildPaths.TargetRoot(LModulesDirectory,
       ADependency.StorageName, LTarget.Compiler, LTarget.Platform,
       LTarget.Configuration));
   LFingerprints := TDictionary<string, string>.Create;
@@ -152,7 +165,7 @@ begin
       begin
         var LProjectPath := ResolveProjectPath(ARootDirectory,
           LTarget.ProjectPath);
-        var LTargetRoot := TBoss4DBuildPaths.TargetRoot(GetModulesDir,
+        var LTargetRoot := TBoss4DBuildPaths.TargetRoot(LModulesDirectory,
           ADependency.StorageName, LTarget.Compiler, LTarget.Platform,
           LTarget.Configuration);
         var LDependencyFingerprints := TList<string>.Create;
@@ -213,7 +226,15 @@ begin
           end
           else
           begin
-            if not FCompiler.Compile(LProjectPath, ADependency, ALock,
+            if SameText(LTarget.ProjectKind, 'binary') then
+            begin
+              var LBinaryDirectory := TPath.Combine(LTargetRoot,
+                FOLDER_BIN);
+              TDirectory.CreateDirectory(LBinaryDirectory);
+              TFile.Copy(LProjectPath, TPath.Combine(LBinaryDirectory,
+                TPath.GetFileName(LProjectPath)), True);
+            end
+            else if not FCompiler.Compile(LProjectPath, ADependency, ALock,
               LTarget.Platform, LTarget.Compiler,
               LTarget.Configuration) then
               raise Exception.CreateFmt('Falha ao compilar target %s.',

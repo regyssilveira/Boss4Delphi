@@ -103,6 +103,7 @@ type
     function TryRead(const AKey, AName: string; out AValue: string): Boolean;
     procedure WriteValue(const AKey, AName, AValue: string);
     procedure DeleteValue(const AKey, AName: string);
+    function ListValueNames(const AKey: string): TArray<string>;
     function GetValue(const AKey, AName: string): string;
     procedure SeedValue(const AKey, AName, AValue: string);
     property FailOnWrite: Integer read FFailOnWrite write FFailOnWrite;
@@ -391,6 +392,25 @@ end;
 procedure TIDERegistryStoreMock.DeleteValue(const AKey, AName: string);
 begin
   FValues.Remove(CompositeKey(AKey, AName));
+end;
+
+function TIDERegistryStoreMock.ListValueNames(
+  const AKey: string): TArray<string>;
+var
+  LNames: TList<string>;
+  LPrefix: string;
+begin
+  LNames := TList<string>.Create;
+  try
+    LPrefix := AKey.ToLower + '|';
+    for var LCompositeKey in FValues.Keys do
+      if LCompositeKey.StartsWith(LPrefix) then
+        LNames.Add(LCompositeKey.Substring(LPrefix.Length));
+    LNames.Sort;
+    Result := LNames.ToArray;
+  finally
+    LNames.Free;
+  end;
 end;
 
 function TIDERegistryStoreMock.GetValue(const AKey, AName: string): string;

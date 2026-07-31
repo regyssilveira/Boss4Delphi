@@ -9,12 +9,16 @@ uses
 
 type
   EBoss4DIDERegistrationError = class(Exception);
+  TBoss4DIDERegistration = class;
+  TBoss4DIDEArtifactRepairHandler = reference to procedure(
+    const ARegistration: TBoss4DIDERegistration);
 
   IBoss4DIDERegistryStore = interface
     ['{893DFD50-485C-4D19-97BF-A52E435BEA21}']
     function TryRead(const AKey, AName: string; out AValue: string): Boolean;
     procedure WriteValue(const AKey, AName, AValue: string);
     procedure DeleteValue(const AKey, AName: string);
+    function ListValueNames(const AKey: string): TArray<string>;
   end;
 
   TBoss4DWindowsIDERegistryStore = class(TInterfacedObject,
@@ -26,35 +30,84 @@ type
     function TryRead(const AKey, AName: string; out AValue: string): Boolean;
     procedure WriteValue(const AKey, AName, AValue: string);
     procedure DeleteValue(const AKey, AName: string);
+    function ListValueNames(const AKey: string): TArray<string>;
+  end;
+
+  TBoss4DIDEPackageConflict = record
+    RegistryKey: string;
+    ExistingPath: string;
+    Description: string;
+  end;
+
+  TBoss4DIDEConflictPolicy = (Fail, Warn, Adopt, Replace);
+
+  TBoss4DIDEManagedRegistryValue = class
+  private
+    FKey: string;
+    FName: string;
+    FValue: string;
+  public
+    function Clone: TBoss4DIDEManagedRegistryValue;
+    property Key: string read FKey write FKey;
+    property Name: string read FName write FName;
+    property Value: string read FValue write FValue;
   end;
 
   TBoss4DIDERegistration = class
   private
     FPackageName: string;
+    FOwnerPackage: string;
     FCompiler: string;
     FPlatform: string;
+    FConfiguration: string;
     FBplPath: string;
     FDescription: string;
     FSearchPath: string;
     FBrowsingPath: string;
     FDebugDcuPath: string;
+    FRuntimePath: string;
+    FToolPath: string;
+    FArtifactRoot: string;
+    FArtifacts: TList<string>;
+    FHelpFiles: TList<string>;
+    FRegistryValues: TObjectList<TBoss4DIDEManagedRegistryValue>;
+    FConflictPolicy: TBoss4DIDEConflictPolicy;
+    FDisplacedRegistryValues:
+      TObjectList<TBoss4DIDEManagedRegistryValue>;
   public
+    constructor Create;
+    destructor Destroy; override;
     function Identity: string;
     function Clone: TBoss4DIDERegistration;
     property PackageName: string read FPackageName write FPackageName;
+    property OwnerPackage: string read FOwnerPackage write FOwnerPackage;
     property Compiler: string read FCompiler write FCompiler;
     property Platform: string read FPlatform write FPlatform;
+    property Configuration: string read FConfiguration write FConfiguration;
     property BplPath: string read FBplPath write FBplPath;
     property Description: string read FDescription write FDescription;
     property SearchPath: string read FSearchPath write FSearchPath;
     property BrowsingPath: string read FBrowsingPath write FBrowsingPath;
     property DebugDcuPath: string read FDebugDcuPath write FDebugDcuPath;
+    property RuntimePath: string read FRuntimePath write FRuntimePath;
+    property ToolPath: string read FToolPath write FToolPath;
+    property ArtifactRoot: string read FArtifactRoot write FArtifactRoot;
+    property Artifacts: TList<string> read FArtifacts;
+    property HelpFiles: TList<string> read FHelpFiles;
+    property RegistryValues: TObjectList<TBoss4DIDEManagedRegistryValue>
+      read FRegistryValues;
+    property ConflictPolicy: TBoss4DIDEConflictPolicy read FConflictPolicy
+      write FConflictPolicy;
+    property DisplacedRegistryValues:
+      TObjectList<TBoss4DIDEManagedRegistryValue>
+      read FDisplacedRegistryValues;
   end;
 
   TBoss4DIDERegistrationService = class
   private
     FStore: IBoss4DIDERegistryStore;
     FInventoryPath: string;
+    FArtifactRepairHandler: TBoss4DIDEArtifactRepairHandler;
     function LibraryKey(const ARegistration: TBoss4DIDERegistration): string;
     function PackageKey(const ARegistration: TBoss4DIDERegistration): string;
     function IDEPackageKey(
@@ -63,13 +116,22 @@ type
     function LoadInventory: TObjectList<TBoss4DIDERegistration>;
     procedure SaveInventory(
       const AInventory: TObjectList<TBoss4DIDERegistration>);
+    function ArtifactsHealthy(
+      const ARegistration: TBoss4DIDERegistration): Boolean;
     function IsHealthy(const ARegistration: TBoss4DIDERegistration): Boolean;
+    function RemoveMatching(const AName, ACompiler, APlatform: string;
+      const AByOwner: Boolean): Integer;
   public
     constructor Create(const AStore: IBoss4DIDERegistryStore;
-      const AInventoryPath: string);
+      const AInventoryPath: string;
+      const AArtifactRepairHandler: TBoss4DIDEArtifactRepairHandler = nil);
     procedure RegisterTarget(const ARegistration: TBoss4DIDERegistration);
+    function DetectConflicts(
+      const ARegistration: TBoss4DIDERegistration):
+      TArray<TBoss4DIDEPackageConflict>;
     function Unregister(const APackageName, ACompiler,
       APlatform: string): Integer;
+    function Uninstall(const AOwnerPackage: string): Integer;
     function Repair: Integer;
     function FindDrift: TArray<string>;
   end;
@@ -77,9 +139,11 @@ type
 implementation
 
 uses
+  System.Classes,
   System.IOUtils,
   System.JSON,
-  System.Win.Registry;
+  System.Win.Registry,
+  Boss4D.Core.Services.BuildConventions;
 
 type
   TBoss4DRegistrySnapshot = class
@@ -148,6 +212,44 @@ begin
   end;
 end;
 
+constructor TBoss4DIDERegistration.Create;
+begin
+  inherited Create;
+  FArtifacts := TList<string>.Create;
+  FHelpFiles := TList<string>.Create;
+  FRegistryValues := TObjectList<TBoss4DIDEManagedRegistryValue>.Create(True);
+  FDisplacedRegistryValues :=
+    TObjectList<TBoss4DIDEManagedRegistryValue>.Create(True);
+end;
+
+function TBoss4DWindowsIDERegistryStore.ListValueNames(
+  const AKey: string): TArray<string>;
+var
+  LRegistry: TRegistry;
+  LNames: TStringList;
+begin
+  LRegistry := TRegistry.Create(KEY_READ);
+  LNames := TStringList.Create;
+  try
+    LRegistry.RootKey := FRootKey;
+    if LRegistry.OpenKeyReadOnly(AKey) then
+      LRegistry.GetValueNames(LNames);
+    Result := LNames.ToStringArray;
+  finally
+    LNames.Free;
+    LRegistry.Free;
+  end;
+end;
+
+destructor TBoss4DIDERegistration.Destroy;
+begin
+  FDisplacedRegistryValues.Free;
+  FRegistryValues.Free;
+  FHelpFiles.Free;
+  FArtifacts.Free;
+  inherited Destroy;
+end;
+
 function TBoss4DIDERegistration.Identity: string;
 begin
   Result := FPackageName + '|' + FCompiler + '|' + FPlatform;
@@ -157,13 +259,82 @@ function TBoss4DIDERegistration.Clone: TBoss4DIDERegistration;
 begin
   Result := TBoss4DIDERegistration.Create;
   Result.PackageName := FPackageName;
+  Result.OwnerPackage := FOwnerPackage;
   Result.Compiler := FCompiler;
   Result.Platform := FPlatform;
+  Result.Configuration := FConfiguration;
   Result.BplPath := FBplPath;
   Result.Description := FDescription;
   Result.SearchPath := FSearchPath;
   Result.BrowsingPath := FBrowsingPath;
   Result.DebugDcuPath := FDebugDcuPath;
+  Result.RuntimePath := FRuntimePath;
+  Result.ToolPath := FToolPath;
+  Result.ArtifactRoot := FArtifactRoot;
+  Result.Artifacts.AddRange(FArtifacts);
+  Result.HelpFiles.AddRange(FHelpFiles);
+  for var LValue in FRegistryValues do
+    Result.RegistryValues.Add(LValue.Clone);
+  Result.ConflictPolicy := FConflictPolicy;
+  for var LValue in FDisplacedRegistryValues do
+    Result.DisplacedRegistryValues.Add(LValue.Clone);
+end;
+
+function TBoss4DIDEManagedRegistryValue.Clone:
+  TBoss4DIDEManagedRegistryValue;
+begin
+  Result := TBoss4DIDEManagedRegistryValue.Create;
+  Result.Key := FKey;
+  Result.Name := FName;
+  Result.Value := FValue;
+end;
+
+function TBoss4DIDERegistrationService.DetectConflicts(
+  const ARegistration: TBoss4DIDERegistration):
+  TArray<TBoss4DIDEPackageConflict>;
+var
+  LConflicts: TList<TBoss4DIDEPackageConflict>;
+
+  procedure InspectKey(const AKey: string);
+  begin
+    for var LExistingPath in FStore.ListValueNames(AKey) do
+    begin
+      if SameText(LExistingPath, ARegistration.BplPath) or
+         not SameText(TPath.GetFileName(LExistingPath),
+           TPath.GetFileName(ARegistration.BplPath)) then
+        Continue;
+      var LConflict := Default(TBoss4DIDEPackageConflict);
+      LConflict.RegistryKey := AKey;
+      LConflict.ExistingPath := LExistingPath;
+      FStore.TryRead(AKey, LExistingPath, LConflict.Description);
+      LConflicts.Add(LConflict);
+    end;
+  end;
+begin
+  Validate(ARegistration);
+  LConflicts := TList<TBoss4DIDEPackageConflict>.Create;
+  try
+    InspectKey(PackageKey(ARegistration));
+    InspectKey(IDEPackageKey(ARegistration));
+    var LInventory := LoadInventory;
+    try
+      for var I := LConflicts.Count - 1 downto 0 do
+        for var LOwnedRegistration in LInventory do
+          if SameText(LOwnedRegistration.Identity,
+               ARegistration.Identity) and
+             SameText(LOwnedRegistration.BplPath,
+               LConflicts[I].ExistingPath) then
+          begin
+            LConflicts.Delete(I);
+            Break;
+          end;
+    finally
+      LInventory.Free;
+    end;
+    Result := LConflicts.ToArray;
+  finally
+    LConflicts.Free;
+  end;
 end;
 
 function ContainsPath(const AValue, APath: string): Boolean;
@@ -200,7 +371,8 @@ begin
 end;
 
 constructor TBoss4DIDERegistrationService.Create(
-  const AStore: IBoss4DIDERegistryStore; const AInventoryPath: string);
+  const AStore: IBoss4DIDERegistryStore; const AInventoryPath: string;
+  const AArtifactRepairHandler: TBoss4DIDEArtifactRepairHandler);
 begin
   inherited Create;
   if not Assigned(AStore) then
@@ -209,6 +381,7 @@ begin
     raise EArgumentException.Create('Inventory path nao pode ser vazio.');
   FStore := AStore;
   FInventoryPath := AInventoryPath;
+  FArtifactRepairHandler := AArtifactRepairHandler;
 end;
 
 function TBoss4DIDERegistrationService.LibraryKey(
@@ -239,19 +412,30 @@ begin
     raise EArgumentNilException.Create('ARegistration');
   if ARegistration.PackageName.Trim.IsEmpty then
     raise EArgumentException.Create('PackageName nao pode ser vazio.');
-  if (ARegistration.Compiler <> '17.0') and
-     (ARegistration.Compiler <> '18.0') and
-     (ARegistration.Compiler <> '22.0') and
-     (ARegistration.Compiler <> '23.0') and
-     (ARegistration.Compiler <> '37.0') then
+  var LConvention := TBoss4DBuildConventions.ResolveCompiler(
+    ARegistration.Compiler);
+  if not SameText(LConvention.BDSVersion, ARegistration.Compiler) then
     raise EArgumentException.CreateFmt(
-      'Toolchain Delphi nao suportada: %s.', [ARegistration.Compiler]);
+      'O registro IDE exige a versao BDS canonica; use %s em vez de %s.',
+      [LConvention.BDSVersion, ARegistration.Compiler]);
   if not SameText(ARegistration.Platform, 'Win32') and
      not SameText(ARegistration.Platform, 'Win64') then
     raise EArgumentException.CreateFmt(
       'Plataforma IDE nao suportada: %s.', [ARegistration.Platform]);
   if ARegistration.BplPath.Trim.IsEmpty then
     raise EArgumentException.Create('BplPath nao pode ser vazio.');
+  var LAllowedPrefix := 'Software\Embarcadero\BDS\' +
+    ARegistration.Compiler + '\';
+  for var LRegistryValue in ARegistration.RegistryValues do
+  begin
+    if not LRegistryValue.Key.StartsWith(LAllowedPrefix, True) then
+      raise EArgumentException.CreateFmt(
+        'Chave de Registro IDE fora do escopo HKCU permitido: %s.',
+        [LRegistryValue.Key]);
+    if LRegistryValue.Name.Trim.IsEmpty then
+      raise EArgumentException.Create(
+        'Nome de valor de Registro IDE nao pode ser vazio.');
+  end;
 end;
 
 function TBoss4DIDERegistrationService.LoadInventory:
@@ -279,8 +463,12 @@ begin
       var LObject := TJSONObject(LItems[I]);
       var LRegistration := TBoss4DIDERegistration.Create;
       LRegistration.PackageName := LObject.GetValue<string>('package', '');
+      LRegistration.OwnerPackage := LObject.GetValue<string>(
+        'ownerPackage', '');
       LRegistration.Compiler := LObject.GetValue<string>('compiler', '');
       LRegistration.Platform := LObject.GetValue<string>('platform', '');
+      LRegistration.Configuration := LObject.GetValue<string>(
+        'configuration', '');
       LRegistration.BplPath := LObject.GetValue<string>('bpl', '');
       LRegistration.Description := LObject.GetValue<string>(
         'description', '');
@@ -289,6 +477,51 @@ begin
         'browsingPath', '');
       LRegistration.DebugDcuPath := LObject.GetValue<string>(
         'debugDcuPath', '');
+      LRegistration.RuntimePath := LObject.GetValue<string>(
+        'runtimePath', '');
+      LRegistration.ToolPath := LObject.GetValue<string>('toolPath', '');
+      LRegistration.ArtifactRoot := LObject.GetValue<string>(
+        'artifactRoot', '');
+      var LArtifacts := LObject.GetValue<TJSONArray>('artifacts');
+      if Assigned(LArtifacts) then
+        for var J := 0 to LArtifacts.Count - 1 do
+          LRegistration.Artifacts.Add(LArtifacts.Items[J].Value);
+      var LHelpFiles := LObject.GetValue<TJSONArray>('helpFiles');
+      if Assigned(LHelpFiles) then
+        for var J := 0 to LHelpFiles.Count - 1 do
+          LRegistration.HelpFiles.Add(LHelpFiles.Items[J].Value);
+      var LRegistryValues := LObject.GetValue<TJSONArray>('registryValues');
+      if Assigned(LRegistryValues) then
+        for var J := 0 to LRegistryValues.Count - 1 do
+          if LRegistryValues.Items[J] is TJSONObject then
+          begin
+            var LRegistryObject := TJSONObject(LRegistryValues.Items[J]);
+            var LRegistryValue := TBoss4DIDEManagedRegistryValue.Create;
+            LRegistryValue.Key := LRegistryObject.GetValue<string>('key', '');
+            LRegistryValue.Name := LRegistryObject.GetValue<string>(
+              'name', '');
+            LRegistryValue.Value := LRegistryObject.GetValue<string>(
+              'value', '');
+            LRegistration.RegistryValues.Add(LRegistryValue);
+          end;
+      LRegistration.ConflictPolicy := TBoss4DIDEConflictPolicy(
+        LObject.GetValue<Integer>('conflictPolicy', 0));
+      var LDisplacedValues := LObject.GetValue<TJSONArray>(
+        'displacedRegistryValues');
+      if Assigned(LDisplacedValues) then
+        for var J := 0 to LDisplacedValues.Count - 1 do
+          if LDisplacedValues.Items[J] is TJSONObject then
+          begin
+            var LDisplacedObject := TJSONObject(LDisplacedValues.Items[J]);
+            var LDisplacedValue := TBoss4DIDEManagedRegistryValue.Create;
+            LDisplacedValue.Key := LDisplacedObject.GetValue<string>(
+              'key', '');
+            LDisplacedValue.Name := LDisplacedObject.GetValue<string>(
+              'name', '');
+            LDisplacedValue.Value := LDisplacedObject.GetValue<string>(
+              'value', '');
+            LRegistration.DisplacedRegistryValues.Add(LDisplacedValue);
+          end;
       Result.Add(LRegistration);
     end;
   finally
@@ -307,19 +540,55 @@ var
 begin
   LRoot := TJSONObject.Create;
   try
-    LRoot.AddPair('schemaVersion', TJSONNumber.Create(1));
+    LRoot.AddPair('schemaVersion', TJSONNumber.Create(4));
     LItems := TJSONArray.Create;
     for var LRegistration in AInventory do
     begin
       var LObject := TJSONObject.Create;
       LObject.AddPair('package', LRegistration.PackageName);
+      LObject.AddPair('ownerPackage', LRegistration.OwnerPackage);
       LObject.AddPair('compiler', LRegistration.Compiler);
       LObject.AddPair('platform', LRegistration.Platform);
+      LObject.AddPair('configuration', LRegistration.Configuration);
       LObject.AddPair('bpl', LRegistration.BplPath);
       LObject.AddPair('description', LRegistration.Description);
       LObject.AddPair('searchPath', LRegistration.SearchPath);
       LObject.AddPair('browsingPath', LRegistration.BrowsingPath);
       LObject.AddPair('debugDcuPath', LRegistration.DebugDcuPath);
+      LObject.AddPair('runtimePath', LRegistration.RuntimePath);
+      LObject.AddPair('toolPath', LRegistration.ToolPath);
+      LObject.AddPair('artifactRoot', LRegistration.ArtifactRoot);
+      var LArtifacts := TJSONArray.Create;
+      for var LArtifact in LRegistration.Artifacts do
+        LArtifacts.Add(LArtifact);
+      LObject.AddPair('artifacts', LArtifacts);
+      var LHelpFiles := TJSONArray.Create;
+      for var LHelpFile in LRegistration.HelpFiles do
+        LHelpFiles.Add(LHelpFile);
+      LObject.AddPair('helpFiles', LHelpFiles);
+      var LRegistryValues := TJSONArray.Create;
+      for var LRegistryValue in LRegistration.RegistryValues do
+      begin
+        var LRegistryObject := TJSONObject.Create;
+        LRegistryObject.AddPair('key', LRegistryValue.Key);
+        LRegistryObject.AddPair('name', LRegistryValue.Name);
+        LRegistryObject.AddPair('value', LRegistryValue.Value);
+        LRegistryValues.AddElement(LRegistryObject);
+      end;
+      LObject.AddPair('registryValues', LRegistryValues);
+      LObject.AddPair('conflictPolicy', TJSONNumber.Create(
+        Ord(LRegistration.ConflictPolicy)));
+      var LDisplacedValues := TJSONArray.Create;
+      for var LDisplacedValue in
+        LRegistration.DisplacedRegistryValues do
+      begin
+        var LDisplacedObject := TJSONObject.Create;
+        LDisplacedObject.AddPair('key', LDisplacedValue.Key);
+        LDisplacedObject.AddPair('name', LDisplacedValue.Name);
+        LDisplacedObject.AddPair('value', LDisplacedValue.Value);
+        LDisplacedValues.AddElement(LDisplacedObject);
+      end;
+      LObject.AddPair('displacedRegistryValues', LDisplacedValues);
       LItems.AddElement(LObject);
     end;
     LRoot.AddPair('registrations', LItems);
@@ -405,6 +674,31 @@ begin
     ARegistration.BrowsingPath, ASnapshots);
   WritePathValue(AStore, LLibraryKey, 'Debug DCU Path',
     ARegistration.DebugDcuPath, ASnapshots);
+  WritePathValue(AStore, 'Environment', 'Path',
+    ARegistration.RuntimePath, ASnapshots);
+  WritePathValue(AStore, 'Environment', 'Path',
+    ARegistration.ToolPath, ASnapshots);
+  for var LHelpFile in ARegistration.HelpFiles do
+  begin
+    var LHelpKey := 'Software\Embarcadero\BDS\' +
+      ARegistration.Compiler + '\Help\HtmlHelp1Files';
+    var LHelpName := ARegistration.OwnerPackage + ':' +
+      TPath.GetFileName(LHelpFile);
+    TakeSnapshot(AStore, LHelpKey, LHelpName, ASnapshots);
+    AStore.WriteValue(LHelpKey, LHelpName, TPath.GetFullPath(LHelpFile));
+  end;
+  for var LRegistryValue in ARegistration.RegistryValues do
+  begin
+    TakeSnapshot(AStore, LRegistryValue.Key, LRegistryValue.Name, ASnapshots);
+    AStore.WriteValue(LRegistryValue.Key, LRegistryValue.Name,
+      LRegistryValue.Value);
+  end;
+  for var LDisplacedValue in ARegistration.DisplacedRegistryValues do
+  begin
+    TakeSnapshot(AStore, LDisplacedValue.Key, LDisplacedValue.Name,
+      ASnapshots);
+    AStore.DeleteValue(LDisplacedValue.Key, LDisplacedValue.Name);
+  end;
   TakeSnapshot(AStore, LIDEPackageKey, ARegistration.BplPath, ASnapshots);
   AStore.DeleteValue(LIDEPackageKey, ARegistration.BplPath);
   TakeSnapshot(AStore, LPackageKey, ARegistration.BplPath, ASnapshots);
@@ -436,10 +730,35 @@ begin
     ARegistration.BrowsingPath, ASnapshots);
   RemovePathValue(AStore, LLibraryKey, 'Debug DCU Path',
     ARegistration.DebugDcuPath, ASnapshots);
+  RemovePathValue(AStore, 'Environment', 'Path',
+    ARegistration.RuntimePath, ASnapshots);
+  RemovePathValue(AStore, 'Environment', 'Path',
+    ARegistration.ToolPath, ASnapshots);
+  for var LHelpFile in ARegistration.HelpFiles do
+  begin
+    var LHelpKey := 'Software\Embarcadero\BDS\' +
+      ARegistration.Compiler + '\Help\HtmlHelp1Files';
+    var LHelpName := ARegistration.OwnerPackage + ':' +
+      TPath.GetFileName(LHelpFile);
+    TakeSnapshot(AStore, LHelpKey, LHelpName, ASnapshots);
+    AStore.DeleteValue(LHelpKey, LHelpName);
+  end;
+  for var LRegistryValue in ARegistration.RegistryValues do
+  begin
+    TakeSnapshot(AStore, LRegistryValue.Key, LRegistryValue.Name, ASnapshots);
+    AStore.DeleteValue(LRegistryValue.Key, LRegistryValue.Name);
+  end;
   TakeSnapshot(AStore, LPackageKey, ARegistration.BplPath, ASnapshots);
   AStore.DeleteValue(LPackageKey, ARegistration.BplPath);
   TakeSnapshot(AStore, LIDEPackageKey, ARegistration.BplPath, ASnapshots);
   AStore.DeleteValue(LIDEPackageKey, ARegistration.BplPath);
+  for var LDisplacedValue in ARegistration.DisplacedRegistryValues do
+  begin
+    TakeSnapshot(AStore, LDisplacedValue.Key, LDisplacedValue.Name,
+      ASnapshots);
+    AStore.WriteValue(LDisplacedValue.Key, LDisplacedValue.Name,
+      LDisplacedValue.Value);
+  end;
 end;
 
 procedure TBoss4DIDERegistrationService.RegisterTarget(
@@ -447,21 +766,45 @@ procedure TBoss4DIDERegistrationService.RegisterTarget(
 var
   LSnapshots: TObjectList<TBoss4DRegistrySnapshot>;
   LInventory: TObjectList<TBoss4DIDERegistration>;
+  LEffectiveRegistration: TBoss4DIDERegistration;
+  LConflicts: TArray<TBoss4DIDEPackageConflict>;
 begin
   Validate(ARegistration);
+  LConflicts := DetectConflicts(ARegistration);
+  if Length(LConflicts) > 0 then
+    case ARegistration.ConflictPolicy of
+      TBoss4DIDEConflictPolicy.Fail:
+        raise EBoss4DIDERegistrationError.CreateFmt(
+          'Conflito de pacote IDE: %s ja esta registrado em %s.',
+          [TPath.GetFileName(ARegistration.BplPath),
+           LConflicts[0].ExistingPath]);
+      TBoss4DIDEConflictPolicy.Adopt:
+        Exit;
+    end;
   LSnapshots := TObjectList<TBoss4DRegistrySnapshot>.Create(True);
   LInventory := nil;
+  LEffectiveRegistration := ARegistration.Clone;
   try
+    if (ARegistration.ConflictPolicy = TBoss4DIDEConflictPolicy.Replace) then
+      for var LConflict in LConflicts do
+      begin
+        var LDisplacedValue := TBoss4DIDEManagedRegistryValue.Create;
+        LDisplacedValue.Key := LConflict.RegistryKey;
+        LDisplacedValue.Name := LConflict.ExistingPath;
+        LDisplacedValue.Value := LConflict.Description;
+        LEffectiveRegistration.DisplacedRegistryValues.Add(LDisplacedValue);
+      end;
     try
       LInventory := LoadInventory;
       for var I := LInventory.Count - 1 downto 0 do
-        if SameText(LInventory[I].Identity, ARegistration.Identity) then
+        if SameText(LInventory[I].Identity,
+          LEffectiveRegistration.Identity) then
         begin
           RemoveRegistration(FStore, LInventory[I], LSnapshots);
           LInventory.Delete(I);
         end;
-      ApplyRegistration(FStore, ARegistration, LSnapshots);
-      LInventory.Add(ARegistration.Clone);
+      ApplyRegistration(FStore, LEffectiveRegistration, LSnapshots);
+      LInventory.Add(LEffectiveRegistration.Clone);
       SaveInventory(LInventory);
     except
       on E: Exception do
@@ -473,6 +816,7 @@ begin
       end;
     end;
   finally
+    LEffectiveRegistration.Free;
     LInventory.Free;
     LSnapshots.Free;
   end;
@@ -495,32 +839,124 @@ begin
     AStore.WriteValue(AKey, AName, LUpdated);
 end;
 
-function TBoss4DIDERegistrationService.Unregister(
-  const APackageName, ACompiler, APlatform: string): Integer;
+procedure RestoreStagedArtifacts(
+  const AStagedFiles: TDictionary<string, string>);
+begin
+  for var LPair in AStagedFiles do
+    if TFile.Exists(LPair.Value) then
+    begin
+      TDirectory.CreateDirectory(TPath.GetDirectoryName(LPair.Key));
+      TFile.Move(LPair.Value, LPair.Key);
+    end;
+end;
+
+function TBoss4DIDERegistrationService.RemoveMatching(
+  const AName, ACompiler, APlatform: string;
+  const AByOwner: Boolean): Integer;
 var
   LInventory: TObjectList<TBoss4DIDERegistration>;
   LSnapshots: TObjectList<TBoss4DRegistrySnapshot>;
+  LStagedFiles: TDictionary<string, string>;
+  LStagingDirectory: string;
+
+  function Selected(const ARegistration: TBoss4DIDERegistration): Boolean;
+  begin
+    if AByOwner then
+      Result := SameText(ARegistration.OwnerPackage, AName)
+    else
+      Result := SameText(ARegistration.PackageName, AName);
+    Result := Result and
+      (ACompiler.IsEmpty or SameText(ARegistration.Compiler, ACompiler)) and
+      (APlatform.IsEmpty or SameText(ARegistration.Platform, APlatform));
+  end;
+
+  function PathUsedOutsideSelection(
+    const ARegistration: TBoss4DIDERegistration;
+    const APath, AKind: string): Boolean;
+  begin
+    Result := False;
+    if APath.Trim.IsEmpty then
+      Exit;
+    for var LOther in LInventory do
+    begin
+      if Selected(LOther) or
+         not SameText(LOther.Compiler, ARegistration.Compiler) or
+         not SameText(LOther.Platform, ARegistration.Platform) then
+        Continue;
+      if (SameText(AKind, 'search') and
+          SameText(LOther.SearchPath, APath)) or
+         (SameText(AKind, 'browsing') and
+          SameText(LOther.BrowsingPath, APath)) or
+         (SameText(AKind, 'debug') and
+          SameText(LOther.DebugDcuPath, APath)) or
+         (SameText(AKind, 'runtime') and
+          SameText(LOther.RuntimePath, APath)) or
+         (SameText(AKind, 'tool') and
+          SameText(LOther.ToolPath, APath)) then
+        Exit(True);
+    end;
+  end;
+
+  procedure StageArtifacts(const ARegistration: TBoss4DIDERegistration);
+  begin
+    if ARegistration.ArtifactRoot.Trim.IsEmpty then
+      Exit;
+    var LRoot := IncludeTrailingPathDelimiter(TPath.GetFullPath(
+      ARegistration.ArtifactRoot));
+    for var LDeclaredArtifact in ARegistration.Artifacts do
+    begin
+      var LArtifact := TPath.GetFullPath(LDeclaredArtifact);
+      if not LArtifact.StartsWith(LRoot, True) then
+        raise EBoss4DIDERegistrationError.CreateFmt(
+          'Artefato gerenciado fora da raiz permitida: %s.', [LArtifact]);
+      if LStagedFiles.ContainsKey(LArtifact) or
+         not TFile.Exists(LArtifact) then
+        Continue;
+      TDirectory.CreateDirectory(LStagingDirectory);
+      var LStaged := TPath.Combine(LStagingDirectory,
+        TGUID.NewGuid.ToString + TPath.GetExtension(LArtifact));
+      TFile.Move(LArtifact, LStaged);
+      LStagedFiles.Add(LArtifact, LStaged);
+    end;
+  end;
+
 begin
   Result := 0;
   LInventory := LoadInventory;
   LSnapshots := TObjectList<TBoss4DRegistrySnapshot>.Create(True);
+  LStagedFiles := TDictionary<string, string>.Create;
+  LStagingDirectory := FInventoryPath + '.uninstall-' +
+    TGUID.NewGuid.ToString;
   try
     try
+      for var LRegistration in LInventory do
+        if Selected(LRegistration) then
+          StageArtifacts(LRegistration);
       for var I := LInventory.Count - 1 downto 0 do
       begin
         var LRegistration := LInventory[I];
-        if not SameText(LRegistration.PackageName, APackageName) or
-           (not ACompiler.IsEmpty and
-            not SameText(LRegistration.Compiler, ACompiler)) or
-           (not APlatform.IsEmpty and
-            not SameText(LRegistration.Platform, APlatform)) then
+        if not Selected(LRegistration) then
           Continue;
-        RemovePathValue(FStore, LibraryKey(LRegistration), 'Search Path',
-          LRegistration.SearchPath, LSnapshots);
-        RemovePathValue(FStore, LibraryKey(LRegistration), 'Browsing Path',
-          LRegistration.BrowsingPath, LSnapshots);
-        RemovePathValue(FStore, LibraryKey(LRegistration), 'Debug DCU Path',
-          LRegistration.DebugDcuPath, LSnapshots);
+        if not PathUsedOutsideSelection(LRegistration,
+          LRegistration.SearchPath, 'search') then
+          RemovePathValue(FStore, LibraryKey(LRegistration), 'Search Path',
+            LRegistration.SearchPath, LSnapshots);
+        if not PathUsedOutsideSelection(LRegistration,
+          LRegistration.BrowsingPath, 'browsing') then
+          RemovePathValue(FStore, LibraryKey(LRegistration), 'Browsing Path',
+            LRegistration.BrowsingPath, LSnapshots);
+        if not PathUsedOutsideSelection(LRegistration,
+          LRegistration.DebugDcuPath, 'debug') then
+          RemovePathValue(FStore, LibraryKey(LRegistration),
+            'Debug DCU Path', LRegistration.DebugDcuPath, LSnapshots);
+        if not PathUsedOutsideSelection(LRegistration,
+          LRegistration.RuntimePath, 'runtime') then
+          RemovePathValue(FStore, 'Environment', 'Path',
+            LRegistration.RuntimePath, LSnapshots);
+        if not PathUsedOutsideSelection(LRegistration,
+          LRegistration.ToolPath, 'tool') then
+          RemovePathValue(FStore, 'Environment', 'Path',
+            LRegistration.ToolPath, LSnapshots);
         TakeSnapshot(FStore, PackageKey(LRegistration),
           LRegistration.BplPath, LSnapshots);
         FStore.DeleteValue(PackageKey(LRegistration),
@@ -529,6 +965,29 @@ begin
           LRegistration.BplPath, LSnapshots);
         FStore.DeleteValue(IDEPackageKey(LRegistration),
           LRegistration.BplPath);
+        for var LHelpFile in LRegistration.HelpFiles do
+        begin
+          var LHelpKey := 'Software\Embarcadero\BDS\' +
+            LRegistration.Compiler + '\Help\HtmlHelp1Files';
+          var LHelpName := LRegistration.OwnerPackage + ':' +
+            TPath.GetFileName(LHelpFile);
+          TakeSnapshot(FStore, LHelpKey, LHelpName, LSnapshots);
+          FStore.DeleteValue(LHelpKey, LHelpName);
+        end;
+        for var LRegistryValue in LRegistration.RegistryValues do
+        begin
+          TakeSnapshot(FStore, LRegistryValue.Key, LRegistryValue.Name,
+            LSnapshots);
+          FStore.DeleteValue(LRegistryValue.Key, LRegistryValue.Name);
+        end;
+        for var LDisplacedValue in
+          LRegistration.DisplacedRegistryValues do
+        begin
+          TakeSnapshot(FStore, LDisplacedValue.Key,
+            LDisplacedValue.Name, LSnapshots);
+          FStore.WriteValue(LDisplacedValue.Key, LDisplacedValue.Name,
+            LDisplacedValue.Value);
+        end;
         LInventory.Delete(I);
         Inc(Result);
       end;
@@ -537,16 +996,50 @@ begin
     except
       on E: Exception do
       begin
-        Rollback(FStore, LSnapshots);
+        try
+          Rollback(FStore, LSnapshots);
+        finally
+          RestoreStagedArtifacts(LStagedFiles);
+        end;
         raise EBoss4DIDERegistrationError.CreateFmt(
           'Falha ao desregistrar pacote IDE %s: %s',
-          [APackageName, E.Message]);
+          [AName, E.Message]);
       end;
     end;
+    if TDirectory.Exists(LStagingDirectory) then
+      TDirectory.Delete(LStagingDirectory, True);
   finally
+    LStagedFiles.Free;
     LSnapshots.Free;
     LInventory.Free;
   end;
+end;
+
+function TBoss4DIDERegistrationService.Unregister(
+  const APackageName, ACompiler, APlatform: string): Integer;
+begin
+  Result := RemoveMatching(APackageName, ACompiler, APlatform, False);
+end;
+
+function TBoss4DIDERegistrationService.Uninstall(
+  const AOwnerPackage: string): Integer;
+begin
+  if AOwnerPackage.Trim.IsEmpty then
+    raise EArgumentException.Create('OwnerPackage nao pode ser vazio.');
+  Result := RemoveMatching(AOwnerPackage, '', '', True);
+end;
+
+function TBoss4DIDERegistrationService.ArtifactsHealthy(
+  const ARegistration: TBoss4DIDERegistration): Boolean;
+begin
+  if ARegistration.ArtifactRoot.Trim.IsEmpty then
+    Exit(True);
+  if not TFile.Exists(ARegistration.BplPath) then
+    Exit(False);
+  for var LArtifact in ARegistration.Artifacts do
+    if not TFile.Exists(LArtifact) then
+      Exit(False);
+  Result := True;
 end;
 
 function TBoss4DIDERegistrationService.IsHealthy(
@@ -561,11 +1054,39 @@ var
       ContainsPath(LValue, APath);
   end;
 begin
-  Result := PathValueHealthy('Search Path', ARegistration.SearchPath) and
+  Result := ArtifactsHealthy(ARegistration) and
+    PathValueHealthy('Search Path', ARegistration.SearchPath) and
     PathValueHealthy('Browsing Path', ARegistration.BrowsingPath) and
     PathValueHealthy('Debug DCU Path', ARegistration.DebugDcuPath) and
+    (ARegistration.RuntimePath.Trim.IsEmpty or
+      (FStore.TryRead('Environment', 'Path', LValue) and
+       ContainsPath(LValue, ARegistration.RuntimePath))) and
+    (ARegistration.ToolPath.Trim.IsEmpty or
+      (FStore.TryRead('Environment', 'Path', LValue) and
+       ContainsPath(LValue, ARegistration.ToolPath))) and
     FStore.TryRead(PackageKey(ARegistration), ARegistration.BplPath,
       LValue) and SameText(LValue, ARegistration.Description);
+  if Result then
+    for var LHelpFile in ARegistration.HelpFiles do
+    begin
+      var LHelpKey := 'Software\Embarcadero\BDS\' +
+        ARegistration.Compiler + '\Help\HtmlHelp1Files';
+      var LHelpName := ARegistration.OwnerPackage + ':' +
+        TPath.GetFileName(LHelpFile);
+      if not FStore.TryRead(LHelpKey, LHelpName, LValue) or
+         not SameText(LValue, TPath.GetFullPath(LHelpFile)) then
+        Exit(False);
+    end;
+  if Result then
+    for var LRegistryValue in ARegistration.RegistryValues do
+      if not FStore.TryRead(LRegistryValue.Key, LRegistryValue.Name,
+        LValue) or (LValue <> LRegistryValue.Value) then
+        Exit(False);
+  if Result then
+    for var LDisplacedValue in ARegistration.DisplacedRegistryValues do
+      if FStore.TryRead(LDisplacedValue.Key, LDisplacedValue.Name,
+        LValue) then
+        Exit(False);
 end;
 
 function TBoss4DIDERegistrationService.Repair: Integer;
@@ -581,6 +1102,18 @@ begin
       for var LRegistration in LInventory do
         if not IsHealthy(LRegistration) then
         begin
+          if not ArtifactsHealthy(LRegistration) then
+          begin
+            if not Assigned(FArtifactRepairHandler) then
+              raise EBoss4DIDERegistrationError.CreateFmt(
+                'Artefatos ausentes para %s; execute o reparo com um compilador disponivel.',
+                [LRegistration.Identity]);
+            FArtifactRepairHandler(LRegistration);
+            if not ArtifactsHealthy(LRegistration) then
+              raise EBoss4DIDERegistrationError.CreateFmt(
+                'O rebuild nao restaurou todos os artefatos de %s.',
+                [LRegistration.Identity]);
+          end;
           ApplyRegistration(FStore, LRegistration, LSnapshots);
           Inc(Result);
         end;

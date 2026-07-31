@@ -7,7 +7,8 @@ uses
   Boss4D.Core.Domain.Package,
   Boss4D.Core.Domain.Lock,
   Boss4D.Core.Domain.BuildMatrix,
-  Boss4D.Core.Services.IDERegistration;
+  Boss4D.Core.Services.IDERegistration,
+  Boss4D.Core.Services.BuildInventory;
 
 type
   TBoss4DIDERegistrationHandler = reference to procedure(
@@ -18,6 +19,11 @@ type
     Force: Boolean;
     Explain: Boolean;
     RegisterTargets: Boolean;
+    WithDependents: Boolean;
+    Affected: Boolean;
+    AllInstalledIDEs: Boolean;
+    ConflictPolicy: TBoss4DIDEConflictPolicy;
+    RemoteCachePath: string;
     Jobs: Integer;
     class function Parse(
       const AArgs: TArray<string>): TBoss4DBuildCommandOptions; static;
@@ -36,12 +42,14 @@ type
     FCompiler: IBoss4DCompiler;
     FLogger: IBoss4DLogger;
     FRegistrationHandler: TBoss4DIDERegistrationHandler;
+    FInventory: TBoss4DBuildInventory;
     function SourceChecksum(const APackage: TBoss4DPackage;
       const ARootDirectory: string): string;
   public
     constructor Create(const ACompiler: IBoss4DCompiler;
       const ALogger: IBoss4DLogger;
-      const ARegistrationHandler: TBoss4DIDERegistrationHandler = nil);
+      const ARegistrationHandler: TBoss4DIDERegistrationHandler = nil;
+      const AInventory: TBoss4DBuildInventory = nil);
     function Execute(const APackage: TBoss4DPackage;
       const ALock: TBoss4DLock; const ARootDirectory: string;
       const AOptions: TBoss4DBuildCommandOptions): TBoss4DBuildCommandResult;
@@ -53,10 +61,12 @@ uses
   System.SysUtils,
   System.IOUtils,
   System.Hash,
+  System.Generics.Collections,
   Boss4D.Core.Domain.Dependency,
   Boss4D.Core.Domain.Env,
   Boss4D.Core.Domain.Consts,
   Boss4D.Core.Services.BuildConventions,
+  Boss4D.Core.Services.BuildCapabilities,
   Boss4D.Core.Services.BuildExecutor,
   Boss4D.Core.Services.BuildMatrix,
   Boss4D.Core.Services.BuildPaths;
@@ -86,6 +96,18 @@ begin
       Result.Explain := True
     else if SameText(AArgs[I], '--register') then
       Result.RegisterTargets := True
+    else if SameText(AArgs[I], '--with-dependents') then
+      Result.WithDependents := True
+    else if SameText(AArgs[I], '--affected') then
+    begin
+      Result.Affected := True;
+      Result.WithDependents := True;
+    end
+    else if SameText(AArgs[I], '--all-installed') then
+    begin
+      Result.AllInstalledIDEs := True;
+      Result.RegisterTargets := True;
+    end
     else if SameText(AArgs[I], '--full') then
     begin
       Result.Force := True;
@@ -96,7 +118,9 @@ begin
     else if SameText(AArgs[I], '--compiler') or
             SameText(AArgs[I], '--platform') or
             SameText(AArgs[I], '--configuration') or
-            SameText(AArgs[I], '--jobs') then
+            SameText(AArgs[I], '--jobs') or
+            SameText(AArgs[I], '--conflict') or
+            SameText(AArgs[I], '--remote-cache') then
     begin
       if I + 1 >= Length(AArgs) then
         raise EArgumentException.Create(
@@ -117,13 +141,8 @@ begin
         LPlatformAll := SameText(AArgs[I], 'all');
         if LPlatformAll then
           LPlatform := ''
-        else if SameText(AArgs[I], 'Win32') then
-          LPlatform := 'Win32'
-        else if SameText(AArgs[I], 'Win64') then
-          LPlatform := 'Win64'
         else
-          raise EArgumentException.CreateFmt(
-            'Plataforma Delphi nao suportada: %s.', [AArgs[I]]);
+          LPlatform := TBoss4DBuildCapabilities.NormalizePlatform(AArgs[I]);
       end
       else if LOption = '--configuration' then
       begin
@@ -137,6 +156,28 @@ begin
         else
           raise EArgumentException.CreateFmt(
             'Configuracao Delphi nao suportada: %s.', [AArgs[I]]);
+      end
+      else
+      if LOption = '--conflict' then
+      begin
+        if SameText(AArgs[I], 'fail') then
+          Result.ConflictPolicy := TBoss4DIDEConflictPolicy.Fail
+        else if SameText(AArgs[I], 'warn') then
+          Result.ConflictPolicy := TBoss4DIDEConflictPolicy.Warn
+        else if SameText(AArgs[I], 'adopt') then
+          Result.ConflictPolicy := TBoss4DIDEConflictPolicy.Adopt
+        else if SameText(AArgs[I], 'replace') then
+          Result.ConflictPolicy := TBoss4DIDEConflictPolicy.Replace
+        else
+          raise EArgumentException.CreateFmt(
+            'Politica de conflito IDE invalida: %s.', [AArgs[I]]);
+      end
+      else if LOption = '--remote-cache' then
+      begin
+        Result.RemoteCachePath := AArgs[I].Trim;
+        if Result.RemoteCachePath.IsEmpty then
+          raise EArgumentException.Create(
+            '--remote-cache exige um caminho nao vazio.');
       end
       else
       begin
@@ -157,7 +198,8 @@ end;
 
 constructor TBoss4DBuildCommand.Create(const ACompiler: IBoss4DCompiler;
   const ALogger: IBoss4DLogger;
-  const ARegistrationHandler: TBoss4DIDERegistrationHandler);
+  const ARegistrationHandler: TBoss4DIDERegistrationHandler;
+  const AInventory: TBoss4DBuildInventory);
 begin
   inherited Create;
   if not Assigned(ACompiler) then
@@ -165,6 +207,7 @@ begin
   FCompiler := ACompiler;
   FLogger := ALogger;
   FRegistrationHandler := ARegistrationHandler;
+  FInventory := AInventory;
 end;
 
 function TBoss4DBuildCommand.SourceChecksum(const APackage: TBoss4DPackage;
@@ -191,6 +234,66 @@ var
   LExecutor: TBoss4DBuildExecutor;
   LTargets: TBoss4DBuildTargetList;
   LExecutionOptions: TBoss4DBuildExecutionOptions;
+  procedure CopyIDEAsset(const ADeclaredPath, ACategory,
+    ATargetRoot: string);
+  var
+    LSource: string;
+    LSourceRoot: string;
+    LDestination: string;
+  begin
+    if ADeclaredPath.Trim.IsEmpty or ADeclaredPath.Contains('*') or
+       ADeclaredPath.Contains('?') then
+      raise EArgumentException.CreateFmt(
+        'Ativo IDE deve declarar um caminho literal: %s.',
+        [ADeclaredPath]);
+    LSourceRoot := IncludeTrailingPathDelimiter(
+      TPath.GetFullPath(ARootDirectory));
+    LSource := TPath.GetFullPath(TPath.Combine(ARootDirectory,
+      ADeclaredPath));
+    if not LSource.StartsWith(LSourceRoot, True) then
+      raise EArgumentException.CreateFmt(
+        'Ativo IDE fora da raiz do pacote: %s.', [ADeclaredPath]);
+    LDestination := TPath.Combine(TPath.Combine(ATargetRoot, ACategory),
+      TPath.GetFileName(ExcludeTrailingPathDelimiter(LSource)));
+    if TFile.Exists(LSource) then
+    begin
+      TDirectory.CreateDirectory(TPath.GetDirectoryName(LDestination));
+      TFile.Copy(LSource, LDestination, True);
+    end
+    else if TDirectory.Exists(LSource) then
+    begin
+      for var LFile in TDirectory.GetFiles(LSource, '*',
+        TSearchOption.soAllDirectories) do
+      begin
+        var LRelative := LFile.Substring(
+          IncludeTrailingPathDelimiter(LSource).Length);
+        var LTarget := TPath.Combine(LDestination, LRelative);
+        TDirectory.CreateDirectory(TPath.GetDirectoryName(LTarget));
+        TFile.Copy(LFile, LTarget, True);
+      end;
+    end
+    else
+      raise EFileNotFoundException.CreateFmt(
+        'Ativo IDE declarado nao encontrado: %s.', [ADeclaredPath]);
+  end;
+
+  function ExpandIDEAssetTokens(const AValue: string;
+    const ATarget: TBoss4DBuildTarget; const ATargetRoot,
+    ABplDirectory: string): string;
+  begin
+    Result := AValue.Replace('{compiler}', ATarget.Compiler, [rfReplaceAll,
+      rfIgnoreCase]);
+    Result := Result.Replace('{platform}', ATarget.Platform, [rfReplaceAll,
+      rfIgnoreCase]);
+    Result := Result.Replace('{root}', ATargetRoot, [rfReplaceAll,
+      rfIgnoreCase]);
+    Result := Result.Replace('{bpl}', ABplDirectory, [rfReplaceAll,
+      rfIgnoreCase]);
+    Result := Result.Replace('{tools}', TPath.Combine(ATargetRoot, 'tools'),
+      [rfReplaceAll, rfIgnoreCase]);
+    Result := Result.Replace('{templates}', TPath.Combine(ATargetRoot,
+      'templates'), [rfReplaceAll, rfIgnoreCase]);
+  end;
 begin
   Result := Default(TBoss4DBuildCommandResult);
   LDependency := TBoss4DDependency.Create(
@@ -201,6 +304,7 @@ begin
       AOptions.Selection, SourceChecksum(APackage, ARootDirectory));
     LExecutionOptions.Force := AOptions.Force;
     LExecutionOptions.Jobs := AOptions.Jobs;
+    LExecutionOptions.RemoteCachePath := AOptions.RemoteCachePath;
     Result.Scheduled := LExecutor.Execute(APackage, LDependency, ALock,
       ARootDirectory, LExecutionOptions);
     Result.Built := LExecutor.BuiltCount;
@@ -221,7 +325,8 @@ begin
         for var LTarget in LTargets do
           if SameText(LTarget.ProjectKind, 'design') then
           begin
-            var LRoot := TBoss4DBuildPaths.TargetRoot(GetModulesDir,
+            var LRoot := TBoss4DBuildPaths.TargetRoot(TPath.Combine(
+              ARootDirectory, FOLDER_DEPENDENCIES),
               LDependency.StorageName, LTarget.Compiler, LTarget.Platform,
               LTarget.Configuration);
             var LBplDirectory := TPath.Combine(LRoot, 'bpl');
@@ -229,25 +334,76 @@ begin
               raise EFileNotFoundException.CreateFmt(
                 'Diretorio BPL nao encontrado para %s.',
                 [LTarget.Identity]);
+            for var LTool in APackage.IDEAssets.Tools do
+              CopyIDEAsset(LTool, 'tools', LRoot);
+            for var LTemplate in APackage.IDEAssets.Templates do
+              CopyIDEAsset(LTemplate, 'templates', LRoot);
+            for var LDllFile in TDirectory.GetFiles(LRoot, '*.dll',
+              TSearchOption.soAllDirectories) do
+            begin
+              var LDllTarget := TPath.Combine(LBplDirectory,
+                TPath.GetFileName(LDllFile));
+              if not SameText(TPath.GetFullPath(LDllFile),
+                TPath.GetFullPath(LDllTarget)) then
+                TFile.Copy(LDllFile, LDllTarget, True);
+            end;
             var LBplFiles := TDirectory.GetFiles(LBplDirectory, '*.bpl',
               TSearchOption.soAllDirectories);
             if Length(LBplFiles) = 0 then
               raise EFileNotFoundException.CreateFmt(
                 'Nenhum BPL de design-time encontrado para %s.',
                 [LTarget.Identity]);
-            for var LBplFile in LBplFiles do
+            TArray.Sort<string>(LBplFiles);
+            for var LBplIndex := 0 to Length(LBplFiles) - 1 do
             begin
+              var LBplFile := LBplFiles[LBplIndex];
               var LRegistration := TBoss4DIDERegistration.Create;
               try
                 LRegistration.PackageName :=
                   ChangeFileExt(ExtractFileName(LBplFile), '');
+                LRegistration.OwnerPackage := APackage.Name;
                 LRegistration.Compiler := LTarget.Compiler;
                 LRegistration.Platform := LTarget.Platform;
+                LRegistration.Configuration := LTarget.Configuration;
                 LRegistration.BplPath := LBplFile;
                 LRegistration.Description := APackage.Description;
+                LRegistration.ConflictPolicy := AOptions.ConflictPolicy;
                 LRegistration.SearchPath := TPath.Combine(LRoot, 'dcu');
                 LRegistration.BrowsingPath := LRegistration.SearchPath;
                 LRegistration.DebugDcuPath := LRegistration.SearchPath;
+                if LBplIndex = 0 then
+                begin
+                  LRegistration.RuntimePath := LBplDirectory;
+                  if APackage.IDEAssets.Tools.Count > 0 then
+                    LRegistration.ToolPath := TPath.Combine(LRoot, 'tools');
+                  LRegistration.ArtifactRoot := LRoot;
+                  for var LArtifact in TDirectory.GetFiles(LRoot, '*',
+                    TSearchOption.soAllDirectories) do
+                    if not LArtifact.Contains(
+                      TPath.DirectorySeparatorChar + '.boss4d-state' +
+                      TPath.DirectorySeparatorChar) then
+                      LRegistration.Artifacts.Add(
+                        TPath.GetFullPath(LArtifact));
+                  LRegistration.Artifacts.Sort;
+                  for var LHelpFile in TDirectory.GetFiles(LRoot, '*.chm',
+                    TSearchOption.soAllDirectories) do
+                    LRegistration.HelpFiles.Add(
+                      TPath.GetFullPath(LHelpFile));
+                  LRegistration.HelpFiles.Sort;
+                  for var LDeclaredValue in
+                    APackage.IDEAssets.RegistryValues do
+                  begin
+                    var LManagedValue :=
+                      TBoss4DIDEManagedRegistryValue.Create;
+                    LManagedValue.Key := ExpandIDEAssetTokens(
+                      LDeclaredValue.Key, LTarget, LRoot, LBplDirectory);
+                    LManagedValue.Name := ExpandIDEAssetTokens(
+                      LDeclaredValue.Name, LTarget, LRoot, LBplDirectory);
+                    LManagedValue.Value := ExpandIDEAssetTokens(
+                      LDeclaredValue.Value, LTarget, LRoot, LBplDirectory);
+                    LRegistration.RegistryValues.Add(LManagedValue);
+                  end;
+                end;
                 FRegistrationHandler(LRegistration);
                 Inc(Result.Registered);
               finally
@@ -263,6 +419,22 @@ begin
       FLogger.Log(TBoss4DLogLevel.Info,
         'Build: %d agendados, %d compilados, %d restaurados, %d ignorados.',
         [Result.Scheduled, Result.Built, Result.Restored, Result.Skipped]);
+    if Assigned(FInventory) then
+    begin
+      var LDependencies := TList<string>.Create;
+      try
+        for var LName in APackage.Dependencies.Keys do
+          LDependencies.Add(LName);
+        for var LName in APackage.DevDependencies.Keys do
+          if not LDependencies.Contains(LName) then
+            LDependencies.Add(LName);
+        FInventory.RegisterPackage(APackage.Name, ARootDirectory,
+          LDependencies.ToArray);
+        FInventory.Save;
+      finally
+        LDependencies.Free;
+      end;
+    end;
   finally
     LExecutor.Free;
     LDependency.Free;

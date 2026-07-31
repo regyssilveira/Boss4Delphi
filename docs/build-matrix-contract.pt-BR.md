@@ -3,6 +3,16 @@
 Este documento define as regras de compatibilidade e o modelo declarativo usado
 pelo Boss4D para descrever builds em múltiplas versões do Delphi.
 
+> **Escopo atual:** o modelo cobre Delphi XE a Delphi 13, Win32/Win64 e as
+> plataformas Linux64, macOS, iOS e Android disponíveis em cada geração. Os
+> tipos são `runtime`, `design`, `application`, `tool` e `binary`; `.cbproj`
+> C++Builder está experimental em Win32/Win64. Consulte a combinação real com
+> `boss4d support --compiler <versão> --platform <target> --kind <tipo>`.
+> Cache compartilhado com SHA-256 usa `--remote-cache`; registro aceita
+> `--conflict fail|warn|adopt|replace`; `ide repair` recompila artefatos
+> gerenciados ausentes antes de reaplicar o estado da IDE. Ferramentas,
+> templates e valores BDS restritos podem ser declarados em `ideAssets`.
+
 ## Escopo inicial
 
 A primeira matriz avançada cobre:

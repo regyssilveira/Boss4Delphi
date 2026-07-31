@@ -318,6 +318,34 @@ begin
   end;
 end;
 
+procedure ParsePackageIDEAssets(const AJSONObj: TJSONObject;
+  const APackage: TBoss4DPackage);
+var
+  LAssetsObject: TJSONObject;
+  LRegistryArray: TJSONArray;
+begin
+  LAssetsObject := ReadObject(AJSONObj, 'ideAssets');
+  if not Assigned(LAssetsObject) then
+    Exit;
+
+  ParseStringArray(LAssetsObject, 'tools', APackage.IDEAssets.Tools);
+  ParseStringArray(LAssetsObject, 'templates', APackage.IDEAssets.Templates);
+  LRegistryArray := ReadArray(LAssetsObject, 'registry');
+  if not Assigned(LRegistryArray) then
+    Exit;
+  for var I := 0 to LRegistryArray.Count - 1 do
+  begin
+    if not (LRegistryArray[I] is TJSONObject) then
+      Continue;
+    var LObject := TJSONObject(LRegistryArray[I]);
+    var LValue := TBoss4DIDERegistryValue.Create;
+    LValue.Key := ReadString(LObject, 'key');
+    LValue.Name := ReadString(LObject, 'name');
+    LValue.Value := ReadString(LObject, 'value');
+    APackage.IDEAssets.RegistryValues.Add(LValue);
+  end;
+end;
+
 // Subfunções auxiliares de Save para TBoss4DPackageJsonRepository.Save
 procedure SavePackageProjects(const AJSONObj: TJSONObject; const APackage: TBoss4DPackage);
 var
@@ -544,6 +572,35 @@ begin
   AJSONObj.AddPair('buildMatrix', LMatrixObject);
 end;
 
+procedure SavePackageIDEAssets(const AJSONObj: TJSONObject;
+  const APackage: TBoss4DPackage);
+var
+  LAssetsObject: TJSONObject;
+  LRegistryArray: TJSONArray;
+begin
+  if not APackage.IDEAssets.IsDeclared then
+    Exit;
+
+  LAssetsObject := TJSONObject.Create;
+  AddStringArrayIfPresent(LAssetsObject, 'tools', APackage.IDEAssets.Tools);
+  AddStringArrayIfPresent(LAssetsObject, 'templates',
+    APackage.IDEAssets.Templates);
+  if APackage.IDEAssets.RegistryValues.Count > 0 then
+  begin
+    LRegistryArray := TJSONArray.Create;
+    for var LValue in APackage.IDEAssets.RegistryValues do
+    begin
+      var LObject := TJSONObject.Create;
+      LObject.AddPair('key', LValue.Key);
+      LObject.AddPair('name', LValue.Name);
+      LObject.AddPair('value', LValue.Value);
+      LRegistryArray.AddElement(LObject);
+    end;
+    LAssetsObject.AddPair('registry', LRegistryArray);
+  end;
+  AJSONObj.AddPair('ideAssets', LAssetsObject);
+end;
+
 // Subfunções auxiliares de Parse para TBoss4DLockJsonRepository.Load
 procedure ParseLockArtifacts(const AArtifactsObj: TJSONObject; const ALockedDep: TBoss4DLockedDependency);
 var
@@ -637,6 +694,7 @@ begin
       ParsePackageEngines(LJSONObj, Result);
       ParsePackageToolchain(LJSONObj, Result);
       ParsePackageBuildMatrix(LJSONObj, Result);
+      ParsePackageIDEAssets(LJSONObj, Result);
       ParsePackageTrust(LJSONObj, Result);
       ParsePackageWorkspaces(LJSONObj, Result);
     finally
@@ -705,6 +763,7 @@ begin
     SavePackageEngines(LJSONObj, APackage);
     SavePackageToolchain(LJSONObj, APackage);
     SavePackageBuildMatrix(LJSONObj, APackage);
+    SavePackageIDEAssets(LJSONObj, APackage);
     SavePackageTrust(LJSONObj, APackage);
     SavePackageWorkspaces(LJSONObj, APackage);
 

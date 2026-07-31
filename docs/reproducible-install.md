@@ -9,6 +9,8 @@ boss4d install --frozen-lockfile
 boss4d install --locked --offline
 boss4d ci
 boss4d ci --offline
+boss4d restore --ci --remote-cache X:\boss4d-cache
+boss4d install --build-only --locked --remote-cache X:\boss4d-cache
 ```
 
 `--locked` and its `--frozen-lockfile` alias require a lock with root metadata.
@@ -19,9 +21,12 @@ lock file, including its timestamp, is not rewritten.
 `--offline` disables cache clone and update operations. Every dependency must
 already exist in the global Boss4D cache; a cache miss fails the command.
 
-`ci` is the release/automation mode. It performs a clean reinstall of `modules/`
-from the frozen lock. Because the operation is transactional, a failed clean
-install restores the previous manifest, lock, and module tree.
+`ci` and `restore --ci` are the release/automation mode. They enforce the
+frozen lock, clean `modules/`, and disable IDE registration at the service
+boundary. `install --build-only` also suppresses registration. Because the
+operation is transactional, a failed clean install restores the previous
+manifest, lock, and module tree. `--remote-cache` shares verified compiled
+targets without weakening those isolation rules.
 
 Recommended CI sequence:
 

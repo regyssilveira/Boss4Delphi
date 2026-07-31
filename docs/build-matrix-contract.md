@@ -3,15 +3,16 @@
 This document defines the compatibility rules and the declarative model used by
 Boss4D to describe builds across multiple Delphi versions.
 
-## Initial scope
+## Current scope
 
-The first advanced matrix covers:
+The matrix models:
 
-- Delphi 10 (`BDS 17.0`), Delphi 10.1 (`BDS 18.0`), Delphi 11 (`BDS 22.0`), Delphi 12 (`BDS 23.0`),
-  and Delphi 13 (`BDS 37.0`);
-- `Win32` and `Win64`;
+- Delphi XE through Delphi 13, with exact BDS, compiler-symbol, and package
+  suffix conventions;
+- `Win32`, `Win64`, `Linux64`, supported macOS, iOS, and Android generations;
 - `Debug` and `Release`;
-- runtime and design-time packages;
+- runtime/design packages, applications, tools, prebuilt binaries, and
+  experimental C++Builder Win32/Win64 projects;
 - selection of one target, multiple targets, or the complete matrix.
 
 Existing Lazarus support remains valid, but an advanced Lazarus matrix is not
@@ -70,7 +71,9 @@ outside its global axis, duplicate values, unsupported platform/configuration,
 duplicate project paths, and a selection that yields no targets are rejected
 before compilation.
 
-`kind` accepts `runtime` or `design` and defaults to `runtime`. `dependsOn`
+`kind` accepts `runtime`, `design`, `application`, `tool`, or `binary` and
+defaults to `runtime`. `.dproj` and `.cbproj` use MSBuild; binary entries are
+copied to the isolated `bin` directory without invoking a compiler. `dependsOn`
 records build relationships by project path. Dependencies are resolved for the
 same compiler, platform, and configuration as the consuming target. Boss4D
 performs a stable topological sort, rejects missing compatible targets, and
@@ -104,6 +107,8 @@ modules/artifacts/<package>/<compiler>/<platform>/<configuration>/
 The complete target tree is cached as one unit. Its cache key includes the
 dependency identity, source checksum, compiler, platform, and configuration.
 Restoring one target can therefore never overwrite or satisfy another target.
+Every cached file has a SHA-256 entry; local and optional filesystem-backed
+remote caches are verified and promoted atomically.
 Legacy manifests keep their existing output layout until explicitly built
 through the matrix executor.
 
@@ -132,13 +137,24 @@ recorded outputs are all valid. The executor distinguishes and explains:
 Changing a runtime package therefore invalidates its compatible design-time
 consumers even when their own source files did not change.
 
+Successful builds also update the global inventory at
+`%BOSS_HOME%/build-inventory.json`. The inventory records each package root and
+its runtime and development dependencies using a deterministic, versioned
+schema. Its reverse graph provides direct and transitive dependent selection,
+and its topological planner orders selected packages before their consumers.
+Self-dependencies and cycles are rejected before the inventory is persisted.
+This inventory is the contract used by affected-package and repair workflows;
+it contains no compiler binaries and does not require every modeled IDE to be
+installed.
+
 ## Parallel scheduling
 
-The scheduler executes one topological level at a time and never starts a
-consumer before all direct dependencies complete. Within a level, targets with
-different output roots can run concurrently up to the configured jobs limit.
+The scheduler is dependency-ready rather than level-barrier based. A consumer
+starts as soon as all of its direct dependencies complete, without waiting for
+unrelated targets from the same topological level. Independent targets with
+different output roots run concurrently up to the configured jobs limit.
 Projects sharing the same package/compiler/platform/configuration output root
-are grouped and serialized to avoid compiler and filesystem races.
+are serialized to avoid compiler and filesystem races.
 
 Cancellation is checked before scheduling and before each target. The first
 failure stops new work, waits for already-running tasks to finish safely, and
@@ -157,6 +173,7 @@ For each target, the registration transaction manages:
 - `Search Path`;
 - `Browsing Path`;
 - `Debug DCU Path`.
+- the target BPL directory in the current user's `PATH`.
 
 Every registry value is snapshotted before mutation. A failed write or
 inventory update restores the values in reverse order and does not persist a
@@ -167,15 +184,52 @@ Unregister removes only the exact paths and BPL owned by the selected
 package/compiler/platform, preserving unrelated user paths. Re-registering the
 same target replaces its previous paths and package cleanly. Repair compares
 the inventory with the registry and reapplies only entries with drift.
+Paths shared by multiple managed packages use inventory-based ownership:
+unregistering one package keeps the path while another registration for the
+same compiler/platform still references it, and removes it only with the last
+owner.
+The same ownership rule applies to the user `PATH`, so a shared BPL directory
+is repaired and removed only when appropriate.
+
+`ideAssets` can declare tools, templates, and restricted per-user BDS Registry
+values. Asset paths must remain under the package root. Managed values support
+the `{compiler}`, `{platform}`, `{root}`, `{bpl}`, `{tools}`, and `{templates}`
+tokens and participate in rollback, repair, and uninstall.
+
+DLL outputs are copied into the managed BPL directory before registration, so
+they are available through that target's `PATH` entry and remain covered by
+artifact rollback. CHM outputs are registered per compiler under
+`Help\HtmlHelp1Files` using their absolute paths, as required by the
+[RAD Studio component-help contract](https://docwiki.embarcadero.com/RADStudio/en/Providing_Help_for_Your_Component).
+Help entries participate in registration, drift detection, repair, and
+uninstall.
+
+Inventory schema v2 also records the target artifact root and the exact
+BPL/DCU/DCP/output files produced by the registered build. Unregister moves
+only those files to a private staging directory before mutating the Registry.
+If a Registry or inventory operation fails, the Registry snapshots and staged
+files are restored. Files outside the declared target root are rejected, and
+unmanaged user files are never removed.
 
 ## Delphi conventions
 
 The CLI accepts either BDS versions or short aliases:
 
-| Delphi | BDS/compiler selector | Alias | Package suffix | Symbol |
+| Delphi | BDS selector | Alias | Package suffix | Symbol |
 |---|---:|---|---:|---|
+| XE | `8.0` | `xe` | `150` | `VER220` |
+| XE2 | `9.0` | `xe2` | `160` | `VER230` |
+| XE3 | `10.0` | `xe3` | `170` | `VER240` |
+| XE4 | `11.0` | `xe4` | `180` | `VER250` |
+| XE5 | `12.0` | `xe5` | `190` | `VER260` |
+| XE6 | `14.0` | `xe6` | `200` | `VER270` |
+| XE7 | `15.0` | `xe7` | `210` | `VER280` |
+| XE8 | `16.0` | `xe8` | `220` | `VER290` |
 | 10 Seattle | `17.0` | `d10` | `230` | `VER300` |
 | 10.1 Berlin | `18.0` | `d101` | `240` | `VER310` |
+| 10.2 Tokyo | `19.0` | `d102` | `250` | `VER320` |
+| 10.3 Rio | `20.0` | `d103` | `260` | `VER330` |
+| 10.4 Sydney | `21.0` | `d104` | `270` | `VER340` |
 | 11 Alexandria | `22.0` | `d11` | `280` | `VER350` |
 | 12 Athens | `23.0` | `d12` | `290` | `VER360` |
 | 13 Florence | `37.0` | `d13` | `370` | `VER370` |
@@ -207,7 +261,12 @@ boss4d build
 boss4d build --compiler d13 --platform Win64 --configuration Release
 boss4d build --compiler all --platform Win32 --configuration Release --jobs 4
 boss4d build --compiler d13 --platform Win32 --configuration Release --explain
+boss4d build --all-installed
+boss4d build --affected
+boss4d build --with-dependents
+boss4d build --remote-cache X:\boss4d-cache
 boss4d build --full
+boss4d support --compiler d13 --platform Win64 --kind application
 ```
 
 - `--compiler`, `--platform`, and `--configuration` accept one value or `all`
@@ -217,13 +276,33 @@ boss4d build --full
 - `--full` selects every axis and forces recompilation.
 - `--explain` prints the incremental decision for every target.
 - `--register` registers BPLs produced by selected design-time targets.
+- `--conflict fail|warn|adopt|replace` controls collisions with an existing
+  package explicitly.
+- `--remote-cache <path>` shares only SHA-256-verified isolated targets.
+- `--all-installed` discovers BDS installations from the Registry, confirms
+  available Win32/Win64 compiler executables, intersects them with the package
+  matrix, and builds/registers every compatible target. Missing or modeled-only
+  IDEs are never treated as installed.
+- `--with-dependents` builds the current package and all direct/transitive
+  consumers recorded in the global inventory, in dependency order.
+- `--affected` is the incremental affected-build workflow: it selects the same
+  consumer closure while preserving normal fingerprint/cache decisions.
 
 IDE lifecycle commands are deliberately exact:
 
 ```console
 boss4d ide unregister ComponentDesign370 --compiler d13 --platform Win32
+boss4d ide uninstall Component
 boss4d ide repair
 ```
+
+`ide unregister` removes one exact Delphi package target. `ide uninstall`
+removes every managed compiler/platform target owned by the product, deletes
+its global build-inventory entry, and refuses the operation while installed
+consumers still depend on that product. `--cascade` removes the transitive
+consumer closure first, in reverse build order. `--force` explicitly bypasses
+the dependent protection for the selected product; it cannot be combined with
+`--cascade`.
 
 ## Doctor and troubleshooting
 

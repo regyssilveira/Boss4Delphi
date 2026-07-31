@@ -11,13 +11,16 @@ uses
   Boss4D.Core.Services.Tool, Boss4D.Core.Services.IDEIntegration,
   Boss4D.Core.Services.GetIt, Boss4D.Core.Services.Clean,
   Boss4D.Core.Services.Sbom, Boss4D.Core.Services.Scaffold,
-  Boss4D.Core.Services.BuildCommand;
+  Boss4D.Core.Services.BuildCommand, Boss4D.Core.Services.BuildInventory,
+  Boss4D.Core.Services.BuildCoordinator, Boss4D.Core.Services.IDEDiscovery;
 
 
 type
   TBoss4DIDEUnregisterHandler = reference to function(
     const APackageName, ACompiler, APlatform: string): Integer;
   TBoss4DIDERepairHandler = reference to function: Integer;
+  TBoss4DIDEUninstallHandler = reference to function(
+    const AOwnerPackage: string): Integer;
 
   TBoss4DParserRuntime = record
   private
@@ -25,11 +28,14 @@ type
     FRegistrationHandler: TBoss4DIDERegistrationHandler;
     FUnregisterHandler: TBoss4DIDEUnregisterHandler;
     FRepairHandler: TBoss4DIDERepairHandler;
+    FUninstallHandler: TBoss4DIDEUninstallHandler;
   public
     class function Create(const ACompiler: IBoss4DCompiler;
       const ARegistrationHandler: TBoss4DIDERegistrationHandler;
       const AUnregisterHandler: TBoss4DIDEUnregisterHandler;
-      const ARepairHandler: TBoss4DIDERepairHandler): TBoss4DParserRuntime;
+      const ARepairHandler: TBoss4DIDERepairHandler;
+      const AUninstallHandler: TBoss4DIDEUninstallHandler = nil):
+      TBoss4DParserRuntime;
       static;
     property Compiler: IBoss4DCompiler read FCompiler;
     property RegistrationHandler: TBoss4DIDERegistrationHandler
@@ -37,6 +43,8 @@ type
     property UnregisterHandler: TBoss4DIDEUnregisterHandler
       read FUnregisterHandler;
     property RepairHandler: TBoss4DIDERepairHandler read FRepairHandler;
+    property UninstallHandler: TBoss4DIDEUninstallHandler
+      read FUninstallHandler;
   end;
 
   TBoss4DSbomCommandOptions = record
@@ -64,6 +72,7 @@ type
     FRegistrationHandler: TBoss4DIDERegistrationHandler;
     FUnregisterHandler: TBoss4DIDEUnregisterHandler;
     FRepairHandler: TBoss4DIDERepairHandler;
+    FUninstallHandler: TBoss4DIDEUninstallHandler;
 
     procedure ShowHelp;
     procedure ShowVersion;
@@ -99,6 +108,8 @@ type
     procedure HandleConformance(const AArgs: TArray<string>);
     procedure HandleSpec(const AArgs: TArray<string>);
     procedure HandleBuild(const AArgs: TArray<string>);
+    procedure HandleSupport(const AArgs: TArray<string>);
+    procedure HandleIDEUninstall(const AArgs: TArray<string>);
     procedure HandleIDE(const AArgs: TArray<string>);
     function ParseSbomArguments(
       const AArgs: TArray<string>): TBoss4DSbomCommandOptions;
@@ -158,19 +169,23 @@ uses
   Boss4D.Core.Services.PackageInstall,
   Boss4D.Core.Services.BuildSpec,
   Boss4D.Core.Services.BuildConventions,
+  Boss4D.Core.Services.BuildCapabilities,
   Boss4D.Core.Services.BuildDoctor,
   Boss4D.Core.Services.IDERegistration;
 
 class function TBoss4DParserRuntime.Create(const ACompiler: IBoss4DCompiler;
   const ARegistrationHandler: TBoss4DIDERegistrationHandler;
   const AUnregisterHandler: TBoss4DIDEUnregisterHandler;
-  const ARepairHandler: TBoss4DIDERepairHandler): TBoss4DParserRuntime;
+  const ARepairHandler: TBoss4DIDERepairHandler;
+  const AUninstallHandler: TBoss4DIDEUninstallHandler):
+  TBoss4DParserRuntime;
 begin
   Result := Default(TBoss4DParserRuntime);
   Result.FCompiler := ACompiler;
   Result.FRegistrationHandler := ARegistrationHandler;
   Result.FUnregisterHandler := AUnregisterHandler;
   Result.FRepairHandler := ARepairHandler;
+  Result.FUninstallHandler := AUninstallHandler;
 end;
 
 constructor TBoss4DCommandLineParser.Create(
@@ -211,6 +226,7 @@ begin
   FRegistrationHandler := ARuntime.RegistrationHandler;
   FUnregisterHandler := ARuntime.UnregisterHandler;
   FRepairHandler := ARuntime.RepairHandler;
+  FUninstallHandler := ARuntime.UninstallHandler;
 end;
 
 procedure TBoss4DCommandLineParser.ShowHelp;
@@ -225,7 +241,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -q, --quiet (modo silencioso).');
   FLogger.Log(TBoss4DLogLevel.Info, '  install              Instala todas as dependencias declaradas no boss.json.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: -p, --platform <plataforma> (Win32, Win64, Linux64, etc.).');
-  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --locked, --frozen-lockfile, --offline, --production, --progress plain|interactive, --json, --quiet.');
+  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --locked, --frozen-lockfile, --offline, --production, --no-register, --progress plain|interactive, --json, --quiet.');
   FLogger.Log(TBoss4DLogLevel.Info, '  install <dep>        Instala uma dependencia especifica.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Exemplo: boss4d install github.com/hashload/horse@^3.0.0');
   FLogger.Log(TBoss4DLogLevel.Info, '  add <dep> [--dev]    Adiciona dependencia de runtime ou desenvolvimento.');
@@ -263,8 +279,10 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  conformance registry|package <arq> Valida o protocolo publico.');
   FLogger.Log(TBoss4DLogLevel.Info, '  spec --detect [--compiler <versao>] Detecta projetos e gera buildMatrix.');
   FLogger.Log(TBoss4DLogLevel.Info, '  build                Compila a matriz declarada.');
-  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --compiler, --platform, --configuration, --jobs, --force, --full, --explain, --register.');
-  FLogger.Log(TBoss4DLogLevel.Info, '  ide unregister <pacote> --compiler <versao> --platform <Win32|Win64>');
+  FLogger.Log(TBoss4DLogLevel.Info, '  support              Consulta suporte por compilador, plataforma e tipo.');
+  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --compiler, --platform, --configuration, --jobs, --force, --full, --explain, --register, --all-installed, --affected, --with-dependents.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  ide unregister <bpl> --compiler <versao> --platform <Win32|Win64>');
+  FLogger.Log(TBoss4DLogLevel.Info, '  ide uninstall <pacote> Remove todos os targets gerenciados do pacote.');
   FLogger.Log(TBoss4DLogLevel.Info, '  ide repair           Repara registros da IDE a partir do inventario.');
   FLogger.Log(TBoss4DLogLevel.Info, '  help, -h, --help     Exibe este menu de ajuda.');
   FLogger.Log(TBoss4DLogLevel.Info, '');
@@ -295,6 +313,23 @@ begin
     HandleInstall(AArgs)
   else if LCommand = 'ci' then
     HandleCI(AArgs)
+  else if LCommand = 'restore' then
+  begin
+    if (Length(AArgs) > 1) and SameText(AArgs[1], '--ci') then
+    begin
+      var LCIArgs := TList<string>.Create;
+      try
+        LCIArgs.Add('ci');
+        for var LRestoreIndex := 2 to Length(AArgs) - 1 do
+          LCIArgs.Add(AArgs[LRestoreIndex]);
+        HandleCI(LCIArgs.ToArray);
+      finally
+        LCIArgs.Free;
+      end;
+    end
+    else
+      HandleInstall(AArgs);
+  end
   else if LCommand = 'add' then
     HandleAdd(AArgs)
   else if (LCommand = 'remove') or (LCommand = 'rm') then
@@ -353,10 +388,142 @@ begin
     HandleSpec(AArgs)
   else if LCommand = 'build' then
     HandleBuild(AArgs)
+  else if LCommand = 'support' then
+    HandleSupport(AArgs)
   else if LCommand = 'ide' then
     HandleIDE(AArgs)
   else if LCommand = 'sbom' then
     HandleSbom(AArgs);
+end;
+
+procedure TBoss4DCommandLineParser.HandleSupport(
+  const AArgs: TArray<string>);
+var
+  LCompilers, LPlatforms: TArray<string>;
+  LCompiler, LPlatform, LKind, LProject: string;
+  LCapability: TBoss4DBuildCapability;
+  I: Integer;
+begin
+  LCompiler := 'all';
+  LPlatform := 'all';
+  LKind := 'runtime';
+  LProject := 'package.dproj';
+  I := 1;
+  while I < Length(AArgs) do
+  begin
+    if (I + 1 >= Length(AArgs)) or not AArgs[I].StartsWith('--') then
+      raise EArgumentException.Create(
+        'Uso: boss4d support [--compiler <versao|all>] ' +
+        '[--platform <target|all>] [--kind <tipo>] [--project <arquivo>].');
+    if SameText(AArgs[I], '--compiler') then
+      LCompiler := AArgs[I + 1]
+    else if SameText(AArgs[I], '--platform') then
+      LPlatform := AArgs[I + 1]
+    else if SameText(AArgs[I], '--kind') then
+      LKind := AArgs[I + 1]
+    else if SameText(AArgs[I], '--project') then
+      LProject := AArgs[I + 1]
+    else
+      raise EArgumentException.Create(
+        'Opcao desconhecida para support: ' + AArgs[I]);
+    Inc(I, 2);
+  end;
+
+  if SameText(LCompiler, 'all') then
+    LCompilers := TBoss4DBuildCapabilities.SupportedCompilers
+  else
+  begin
+    TBoss4DBuildConventions.ResolveCompiler(LCompiler);
+    LCompilers := TArray<string>.Create(LCompiler);
+  end;
+  if SameText(LPlatform, 'all') then
+    LPlatforms := TBoss4DBuildCapabilities.SupportedPlatforms
+  else
+    LPlatforms := TArray<string>.Create(
+      TBoss4DBuildCapabilities.NormalizePlatform(LPlatform));
+
+  FLogger.Log(TBoss4DLogLevel.Info,
+    'compiler | platform | kind | level | reason');
+  for var LCompilerItem in LCompilers do
+    for var LPlatformItem in LPlatforms do
+    begin
+      LCapability := TBoss4DBuildCapabilities.Evaluate(
+        LCompilerItem, LPlatformItem, LKind, LProject);
+      FLogger.Log(TBoss4DLogLevel.Info, '%s | %s | %s | %s | %s',
+        [TBoss4DBuildConventions.ResolveCompiler(LCompilerItem).Alias,
+         LPlatformItem, LKind,
+         TBoss4DBuildCapability.LevelName(LCapability.Level),
+         LCapability.Reason]);
+    end;
+end;
+
+procedure TBoss4DCommandLineParser.HandleIDEUninstall(
+  const AArgs: TArray<string>);
+var
+  LInventory: TBoss4DBuildInventory;
+  LIDEIntegration: TBoss4DIDEIntegrationService;
+  LRemovalNames: TList<string>;
+  LDependents, LOrder: TArray<string>;
+  LCascade, LForce: Boolean;
+  LCount: Integer;
+begin
+  if Length(AArgs) < 3 then
+    raise EArgumentException.Create(
+      'Uso: boss4d ide uninstall <pacote> [--cascade|--force].');
+  LCascade := False;
+  LForce := False;
+  for var LOptionIndex := 3 to Length(AArgs) - 1 do
+    if SameText(AArgs[LOptionIndex], '--cascade') then
+      LCascade := True
+    else if SameText(AArgs[LOptionIndex], '--force') then
+      LForce := True
+    else
+      raise EArgumentException.Create(
+        'Opcao desconhecida para ide uninstall: ' + AArgs[LOptionIndex]);
+  if LCascade and LForce then
+    raise EArgumentException.Create(
+      '--cascade e --force nao podem ser combinados.');
+
+  LInventory := TBoss4DBuildInventory.Create(TPath.Combine(
+    GetBossHome, 'build-inventory.json'));
+  LIDEIntegration := nil;
+  LRemovalNames := TList<string>.Create;
+  try
+    LInventory.Load;
+    LRemovalNames.Add(AArgs[2].ToLower);
+    if LInventory.Contains(AArgs[2]) then
+    begin
+      LDependents := LInventory.DependentsOf(AArgs[2]);
+      if (Length(LDependents) > 0) and not LCascade and not LForce then
+        raise EInvalidOpException.CreateFmt(
+          'Nao e possivel remover %s; dependentes instalados: %s.',
+          [AArgs[2], string.Join(', ', LDependents)]);
+      if LCascade then
+        LRemovalNames.AddRange(LDependents);
+    end;
+    LOrder := LInventory.BuildOrder(LRemovalNames.ToArray);
+    LCount := 0;
+    if not Assigned(FUninstallHandler) then
+      LIDEIntegration := TBoss4DIDEIntegrationService.Create(
+        FRegistry, FLogger);
+    for var LOrderIndex := Length(LOrder) - 1 downto 0 do
+    begin
+      var LOwner := LOrder[LOrderIndex];
+      if Assigned(FUninstallHandler) then
+        Inc(LCount, FUninstallHandler(LOwner))
+      else
+        Inc(LCount, LIDEIntegration.UninstallPackage(LOwner));
+      if LInventory.Contains(LOwner) then
+        LInventory.RemovePackage(LOwner);
+    end;
+    LInventory.Save;
+  finally
+    LRemovalNames.Free;
+    LIDEIntegration.Free;
+    LInventory.Free;
+  end;
+  FLogger.Log(TBoss4DLogLevel.Info,
+    'Pacote removido de todas as IDEs: %d registros.', [LCount]);
 end;
 
 procedure TBoss4DCommandLineParser.HandleIDE(
@@ -365,6 +532,9 @@ var
   LCompiler: string;
   LPlatform: string;
   LIDEIntegration: TBoss4DIDEIntegrationService;
+  LRegistrationService: TBoss4DIDERegistrationService;
+  LInventory: TBoss4DBuildInventory;
+  LCompilerService: IBoss4DCompiler;
   LCount: Integer;
   I: Integer;
 begin
@@ -373,6 +543,8 @@ begin
       'Uso: boss4d ide unregister|repair.');
 
   LIDEIntegration := nil;
+  LRegistrationService := nil;
+  LInventory := nil;
   try
     if SameText(AArgs[1], 'repair') then
     begin
@@ -382,12 +554,73 @@ begin
         LCount := FRepairHandler()
       else
       begin
-        LIDEIntegration := TBoss4DIDEIntegrationService.Create(
-          FRegistry, FLogger);
-        LCount := LIDEIntegration.RepairRegistrations;
+        LCompilerService := FCompiler;
+        if not Assigned(LCompilerService) then
+          LCompilerService := TBoss4DDelphiCompilerAdapter.Create(
+            FRegistry, FLogger);
+        LInventory := TBoss4DBuildInventory.Create(TPath.Combine(
+          GetBossHome, 'build-inventory.json'));
+        LInventory.Load;
+        LRegistrationService := TBoss4DIDERegistrationService.Create(
+          TBoss4DWindowsIDERegistryStore.Create,
+          TPath.Combine(GetBossHome, 'ide-registrations.json'),
+          procedure(const ARegistration: TBoss4DIDERegistration)
+          begin
+            if not LInventory.Contains(ARegistration.OwnerPackage) then
+              raise EBoss4DIDERegistrationError.CreateFmt(
+                'Pacote %s nao encontrado no inventario de build.',
+                [ARegistration.OwnerPackage]);
+            var LRoot := LInventory.GetPackage(
+              ARegistration.OwnerPackage).RootDirectory;
+            var LManifest := TPath.Combine(LRoot, FILE_PACKAGE);
+            var LPackage := FPackageRepo.Load(LManifest);
+            try
+              var LLockRepo: IBoss4DLockRepository :=
+                TBoss4DLockJsonRepository.Create;
+              var LLockPath := TPath.Combine(LRoot, FILE_PACKAGE_LOCK);
+              var LLock: TBoss4DLock;
+              if LLockRepo.Exists(LLockPath) then
+                LLock := LLockRepo.Load(LLockPath)
+              else
+                LLock := TBoss4DLock.Create;
+              try
+                var LConfiguration := ARegistration.Configuration;
+                if LConfiguration.IsEmpty then
+                  LConfiguration := TPath.GetFileName(
+                    ExcludeTrailingPathDelimiter(
+                      ARegistration.ArtifactRoot));
+                if not SameText(LConfiguration, 'Debug') and
+                   not SameText(LConfiguration, 'Release') then
+                  LConfiguration := 'Release';
+                var LOptions := TBoss4DBuildCommandOptions.Parse(
+                  TArray<string>.Create('build', '--compiler',
+                    ARegistration.Compiler, '--platform',
+                    ARegistration.Platform, '--configuration',
+                    LConfiguration, '--force'));
+                var LCommand := TBoss4DBuildCommand.Create(
+                  LCompilerService, FLogger);
+                try
+                  LCommand.Execute(LPackage, LLock, LRoot, LOptions);
+                finally
+                  LCommand.Free;
+                end;
+              finally
+                LLock.Free;
+              end;
+            finally
+              LPackage.Free;
+            end;
+          end);
+        LCount := LRegistrationService.Repair;
       end;
       FLogger.Log(TBoss4DLogLevel.Info,
         'Registros IDE reparados: %d.', [LCount]);
+      Exit;
+    end;
+
+    if SameText(AArgs[1], 'uninstall') then
+    begin
+      HandleIDEUninstall(AArgs);
       Exit;
     end;
 
@@ -442,6 +675,8 @@ begin
     FLogger.Log(TBoss4DLogLevel.Info,
       'Registros IDE removidos: %d.', [LCount]);
   finally
+    LInventory.Free;
+    LRegistrationService.Free;
     LIDEIntegration.Free;
   end;
 end;
@@ -451,51 +686,46 @@ procedure TBoss4DCommandLineParser.HandleBuild(
 var
   LCompiler: IBoss4DCompiler;
   LLockRepo: IBoss4DLockRepository;
-  LPackage: TBoss4DPackage;
-  LLock: TBoss4DLock;
-  LCommand: TBoss4DBuildCommand;
+  LCoordinator: TBoss4DBuildCoordinator;
   LIDEIntegration: TBoss4DIDEIntegrationService;
   LHandler: TBoss4DIDERegistrationHandler;
+  LInventory: TBoss4DBuildInventory;
 begin
   LCompiler := FCompiler;
   if not Assigned(LCompiler) then
     LCompiler := TBoss4DDelphiCompilerAdapter.Create(FRegistry, FLogger);
   LLockRepo := TBoss4DLockJsonRepository.Create;
-  LPackage := FPackageRepo.Load(GetBossFile);
-  try
-    if LLockRepo.Exists(TPath.Combine(GetCurrentDir, FILE_PACKAGE_LOCK)) then
-      LLock := LLockRepo.Load(TPath.Combine(GetCurrentDir, FILE_PACKAGE_LOCK))
-    else
-      LLock := TBoss4DLock.Create;
-    try
-      LIDEIntegration := nil;
-      LHandler := FRegistrationHandler;
-      if not Assigned(LHandler) then
+  LIDEIntegration := nil;
+  LHandler := FRegistrationHandler;
+  if not Assigned(LHandler) then
+  begin
+    LIDEIntegration := TBoss4DIDEIntegrationService.Create(
+      FRegistry, FLogger);
+    LHandler :=
+      procedure(const ARegistration: TBoss4DIDERegistration)
       begin
-        LIDEIntegration := TBoss4DIDEIntegrationService.Create(
-          FRegistry, FLogger);
-        LHandler :=
-          procedure(const ARegistration: TBoss4DIDERegistration)
-          begin
-            LIDEIntegration.RegisterTarget(ARegistration);
-          end;
+        LIDEIntegration.RegisterTarget(ARegistration);
       end;
+  end;
+  try
+    LInventory := TBoss4DBuildInventory.Create(TPath.Combine(
+      GetBossHome, 'build-inventory.json'));
+    try
+      LInventory.Load;
+      LCoordinator := TBoss4DBuildCoordinator.Create(LCompiler, FLogger,
+        FPackageRepo, LLockRepo, LHandler, LInventory,
+        TBoss4DRegistryIDEDiscovery.Create(FRegistry));
       try
-        LCommand := TBoss4DBuildCommand.Create(LCompiler, FLogger, LHandler);
-        try
-          LCommand.Execute(LPackage, LLock, GetCurrentDir,
-            TBoss4DBuildCommandOptions.Parse(AArgs));
-        finally
-          LCommand.Free;
-        end;
+        LCoordinator.Execute(GetCurrentDir,
+          TBoss4DBuildCommandOptions.Parse(AArgs));
       finally
-        LIDEIntegration.Free;
+        LCoordinator.Free;
       end;
     finally
-      LLock.Free;
+      LInventory.Free;
     end;
   finally
-    LPackage.Free;
+    LIDEIntegration.Free;
   end;
 end;
 
@@ -1172,6 +1402,7 @@ var
 begin
   LDepToInstall := '';
   LOptions := Default(TBoss4DInstallOptions);
+  LOptions.InstallIDEs := True;
   LProgressMode := 'plain';
 
   I := 1;
@@ -1202,6 +1433,20 @@ begin
     begin
       LOptions.Production := True;
       Inc(I);
+    end
+    else if SameText(AArgs[I], '--no-register') or
+            SameText(AArgs[I], '--build-only') then
+    begin
+      LOptions.InstallIDEs := False;
+      Inc(I);
+    end
+    else if SameText(AArgs[I], '--remote-cache') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create(
+          'Informe o caminho do cache remoto.');
+      LOptions.RemoteCachePath := AArgs[I + 1];
+      Inc(I, 2);
     end
     else if SameText(AArgs[I], '--resolution') then
     begin
@@ -1247,11 +1492,8 @@ begin
     raise EArgumentException.Create(
       '--locked instala somente o grafo completo declarado no lock.');
   FInstallService.SetProgressMode(LProgressMode);
-  if LDepToInstall.IsEmpty and
-     (LOptions.Locked or LOptions.Offline or LOptions.Production) then
-    FInstallService.Execute(LOptions)
-  else
-    FInstallService.Execute(LDepToInstall, LOptions.Platform);
+  LOptions.InstallSingle := LDepToInstall;
+  FInstallService.Execute(LOptions);
 end;
 
 procedure TBoss4DCommandLineParser.HandleCI(const AArgs: TArray<string>);
@@ -1263,6 +1505,8 @@ begin
   LOptions := Default(TBoss4DInstallOptions);
   LOptions.Locked := True;
   LOptions.CleanModules := True;
+  LOptions.CIMode := True;
+  LOptions.InstallIDEs := False;
   LProgressMode := 'plain';
   I := 1;
   while I < Length(AArgs) do
@@ -1278,6 +1522,14 @@ begin
         raise EArgumentException.Create('Informe uma plataforma.');
       Inc(I);
       LOptions.Platform := AArgs[I];
+    end
+    else if SameText(AArgs[I], '--remote-cache') then
+    begin
+      if I + 1 >= Length(AArgs) then
+        raise EArgumentException.Create(
+          'Informe o caminho do cache remoto.');
+      Inc(I);
+      LOptions.RemoteCachePath := AArgs[I];
     end
     else if SameText(AArgs[I], '--json') then
       LProgressMode := 'json'

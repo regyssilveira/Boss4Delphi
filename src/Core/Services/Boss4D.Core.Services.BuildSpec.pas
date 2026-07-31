@@ -132,6 +132,24 @@ begin
   end;
 end;
 
+procedure ReadProjectMetadata(const AProjectFile, AProjectContent: string;
+  const AProject: TDetectedProject);
+begin
+  AProject.PackageName := TPath.GetFileNameWithoutExtension(AProjectFile);
+  AProject.Kind := 'application';
+  if SameText(TPath.GetExtension(AProjectFile), '.cbproj') then
+  begin
+    if SameText(ExtractElement(AProjectContent, 'ProjectType'), 'Package') or
+       SameText(ExtractElement(AProjectContent, 'AppType'), 'Package') then
+      AProject.Kind := 'runtime';
+    Exit;
+  end;
+
+  var LSource := FindPackageSource(AProjectFile, AProjectContent);
+  if SameText(TPath.GetExtension(LSource), '.dpk') and TFile.Exists(LSource) then
+    ReadPackageMetadata(LSource, AProject);
+end;
+
 class procedure TBoss4DBuildSpecDetector.Detect(
   const APackage: TBoss4DPackage; const ARootDirectory: string);
 begin
@@ -168,10 +186,15 @@ begin
       TSearchOption.soAllDirectories) do
       if not IsIgnoredDirectory(LRoot, LFile) then
         LProjectFiles.Add(LFile);
+    for var LFile in TDirectory.GetFiles(LRoot, '*.cbproj',
+      TSearchOption.soAllDirectories) do
+      if not IsIgnoredDirectory(LRoot, LFile) then
+        LProjectFiles.Add(LFile);
 
     if LProjectFiles.Count = 0 then
       raise EFileNotFoundException.CreateFmt(
-        'Nenhum projeto Delphi (.dproj) encontrado em %s.', [LRoot]);
+        'Nenhum projeto Delphi/C++Builder (.dproj/.cbproj) encontrado em %s.',
+        [LRoot]);
 
     for var LFile in LProjectFiles do
     begin
@@ -179,7 +202,7 @@ begin
       LProject.ProjectPath := NormalizePath(ExtractRelativePath(
         IncludeTrailingPathDelimiter(LRoot), LFile));
       var LProjectContent := TFile.ReadAllText(LFile, TEncoding.UTF8);
-      ReadPackageMetadata(FindPackageSource(LFile, LProjectContent), LProject);
+      ReadProjectMetadata(LFile, LProjectContent, LProject);
       if LPackages.ContainsKey(LProject.PackageName.ToLower) then
         raise EArgumentException.CreateFmt(
           'Package Delphi duplicado detectado: %s.', [LProject.PackageName]);

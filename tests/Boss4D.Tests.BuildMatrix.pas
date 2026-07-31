@@ -20,6 +20,16 @@ type
     [Test]
     procedure TestDelphiConventionsExpandTargetPath;
     [Test]
+    procedure TestCapabilityLevelsCoverLegacyPlatformsAndCppBuilder;
+    [Test]
+    procedure TestMatrixExpandsSupportedCrossPlatformApplication;
+    [Test]
+    procedure TestMatrixRejectsUnsupportedDesignPlatform;
+    [Test]
+    procedure TestCppBuilderUsesNativeMSBuildOutputProperties;
+    [Test]
+    procedure TestCapabilityCatalogCoversEveryLegacyCompiler;
+    [Test]
     procedure TestMatrixExpandsTokensInProjectsAndDependencies;
     [Test]
     procedure TestLegacyManifestExpandsSingleCompatibleTarget;
@@ -47,25 +57,40 @@ type
     procedure TestBuildSchedulerHonorsCancellation;
     [Test]
     procedure TestBuildSchedulerStopsDependentsAfterFailure;
+    [Test]
+    procedure TestBuildSchedulerStartsReadyDependentWithoutLevelBarrier;
   end;
 
 implementation
 
 uses
   System.SysUtils, System.IOUtils, System.Classes,
+  System.Generics.Collections,
   Boss4D.Core.Domain.Package,
   Boss4D.Core.Domain.BuildMatrix,
   Boss4D.Core.Services.BuildMatrix,
   Boss4D.Core.Services.BuildConventions,
+  Boss4D.Core.Services.BuildCapabilities,
   Boss4D.Core.Services.BuildPaths,
   Boss4D.Core.Services.ArtifactCache,
   Boss4D.Core.Services.BuildGraph,
-  Boss4D.Core.Services.BuildScheduler;
+  Boss4D.Core.Services.BuildScheduler,
+  Boss4D.Adapters.Compiler;
 
 procedure TTestsBuildMatrix.TestDelphiConventionsCoverSupportedCompilers;
 var
   LConvention: TBoss4DDelphiConvention;
 begin
+  LConvention := TBoss4DBuildConventions.ResolveCompiler('xe');
+  Assert.AreEqual('8.0', LConvention.BDSVersion);
+  Assert.AreEqual('150', LConvention.PackageSuffix);
+  Assert.AreEqual('VER220', LConvention.CompilerSymbol);
+
+  LConvention := TBoss4DBuildConventions.ResolveCompiler('d104');
+  Assert.AreEqual('21.0', LConvention.BDSVersion);
+  Assert.AreEqual('270', LConvention.PackageSuffix);
+  Assert.AreEqual('VER340', LConvention.CompilerSymbol);
+
   LConvention := TBoss4DBuildConventions.ResolveCompiler('d10');
   Assert.AreEqual('17.0', LConvention.BDSVersion);
   Assert.AreEqual('230', LConvention.PackageSuffix);
@@ -387,6 +412,184 @@ begin
   finally
     LPackage.Free;
   end;
+end;
+
+procedure TTestsBuildMatrix.TestBuildSchedulerStartsReadyDependentWithoutLevelBarrier;
+var
+  LFastRoot: TBoss4DBuildProject;
+  LFastConsumer: TBoss4DBuildProject;
+  LSlowRoot: TBoss4DBuildProject;
+  LPackage: TBoss4DPackage;
+  LTargets: TBoss4DBuildTargetList;
+  LOrder: TList<string>;
+  LGuard: TObject;
+begin
+  LOrder := TList<string>.Create;
+  LGuard := TObject.Create;
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'ready-scheduler';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+
+    LFastRoot := TBoss4DBuildProject.Create;
+    LFastRoot.Path := 'FastRuntime.dproj';
+    LPackage.BuildMatrix.Projects.Add(LFastRoot);
+    LFastConsumer := TBoss4DBuildProject.Create;
+    LFastConsumer.Path := 'FastDesign.dproj';
+    LFastConsumer.DependsOn.Add('FastRuntime.dproj');
+    LPackage.BuildMatrix.Projects.Add(LFastConsumer);
+    LSlowRoot := TBoss4DBuildProject.Create;
+    LSlowRoot.Path := 'SlowRuntime.dproj';
+    LPackage.BuildMatrix.Projects.Add(LSlowRoot);
+
+    LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+      TBoss4DBuildSelection.All);
+    try
+      TBoss4DBuildScheduler.Execute(LTargets, 2,
+        procedure(const ATarget: TBoss4DBuildTarget)
+        begin
+          if SameText(ATarget.ProjectPath, 'SlowRuntime.dproj') then
+            TThread.Sleep(300)
+          else
+            TThread.Sleep(20);
+          TMonitor.Enter(LGuard);
+          try
+            LOrder.Add(ATarget.ProjectPath);
+          finally
+            TMonitor.Exit(LGuard);
+          end;
+        end);
+      Assert.AreEqual<Integer>(3, LOrder.Count);
+      Assert.AreEqual<string>('FastRuntime.dproj', LOrder[0]);
+      Assert.AreEqual<string>('FastDesign.dproj', LOrder[1],
+        'A dependency-ready target must not wait for an unrelated slow root.');
+      Assert.AreEqual<string>('SlowRuntime.dproj', LOrder[2]);
+    finally
+      LTargets.Free;
+    end;
+  finally
+    LPackage.Free;
+    LGuard.Free;
+    LOrder.Free;
+  end;
+end;
+
+procedure TTestsBuildMatrix.TestCapabilityLevelsCoverLegacyPlatformsAndCppBuilder;
+var
+  LCapability: TBoss4DBuildCapability;
+begin
+  LCapability := TBoss4DBuildCapabilities.Evaluate('17.0', 'Win32',
+    'runtime', 'Runtime.dproj');
+  Assert.AreEqual(TBoss4DSupportLevel.Certified, LCapability.Level);
+
+  LCapability := TBoss4DBuildCapabilities.Evaluate('8.0', 'Win32',
+    'runtime', 'Legacy.dproj');
+  Assert.AreEqual(TBoss4DSupportLevel.Experimental, LCapability.Level);
+
+  LCapability := TBoss4DBuildCapabilities.Evaluate('8.0', 'Win64',
+    'runtime', 'Legacy.dproj');
+  Assert.AreEqual(TBoss4DSupportLevel.Unsupported, LCapability.Level);
+
+  LCapability := TBoss4DBuildCapabilities.Evaluate('23.0', 'Linux64',
+    'application', 'Server.dproj');
+  Assert.AreEqual(TBoss4DSupportLevel.Compatible, LCapability.Level);
+
+  LCapability := TBoss4DBuildCapabilities.Evaluate('37.0', 'Win64',
+    'application', 'CppApp.cbproj');
+  Assert.AreEqual(TBoss4DSupportLevel.Experimental, LCapability.Level);
+
+  LCapability := TBoss4DBuildCapabilities.Evaluate('23.0', 'Linux64',
+    'design', 'Design.dproj');
+  Assert.AreEqual(TBoss4DSupportLevel.Unsupported, LCapability.Level);
+end;
+
+procedure TTestsBuildMatrix.TestMatrixExpandsSupportedCrossPlatformApplication;
+var
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+  LTargets: TBoss4DBuildTargetList;
+begin
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'linux-server';
+    LPackage.BuildMatrix.Compilers.Add('23.0');
+    LPackage.BuildMatrix.Platforms.Add('Linux64');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'Server.dproj';
+    LProject.Kind := 'application';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+    LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+      TBoss4DBuildSelection.All);
+    try
+      Assert.AreEqual<Integer>(1, LTargets.Count);
+      Assert.AreEqual('Linux64', LTargets[0].Platform);
+      Assert.AreEqual('application', LTargets[0].ProjectKind);
+    finally
+      LTargets.Free;
+    end;
+  finally
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsBuildMatrix.TestMatrixRejectsUnsupportedDesignPlatform;
+var
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+begin
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'invalid-design';
+    LPackage.BuildMatrix.Compilers.Add('23.0');
+    LPackage.BuildMatrix.Platforms.Add('Linux64');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'Design.dproj';
+    LProject.Kind := 'design';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+    Assert.WillRaise(
+      procedure
+      begin
+        var LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+          TBoss4DBuildSelection.All);
+        LTargets.Free;
+      end,
+      EArgumentException);
+  finally
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsBuildMatrix.TestCppBuilderUsesNativeMSBuildOutputProperties;
+begin
+  var LParameters :=
+    TBoss4DDelphiCompilerAdapter.BuildCppOutputParameters(
+      'C:\target\bin', 'C:\target\obj', 'C:\deps\include');
+  Assert.IsTrue(LParameters.Contains(
+    '/p:FinalOutputDir="C:\target\bin"'));
+  Assert.IsTrue(LParameters.Contains(
+    '/p:IntermediateOutputDir="C:\target\obj"'));
+  Assert.IsTrue(LParameters.Contains(
+    '/p:IncludePath="C:\deps\include;$(IncludePath)"'));
+  Assert.IsTrue(LParameters.Contains(
+    '/p:LibraryPath="C:\deps\include;$(LibraryPath)"'));
+  Assert.IsFalse(LParameters.Contains('DCC_'));
+end;
+
+procedure TTestsBuildMatrix.TestCapabilityCatalogCoversEveryLegacyCompiler;
+begin
+  Assert.AreEqual<Integer>(16,
+    Length(TBoss4DBuildCapabilities.SupportedCompilers));
+  for var LCompiler in TBoss4DBuildCapabilities.SupportedCompilers do
+    Assert.IsFalse(
+      TBoss4DBuildConventions.ResolveCompiler(LCompiler).Alias.IsEmpty);
+  Assert.AreEqual('xe',
+    TBoss4DBuildCapabilities.SupportedCompilers[0]);
+  Assert.AreEqual('d13',
+    TBoss4DBuildCapabilities.SupportedCompilers[15]);
 end;
 
 procedure TTestsBuildMatrix.TestBuildGraphOrdersDependenciesBeforeConsumers;

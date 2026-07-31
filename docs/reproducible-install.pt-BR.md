@@ -9,6 +9,8 @@ boss4d install --frozen-lockfile
 boss4d install --locked --offline
 boss4d ci
 boss4d ci --offline
+boss4d restore --ci --remote-cache X:\boss4d-cache
+boss4d install --build-only --locked --remote-cache X:\boss4d-cache
 ```
 
 `--locked` e seu alias `--frozen-lockfile` exigem um lock com metadados da raiz.
@@ -20,9 +22,12 @@ O arquivo de lock, inclusive seu timestamp, não é regravado.
 existir previamente no cache global do Boss4D; a ausência de qualquer uma
 interrompe o comando.
 
-`ci` é o modo indicado para releases e automações. Ele reinstala `modules/` do
-zero a partir do lock congelado. Como a operação é transacional, uma falha
-restaura manifesto, lock e árvore de módulos anteriores.
+`ci` e `restore --ci` são o modo de release e automação. Eles impõem o lock,
+limpam `modules/` e desativam o registro na IDE na fronteira do serviço.
+`install --build-only` também impede registro. Como a operação é transacional,
+uma falha restaura manifesto, lock e árvore de módulos anteriores.
+`--remote-cache` compartilha targets compilados verificados sem enfraquecer
+essas regras.
 
 Sequência recomendada na CI:
 

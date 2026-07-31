@@ -114,6 +114,12 @@ boss4d install
 
 Este comando lê o `boss.json`, resolve a árvore de dependências recursivas concorrentemente e gera ou atualiza o arquivo **`boss-lock.json`** que trava as versões exatas baixadas.
 
+Quando o manifesto raiz declara `buildMatrix`, o mesmo comando detecta as
+versões instaladas do Delphi e seus compiladores Win32/Win64, compila somente
+os targets compatíveis e registra as BPLs de design-time exatamente na IDE que
+as produziu. Use `boss4d install --no-register` para restaurar apenas as
+dependências ou preparar um ambiente de CI isolado.
+
 ---
 
 ## ⚙️ 3. Gerenciamento de Configurações (`config`)
@@ -705,7 +711,10 @@ boss4d build --compiler d13 --platform Win64 --configuration Release
 boss4d build --compiler all --platform Win32 --configuration Release --jobs 4
 boss4d build --full
 boss4d build --compiler d13 --platform Win32 --configuration Release --explain
-boss4d build --compiler d13 --platform Win32 --configuration Release --register
+boss4d build --compiler d13 --platform Win32 --configuration Release \
+  --register --conflict fail
+boss4d build --affected --with-dependents --jobs 4 \
+  --remote-cache X:\boss4d-cache
 ```
 
 `--compiler`, `--platform` e `--configuration` aceitam um valor ou `all`
@@ -714,14 +723,30 @@ os eixos e força o rebuild. `--explain` informa por que cada target foi
 compilado, restaurado ou ignorado. `--register` registra somente BPLs
 design-time no compilador/plataforma exatos.
 
+Consulte o nível modelado sem instalar todas as IDEs localmente:
+
+```console
+boss4d support
+boss4d support --compiler d13 --platform Win64 --kind application
+boss4d support --compiler d13 --platform Win64 --kind application \
+  --project client.cbproj
+```
+
+O resultado é `certified`, `compatible`, `experimental` ou `unsupported`, com
+o motivo. Os tipos são `runtime`, `design`, `application`, `tool` e `binary`.
+`--remote-cache` compartilha targets verificados e as políticas de conflito
+são `fail`, `warn`, `adopt` e `replace`.
+
 Ciclo de vida da IDE:
 
 ```console
 boss4d ide unregister ComponentDesign370 --compiler d13 --platform Win32
 boss4d ide repair
+boss4d ide uninstall Component
+boss4d ide uninstall Component --cascade
 ```
 
 O `doctor` também verifica matriz/grafo, toolchains instaladas, paths de
 projeto, colisões de outputs/units e divergência do Registro. Consulte o
 [guia completo da matriz](build-matrix-contract.pt-BR.md) e o
-[exemplo copiável](../examples/build-matrix/README.md).
+[guia do ciclo de vida do componente](component-build-and-ide.pt-BR.md).

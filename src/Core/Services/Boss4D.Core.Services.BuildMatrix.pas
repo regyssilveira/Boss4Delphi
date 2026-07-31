@@ -19,7 +19,8 @@ uses
   System.SysUtils,
   System.Generics.Collections,
   System.Generics.Defaults,
-  Boss4D.Core.Services.BuildConventions;
+  Boss4D.Core.Services.BuildConventions,
+  Boss4D.Core.Services.BuildCapabilities;
 
 function ContainsText(const AValues: TList<string>;
   const AValue: string): Boolean;
@@ -95,6 +96,8 @@ begin
   ValidateUniqueValues(AMatrix.Platforms, 'buildMatrix.platforms');
   ValidateUniqueValues(AMatrix.Configurations,
     'buildMatrix.configurations');
+  for var LCompiler in AMatrix.Compilers do
+    TBoss4DBuildConventions.ResolveCompiler(LCompiler);
   if not AMatrix.DefaultCompiler.IsEmpty and
      not ContainsText(AMatrix.Compilers, AMatrix.DefaultCompiler) then
     raise EArgumentException.CreateFmt(
@@ -113,10 +116,7 @@ begin
       [AMatrix.DefaultConfiguration]);
 
   for var LPlatform in AMatrix.Platforms do
-    if not SameText(LPlatform, 'Win32') and
-       not SameText(LPlatform, 'Win64') then
-      raise EArgumentException.CreateFmt(
-        'Plataforma nao suportada na matriz Delphi: %s.', [LPlatform]);
+    TBoss4DBuildCapabilities.NormalizePlatform(LPlatform);
   for var LConfiguration in AMatrix.Configurations do
     if not SameText(LConfiguration, 'Debug') and
        not SameText(LConfiguration, 'Release') then
@@ -132,7 +132,10 @@ begin
         raise EArgumentException.Create(
           'Um projeto da matriz possui path vazio.');
       if not SameText(LProject.Kind, 'runtime') and
-         not SameText(LProject.Kind, 'design') then
+         not SameText(LProject.Kind, 'design') and
+         not SameText(LProject.Kind, 'application') and
+         not SameText(LProject.Kind, 'tool') and
+         not SameText(LProject.Kind, 'binary') then
         raise EArgumentException.CreateFmt(
           'Tipo de projeto nao suportado: %s.', [LProject.Kind]);
       var LKey := LProject.Path.ToLower;
@@ -258,11 +261,15 @@ begin
                       if ProjectAllows(LProject.Configurations,
                         LConfiguration) then
                       begin
-                        var LTarget := TBoss4DBuildTarget.Create;
-                        LTarget.PackageName := APackage.Name;
-                        LTarget.ProjectPath :=
+                        var LExpandedProject :=
                           TBoss4DBuildConventions.ExpandPath(LProject.Path,
                             LCompiler, LPlatform, LConfiguration);
+                        TBoss4DBuildCapabilities.RequireSupported(
+                          LCompiler, LPlatform, LProject.Kind,
+                          LExpandedProject);
+                        var LTarget := TBoss4DBuildTarget.Create;
+                        LTarget.PackageName := APackage.Name;
+                        LTarget.ProjectPath := LExpandedProject;
                         LTarget.ProjectKind := LProject.Kind;
                         LTarget.Compiler := LCompiler;
                         LTarget.Platform := LPlatform;

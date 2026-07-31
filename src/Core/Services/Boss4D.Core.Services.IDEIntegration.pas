@@ -25,6 +25,7 @@ type
     procedure RegisterTarget(const ARegistration: TBoss4DIDERegistration);
     function UnregisterTarget(const APackageName, ACompiler,
       APlatform: string): Integer;
+    function UninstallPackage(const AOwnerPackage: string): Integer;
     function RepairRegistrations: Integer;
 
     property RegistryKeyPrefix: string read FRegistryKeyPrefix write FRegistryKeyPrefix;
@@ -185,6 +186,15 @@ begin
     APlatform);
   FLogger.Log(TBoss4DLogLevel.Info,
     '  [OK] %d registro(s) IDE removido(s).', [Result]);
+end;
+
+function TBoss4DIDEIntegrationService.UninstallPackage(
+  const AOwnerPackage: string): Integer;
+begin
+  Result := FRegistrationService.Uninstall(AOwnerPackage);
+  FLogger.Log(TBoss4DLogLevel.Info,
+    'Pacote %s removido de todas as IDEs: %d registros.',
+    [AOwnerPackage, Result]);
 end;
 
 function TBoss4DIDEIntegrationService.RepairRegistrations: Integer;

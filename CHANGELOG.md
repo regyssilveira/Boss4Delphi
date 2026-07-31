@@ -18,12 +18,26 @@
   `ide unregister` / `ide repair` commands.
 - Project-aware doctor diagnostics for toolchains, paths, matrix/graph,
   missing or escaping projects, output/unit collisions, and registry drift.
+- Dependency-ready parallel scheduling, reverse dependent builds,
+  `--affected`, `--with-dependents`, and `--all-installed`.
+- SHA-256-verified local and shared compiled-artifact cache with atomic
+  restoration through `--remote-cache`.
+- Isolated `ci`, `restore --ci`, and `install --build-only` workflows that
+  enforce the lock, clean modules, and suppress IDE registration.
+- Delphi XE through Delphi 13 capability modeling, cross-platform targets,
+  applications, tools, prebuilt binaries, and experimental C++Builder support.
+- `boss4d support` reports certified, compatible, experimental, and unsupported
+  compiler/platform/project combinations with reasons.
+- IDE assets for tools, templates, DLLs, CHM help, and restricted managed
+  Registry values; active repair rebuilds missing artifacts.
+- Explicit `fail`, `warn`, `adopt`, and `replace` IDE conflict policies plus
+  dependency-safe complete and cascading uninstall.
 
 ### Changed
 
-- Delphi aliases (`d10`, `d101`, `d11`, `d12`, `d13`), package suffixes
-  (`230`, `240`, `280`, `290`, `370`), and path tokens are normalized through one
-  tested convention table.
+- Delphi aliases from `xe` through `d13`, their package suffixes, compiler
+  symbols, platforms, and path tokens are normalized through tested convention
+  and capability tables.
 - The release artifact and installer include the Delphi 10 Seattle/BDS 17.0
   legacy IDE plugin alongside the existing supported IDE targets.
 - Sonar Quality Gate is clean with zero new violations.
