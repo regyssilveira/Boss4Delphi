@@ -654,7 +654,16 @@ A interface gráfica do **Boss4D** (**`Boss4D.GUI.exe`**) fornece uma aplicaçã
    * **Buscar Pacotes**: Catálogo visual contendo as bibliotecas mais populares do ecossistema Delphi (Horse, RESTRequest4Delphi, mORMot, Skia, etc.) permitindo a busca filtrada e instalação silenciosa in-process com um clique.
    * **Boss4D Doctor**: Executa verificações estruturadas e auto-correções no ambiente do Delphi sem precisar da linha de comando.
    * **Gerenciar Cache**: Exibe o uso de disco do cache global e fornece opções para limpar (`Clean`) ou realizar o prune (`Otimizar Cache`) de versões antigas.
+   * **Componentes e IDEs**: Gerencia perfis isolados, targets padrão,
+     componentes disponíveis/instalados, previews, políticas de conflito e IDE
+     aberta, instalação transacional, reparo, remoção e abertura da IDE pelo
+     Registry branch alternativo.
 2. **Terminal de Logs Integrado**: A área inferior exibe os logs, avisos e andamento de downloads concorrentes e compilação de pacotes gerados em segundo plano (via PPL) de forma thread-safe.
+
+A tela de componentes e os comandos `boss4d ide profile` compartilham os mesmos
+serviços e inventários. Consulte o
+[guia de gerenciamento de componentes](ide-component-management.pt-BR.md)
+para o fluxo completo e as regras de recuperação.
 
 ---
 

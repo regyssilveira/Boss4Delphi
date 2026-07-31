@@ -2,12 +2,13 @@
 
 ## Épico 22: Instalação de componentes, perfis isolados e GUI
 
-- [ ] Identidades runtime/design tipadas e planos determinísticos de instalação.
-- [ ] Preview, lock de máquina, política de IDE aberta e rollback completo.
-- [ ] Perfis nomeados com Registry branches e inventários isolados.
-- [ ] `ide profile` create/show/clone/remove/import/export/install/repair/launch.
-- [ ] Serviços de aplicação compartilhados por CLI, wizard e GUI.
-- [ ] Dashboard, targets, grafo, perfis, preview, reparo e remoção na GUI.
+- [x] Identidades runtime/design tipadas e planos determinísticos de instalação.
+- [x] Preview, lock de máquina, política de IDE aberta e rollback completo.
+- [x] Perfis nomeados com Registry branches e inventários isolados.
+- [x] `ide profile` create/show/clone/remove/import/export/install/repair/launch.
+- [x] Serviços de aplicação compartilhados por CLI e GUI.
+- [x] Packages, targets, perfis, preview, instalação, reparo e remoção na GUI.
+- [ ] Visualização interativa do grafo de componentes (melhoria pós-entrega).
 - [ ] Exemplos/documentação bilíngues, validação e Sonar limpo.
 
 Veja o [plano oficial da entrega](ide-packages-profiles-gui-plan.pt-BR.md).

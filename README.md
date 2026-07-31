@@ -146,6 +146,11 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d ide unregister <package> --compiler <version> --platform <platform>`
   and `boss4d ide repair`
   Remove one exact registration or reconcile registry drift transactionally.
+* `boss4d ide profile list|create|show|target|clone|remove|export|import|launch`
+  and `preview-install|install|repair|preview-uninstall|uninstall`
+  Manages isolated RAD Studio Registry branches and performs previewable,
+  transactional product installation. See the
+  [IDE profile and component guide](docs/ide-component-management.md).
 * `boss4d config delphi use <path_or_release_version>`
   Sets the global path or the release version (e.g. "23.0", "22.0") of the Delphi installation directory for MSBuild. If not specified, the compiler adapter will automatically detect the latest installed Delphi version.
 * `boss4d config git shallow <true/false>`
@@ -179,6 +184,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Deterministic Build Improvements](docs/build-improvements.md)**: Collision-free paths, toolchains, declared projects, Lazarus, scaffolding, and normalization.
 * **[Build Matrix Guide and Contract](docs/build-matrix-contract.md)**: Schema, CLI workflow, compiler conventions, migration, diagnostics, troubleshooting, and acceptance rules for multi-version Delphi builds.
 * **[Component Build and IDE Lifecycle](docs/component-build-and-ide.md)**: Complete guide to project kinds, support levels, shared cache, IDE assets, conflicts, active repair, and safe removal.
+* **[IDE Profiles and Component Management](docs/ide-component-management.md)**: Isolated Registry branches, runtime/design products, CLI/GUI workflows, policies, previews, repair, removal, and everyday examples.
 * **[Dependency Lifecycle](docs/dependency-lifecycle.md)**: Transactional add, update, and remove plus graph-aware list and why commands.
 * **[Reproducible Installation](docs/reproducible-install.md)**: Frozen locks, offline cache behavior, CI clean installs, and rollback guarantees.
 * **[Dependency Scopes](docs/dependency-scopes.md)**: `devDependencies`, production installs, lock v3, and SBOM scope evidence.

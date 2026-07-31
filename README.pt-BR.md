@@ -135,6 +135,11 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d ide unregister <pacote> --compiler <versão> --platform <plataforma>`
   e `boss4d ide repair`
   Removem um registro exato ou reconciliam divergências transacionalmente.
+* `boss4d ide profile list|create|show|target|clone|remove|export|import|launch`
+  e `preview-install|install|repair|preview-uninstall|uninstall`
+  Gerencia Registry branches isolados do RAD Studio e executa instalação
+  transacional de produtos com preview. Consulte o
+  [guia de perfis e componentes](docs/ide-component-management.pt-BR.md).
 * `boss4d config delphi use <caminho_ou_versao>`
   Configura o caminho global do Delphi ou a versão de release (ex: "23.0", "22.0") para a compilação do MSBuild. Se não configurado, o resolvedor autodetecta dinamicamente a versão mais recente instalada.
 * `boss4d config git shallow <true/false>`
@@ -169,6 +174,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Melhorias de Build Determinístico](docs/build-improvements.pt-BR.md)**: Paths sem colisão, toolchains, projetos declarados, Lazarus, scaffolding e normalização.
 * **[Guia e Contrato da Matriz de Build](docs/build-matrix-contract.pt-BR.md)**: Schema, fluxo da CLI, convenções, migração, diagnóstico, troubleshooting e critérios para builds Delphi multiversão.
 * **[Build de Componentes e Ciclo de Vida da IDE](docs/component-build-and-ide.pt-BR.md)**: Guia completo de tipos, níveis de suporte, cache compartilhado, ativos da IDE, conflitos, reparo ativo e remoção segura.
+* **[Perfis da IDE e Gerenciamento de Componentes](docs/ide-component-management.pt-BR.md)**: Registry branches isolados, produtos runtime/design, fluxos CLI/GUI, políticas, preview, reparo, remoção e exemplos cotidianos.
 * **[Ciclo de Vida de Dependências](docs/dependency-lifecycle.pt-BR.md)**: Add, update e remove transacionais, além de list e why baseados no grafo.
 * **[Instalação Reproduzível](docs/reproducible-install.pt-BR.md)**: Lock congelado, cache offline, instalação limpa em CI e garantias de rollback.
 * **[Escopos de Dependências](docs/dependency-scopes.pt-BR.md)**: `devDependencies`, instalação de produção, lock v3 e escopo no SBOM.

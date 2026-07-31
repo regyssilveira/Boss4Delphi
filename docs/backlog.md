@@ -2,12 +2,13 @@
 
 ## Epic 22: Component installation, isolated IDE profiles, and GUI
 
-- [ ] First-class runtime/design package identities and deterministic install plans.
-- [ ] Transaction preview, machine lock, open-IDE policy, and complete rollback.
-- [ ] Named isolated profiles with alternate Registry branches and inventories.
-- [ ] `ide profile` create/show/clone/remove/import/export/install/repair/launch.
-- [ ] Shared application services for CLI, wizard, and GUI.
-- [ ] GUI dashboard, targets, component graph, profiles, preview, repair, and removal.
+- [x] First-class runtime/design package identities and deterministic install plans.
+- [x] Transaction preview, machine lock, open-IDE policy, and complete rollback.
+- [x] Named isolated profiles with alternate Registry branches and inventories.
+- [x] `ide profile` create/show/clone/remove/import/export/install/repair/launch.
+- [x] Shared application services for CLI and GUI.
+- [x] GUI packages, targets, profiles, preview, install, repair, and removal.
+- [ ] Interactive component graph visualization (post-delivery enhancement).
 - [ ] Bilingual examples/documentation, compiler validation, and clean Sonar gate.
 
 See the [authoritative delivery plan](ide-packages-profiles-gui-plan.md).
