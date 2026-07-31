@@ -146,7 +146,8 @@ begin
   LOptions := TBoss4DBuildCommandOptions.Parse(TArray<string>.Create(
     'build', '--compiler', 'all', '--platform', 'win64',
     '--configuration', 'release', '--jobs', '4', '--force',
-    '--explain', '--register', '--affected', '--all-installed'));
+    '--explain', '--register', '--affected', '--all-installed',
+    '--conflict', 'replace'));
   Assert.IsTrue(LOptions.Selection.CompilerAll);
   Assert.IsFalse(LOptions.Selection.PlatformAll);
   Assert.AreEqual('Win64', LOptions.Selection.Platform);
@@ -158,6 +159,8 @@ begin
   Assert.IsTrue(LOptions.Affected);
   Assert.IsTrue(LOptions.WithDependents);
   Assert.IsTrue(LOptions.AllInstalledIDEs);
+  Assert.AreEqual(TBoss4DIDEConflictPolicy.Replace,
+    LOptions.ConflictPolicy);
 end;
 
 procedure TTestsBuildCommand.TestFullSelectsAndForcesEveryAxis;

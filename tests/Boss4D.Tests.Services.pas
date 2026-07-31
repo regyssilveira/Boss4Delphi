@@ -116,6 +116,8 @@ type
     procedure TestIDERegistrationRejectsRegistryOutsideCompilerScope;
     [Test]
     procedure TestIDERegistrationDetectsSameNamedPackageConflict;
+    [Test]
+    procedure TestIDEConflictPoliciesAreExplicitAndReversible;
 
     [Test]
     procedure TestCLICommandLineParser;
@@ -1981,6 +1983,87 @@ begin
   finally
     LRegistration.Free;
     LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDEConflictPoliciesAreExplicitAndReversible;
+const
+  PACKAGE_KEY = 'Software\Embarcadero\BDS\37.0\Known Packages';
+  OLD_BPL = 'C:\old\ComponentDesign.bpl';
+  NEW_BPL = 'C:\new\ComponentDesign.bpl';
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LValue: string;
+
+  procedure Prepare(const APolicy: TBoss4DIDEConflictPolicy;
+    const AInventoryName: string);
+  begin
+    LStore := TIDERegistryStoreMock.Create;
+    LStore.SeedValue(PACKAGE_KEY, OLD_BPL, 'Existing component');
+    LService := TBoss4DIDERegistrationService.Create(LStore,
+      TPath.Combine(FTempDir, AInventoryName));
+    LRegistration := TBoss4DIDERegistration.Create;
+    LRegistration.PackageName := 'ComponentDesign';
+    LRegistration.OwnerPackage := 'ComponentProduct';
+    LRegistration.Compiler := '37.0';
+    LRegistration.Platform := 'Win32';
+    LRegistration.BplPath := NEW_BPL;
+    LRegistration.Description := 'New component';
+    LRegistration.ConflictPolicy := APolicy;
+  end;
+
+  procedure Release;
+  begin
+    LRegistration.Free;
+    LService.Free;
+  end;
+begin
+  Prepare(TBoss4DIDEConflictPolicy.Fail, 'conflict-fail.json');
+  try
+    Assert.WillRaise(
+      procedure
+      begin
+        LService.RegisterTarget(LRegistration);
+      end,
+      EBoss4DIDERegistrationError);
+    Assert.IsFalse(LStore.TryRead(PACKAGE_KEY, NEW_BPL, LValue));
+  finally
+    Release;
+  end;
+
+  Prepare(TBoss4DIDEConflictPolicy.Warn, 'conflict-warn.json');
+  try
+    LService.RegisterTarget(LRegistration);
+    Assert.IsTrue(LStore.TryRead(PACKAGE_KEY, OLD_BPL, LValue));
+    Assert.IsTrue(LStore.TryRead(PACKAGE_KEY, NEW_BPL, LValue));
+  finally
+    Release;
+  end;
+
+  Prepare(TBoss4DIDEConflictPolicy.Adopt, 'conflict-adopt.json');
+  try
+    LService.RegisterTarget(LRegistration);
+    Assert.IsTrue(LStore.TryRead(PACKAGE_KEY, OLD_BPL, LValue));
+    Assert.IsFalse(LStore.TryRead(PACKAGE_KEY, NEW_BPL, LValue));
+    Assert.IsFalse(TFile.Exists(TPath.Combine(FTempDir,
+      'conflict-adopt.json')));
+  finally
+    Release;
+  end;
+
+  Prepare(TBoss4DIDEConflictPolicy.Replace, 'conflict-replace.json');
+  try
+    LService.RegisterTarget(LRegistration);
+    Assert.IsFalse(LStore.TryRead(PACKAGE_KEY, OLD_BPL, LValue));
+    Assert.IsTrue(LStore.TryRead(PACKAGE_KEY, NEW_BPL, LValue));
+    Assert.AreEqual<Integer>(1, LService.Uninstall('ComponentProduct'));
+    Assert.IsFalse(LStore.TryRead(PACKAGE_KEY, NEW_BPL, LValue));
+    Assert.IsTrue(LStore.TryRead(PACKAGE_KEY, OLD_BPL, LValue));
+    Assert.AreEqual('Existing component', LValue);
+  finally
+    Release;
   end;
 end;
 

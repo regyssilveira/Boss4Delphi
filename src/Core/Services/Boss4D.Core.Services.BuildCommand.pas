@@ -22,6 +22,7 @@ type
     WithDependents: Boolean;
     Affected: Boolean;
     AllInstalledIDEs: Boolean;
+    ConflictPolicy: TBoss4DIDEConflictPolicy;
     Jobs: Integer;
     class function Parse(
       const AArgs: TArray<string>): TBoss4DBuildCommandOptions; static;
@@ -115,7 +116,8 @@ begin
     else if SameText(AArgs[I], '--compiler') or
             SameText(AArgs[I], '--platform') or
             SameText(AArgs[I], '--configuration') or
-            SameText(AArgs[I], '--jobs') then
+            SameText(AArgs[I], '--jobs') or
+            SameText(AArgs[I], '--conflict') then
     begin
       if I + 1 >= Length(AArgs) then
         raise EArgumentException.Create(
@@ -156,6 +158,21 @@ begin
         else
           raise EArgumentException.CreateFmt(
             'Configuracao Delphi nao suportada: %s.', [AArgs[I]]);
+      end
+      else
+      if LOption = '--conflict' then
+      begin
+        if SameText(AArgs[I], 'fail') then
+          Result.ConflictPolicy := TBoss4DIDEConflictPolicy.Fail
+        else if SameText(AArgs[I], 'warn') then
+          Result.ConflictPolicy := TBoss4DIDEConflictPolicy.Warn
+        else if SameText(AArgs[I], 'adopt') then
+          Result.ConflictPolicy := TBoss4DIDEConflictPolicy.Adopt
+        else if SameText(AArgs[I], 'replace') then
+          Result.ConflictPolicy := TBoss4DIDEConflictPolicy.Replace
+        else
+          raise EArgumentException.CreateFmt(
+            'Politica de conflito IDE invalida: %s.', [AArgs[I]]);
       end
       else
       begin
@@ -343,6 +360,7 @@ begin
                 LRegistration.Platform := LTarget.Platform;
                 LRegistration.BplPath := LBplFile;
                 LRegistration.Description := APackage.Description;
+                LRegistration.ConflictPolicy := AOptions.ConflictPolicy;
                 LRegistration.SearchPath := TPath.Combine(LRoot, 'dcu');
                 LRegistration.BrowsingPath := LRegistration.SearchPath;
                 LRegistration.DebugDcuPath := LRegistration.SearchPath;

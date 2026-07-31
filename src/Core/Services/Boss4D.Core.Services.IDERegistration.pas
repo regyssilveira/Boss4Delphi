@@ -36,6 +36,8 @@ type
     Description: string;
   end;
 
+  TBoss4DIDEConflictPolicy = (Fail, Warn, Adopt, Replace);
+
   TBoss4DIDEManagedRegistryValue = class
   private
     FKey: string;
@@ -65,6 +67,9 @@ type
     FArtifacts: TList<string>;
     FHelpFiles: TList<string>;
     FRegistryValues: TObjectList<TBoss4DIDEManagedRegistryValue>;
+    FConflictPolicy: TBoss4DIDEConflictPolicy;
+    FDisplacedRegistryValues:
+      TObjectList<TBoss4DIDEManagedRegistryValue>;
   public
     constructor Create;
     destructor Destroy; override;
@@ -86,6 +91,11 @@ type
     property HelpFiles: TList<string> read FHelpFiles;
     property RegistryValues: TObjectList<TBoss4DIDEManagedRegistryValue>
       read FRegistryValues;
+    property ConflictPolicy: TBoss4DIDEConflictPolicy read FConflictPolicy
+      write FConflictPolicy;
+    property DisplacedRegistryValues:
+      TObjectList<TBoss4DIDEManagedRegistryValue>
+      read FDisplacedRegistryValues;
   end;
 
   TBoss4DIDERegistrationService = class
@@ -198,6 +208,8 @@ begin
   FArtifacts := TList<string>.Create;
   FHelpFiles := TList<string>.Create;
   FRegistryValues := TObjectList<TBoss4DIDEManagedRegistryValue>.Create(True);
+  FDisplacedRegistryValues :=
+    TObjectList<TBoss4DIDEManagedRegistryValue>.Create(True);
 end;
 
 function TBoss4DWindowsIDERegistryStore.ListValueNames(
@@ -221,6 +233,7 @@ end;
 
 destructor TBoss4DIDERegistration.Destroy;
 begin
+  FDisplacedRegistryValues.Free;
   FRegistryValues.Free;
   FHelpFiles.Free;
   FArtifacts.Free;
@@ -251,6 +264,9 @@ begin
   Result.HelpFiles.AddRange(FHelpFiles);
   for var LValue in FRegistryValues do
     Result.RegistryValues.Add(LValue.Clone);
+  Result.ConflictPolicy := FConflictPolicy;
+  for var LValue in FDisplacedRegistryValues do
+    Result.DisplacedRegistryValues.Add(LValue.Clone);
 end;
 
 function TBoss4DIDEManagedRegistryValue.Clone:
@@ -289,6 +305,21 @@ begin
   try
     InspectKey(PackageKey(ARegistration));
     InspectKey(IDEPackageKey(ARegistration));
+    var LInventory := LoadInventory;
+    try
+      for var I := LConflicts.Count - 1 downto 0 do
+        for var LOwnedRegistration in LInventory do
+          if SameText(LOwnedRegistration.Identity,
+               ARegistration.Identity) and
+             SameText(LOwnedRegistration.BplPath,
+               LConflicts[I].ExistingPath) then
+          begin
+            LConflicts.Delete(I);
+            Break;
+          end;
+    finally
+      LInventory.Free;
+    end;
     Result := LConflicts.ToArray;
   finally
     LConflicts.Free;
@@ -459,6 +490,24 @@ begin
               'value', '');
             LRegistration.RegistryValues.Add(LRegistryValue);
           end;
+      LRegistration.ConflictPolicy := TBoss4DIDEConflictPolicy(
+        LObject.GetValue<Integer>('conflictPolicy', 0));
+      var LDisplacedValues := LObject.GetValue<TJSONArray>(
+        'displacedRegistryValues');
+      if Assigned(LDisplacedValues) then
+        for var J := 0 to LDisplacedValues.Count - 1 do
+          if LDisplacedValues.Items[J] is TJSONObject then
+          begin
+            var LDisplacedObject := TJSONObject(LDisplacedValues.Items[J]);
+            var LDisplacedValue := TBoss4DIDEManagedRegistryValue.Create;
+            LDisplacedValue.Key := LDisplacedObject.GetValue<string>(
+              'key', '');
+            LDisplacedValue.Name := LDisplacedObject.GetValue<string>(
+              'name', '');
+            LDisplacedValue.Value := LDisplacedObject.GetValue<string>(
+              'value', '');
+            LRegistration.DisplacedRegistryValues.Add(LDisplacedValue);
+          end;
       Result.Add(LRegistration);
     end;
   finally
@@ -477,7 +526,7 @@ var
 begin
   LRoot := TJSONObject.Create;
   try
-    LRoot.AddPair('schemaVersion', TJSONNumber.Create(3));
+    LRoot.AddPair('schemaVersion', TJSONNumber.Create(4));
     LItems := TJSONArray.Create;
     for var LRegistration in AInventory do
     begin
@@ -512,6 +561,19 @@ begin
         LRegistryValues.AddElement(LRegistryObject);
       end;
       LObject.AddPair('registryValues', LRegistryValues);
+      LObject.AddPair('conflictPolicy', TJSONNumber.Create(
+        Ord(LRegistration.ConflictPolicy)));
+      var LDisplacedValues := TJSONArray.Create;
+      for var LDisplacedValue in
+        LRegistration.DisplacedRegistryValues do
+      begin
+        var LDisplacedObject := TJSONObject.Create;
+        LDisplacedObject.AddPair('key', LDisplacedValue.Key);
+        LDisplacedObject.AddPair('name', LDisplacedValue.Name);
+        LDisplacedObject.AddPair('value', LDisplacedValue.Value);
+        LDisplacedValues.AddElement(LDisplacedObject);
+      end;
+      LObject.AddPair('displacedRegistryValues', LDisplacedValues);
       LItems.AddElement(LObject);
     end;
     LRoot.AddPair('registrations', LItems);
@@ -616,6 +678,12 @@ begin
     AStore.WriteValue(LRegistryValue.Key, LRegistryValue.Name,
       LRegistryValue.Value);
   end;
+  for var LDisplacedValue in ARegistration.DisplacedRegistryValues do
+  begin
+    TakeSnapshot(AStore, LDisplacedValue.Key, LDisplacedValue.Name,
+      ASnapshots);
+    AStore.DeleteValue(LDisplacedValue.Key, LDisplacedValue.Name);
+  end;
   TakeSnapshot(AStore, LIDEPackageKey, ARegistration.BplPath, ASnapshots);
   AStore.DeleteValue(LIDEPackageKey, ARegistration.BplPath);
   TakeSnapshot(AStore, LPackageKey, ARegistration.BplPath, ASnapshots);
@@ -669,6 +737,13 @@ begin
   AStore.DeleteValue(LPackageKey, ARegistration.BplPath);
   TakeSnapshot(AStore, LIDEPackageKey, ARegistration.BplPath, ASnapshots);
   AStore.DeleteValue(LIDEPackageKey, ARegistration.BplPath);
+  for var LDisplacedValue in ARegistration.DisplacedRegistryValues do
+  begin
+    TakeSnapshot(AStore, LDisplacedValue.Key, LDisplacedValue.Name,
+      ASnapshots);
+    AStore.WriteValue(LDisplacedValue.Key, LDisplacedValue.Name,
+      LDisplacedValue.Value);
+  end;
 end;
 
 procedure TBoss4DIDERegistrationService.RegisterTarget(
@@ -676,21 +751,45 @@ procedure TBoss4DIDERegistrationService.RegisterTarget(
 var
   LSnapshots: TObjectList<TBoss4DRegistrySnapshot>;
   LInventory: TObjectList<TBoss4DIDERegistration>;
+  LEffectiveRegistration: TBoss4DIDERegistration;
+  LConflicts: TArray<TBoss4DIDEPackageConflict>;
 begin
   Validate(ARegistration);
+  LConflicts := DetectConflicts(ARegistration);
+  if Length(LConflicts) > 0 then
+    case ARegistration.ConflictPolicy of
+      TBoss4DIDEConflictPolicy.Fail:
+        raise EBoss4DIDERegistrationError.CreateFmt(
+          'Conflito de pacote IDE: %s ja esta registrado em %s.',
+          [TPath.GetFileName(ARegistration.BplPath),
+           LConflicts[0].ExistingPath]);
+      TBoss4DIDEConflictPolicy.Adopt:
+        Exit;
+    end;
   LSnapshots := TObjectList<TBoss4DRegistrySnapshot>.Create(True);
   LInventory := nil;
+  LEffectiveRegistration := ARegistration.Clone;
   try
+    if (ARegistration.ConflictPolicy = TBoss4DIDEConflictPolicy.Replace) then
+      for var LConflict in LConflicts do
+      begin
+        var LDisplacedValue := TBoss4DIDEManagedRegistryValue.Create;
+        LDisplacedValue.Key := LConflict.RegistryKey;
+        LDisplacedValue.Name := LConflict.ExistingPath;
+        LDisplacedValue.Value := LConflict.Description;
+        LEffectiveRegistration.DisplacedRegistryValues.Add(LDisplacedValue);
+      end;
     try
       LInventory := LoadInventory;
       for var I := LInventory.Count - 1 downto 0 do
-        if SameText(LInventory[I].Identity, ARegistration.Identity) then
+        if SameText(LInventory[I].Identity,
+          LEffectiveRegistration.Identity) then
         begin
           RemoveRegistration(FStore, LInventory[I], LSnapshots);
           LInventory.Delete(I);
         end;
-      ApplyRegistration(FStore, ARegistration, LSnapshots);
-      LInventory.Add(ARegistration.Clone);
+      ApplyRegistration(FStore, LEffectiveRegistration, LSnapshots);
+      LInventory.Add(LEffectiveRegistration.Clone);
       SaveInventory(LInventory);
     except
       on E: Exception do
@@ -702,6 +801,7 @@ begin
       end;
     end;
   finally
+    LEffectiveRegistration.Free;
     LInventory.Free;
     LSnapshots.Free;
   end;
@@ -865,6 +965,14 @@ begin
             LSnapshots);
           FStore.DeleteValue(LRegistryValue.Key, LRegistryValue.Name);
         end;
+        for var LDisplacedValue in
+          LRegistration.DisplacedRegistryValues do
+        begin
+          TakeSnapshot(FStore, LDisplacedValue.Key,
+            LDisplacedValue.Name, LSnapshots);
+          FStore.WriteValue(LDisplacedValue.Key, LDisplacedValue.Name,
+            LDisplacedValue.Value);
+        end;
         LInventory.Delete(I);
         Inc(Result);
       end;
@@ -944,6 +1052,11 @@ begin
     for var LRegistryValue in ARegistration.RegistryValues do
       if not FStore.TryRead(LRegistryValue.Key, LRegistryValue.Name,
         LValue) or (LValue <> LRegistryValue.Value) then
+        Exit(False);
+  if Result then
+    for var LDisplacedValue in ARegistration.DisplacedRegistryValues do
+      if FStore.TryRead(LDisplacedValue.Key, LDisplacedValue.Name,
+        LValue) then
         Exit(False);
 end;
 
