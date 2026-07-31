@@ -490,6 +490,15 @@ object FormMain: TFormMain
             TabOrder = 5
             OnClick = BtnIDELaunchClick
           end
+          object BtnIDEDashboard: TButton
+            Left = 400
+            Top = 39
+            Width = 120
+            Height = 25
+            Caption = 'Dashboard'
+            TabOrder = 12
+            OnClick = BtnIDEDashboardClick
+          end
           object LblIDEStatus: TLabel
             Left = 400
             Top = 12

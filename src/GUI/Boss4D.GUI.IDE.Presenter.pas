@@ -7,7 +7,8 @@ uses
   Boss4D.Core.Services.IDEManagementQuery,
   Boss4D.Core.Services.IDERegistration,
   Boss4D.Core.Services.IDEProcessPolicy,
-  Boss4D.GUI.IDE.Timeline;
+  Boss4D.GUI.IDE.Timeline,
+  Boss4D.GUI.IDE.Dashboard;
 
 type
   IBoss4DIDEManagementBackend = interface
@@ -26,6 +27,7 @@ type
     function Repair(const AProfileId: string): Integer;
     function Undo: Integer;
     function History: TArray<TBoss4DGUITimelineRow>;
+    function Dashboard: TArray<TBoss4DGUIProfileDashboardRow>;
     procedure Snapshot(const AProfileId, APath: string);
     function Diff(const AProfileId, APath: string): TList<string>;
     procedure RestoreSnapshot(const APath: string);
@@ -52,6 +54,8 @@ type
     procedure AddTarget(const AIdentity: string);
     procedure ShowHistory(
       const ARows: TArray<TBoss4DGUITimelineRow>);
+    procedure ShowDashboard(
+      const ARows: TArray<TBoss4DGUIProfileDashboardRow>);
     procedure ShowIDEStatus(const AMessage: string);
     procedure ShowIDEError(const AMessage: string);
   end;
@@ -76,6 +80,7 @@ type
     procedure Repair;
     procedure Undo;
     procedure History;
+    procedure Dashboard;
     procedure Snapshot(const APath: string);
     procedure Diff(const APath: string);
     procedure RestoreSnapshot(const APath: string);
@@ -312,6 +317,19 @@ begin
     FView.ShowHistory(LHistory);
     FView.ShowIDEStatus(Format(
       '%d operacao(oes) no historico.', [Length(LHistory)]));
+  except
+    on E: Exception do
+      FView.ShowIDEError(E.Message);
+  end;
+end;
+
+procedure TBoss4DIDEManagementPresenter.Dashboard;
+begin
+  try
+    var LRows := FBackend.Dashboard;
+    FView.ShowDashboard(LRows);
+    FView.ShowIDEStatus(Format(
+      '%d perfil(is) no dashboard.', [Length(LRows)]));
   except
     on E: Exception do
       FView.ShowIDEError(E.Message);

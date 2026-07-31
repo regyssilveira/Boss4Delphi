@@ -55,6 +55,7 @@ type
     function Repair(const AProfileId: string): Integer;
     function Undo: Integer;
     function History: TArray<TBoss4DGUITimelineRow>;
+    function Dashboard: TArray<TBoss4DGUIProfileDashboardRow>;
     procedure Snapshot(const AProfileId, APath: string);
     function Diff(const AProfileId, APath: string): TList<string>;
     procedure RestoreSnapshot(const APath: string);
@@ -73,6 +74,7 @@ type
     Packages: TList<string>;
     Targets: TList<string>;
     Timeline: TArray<TBoss4DGUITimelineRow>;
+    DashboardRows: TArray<TBoss4DGUIProfileDashboardRow>;
     Selected: string;
     Status: string;
     Error: string;
@@ -92,6 +94,8 @@ type
     procedure AddTarget(const AIdentity: string);
     procedure ShowHistory(
       const ARows: TArray<TBoss4DGUITimelineRow>);
+    procedure ShowDashboard(
+      const ARows: TArray<TBoss4DGUIProfileDashboardRow>);
     procedure ShowIDEStatus(const AMessage: string);
     procedure ShowIDEError(const AMessage: string);
   end;
@@ -286,10 +290,27 @@ begin
   Targets.Add(AIdentity);
 end;
 
+function TBackendMock.Dashboard:
+  TArray<TBoss4DGUIProfileDashboardRow>;
+begin
+  LastAction := 'dashboard';
+  SetLength(Result, 1);
+  Result[0].Id := 'daily';
+  Result[0].Name := 'Daily';
+  Result[0].Compiler := '37.0';
+  Result[0].Packages := TArray<string>.Create('horse');
+end;
+
 procedure TViewMock.ShowHistory(
   const ARows: TArray<TBoss4DGUITimelineRow>);
 begin
   Timeline := Copy(ARows);
+end;
+
+procedure TViewMock.ShowDashboard(
+  const ARows: TArray<TBoss4DGUIProfileDashboardRow>);
+begin
+  DashboardRows := Copy(ARows);
 end;
 
 procedure TViewMock.ShowIDEStatus(const AMessage: string);
@@ -341,6 +362,10 @@ begin
     Assert.AreEqual('history', LBackendObject.LastAction);
     Assert.AreEqual<Integer>(1, Length(LViewObject.Timeline));
     Assert.AreEqual('profile-install', LViewObject.Timeline[0].Kind);
+    LPresenter.Dashboard;
+    Assert.AreEqual('dashboard', LBackendObject.LastAction);
+    Assert.AreEqual<Integer>(1, Length(LViewObject.DashboardRows));
+    Assert.AreEqual('Daily', LViewObject.DashboardRows[0].Name);
     LPresenter.Snapshot('daily.json');
     Assert.AreEqual('snapshot:daily:daily.json',
       LBackendObject.LastAction);

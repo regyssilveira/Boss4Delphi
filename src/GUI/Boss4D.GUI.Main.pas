@@ -11,6 +11,7 @@ uses
   Boss4D.Core.Services.IDEManagementQuery,
   Boss4D.GUI.IDE.Presenter,
   Boss4D.GUI.IDE.Timeline,
+  Boss4D.GUI.IDE.Dashboard,
   Boss4D.GUI.Catalog.Presenter,
   Boss4D.GUI.Install.Presenter,
   Boss4D.GUI.Operation.Presenter,
@@ -68,6 +69,7 @@ type
     BtnIDECloneProfile: TButton;
     BtnIDERemoveProfile: TButton;
     BtnIDELaunch: TButton;
+    BtnIDEDashboard: TButton;
     ComboIDETargetPlatform: TComboBox;
     ComboIDETargetConfiguration: TComboBox;
     BtnIDESaveTarget: TButton;
@@ -128,6 +130,7 @@ type
     procedure BtnIDECloneProfileClick(Sender: TObject);
     procedure BtnIDERemoveProfileClick(Sender: TObject);
     procedure BtnIDELaunchClick(Sender: TObject);
+    procedure BtnIDEDashboardClick(Sender: TObject);
     procedure BtnIDESaveTargetClick(Sender: TObject);
     procedure BtnIDEPreviewInstallClick(Sender: TObject);
     procedure BtnIDEInstallClick(Sender: TObject);
@@ -185,6 +188,8 @@ type
     procedure AddTarget(const AIdentity: string);
     procedure ShowHistory(
       const ARows: TArray<TBoss4DGUITimelineRow>);
+    procedure ShowDashboard(
+      const ARows: TArray<TBoss4DGUIProfileDashboardRow>);
     procedure ShowIDEStatus(const AMessage: string);
     procedure ShowIDEError(const AMessage: string);
   end;
@@ -220,7 +225,8 @@ uses
   Boss4D.Core.Services.IDEOperationResult,
   Boss4D.Core.Services.IDEProcessPolicy,
   Boss4D.GUI.IDE.Backend,
-  Boss4D.GUI.IDE.Timeline.Dialog;
+  Boss4D.GUI.IDE.Timeline.Dialog,
+  Boss4D.GUI.IDE.Dashboard.Dialog;
 
 type
   TGUILogger = class(TInterfacedObject, IBoss4DLogger)
@@ -1152,6 +1158,18 @@ begin
   TBoss4DGUITimelineDialog.Execute(Self, ARows);
 end;
 
+procedure TFormMain.ShowDashboard(
+  const ARows: TArray<TBoss4DGUIProfileDashboardRow>);
+begin
+  var LProfileId := TBoss4DGUIProfileDashboardDialog.Execute(
+    Self, ARows);
+  if not LProfileId.IsEmpty then
+  begin
+    FIDEPresenter.ChooseProfile(LProfileId);
+    FIDEPresenter.Launch;
+  end;
+end;
+
 procedure TFormMain.ShowIDEStatus(const AMessage: string);
 begin
   LblIDEStatus.Caption := AMessage;
@@ -1219,6 +1237,11 @@ end;
 procedure TFormMain.BtnIDELaunchClick(Sender: TObject);
 begin
   FIDEPresenter.Launch;
+end;
+
+procedure TFormMain.BtnIDEDashboardClick(Sender: TObject);
+begin
+  FIDEPresenter.Dashboard;
 end;
 
 procedure TFormMain.BtnIDESaveTargetClick(Sender: TObject);
