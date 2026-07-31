@@ -550,7 +550,7 @@ begin
   if Length(AArgs) < 3 then
     raise EArgumentException.Create(
       'Uso: boss4d ide profile list|create|show|target|clone|remove|' +
-      'export|import|snapshot|diff|restore|project|launch|' +
+      'export|import|snapshot|diff|restore|project|undo|launch|' +
       'preview-install|install|' +
       'preview-uninstall|uninstall|repair.');
   LStore := TBoss4DIDEProfileStore.Create(TPath.Combine(
@@ -807,6 +807,18 @@ begin
       finally
         LProjectPackage.Free;
       end;
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'undo') then
+    begin
+      if Length(AArgs) <> 3 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile undo.');
+      var LSummary := LApplication.UndoLatest;
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Ultima operacao IDE desfeita: %d alteracoes, %d builds.',
+        [LSummary.Affected, LSummary.Built + LSummary.Restored]);
       Exit;
     end;
 

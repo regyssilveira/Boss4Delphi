@@ -93,6 +93,7 @@ boss4d ide profile import equipe-a.json
 boss4d ide profile snapshot equipe-a --output equipe-a.snapshot.json
 boss4d ide profile diff equipe-a equipe-a.snapshot.json
 boss4d ide profile restore equipe-a.snapshot.json
+boss4d ide profile undo
 ```
 
 O export de perfil contem sua declaracao portavel. O snapshot tambem captura a
@@ -100,6 +101,12 @@ lista exata de packages e o inventario de registros, protege o inventario com
 SHA-256, detecta drift e restaura o estado capturado com substituicao atomica do
 arquivo. Em outra maquina, o path do inventario e recalculado sob o diretorio
 de perfis do Boss4D daquela maquina.
+
+Antes de install ou uninstall concluido, o Boss4D cria automaticamente um
+snapshot e o registra no diario da operacao. `profile undo` reverte o ultimo
+install ou uninstall concluido: produtos removidos sao recompilados e
+registrados novamente, enquanto produtos recem-instalados sao removidos antes
+da restauracao do inventario anterior.
 
 Projetos podem se vincular a um perfil no `boss.json`:
 

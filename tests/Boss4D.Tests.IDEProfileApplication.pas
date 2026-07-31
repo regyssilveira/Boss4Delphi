@@ -204,6 +204,26 @@ begin
         Assert.AreEqual(TBoss4DIDEOperationStatus.Succeeded,
           LOperation.Status);
         Assert.AreEqual('profile-uninstall', LOperation.Kind);
+        Assert.IsTrue(TFile.Exists(LOperation.UndoSnapshot));
+      finally
+        LOperation.Free;
+      end;
+      LSummary := LApplication.UndoLatest;
+      Assert.IsTrue(LSummary.Affected > 0, 'undo restored registrations');
+      LProfile := LProfiles.Get('isolated');
+      try
+        Assert.AreEqual<Integer>(1, LProfile.Packages.Count);
+        Assert.AreEqual('profile-component', LProfile.Packages[0]);
+      finally
+        LProfile.Free;
+      end;
+      Assert.IsTrue(Length(LRegistryMock.ListValueNames(
+        'Software\Embarcadero\Boss4D-isolated\37.0\Known Packages')) > 0);
+      LOperation := LResultStoreObject.LoadLatest;
+      try
+        Assert.AreEqual('profile-undo', LOperation.Kind);
+        Assert.AreEqual(TBoss4DIDEOperationStatus.Succeeded,
+          LOperation.Status);
       finally
         LOperation.Free;
       end;

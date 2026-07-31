@@ -71,6 +71,7 @@ begin
     'install', 'default', 'component');
   try
     LResult.CompletedActions.Add('register ComponentDesign');
+    LResult.UndoSnapshot := 'snapshots\before-install.json';
     LResult.Complete;
     LStore.Save(LResult);
     LLoaded := LStore.LoadLatest;
@@ -80,6 +81,8 @@ begin
       Assert.AreEqual('', LLoaded.RecoveryInstruction);
       Assert.AreEqual('register ComponentDesign',
         LLoaded.CompletedActions[0]);
+      Assert.AreEqual('snapshots\before-install.json',
+        LLoaded.UndoSnapshot);
     finally
       LLoaded.Free;
     end;

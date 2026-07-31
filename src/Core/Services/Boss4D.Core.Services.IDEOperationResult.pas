@@ -20,6 +20,7 @@ type
     FCompletedAt: string;
     FErrorMessage: string;
     FRecoveryInstruction: string;
+    FUndoSnapshot: string;
     FCompletedActions: TList<string>;
   public
     constructor Create;
@@ -39,12 +40,14 @@ type
     property ErrorMessage: string read FErrorMessage write FErrorMessage;
     property RecoveryInstruction: string read FRecoveryInstruction
       write FRecoveryInstruction;
+    property UndoSnapshot: string read FUndoSnapshot write FUndoSnapshot;
     property CompletedActions: TList<string> read FCompletedActions;
   end;
 
   IBoss4DIDEOperationResultStore = interface
     ['{2FBEDE13-4615-451A-B5BF-D10EED3A138D}']
     procedure Save(const AResult: TBoss4DIDEOperationResult);
+    function LoadLatest: TBoss4DIDEOperationResult;
   end;
 
   TBoss4DJsonIDEOperationResultStore = class(TInterfacedObject,
@@ -188,6 +191,7 @@ begin
     LObject.AddPair('completedAt', AResult.CompletedAt);
     LObject.AddPair('error', AResult.ErrorMessage);
     LObject.AddPair('recovery', AResult.RecoveryInstruction);
+    LObject.AddPair('undoSnapshot', AResult.UndoSnapshot);
     LActions := TJSONArray.Create;
     for var LAction in AResult.CompletedActions do
       LActions.Add(LAction);
@@ -251,6 +255,8 @@ begin
       Result.ErrorMessage := LObject.GetValue<string>('error', '');
       Result.RecoveryInstruction := LObject.GetValue<string>(
         'recovery', '');
+      Result.UndoSnapshot := LObject.GetValue<string>(
+        'undoSnapshot', '');
       LActions := LObject.GetValue<TJSONArray>('completedActions');
       if Assigned(LActions) then
         for var I := 0 to LActions.Count - 1 do

@@ -59,6 +59,7 @@ type
       AOwnerPackage: string): TBoss4DIDEProfileOperationSummary;
     function Repair(const AProfileId: string):
       TBoss4DIDEProfileOperationSummary;
+    function UndoLatest: TBoss4DIDEProfileOperationSummary;
   end;
 
 implementation
@@ -155,6 +156,10 @@ begin
     'profile-install', LProfile.Id, AOwnerPackage);
   try
     try
+      LOperation.UndoSnapshot := TPath.Combine(
+        TPath.Combine(TPath.GetDirectoryName(LProfile.InventoryPath),
+          'snapshots'), LOperation.OperationId + '.json');
+      FProfiles.CreateSnapshot(LProfile.Id, LOperation.UndoSnapshot);
       var LInstalled := FBuildInventory.GetPackage(AOwnerPackage);
       var LManifest := TPath.Combine(LInstalled.RootDirectory, FILE_PACKAGE);
       var LPackage := FPackageRepository.Load(LManifest);
@@ -249,6 +254,10 @@ begin
     'profile-uninstall', LProfile.Id, AOwnerPackage);
   try
     try
+      LOperation.UndoSnapshot := TPath.Combine(
+        TPath.Combine(TPath.GetDirectoryName(LProfile.InventoryPath),
+          'snapshots'), LOperation.OperationId + '.json');
+      FProfiles.CreateSnapshot(LProfile.Id, LOperation.UndoSnapshot);
       var LRegistrationService := FRegistrationFactory(LProfile);
       try
         Result.Affected := LRegistrationService.Uninstall(AOwnerPackage);
@@ -274,6 +283,92 @@ begin
   finally
     LOperation.Free;
     LProfile.Free;
+  end;
+end;
+
+function TBoss4DIDEProfileApplication.UndoLatest:
+  TBoss4DIDEProfileOperationSummary;
+begin
+  Result := Default(TBoss4DIDEProfileOperationSummary);
+  if not Assigned(FResultStore) then
+    raise EBoss4DIDEProfileError.Create(
+      'Undo requer um store de resultados de operacoes IDE.');
+  var LPrevious := FResultStore.LoadLatest;
+  try
+    if LPrevious.Status <> TBoss4DIDEOperationStatus.Succeeded then
+      raise EBoss4DIDEProfileError.Create(
+        'A ultima operacao IDE nao foi concluida com sucesso.');
+    if LPrevious.UndoSnapshot.Trim.IsEmpty or
+       not TFile.Exists(LPrevious.UndoSnapshot) then
+      raise EBoss4DIDEProfileError.Create(
+        'A ultima operacao IDE nao possui snapshot para undo.');
+    if not SameText(LPrevious.Kind, 'profile-install') and
+       not SameText(LPrevious.Kind, 'profile-uninstall') then
+      raise EBoss4DIDEProfileError.CreateFmt(
+        'A operacao %s nao suporta undo.', [LPrevious.Kind]);
+
+    var LOperation := TBoss4DIDEOperationResult.New(
+      'profile-undo', LPrevious.Profile, LPrevious.OperationId);
+    try
+      try
+        if SameText(LPrevious.Kind, 'profile-uninstall') then
+        begin
+          var LInstallSummary := Install(LPrevious.Profile,
+            LPrevious.Target, TBoss4DIDEConflictPolicy.Fail,
+            TBoss4DIDEOpenPolicy.Fail);
+          Result.Scheduled := LInstallSummary.Scheduled;
+          Result.Built := LInstallSummary.Built;
+          Result.Skipped := LInstallSummary.Skipped;
+          Result.Restored := LInstallSummary.Restored;
+          Result.Affected := LInstallSummary.Affected;
+          var LRestoredProfile :=
+            FProfiles.RestoreSnapshot(LPrevious.UndoSnapshot);
+          LRestoredProfile.Free;
+        end
+        else
+        begin
+          var LProfile := FProfiles.Get(LPrevious.Profile);
+          try
+            var LRegistrationService := FRegistrationFactory(LProfile);
+            try
+              Result.Affected := LRegistrationService.Uninstall(
+                LPrevious.Target);
+            finally
+              LRegistrationService.Free;
+            end;
+          finally
+            LProfile.Free;
+          end;
+          LProfile := FProfiles.RestoreSnapshot(LPrevious.UndoSnapshot);
+          try
+            var LRegistrationService := FRegistrationFactory(LProfile);
+            try
+              Inc(Result.Affected, LRegistrationService.Repair);
+            finally
+              LRegistrationService.Free;
+            end;
+          finally
+            LProfile.Free;
+          end;
+        end;
+        LOperation.CompletedActions.Add(
+          'undo ' + LPrevious.OperationId);
+        LOperation.Complete;
+        FResultStore.Save(LOperation);
+      except
+        on E: Exception do
+        begin
+          LOperation.Fail(E.Message,
+            'Execute profile repair para ' + LPrevious.Profile + '.');
+          FResultStore.Save(LOperation);
+          raise;
+        end;
+      end;
+    finally
+      LOperation.Free;
+    end;
+  finally
+    LPrevious.Free;
   end;
 end;
 
