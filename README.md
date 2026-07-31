@@ -166,6 +166,7 @@ cd /d d:\Projetos\BossDelphi
 ---
 
 ## 📖 Additional Documentation
+* **[Start with Your Use Case](docs/use-cases.md)**: Everyday, risk-aware workflows for dependencies, Registry credentials, publication, compliance, Multi-Delphi builds, IDE recovery, Linux, CI, releases, and self-update.
 * **[SBOM Feature Guide](docs/sbom.md)**: Motivation, evidence model, coverage, VEX, attestations, limitations, and recommended release workflow.
 * **[Deterministic Build Improvements](docs/build-improvements.md)**: Collision-free paths, toolchains, declared projects, Lazarus, scaffolding, and normalization.
 * **[Build Matrix Guide and Contract](docs/build-matrix-contract.md)**: Schema, CLI workflow, compiler conventions, migration, diagnostics, troubleshooting, and acceptance rules for multi-version Delphi builds.

@@ -58,6 +58,34 @@ foreach ($pair in $hubPairs) {
   }
 }
 
+$englishHub = Get-Content -Raw -LiteralPath (
+  Join-Path $root 'docs\use-cases.md')
+$portugueseHub = Get-Content -Raw -LiteralPath (
+  Join-Path $root 'docs\use-cases.pt-BR.md')
+if ($englishHub.Contains('Planned in phase') -or
+    $portugueseHub.Contains('Planejado para a fase')) {
+  throw 'Use-case hub still contains unfinished phase placeholders.'
+}
+
+$topicDocuments = Get-ChildItem -LiteralPath (Join-Path $root 'docs') `
+  -Filter 'use-cases-*.md'
+foreach ($document in $topicDocuments) {
+  $content = Get-Content -Raw -LiteralPath $document.FullName
+  $requiredLabels = if ($document.Name.EndsWith('.pt-BR.md')) {
+    @('**Situação:**', '**Resultado esperado:**',
+      '**Controles de risco:**', '**Recuperação:**')
+  } else {
+    @('**Situation:**', '**Expected result:**',
+      '**Risk controls:**', '**Recovery:**')
+  }
+  foreach ($label in $requiredLabels) {
+    if (-not $content.Contains($label)) {
+      throw "Required use-case label '$label' is missing in " +
+        $document.FullName
+    }
+  }
+}
+
 $missingLinks = @()
 Get-ChildItem -LiteralPath (Join-Path $root 'docs') -Filter 'use-cases*.md' |
   ForEach-Object {

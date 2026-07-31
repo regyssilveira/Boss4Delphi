@@ -160,6 +160,7 @@ cd /d d:\Projetos\BossDelphi
 ---
 
 ## 📖 Documentação Adicional
+* **[Comece pelo seu Caso de Uso](docs/use-cases.pt-BR.md)**: Fluxos cotidianos orientados a risco para dependências, credenciais de Registry, publicação, conformidade, builds Multi-Delphi, recuperação da IDE, Linux, CI, releases e autoatualização.
 * **[Guia da Feature SBOM](docs/sbom.pt-BR.md)**: Motivação, modelo de evidências, cobertura, VEX, atestações, limites e fluxo recomendado de release.
 * **[Melhorias de Build Determinístico](docs/build-improvements.pt-BR.md)**: Paths sem colisão, toolchains, projetos declarados, Lazarus, scaffolding e normalização.
 * **[Guia e Contrato da Matriz de Build](docs/build-matrix-contract.pt-BR.md)**: Schema, fluxo da CLI, convenções, migração, diagnóstico, troubleshooting e critérios para builds Delphi multiversão.
