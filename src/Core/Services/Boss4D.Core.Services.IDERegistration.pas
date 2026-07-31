@@ -5,7 +5,8 @@ interface
 uses
   System.SysUtils,
   System.Generics.Collections,
-  Winapi.Windows;
+  Winapi.Windows,
+  Boss4D.Core.Services.IDEOperationLock;
 
 type
   EBoss4DIDERegistrationError = class(Exception);
@@ -147,6 +148,9 @@ type
     FStore: IBoss4DIDERegistryStore;
     FInventoryPath: string;
     FArtifactRepairHandler: TBoss4DIDEArtifactRepairHandler;
+    FOperationLock: IBoss4DIDEOperationLock;
+    FProfileName: string;
+    FLockTimeoutMilliseconds: Cardinal;
     function LibraryKey(const ARegistration: TBoss4DIDERegistration): string;
     function PackageKey(const ARegistration: TBoss4DIDERegistration): string;
     function IDEPackageKey(
@@ -163,7 +167,10 @@ type
   public
     constructor Create(const AStore: IBoss4DIDERegistryStore;
       const AInventoryPath: string;
-      const AArtifactRepairHandler: TBoss4DIDEArtifactRepairHandler = nil);
+      const AArtifactRepairHandler: TBoss4DIDEArtifactRepairHandler = nil;
+      const AOperationLock: IBoss4DIDEOperationLock = nil;
+      const AProfileName: string = 'default';
+      const ALockTimeoutMilliseconds: Cardinal = 30000);
     procedure RegisterTarget(const ARegistration: TBoss4DIDERegistration);
     function DetectConflicts(
       const ARegistration: TBoss4DIDERegistration):
@@ -615,16 +622,27 @@ end;
 
 constructor TBoss4DIDERegistrationService.Create(
   const AStore: IBoss4DIDERegistryStore; const AInventoryPath: string;
-  const AArtifactRepairHandler: TBoss4DIDEArtifactRepairHandler);
+  const AArtifactRepairHandler: TBoss4DIDEArtifactRepairHandler;
+  const AOperationLock: IBoss4DIDEOperationLock;
+  const AProfileName: string;
+  const ALockTimeoutMilliseconds: Cardinal);
 begin
   inherited Create;
   if not Assigned(AStore) then
     raise EArgumentNilException.Create('AStore');
   if AInventoryPath.Trim.IsEmpty then
     raise EArgumentException.Create('Inventory path nao pode ser vazio.');
+  if AProfileName.Trim.IsEmpty then
+    raise EArgumentException.Create('Profile name nao pode ser vazio.');
   FStore := AStore;
   FInventoryPath := AInventoryPath;
   FArtifactRepairHandler := AArtifactRepairHandler;
+  FOperationLock := AOperationLock;
+  if not Assigned(FOperationLock) then
+    FOperationLock := TBoss4DFileIDEOperationLock.Create(
+      TPath.Combine(TPath.GetDirectoryName(FInventoryPath), '.ide-locks'));
+  FProfileName := AProfileName.Trim;
+  FLockTimeoutMilliseconds := ALockTimeoutMilliseconds;
 end;
 
 function TBoss4DIDERegistrationService.LibraryKey(
@@ -1012,7 +1030,12 @@ var
   LEffectiveRegistration: TBoss4DIDERegistration;
   LConflicts: TArray<TBoss4DIDEPackageConflict>;
   LPlan: TBoss4DIDERegistrationPlan;
+  LLease: IBoss4DIDEOperationLease;
 begin
+  if not Assigned(ARegistration) then
+    raise EArgumentNilException.Create('ARegistration');
+  LLease := FOperationLock.Acquire(FProfileName,
+    ARegistration.Compiler, FLockTimeoutMilliseconds);
   LPlan := PlanRegistration(ARegistration);
   try
     if LPlan.Disposition = TBoss4DIDEPlanDisposition.Blocked then
