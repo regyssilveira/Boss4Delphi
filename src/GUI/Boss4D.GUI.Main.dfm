@@ -243,11 +243,19 @@ object FormMain: TFormMain
           Columns = <
             item
               Caption = 'Nome do Pacote'
-              Width = 250
+              Width = 180
+            end
+            item
+              Caption = 'Versao'
+              Width = 90
+            end
+            item
+              Caption = 'Historico'
+              Width = 150
             end
             item
               Caption = 'Repositorio GitHub'
-              Width = 400
+              Width = 260
             end>
           GridLines = True
           ReadOnly = True

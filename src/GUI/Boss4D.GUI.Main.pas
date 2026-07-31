@@ -168,6 +168,7 @@ uses
   Boss4D.Core.Services.Tree,
   Boss4D.Core.Services.Outdated,
   Boss4D.Core.Services.PackageIndex,
+  Boss4D.GUI.Catalog.Presenter,
   Boss4D.Core.Domain.Env,
   Boss4D.Core.Domain.IDEProfile,
   Boss4D.Core.Services.IDERegistration,
@@ -413,25 +414,30 @@ var
   LService: TBoss4DPackageIndexService;
   LLogger: IBoss4DLogger;
   LHttp: IBoss4DHttpClient;
+  LPresenter: TBoss4DGUICatalogPresenter;
 begin
   ListCatalog.Items.Clear;
   LLogger := TGUILogger.Create(Self);
   LHttp := TBoss4DHttpNativeAdapter.Create;
   LConfig := TBoss4DConfigService.Create(LLogger);
   LService := TBoss4DPackageIndexService.Create(LConfig, LHttp, LLogger);
+  LPresenter := TBoss4DGUICatalogPresenter.Create;
   try
     var LEntries := LService.Search(Trim(EditSearch.Text));
     try
-      for var LEntry in LEntries do
+      for var LRow in LPresenter.BuildRows(LEntries) do
       begin
         LItem := ListCatalog.Items.Add;
-        LItem.Caption := LEntry.Name;
-        LItem.SubItems.Add(LEntry.Repository);
+        LItem.Caption := LRow.Name;
+        LItem.SubItems.Add(LRow.Version);
+        LItem.SubItems.Add(LRow.VersionSummary);
+        LItem.SubItems.Add(LRow.Repository);
       end;
     finally
       LEntries.Free;
     end;
   finally
+    LPresenter.Free;
     LService.Free;
     LConfig.Free;
   end;
@@ -638,7 +644,7 @@ begin
     Exit;
   end;
 
-  LRepo := ListCatalog.Selected.SubItems[0];
+  LRepo := ListCatalog.Selected.SubItems[2];
   RunAsyncCommand('Instalacao de ' + ListCatalog.Selected.Caption, 'install', LRepo);
 end;
 
