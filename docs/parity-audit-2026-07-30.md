@@ -1,5 +1,10 @@
 # Boss4D parity completion audit — 30 July 2026
 
+> Post-1.6 status update (31 July 2026): the original parity criteria remain
+> complete. Native macOS distribution, reviewed official Registry pull
+> requests, and the first 16 signed schema-v2 packages have since been
+> delivered.
+
 This audit maps each targeted criterion to authoritative repository evidence.
 “Complete” means implemented and covered by a unit, contract, integration, or
 real-compiler test; it does not mean the ecosystem has reached npm-scale.
@@ -21,8 +26,8 @@ real-compiler test; it does not mean the ecosystem has reached npm-scale.
 | Terminal progress | Complete | plain/interactive/JSON/quiet formatting, cancellation and stable exit-code tests |
 | Auto-update | Complete | release selection, SHA-256, extraction, transactional promotion and rollback tests |
 | Compliance/audit | Complete | CycloneDX, SPDX, VEX, OSV, strict lock evidence and external validators |
-| Release distribution | Complete | tag workflow, Windows/Linux archives, checksums, OIDC provenance and final tarball execution |
-| Quality | Complete | Delphi 10/11/12/13 plugin builds, Delphi 13 Win32/Win64 tests, FPC/Linux, and the Sonar Quality Gate validated |
+| Release distribution | Complete | tag workflow, Windows/Linux/macOS archives, checksums, OIDC provenance and final archive execution |
+| Quality | Complete | Delphi 10/11/12/13 plugin builds, 295 Delphi 13 tests on Win32 and Win64, FPC/Linux/macOS CI, and the Sonar Quality Gate validated |
 
 ## Required invariants
 
@@ -57,6 +62,7 @@ recorded in logs or this document.
 ## Outside the completed criteria
 
 The following are legitimate next investments, but require ecosystem growth or
-a new platform objective: publisher-supplied signed packages, hosted search/CDN
-operations, native macOS distribution, and optional transparency-log identity.
+a new platform objective: migration of the remaining 39 publisher-supplied
+legacy entries, hosted search/CDN operations, Linux ARM64, richer GUI product
+experience, and optional transparency-log identity.
 

@@ -8,7 +8,7 @@ registro são avaliadas separadamente da quantidade de comandos.
 | Dependências Delphi | CLI, GUI e IDE completas | CLI e complemento de IDE | Pacotes e IDE completos | Instalação por catálogo | Não específico para Delphi |
 | Lazarus/FPC/POSIX | CLI e releases nativas em FPC 3.2.2 para Linux x86_64 e macOS arm64 | Fluxo Delphi/Lazarus consolidado | Foco Delphi/Windows | Não | Nativo em cada ecossistema |
 | CLI cotidiana | Install, update, tree, why, outdated, run e ferramentas globais | Install, update, dependencies, run e global | Create/push/install/restore no estilo NuGet | Orientado à IDE | Ampla e madura |
-| Descoberta pública | Registry v2 Git com 55 entradas legadas; catálogo `.b4dpkg` ainda precisa ser povoado | Atalhos de repositório/nome e adoção histórica | Fonte hospedada `delphi.dev` em operação | Catálogo do fornecedor | Grandes registros hospedados |
+| Descoberta pública | Registry v2 Git com 55 pacotes: 16 releases schema v2 assinadas e 39 entradas legadas | Atalhos de repositório/nome e adoção histórica | Fonte hospedada `delphi.dev` em operação | Catálogo do fornecedor | Grandes registros hospedados |
 | Protocolo do Registry | Composição v1/v2, sparse, validadores HTTP, mirrors e revogação | Resolução orientada a Git | Múltiplas fontes locais/hospedadas | Controlado pelo fornecedor | APIs sparse/index e CDNs |
 | Reprodutibilidade | Lock v3, frozen/locked/offline e CI | SemVer e cache | Restore por pacote/versão | Estado da IDE | Locks e modos offline/vendor maduros |
 | Distribuição imutável | `.b4dpkg`, SHA-256, OpenPGP, in-toto e instalação transacional | Principalmente checkout Git | Pacotes hospedados e assinados | Pacotes hospedados | Arquivos imutáveis e checksums |
@@ -42,10 +42,11 @@ ferramental de terceiros e operação de infraestrutura.
 
 ## Evidências neste repositório
 
-- DUnitX Delphi 13: 143 testes em Win32 e 143 em Win64.
+- DUnitX Delphi 13: 295 testes em Win32 e 295 em Win64.
 - FPC 3.2.2/Linux x86_64: 61 testes FPCUnit e smoke tests reais da CLI.
 - Builds reais do plugin: Delphi 10, 10.1, 11, 12 e 13.
-- Arquivos de release Windows/Linux com SHA-256 e proveniência OIDC do GitHub.
+- Arquivos de release Windows, Linux e macOS com SHA-256 e proveniência OIDC
+  do GitHub.
 - Checks de submissão: escopo do publisher, fingerprint OpenPGP, versões
   imutáveis, assinatura e proveniência.
 - Quality gate do Sonar obrigatório com zero issues abertas.
@@ -55,7 +56,8 @@ ferramental de terceiros e operação de infraestrutura.
 Estes itens aumentam escala e alcance; não são lacunas da paridade técnica
 definida:
 
-1. Popular o Registry sparse com releases `.b4dpkg` assinadas pelos mantenedores.
+1. Migrar as 39 entradas legadas restantes com releases `.b4dpkg` assinadas
+   fornecidas por seus mantenedores.
 2. Adicionar frontend hospedado de leitura/busca e CDN, mantendo Git revisado
    como fonte autoritativa.
 3. Ampliar variantes mantidas e adicionar Linux ARM64.

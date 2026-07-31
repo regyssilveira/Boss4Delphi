@@ -13,6 +13,40 @@
 
 Veja o [plano oficial da entrega](ide-packages-profiles-gui-plan.pt-BR.md).
 
+## Épico 23: Ecossistema oficial do Registry
+
+- [x] Gerar submissões schema v2 assinadas nas CLIs Delphi e POSIX.
+- [x] Aplicar novos pacotes e versões imutáveis transacionalmente em um
+  checkout.
+- [x] Criar branch isolado, commit apenas dos arquivos exatos, push
+  configurável e pull request revisado no GitHub com suporte a fork.
+- [x] Exigir checkout limpo e restaurar o branch original quando a aplicação
+  local dos metadados falhar.
+- [x] Auditar o catálogo v1/v2 completo nas CIs Delphi, Linux e macOS.
+- [x] Publicar e validar continuamente o primeiro conjunto curado
+  (16 pacotes schema v2 assinados e zero erros estruturais no Registry).
+- [ ] Operar busca/índice hospedado com mirrors, backup e página de status.
+- [ ] Expor métricas de adoção, manutenção, compatibilidade e confiança.
+
+## Épico 24: Experiência de produto da GUI
+
+- [ ] Cards ricos e detalhes do pacote com versões, dependências,
+  compatibilidade, licença, changelog, SBOM, assinatura e proveniência.
+- [ ] Assistente guiado para pacote, versão, perfil, compilador, plataforma,
+  preview e confirmação explícita.
+- [ ] Progresso por operação e target, cancelamento seguro, retry, tempo
+  decorrido e comando CLI equivalente copiável.
+- [ ] Central de saúde com diagnósticos agrupados e ações diretas de reparo,
+  rebuild, novo registro e undo.
+- [ ] Linha do tempo visual com comparação antes/depois, snapshots e rollback
+  transacional.
+- [ ] Dashboard de perfis com drift, comparação lado a lado, produtos
+  instalados e abertura direta da IDE isolada.
+- [ ] Logs estruturados e pesquisáveis, navegação até o erro e exportação de
+  diagnóstico.
+- [ ] Acessibilidade, preferências persistentes, temas claro/escuro, navegação
+  por teclado e notificações nativas de conclusão.
+
 ## Épico 21: CLI portável e fundação de distribuição
 
 - [x] **[Story] Fundação de abstração de plataforma**

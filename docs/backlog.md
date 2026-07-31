@@ -22,9 +22,28 @@ See the [authoritative delivery plan](ide-packages-profiles-gui-plan.md).
 - [x] Require a clean checkout and restore the original branch when local
   metadata application fails.
 - [x] Audit the complete v1/v2 catalog on Delphi, Linux, and macOS CI.
-- [ ] Publish and continuously validate the first curated package set.
+- [x] Publish and continuously validate the first curated package set
+  (16 signed schema-v2 packages, zero Registry structural errors).
 - [ ] Operate hosted search/index delivery with mirrors, backup, and status.
 - [ ] Expose package adoption, maintenance, compatibility, and trust metrics.
+
+## Epic 24: GUI product experience
+
+- [ ] Rich package cards and a detail view for versions, dependencies,
+  compatibility, license, changelog, SBOM, signature, and provenance.
+- [ ] Guided installation wizard for package, version, profile, compiler,
+  platform, preview, and explicit confirmation.
+- [ ] Per-operation and per-target progress, safe cancellation, retry, elapsed
+  time, and copyable equivalent CLI command.
+- [ ] Health center with grouped diagnostics and direct repair, rebuild,
+  re-register, and undo actions.
+- [ ] Visual operation timeline with before/after comparison, snapshots, and
+  transactional rollback.
+- [ ] Profile dashboard with drift, side-by-side comparison, installed
+  products, and direct isolated IDE launch.
+- [ ] Structured searchable logs with error navigation and diagnostic export.
+- [ ] Accessibility, persistent preferences, light/dark themes, keyboard
+  navigation, and native completion notifications.
 
 ## Epic 21: Portable CLI and distribution foundation
 

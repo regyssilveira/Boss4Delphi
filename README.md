@@ -126,7 +126,8 @@ cd /d d:\Projetos\BossDelphi
   manifest scripts.
 * `boss4d registry add|remove|list|health`, `search`, and `info`
   Manages public/private Registry v1/v2 sources, audits the complete catalog,
-  and provides package discovery.
+  and provides package discovery. The current catalog contains 55 packages:
+  16 signed schema-v2 releases and 39 legacy discovery entries.
 * `boss4d package install <name>@<version>` and `boss4d pack`
   Installs or creates deterministic `.b4dpkg` files with compiler/platform
   selection, SHA-256, OpenPGP, and in-toto provenance.
@@ -158,8 +159,9 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d ide unregister <package> --compiler <version> --platform <platform>`
   and `boss4d ide repair`
   Remove one exact registration or reconcile registry drift transactionally.
-* `boss4d ide profile list|create|show|target|clone|remove|export|import|launch`
-  and `preview-install|install|repair|preview-uninstall|uninstall`
+* `boss4d ide profile list|create|show|target|clone|remove|export|import|launch`,
+  `snapshot|diff|restore|history|undo`, and
+  `preview-install|install|repair|preview-uninstall|uninstall`
   Manages isolated RAD Studio Registry branches and performs previewable,
   transactional product installation. See the
   [IDE profile and component guide](docs/ide-component-management.md).

@@ -103,6 +103,10 @@ cd /d d:\Projetos\BossDelphi
   Gerencia e consulta todo o ciclo de vida das dependências, com rollback
   automático de `boss.json`, `boss-lock.json` e `modules/` em caso de falha.
   Consulte o [guia do ciclo de vida](docs/dependency-lifecycle.pt-BR.md).
+* `boss4d package versions`, `pin|unpin`, `upgrade|downgrade` e `rollback`
+  Oferece seleção SemVer determinística, pins exatos, snapshots duráveis do
+  histórico de versões e recuperação transacional. Consulte
+  [gerenciamento de versões](docs/version-management.pt-BR.md).
 * `boss4d ci` / `boss4d install --locked|--frozen-lockfile|--offline|--production [--jobs <n>]`
   Executa instalações reproduzíveis com CI limpo, cache offline e dependências
   somente de produção.
@@ -111,7 +115,8 @@ cd /d d:\Projetos\BossDelphi
   scripts do manifesto.
 * `boss4d registry add|remove|list|health`, `search` e `info`
   Gerencia fontes públicas/privadas, audita o catálogo Registry v1/v2 completo
-  e consulta seus pacotes.
+  e consulta seus pacotes. O catálogo atual contém 55 pacotes: 16 releases
+  schema v2 assinadas e 39 entradas legadas de descoberta.
 * `boss4d package install <nome>@<versão>` e `boss4d pack`
   Instala ou produz `.b4dpkg` determinísticos com seleção por compilador e
   plataforma, SHA-256, OpenPGP e proveniência in-toto.
@@ -142,8 +147,9 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d ide unregister <pacote> --compiler <versão> --platform <plataforma>`
   e `boss4d ide repair`
   Removem um registro exato ou reconciliam divergências transacionalmente.
-* `boss4d ide profile list|create|show|target|clone|remove|export|import|launch`
-  e `preview-install|install|repair|preview-uninstall|uninstall`
+* `boss4d ide profile list|create|show|target|clone|remove|export|import|launch`,
+  `snapshot|diff|restore|history|undo` e
+  `preview-install|install|repair|preview-uninstall|uninstall`
   Gerencia Registry branches isolados do RAD Studio e executa instalação
   transacional de produtos com preview. Consulte o
   [guia de perfis e componentes](docs/ide-component-management.pt-BR.md).

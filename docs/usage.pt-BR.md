@@ -708,6 +708,18 @@ Envie-o com o token bearer lido de `BOSS4D_PUBLISH_TOKEN`:
 boss4d publish --registry https://registry.example/api
 ```
 
+Prepare ou abra um pull request revisado no Registry oficial:
+
+```console
+boss4d publish --official --dry-run
+boss4d publish --official --registry-checkout C:\src\Boss4Delphi
+boss4d publish --official --registry-checkout C:\src\Boss4Delphi --open-pr
+```
+
+A publicação oficial verifica escopo do publisher, autorização do signatário,
+assets imutáveis, assinatura OpenPGP, proveniência e checkout limpo do Registry
+antes de criar branch isolado e commit somente dos arquivos exatos.
+
 Consulte o [guia de publicação](publish.pt-BR.md) para todos os bloqueios,
 opções e o contrato do endpoint do registro.
 
@@ -765,6 +777,20 @@ boss4d ide uninstall Component
 boss4d ide uninstall Component --cascade
 ```
 
+Crie, inspecione, reproduza e opere perfis isolados da IDE:
+
+```console
+boss4d ide profile create Team-A --compiler 37.0
+boss4d ide profile target Team-A --platform Win64 --configuration Release
+boss4d ide profile preview-install Team-A Component
+boss4d ide profile install Team-A Component
+boss4d ide profile snapshot Team-A --output team-a.snapshot.json
+boss4d ide profile diff Team-A team-a.snapshot.json
+boss4d ide profile history
+boss4d ide profile undo
+boss4d ide profile launch Team-A
+```
+
 O `doctor` também verifica matriz/grafo, toolchains instaladas, paths de
 projeto, colisões de outputs/units e divergência do Registro. Consulte o
 [guia completo da matriz](build-matrix-contract.pt-BR.md) e o
@@ -809,3 +835,18 @@ boss4d rollback
 
 Consulte [Gerenciamento de versões](version-management.pt-BR.md) para detalhes
 sobre revogação, mirrors, recibos e recuperação.
+
+## Manutenção do Registry e portal público
+
+Audite o catálogo composto e regenere os artefatos determinísticos:
+
+```console
+boss4d registry health .
+boss4d registry portal registry/index-v2.json registry/index.html
+boss4d registry search-index registry/index-v2.json registry/search-index.json
+```
+
+O catálogo público atual possui 55 pacotes: 16 releases schema v2 assinadas e
+39 entradas legadas de descoberta. Consulte [Índices de Pacotes](package-index.pt-BR.md),
+[Onboarding de Publishers](publisher-onboarding.pt-BR.md) e o
+[Plano de Migração do Registry](registry-migration-plan.pt-BR.md).

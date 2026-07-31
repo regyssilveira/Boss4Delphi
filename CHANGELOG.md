@@ -38,6 +38,26 @@
   restore, project-to-profile binding, and compiler compatibility checks.
 - Automatic pre-operation snapshots and tested undo for completed component
   installation and removal through both CLI and GUI.
+- Immutable Registry version selection with `package versions`, exact
+  installation, pin/unpin, upgrade/downgrade, transactional snapshots, and
+  rollback.
+- Searchable Registry v2 portal, consolidated search index, publisher trust
+  badges, migration health metrics, and validated GitHub Pages publication.
+- Version-aware GUI catalog plus complete profile target, preview, install,
+  repair, uninstall, snapshot, history, and undo workflows.
+- Static Pascal API documentation generation on Delphi and FPC hosts.
+- Official Registry publication that generates signed metadata, updates a clean
+  checkout transactionally, pushes an isolated branch, and opens a reviewed
+  GitHub pull request.
+- Community publisher onboarding guarded by GitHub owner authorization,
+  repository scope, OpenPGP signer policy, immutable metadata, automated
+  validation, and CODEOWNER approval.
+- Native macOS arm64 FPC CLI release and CI validation alongside Linux x86-64.
+- First curated Registry migration completed with 16 signed schema-v2 packages,
+  including Boss4D, Dext, horse-crud, horse-sanitize, and the maintained Horse
+  middleware set.
+- Bounded concurrent Git acquisition with keyed operation gates and preserved
+  deterministic installation behavior.
 
 ### Changed
 
@@ -47,6 +67,17 @@
 - The release artifact and installer include the Delphi 10 Seattle/BDS 17.0
   legacy IDE plugin alongside the existing supported IDE targets.
 - Sonar Quality Gate is clean with zero new violations.
+- Public Registry health now reports 55 packages, 16 trusted schema-v2
+  packages, 39 legacy discovery entries, 78 migration warnings, and zero
+  structural errors.
+
+### Fixed
+
+- Deterministic packages exclude Git worktree pointer files.
+- Verified release installation reliably honors artifact mirrors and
+  `--no-source-fallback`.
+- Registry migration removes legacy discovery metadata atomically only after
+  the trusted sparse entry is accepted.
 
 ## 1.6.0 - 2026-07-30
 

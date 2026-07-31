@@ -102,9 +102,9 @@ git tag -a vX.Y.Z -m "Boss4D vX.Y.Z"
 git push origin vX.Y.Z
 ```
 
-**Expected result:** the tag workflow builds Windows and Linux independently,
-combines checksums, creates provenance attestations, and publishes assets only
-after both platform jobs succeed.
+**Expected result:** the tag workflow builds Windows, Linux, and macOS
+independently, combines checksums, creates provenance attestations, and
+publishes assets only after all platform jobs succeed.
 
 **Risk controls:** tag only the reviewed commit. Tags and `(name, version)`
 release identities are immutable operational contracts; never move a published
@@ -116,13 +116,19 @@ replace them under the same identity.
 
 ## 6. Verify downloaded release artifacts
 
-**Situation:** a user or deployment system downloaded the Windows/Linux
+**Situation:** a user or deployment system downloaded the Windows/Linux/macOS
 artifacts and checksum manifest.
 
 On Linux:
 
 ```bash
 sha256sum --check SHA256SUMS.txt
+```
+
+On macOS:
+
+```bash
+shasum -a 256 -c SHA256SUMS.txt
 ```
 
 On PowerShell, compare each published line with:

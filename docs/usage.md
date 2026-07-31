@@ -704,6 +704,18 @@ Submit it with a bearer token read from `BOSS4D_PUBLISH_TOKEN`:
 boss4d publish --registry https://registry.example/api
 ```
 
+Prepare or open a reviewed official Registry pull request:
+
+```console
+boss4d publish --official --dry-run
+boss4d publish --official --registry-checkout C:\src\Boss4Delphi
+boss4d publish --official --registry-checkout C:\src\Boss4Delphi --open-pr
+```
+
+Official publication verifies publisher scope, signer authorization, immutable
+release assets, OpenPGP signature, provenance, and the clean Registry checkout
+before it creates an isolated branch and exact-file commit.
+
 See the [package publishing guide](publish.md) for all gates, options, and the
 registry endpoint contract.
 
@@ -761,6 +773,20 @@ boss4d ide uninstall Component
 boss4d ide uninstall Component --cascade
 ```
 
+Create, inspect, reproduce, and operate isolated IDE profiles:
+
+```console
+boss4d ide profile create Team-A --compiler 37.0
+boss4d ide profile target Team-A --platform Win64 --configuration Release
+boss4d ide profile preview-install Team-A Component
+boss4d ide profile install Team-A Component
+boss4d ide profile snapshot Team-A --output team-a.snapshot.json
+boss4d ide profile diff Team-A team-a.snapshot.json
+boss4d ide profile history
+boss4d ide profile undo
+boss4d ide profile launch Team-A
+```
+
 `doctor` now also checks matrix/graph validity, installed toolchains, project
 paths, output/unit collisions, and IDE registry drift. See the
 [complete build matrix guide](build-matrix-contract.md) and the
@@ -805,3 +831,18 @@ boss4d rollback
 
 See [Version Management](version-management.md) for revocation, mirror,
 receipt, and recovery details.
+
+## Registry maintenance and public portal
+
+Audit the composed catalog and regenerate deterministic publication artifacts:
+
+```console
+boss4d registry health .
+boss4d registry portal registry/index-v2.json registry/index.html
+boss4d registry search-index registry/index-v2.json registry/search-index.json
+```
+
+The current public catalog contains 55 packages: 16 signed schema-v2 releases
+and 39 legacy discovery entries. See [Package Indexes](package-index.md),
+[Publisher Onboarding](publisher-onboarding.md), and the
+[Registry Migration Plan](registry-migration-plan.md).
