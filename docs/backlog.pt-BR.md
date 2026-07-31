@@ -9,7 +9,7 @@
 - [x] Serviços de aplicação compartilhados por CLI e GUI.
 - [x] Packages, targets, perfis, preview, instalação, reparo e remoção na GUI.
 - [ ] Visualização interativa do grafo de componentes (melhoria pós-entrega).
-- [ ] Exemplos/documentação bilíngues, validação e Sonar limpo.
+- [x] Exemplos/documentação bilíngues, validação e Sonar limpo.
 
 Veja o [plano oficial da entrega](ide-packages-profiles-gui-plan.pt-BR.md).
 
@@ -224,7 +224,10 @@ itens ainda abertos formam o backlog ativo.
 - [x] **[Story] Cache Global Seguro de Objetos Git e Binários**
   - Evitar clones físicos repetidos, mantendo os arquivos Git num repositório centralizado e gerando links lógicos (hard links) para a pasta `modules/` de cada projeto.
 - [ ] **[Story] Paralelização de Downloads e MSBuild**
-  - Executar múltiplos downloads em paralelo via Git e disparar compilações em threads assíncronas para módulos sem relação de dependência direta.
+  - O scheduler de MSBuild já executa targets independentes em paralelo,
+    respeita o grafo, limita `--jobs`, cancela e interrompe dependentes após
+    falha. Falta remover o lock Git global da instalação e limitar downloads
+    concorrentes sem permitir duas operações sobre o mesmo cache.
 
 ---
 
