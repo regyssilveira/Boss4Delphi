@@ -21,6 +21,7 @@ type
     FForce: Boolean;
     FJobs: Integer;
     FCancellation: TBoss4DBuildCancellationProbe;
+    FRemoteCachePath: string;
   public
     class function Create(const ASelection: TBoss4DBuildSelection;
       const ASourceChecksum: string): TBoss4DBuildExecutionOptions; static;
@@ -32,6 +33,8 @@ type
     property Jobs: Integer read FJobs write FJobs;
     property Cancellation: TBoss4DBuildCancellationProbe read FCancellation
       write FCancellation;
+    property RemoteCachePath: string read FRemoteCachePath
+      write FRemoteCachePath;
   end;
 
   TBoss4DBuildExecutor = class
@@ -139,6 +142,12 @@ begin
   FSkippedCount := 0;
   FRestoredCount := 0;
   FLastExplanations.Clear;
+  FArtifactCache.Free;
+  if AOptions.RemoteCachePath.Trim.IsEmpty then
+    FArtifactCache := TBoss4DArtifactCacheService.Create
+  else
+    FArtifactCache := TBoss4DArtifactCacheService.Create('',
+      TBoss4DFileArtifactCacheBackend.Create(AOptions.RemoteCachePath));
   LTargets := TBoss4DBuildMatrixExpander.Expand(APackage,
     AOptions.Selection);
   TDirectory.CreateDirectory(TPath.Combine(GetBossHome, 'artifact-cache'));

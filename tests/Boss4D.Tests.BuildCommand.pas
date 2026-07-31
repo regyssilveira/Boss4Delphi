@@ -147,7 +147,7 @@ begin
     'build', '--compiler', 'all', '--platform', 'win64',
     '--configuration', 'release', '--jobs', '4', '--force',
     '--explain', '--register', '--affected', '--all-installed',
-    '--conflict', 'replace'));
+    '--conflict', 'replace', '--remote-cache', 'R:\boss4d-cache'));
   Assert.IsTrue(LOptions.Selection.CompilerAll);
   Assert.IsFalse(LOptions.Selection.PlatformAll);
   Assert.AreEqual('Win64', LOptions.Selection.Platform);
@@ -161,6 +161,7 @@ begin
   Assert.IsTrue(LOptions.AllInstalledIDEs);
   Assert.AreEqual(TBoss4DIDEConflictPolicy.Replace,
     LOptions.ConflictPolicy);
+  Assert.AreEqual('R:\boss4d-cache', LOptions.RemoteCachePath);
 end;
 
 procedure TTestsBuildCommand.TestFullSelectsAndForcesEveryAxis;

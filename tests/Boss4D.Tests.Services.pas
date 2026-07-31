@@ -93,6 +93,8 @@ type
     [Test]
     procedure TestCompiledTargetCacheRestoresCompleteOutputTree;
     [Test]
+    procedure TestRemoteArtifactCacheVerifiesAndRepairsLocalEntries;
+    [Test]
     procedure TestBuildExecutorCompilesExpandedTargets;
     [Test]
     procedure TestIncrementalBuildStateExplainsRebuildReasons;
@@ -2360,6 +2362,81 @@ begin
       'Configuracoes nao podem compartilhar a arvore de artefatos.');
   finally
     LService.Free;
+    LDep.Free;
+  end;
+end;
+
+procedure TTestsServices.TestRemoteArtifactCacheVerifiesAndRepairsLocalEntries;
+var
+  LProducer: TBoss4DArtifactCacheService;
+  LConsumer: TBoss4DArtifactCacheService;
+  LCorruptConsumer: TBoss4DArtifactCacheService;
+  LDep: TBoss4DDependency;
+  LSourceRoot: string;
+  LRestoredRoot: string;
+  LLocalProducer: string;
+  LLocalConsumer: string;
+  LLocalCorrupt: string;
+  LRemoteRoot: string;
+  LKey: string;
+  LRemoteArtifact: string;
+  LLocalArtifact: string;
+begin
+  LSourceRoot := TPath.Combine(FTempDir, 'remote-cache-source');
+  LRestoredRoot := TPath.Combine(FTempDir, 'remote-cache-restored');
+  LLocalProducer := TPath.Combine(FTempDir, 'cache-producer');
+  LLocalConsumer := TPath.Combine(FTempDir, 'cache-consumer');
+  LLocalCorrupt := TPath.Combine(FTempDir, 'cache-corrupt-consumer');
+  LRemoteRoot := TPath.Combine(FTempDir, 'cache-remote');
+  TDirectory.CreateDirectory(TPath.Combine(LSourceRoot, 'bpl'));
+  TFile.WriteAllText(TPath.Combine(LSourceRoot, 'bpl\Component.bpl'),
+    'verified-bpl');
+  LDep := TBoss4DDependency.Create('github.com/example/remote-component',
+    '1.0.0');
+  LProducer := TBoss4DArtifactCacheService.Create(LLocalProducer,
+    TBoss4DFileArtifactCacheBackend.Create(LRemoteRoot));
+  try
+    LProducer.Store(LDep, 'remote-source', 'Win64', '37.0', 'Release',
+      LSourceRoot);
+  finally
+    LProducer.Free;
+  end;
+
+  LConsumer := TBoss4DArtifactCacheService.Create(LLocalConsumer,
+    TBoss4DFileArtifactCacheBackend.Create(LRemoteRoot));
+  try
+    Assert.IsTrue(LConsumer.Restore(LDep, 'remote-source', 'Win64',
+      '37.0', 'Release', LRestoredRoot));
+    Assert.AreEqual('verified-bpl', TFile.ReadAllText(
+      TPath.Combine(LRestoredRoot, 'bpl\Component.bpl')));
+
+    LKey := TBoss4DArtifactCacheService.BuildCacheKey(LDep.GetKey,
+      'remote-source', '37.0', 'Win64', 'Release');
+    LLocalArtifact := TPath.Combine(TPath.Combine(LLocalConsumer, LKey),
+      'target\bpl\Component.bpl');
+    TFile.WriteAllText(LLocalArtifact, 'corrupt-local');
+    TDirectory.Delete(LRestoredRoot, True);
+    Assert.IsTrue(LConsumer.Restore(LDep, 'remote-source', 'Win64',
+      '37.0', 'Release', LRestoredRoot),
+      'Uma entrada local corrompida deve ser substituida pelo remoto valido.');
+    Assert.AreEqual('verified-bpl', TFile.ReadAllText(
+      TPath.Combine(LRestoredRoot, 'bpl\Component.bpl')));
+  finally
+    LConsumer.Free;
+  end;
+
+  LRemoteArtifact := TPath.Combine(TPath.Combine(LRemoteRoot, LKey),
+    'target\bpl\Component.bpl');
+  TFile.WriteAllText(LRemoteArtifact, 'corrupt-remote');
+  LCorruptConsumer := TBoss4DArtifactCacheService.Create(LLocalCorrupt,
+    TBoss4DFileArtifactCacheBackend.Create(LRemoteRoot));
+  try
+    Assert.IsFalse(LCorruptConsumer.Restore(LDep, 'remote-source',
+      'Win64', '37.0', 'Release',
+      TPath.Combine(FTempDir, 'must-not-restore')),
+      'Cache remoto com hash invalido deve ser rejeitado.');
+  finally
+    LCorruptConsumer.Free;
     LDep.Free;
   end;
 end;

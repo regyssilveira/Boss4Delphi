@@ -23,6 +23,7 @@ type
     Affected: Boolean;
     AllInstalledIDEs: Boolean;
     ConflictPolicy: TBoss4DIDEConflictPolicy;
+    RemoteCachePath: string;
     Jobs: Integer;
     class function Parse(
       const AArgs: TArray<string>): TBoss4DBuildCommandOptions; static;
@@ -117,7 +118,8 @@ begin
             SameText(AArgs[I], '--platform') or
             SameText(AArgs[I], '--configuration') or
             SameText(AArgs[I], '--jobs') or
-            SameText(AArgs[I], '--conflict') then
+            SameText(AArgs[I], '--conflict') or
+            SameText(AArgs[I], '--remote-cache') then
     begin
       if I + 1 >= Length(AArgs) then
         raise EArgumentException.Create(
@@ -173,6 +175,13 @@ begin
         else
           raise EArgumentException.CreateFmt(
             'Politica de conflito IDE invalida: %s.', [AArgs[I]]);
+      end
+      else if LOption = '--remote-cache' then
+      begin
+        Result.RemoteCachePath := AArgs[I].Trim;
+        if Result.RemoteCachePath.IsEmpty then
+          raise EArgumentException.Create(
+            '--remote-cache exige um caminho nao vazio.');
       end
       else
       begin
@@ -299,6 +308,7 @@ begin
       AOptions.Selection, SourceChecksum(APackage, ARootDirectory));
     LExecutionOptions.Force := AOptions.Force;
     LExecutionOptions.Jobs := AOptions.Jobs;
+    LExecutionOptions.RemoteCachePath := AOptions.RemoteCachePath;
     Result.Scheduled := LExecutor.Execute(APackage, LDependency, ALock,
       ARootDirectory, LExecutionOptions);
     Result.Built := LExecutor.BuiltCount;
