@@ -20,6 +20,16 @@ boss4d registry portal registry/index-v2.json registry/index.html
 boss4d registry search-index registry/index-v2.json registry/search-index.json
 ```
 
+O portal aponta para um formulário de entrada aberto à comunidade. Qualquer
+pessoa pode propor um pacote, mas a proposta permanece como issue e não entra
+sozinha no índice do protocolo nem nos resultados de busca. A publicação exige
+pull request de um publisher autorizado, todos os checks automáticos do
+Registry, uma aprovação explícita do `CODEOWNER` do Registry e a resolução das
+discussões de revisão. Novos pushes invalidam aprovações anteriores. O ruleset
+da `main` aplica esses requisitos; os mantenedores preservam bypass
+administrativo para recuperação do repositório e operações de suas próprias
+releases.
+
 O portal responsivo apresenta estatísticas e filtra pacotes por texto,
 confiança do publisher, estado da migração verificada, plataforma e compilador.
 Os contadores de migração diferenciam intencionalmente um namespace registrado

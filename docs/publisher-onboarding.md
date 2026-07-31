@@ -3,6 +3,23 @@
 The public Registry is maintained through reviewed Git pull requests. A
 publisher cannot upload mutable metadata directly to the repository.
 
+## Community proposal and approval
+
+Use **Submit package for review** in the Registry portal to open the structured
+community form. A contributor may propose a package even before becoming its
+publisher, but must identify the repository owner and authority to represent
+it. The form must never contain credentials, private keys, signing passphrases,
+or other secrets.
+
+An issue is intake, not publication. Maintainers first verify ownership,
+license, compatibility, test evidence, and release readiness. Publisher and
+signer onboarding then happen through reviewable Git changes. Only an
+authorized publisher can submit the final signed package metadata. The
+Registry workflow runs with read-only repository permission, and the `main`
+ruleset requires one `CODEOWNER` approval and resolved review discussions.
+Only after merge does the package enter the authoritative index and receive
+the portal's verified status when its signer also matches publisher policy.
+
 ## First registration
 
 1. Add a unique entry to `registry/publishers.json`.

@@ -19,6 +19,15 @@ boss4d registry portal registry/index-v2.json registry/index.html
 boss4d registry search-index registry/index-v2.json registry/search-index.json
 ```
 
+The portal links to a community intake form. Anyone can propose a package, but
+the proposal remains an issue and never enters the protocol index or search
+results by itself. Publication requires a pull request from an authorized
+publisher, all automated Registry checks, one explicit approval from the
+Registry `CODEOWNER`, and resolution of review discussions. New pushes dismiss
+stale approvals. The `main` ruleset enforces these requirements; maintainers
+retain an administrative bypass for repository recovery and their own release
+operations.
+
 The responsive portal renders catalog statistics and filters packages by text,
 publisher trust, verified migration state, platform, and compiler. Its
 migration counters deliberately distinguish a registered namespace from a

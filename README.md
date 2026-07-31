@@ -212,7 +212,7 @@ cd /d d:\Projetos\BossDelphi
 * **[Terminal Progress](docs/terminal-progress.md)**: Interactive, plain, JSON Lines, and quiet progress output for installs and CI.
 * **[Secure Self-update](docs/self-update.md)**: Release discovery, SHA-256 verification, staging, and installer handoff.
 * **[Release Artifact Matrix](docs/release-artifact-matrix.md)**: Windows/Linux/macOS builders, checksums, OIDC provenance, and tag promotion gates.
-* **[Publisher Onboarding](docs/publisher-onboarding.md)**: Public Registry identity, signer, immutable metadata, and review workflow.
+* **[Publisher Onboarding](docs/publisher-onboarding.md)**: Open community proposals, maintainer approval, publisher identity, signer onboarding, and immutable metadata.
 * **[Registry Migration Plan](docs/registry-migration-plan.md)**: Curated waves for moving legacy discovery entries to signed schema-v2 packages.
 * **[Parity Completion Audit](docs/parity-audit-2026-07-30.md)**: Requirement-by-requirement implementation and verification evidence.
 * **[Immutable Package Format](docs/package-format.md)**: Deterministic `.b4dpkg`, verified installation, OpenPGP/in-toto evidence, source fallback, and compiler/platform variants.

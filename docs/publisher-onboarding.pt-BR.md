@@ -3,6 +3,24 @@
 O Registry público é mantido por pull requests Git revisados. Um publisher não
 pode enviar metadados mutáveis diretamente ao repositório.
 
+## Proposta comunitária e aprovação
+
+Use **Enviar pacote para revisão** no portal do Registry para abrir o
+formulário estruturado da comunidade. Um colaborador pode propor um pacote
+antes de se tornar seu publisher, mas deve identificar o proprietário do
+repositório e sua autoridade para representá-lo. O formulário nunca deve
+conter credenciais, chaves privadas, senhas de assinatura ou outros segredos.
+
+Uma issue é entrada para triagem, não publicação. Os mantenedores primeiro
+verificam propriedade, licença, compatibilidade, evidências de testes e
+prontidão da release. O cadastro do publisher e do signatário acontece depois
+por mudanças Git revisáveis. Somente um publisher autorizado pode enviar os
+metadados finais do pacote assinado. O workflow do Registry usa permissão
+somente de leitura, e o ruleset da `main` exige uma aprovação do `CODEOWNER` e
+a resolução das discussões. Somente após o merge o pacote entra no índice
+oficial e recebe o estado verificado no portal quando seu signatário também
+corresponde à política do publisher.
+
 ## Primeiro cadastro
 
 1. Adicione uma entrada única em `registry/publishers.json`.
