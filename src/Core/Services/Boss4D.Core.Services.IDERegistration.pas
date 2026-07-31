@@ -28,6 +28,18 @@ type
     procedure DeleteValue(const AKey, AName: string);
   end;
 
+  TBoss4DIDEManagedRegistryValue = class
+  private
+    FKey: string;
+    FName: string;
+    FValue: string;
+  public
+    function Clone: TBoss4DIDEManagedRegistryValue;
+    property Key: string read FKey write FKey;
+    property Name: string read FName write FName;
+    property Value: string read FValue write FValue;
+  end;
+
   TBoss4DIDERegistration = class
   private
     FPackageName: string;
@@ -43,6 +55,7 @@ type
     FArtifactRoot: string;
     FArtifacts: TList<string>;
     FHelpFiles: TList<string>;
+    FRegistryValues: TObjectList<TBoss4DIDEManagedRegistryValue>;
   public
     constructor Create;
     destructor Destroy; override;
@@ -61,6 +74,8 @@ type
     property ArtifactRoot: string read FArtifactRoot write FArtifactRoot;
     property Artifacts: TList<string> read FArtifacts;
     property HelpFiles: TList<string> read FHelpFiles;
+    property RegistryValues: TObjectList<TBoss4DIDEManagedRegistryValue>
+      read FRegistryValues;
   end;
 
   TBoss4DIDERegistrationService = class
@@ -168,10 +183,12 @@ begin
   inherited Create;
   FArtifacts := TList<string>.Create;
   FHelpFiles := TList<string>.Create;
+  FRegistryValues := TObjectList<TBoss4DIDEManagedRegistryValue>.Create(True);
 end;
 
 destructor TBoss4DIDERegistration.Destroy;
 begin
+  FRegistryValues.Free;
   FHelpFiles.Free;
   FArtifacts.Free;
   inherited Destroy;
@@ -198,6 +215,17 @@ begin
   Result.ArtifactRoot := FArtifactRoot;
   Result.Artifacts.AddRange(FArtifacts);
   Result.HelpFiles.AddRange(FHelpFiles);
+  for var LValue in FRegistryValues do
+    Result.RegistryValues.Add(LValue.Clone);
+end;
+
+function TBoss4DIDEManagedRegistryValue.Clone:
+  TBoss4DIDEManagedRegistryValue;
+begin
+  Result := TBoss4DIDEManagedRegistryValue.Create;
+  Result.Key := FKey;
+  Result.Name := FName;
+  Result.Value := FValue;
 end;
 
 function ContainsPath(const AValue, APath: string): Boolean;
@@ -286,6 +314,18 @@ begin
       'Plataforma IDE nao suportada: %s.', [ARegistration.Platform]);
   if ARegistration.BplPath.Trim.IsEmpty then
     raise EArgumentException.Create('BplPath nao pode ser vazio.');
+  var LAllowedPrefix := 'Software\Embarcadero\BDS\' +
+    ARegistration.Compiler + '\';
+  for var LRegistryValue in ARegistration.RegistryValues do
+  begin
+    if not LRegistryValue.Key.StartsWith(LAllowedPrefix, True) then
+      raise EArgumentException.CreateFmt(
+        'Chave de Registro IDE fora do escopo HKCU permitido: %s.',
+        [LRegistryValue.Key]);
+    if LRegistryValue.Name.Trim.IsEmpty then
+      raise EArgumentException.Create(
+        'Nome de valor de Registro IDE nao pode ser vazio.');
+  end;
 end;
 
 function TBoss4DIDERegistrationService.LoadInventory:
@@ -337,6 +377,20 @@ begin
       if Assigned(LHelpFiles) then
         for var J := 0 to LHelpFiles.Count - 1 do
           LRegistration.HelpFiles.Add(LHelpFiles.Items[J].Value);
+      var LRegistryValues := LObject.GetValue<TJSONArray>('registryValues');
+      if Assigned(LRegistryValues) then
+        for var J := 0 to LRegistryValues.Count - 1 do
+          if LRegistryValues.Items[J] is TJSONObject then
+          begin
+            var LRegistryObject := TJSONObject(LRegistryValues.Items[J]);
+            var LRegistryValue := TBoss4DIDEManagedRegistryValue.Create;
+            LRegistryValue.Key := LRegistryObject.GetValue<string>('key', '');
+            LRegistryValue.Name := LRegistryObject.GetValue<string>(
+              'name', '');
+            LRegistryValue.Value := LRegistryObject.GetValue<string>(
+              'value', '');
+            LRegistration.RegistryValues.Add(LRegistryValue);
+          end;
       Result.Add(LRegistration);
     end;
   finally
@@ -355,7 +409,7 @@ var
 begin
   LRoot := TJSONObject.Create;
   try
-    LRoot.AddPair('schemaVersion', TJSONNumber.Create(2));
+    LRoot.AddPair('schemaVersion', TJSONNumber.Create(3));
     LItems := TJSONArray.Create;
     for var LRegistration in AInventory do
     begin
@@ -379,6 +433,16 @@ begin
       for var LHelpFile in LRegistration.HelpFiles do
         LHelpFiles.Add(LHelpFile);
       LObject.AddPair('helpFiles', LHelpFiles);
+      var LRegistryValues := TJSONArray.Create;
+      for var LRegistryValue in LRegistration.RegistryValues do
+      begin
+        var LRegistryObject := TJSONObject.Create;
+        LRegistryObject.AddPair('key', LRegistryValue.Key);
+        LRegistryObject.AddPair('name', LRegistryValue.Name);
+        LRegistryObject.AddPair('value', LRegistryValue.Value);
+        LRegistryValues.AddElement(LRegistryObject);
+      end;
+      LObject.AddPair('registryValues', LRegistryValues);
       LItems.AddElement(LObject);
     end;
     LRoot.AddPair('registrations', LItems);
@@ -475,6 +539,12 @@ begin
     TakeSnapshot(AStore, LHelpKey, LHelpName, ASnapshots);
     AStore.WriteValue(LHelpKey, LHelpName, TPath.GetFullPath(LHelpFile));
   end;
+  for var LRegistryValue in ARegistration.RegistryValues do
+  begin
+    TakeSnapshot(AStore, LRegistryValue.Key, LRegistryValue.Name, ASnapshots);
+    AStore.WriteValue(LRegistryValue.Key, LRegistryValue.Name,
+      LRegistryValue.Value);
+  end;
   TakeSnapshot(AStore, LIDEPackageKey, ARegistration.BplPath, ASnapshots);
   AStore.DeleteValue(LIDEPackageKey, ARegistration.BplPath);
   TakeSnapshot(AStore, LPackageKey, ARegistration.BplPath, ASnapshots);
@@ -516,6 +586,11 @@ begin
       TPath.GetFileName(LHelpFile);
     TakeSnapshot(AStore, LHelpKey, LHelpName, ASnapshots);
     AStore.DeleteValue(LHelpKey, LHelpName);
+  end;
+  for var LRegistryValue in ARegistration.RegistryValues do
+  begin
+    TakeSnapshot(AStore, LRegistryValue.Key, LRegistryValue.Name, ASnapshots);
+    AStore.DeleteValue(LRegistryValue.Key, LRegistryValue.Name);
   end;
   TakeSnapshot(AStore, LPackageKey, ARegistration.BplPath, ASnapshots);
   AStore.DeleteValue(LPackageKey, ARegistration.BplPath);
@@ -705,6 +780,12 @@ begin
           TakeSnapshot(FStore, LHelpKey, LHelpName, LSnapshots);
           FStore.DeleteValue(LHelpKey, LHelpName);
         end;
+        for var LRegistryValue in LRegistration.RegistryValues do
+        begin
+          TakeSnapshot(FStore, LRegistryValue.Key, LRegistryValue.Name,
+            LSnapshots);
+          FStore.DeleteValue(LRegistryValue.Key, LRegistryValue.Name);
+        end;
         LInventory.Delete(I);
         Inc(Result);
       end;
@@ -777,6 +858,11 @@ begin
          not SameText(LValue, TPath.GetFullPath(LHelpFile)) then
         Exit(False);
     end;
+  if Result then
+    for var LRegistryValue in ARegistration.RegistryValues do
+      if not FStore.TryRead(LRegistryValue.Key, LRegistryValue.Name,
+        LValue) or (LValue <> LRegistryValue.Value) then
+        Exit(False);
 end;
 
 function TBoss4DIDERegistrationService.Repair: Integer;

@@ -110,6 +110,10 @@ type
     procedure TestIDERegistrationRollsBackOnFailure;
     [Test]
     procedure TestIDERegistrationRepairRestoresDrift;
+    [Test]
+    procedure TestIDERegistrationManagesRestrictedRegistryValues;
+    [Test]
+    procedure TestIDERegistrationRejectsRegistryOutsideCompilerScope;
 
     [Test]
     procedure TestCLICommandLineParser;
@@ -1865,6 +1869,81 @@ begin
     Assert.IsTrue(TFile.Exists(LExternal),
       'Unmanaged files must never be removed.');
   finally
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDERegistrationManagesRestrictedRegistryValues;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LRegistryValue: TBoss4DIDEManagedRegistryValue;
+  LKey: string;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'managed-registry-inventory.json'));
+  LRegistration := TBoss4DIDERegistration.Create;
+  try
+    LRegistration.PackageName := 'ManagedAssets';
+    LRegistration.OwnerPackage := 'ManagedAssetsProduct';
+    LRegistration.Compiler := '37.0';
+    LRegistration.Platform := 'Win32';
+    LRegistration.BplPath := 'C:\artifacts\ManagedAssets.bpl';
+    LKey := 'Software\Embarcadero\BDS\37.0\ComponentVendor';
+    LRegistryValue := TBoss4DIDEManagedRegistryValue.Create;
+    LRegistryValue.Key := LKey;
+    LRegistryValue.Name := 'TemplatePath';
+    LRegistryValue.Value := 'C:\artifacts\templates';
+    LRegistration.RegistryValues.Add(LRegistryValue);
+
+    LService.RegisterTarget(LRegistration);
+    Assert.AreEqual('C:\artifacts\templates',
+      LStore.GetValue(LKey, 'TemplatePath'));
+    LStore.DeleteValue(LKey, 'TemplatePath');
+    Assert.AreEqual<Integer>(1, LService.Repair);
+    Assert.AreEqual('C:\artifacts\templates',
+      LStore.GetValue(LKey, 'TemplatePath'));
+    Assert.AreEqual<Integer>(1, LService.Uninstall('ManagedAssetsProduct'));
+    var LUnused: string;
+    Assert.IsFalse(LStore.TryRead(LKey, 'TemplatePath', LUnused));
+  finally
+    LRegistration.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDERegistrationRejectsRegistryOutsideCompilerScope;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LRegistration: TBoss4DIDERegistration;
+  LRegistryValue: TBoss4DIDEManagedRegistryValue;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'restricted-registry-inventory.json'));
+  LRegistration := TBoss4DIDERegistration.Create;
+  try
+    LRegistration.PackageName := 'RestrictedAssets';
+    LRegistration.Compiler := '37.0';
+    LRegistration.Platform := 'Win32';
+    LRegistration.BplPath := 'C:\artifacts\RestrictedAssets.bpl';
+    LRegistryValue := TBoss4DIDEManagedRegistryValue.Create;
+    LRegistryValue.Key := 'Software\OtherVendor\Unsafe';
+    LRegistryValue.Name := 'Value';
+    LRegistryValue.Value := 'unsafe';
+    LRegistration.RegistryValues.Add(LRegistryValue);
+
+    Assert.WillRaise(
+      procedure
+      begin
+        LService.RegisterTarget(LRegistration);
+      end,
+      EArgumentException);
+  finally
+    LRegistration.Free;
     LService.Free;
   end;
 end;
