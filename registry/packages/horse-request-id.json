@@ -1,0 +1,22 @@
+{
+    "schemaVersion":  2,
+    "packages":  [
+                     {
+                         "name":  "horse-request-id",
+                         "publisher":  "boss4d",
+                         "repository":  "github.com/regyssilveira/horse-request-id",
+                         "signerFingerprint":  "A91FA178E7A1DE7FB10148C8308C9045E23B0279",
+                         "description":  "Request ID generation and traceability middleware for Horse",
+                         "license":  "Apache-2.0",
+                         "versions":  [
+                                          {
+                                              "version":  "1.0.1",
+                                              "artifact":  "https://github.com/regyssilveira/horse-request-id/releases/download/v1.0.1/horse-request-id-1.0.1.b4dpkg",
+                                              "sha256":  "a546590cc24070879539561f4e4b9f4212c0a392faaad62d566450f0cf5f9a28",
+                                              "signature":  "https://github.com/regyssilveira/horse-request-id/releases/download/v1.0.1/horse-request-id-1.0.1.b4dpkg.asc",
+                                              "provenance":  "https://github.com/regyssilveira/horse-request-id/releases/download/v1.0.1/horse-request-id-1.0.1.b4dpkg.intoto.json"
+                                          }
+                                      ]
+                     }
+                 ]
+}

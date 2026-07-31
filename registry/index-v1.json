@@ -367,15 +367,6 @@
                          "sha256":  ""
                      },
                      {
-                         "name":  "horse-request-id",
-                         "repository":  "github.com/regyssilveira/horse-request-id",
-                         "description":  "Request and correlation ID middleware for Horse",
-                         "version":  "",
-                         "license":  "Apache-2.0",
-                         "artifact":  "",
-                         "sha256":  ""
-                     },
-                     {
                          "name":  "horse-sanitize",
                          "repository":  "github.com/regyssilveira/horse-sanitize",
                          "description":  "Input sanitization middleware for Horse",
