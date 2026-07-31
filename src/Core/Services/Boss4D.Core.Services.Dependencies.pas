@@ -74,6 +74,9 @@ begin
           raise EArgumentException.Create(
             'Dependencia nao encontrada no lock: ' + ADependency);
         LResolvedVersion := LLocked.Version;
+        if not TBoss4DSemVer.Create(LResolvedVersion).IsValid then
+          raise EArgumentException.Create(
+            'Pin exige uma versao SemVer exata no lock: ' + LResolvedVersion);
         if LIsDevelopment then
           LPkg.DevDependencies.AddOrSetValue(LKey, LResolvedVersion)
         else

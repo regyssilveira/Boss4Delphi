@@ -56,6 +56,8 @@ type
 
     [Test]
     procedure TestDependencyLifecycleCommands;
+    [Test]
+    procedure TestPinRejectsNonSemVerLockRevision;
 
     [Test]
     procedure TestInstallTransactionRollback;
@@ -1221,6 +1223,49 @@ begin
   end;
 end;
 
+procedure TTestsServices.TestPinRejectsNonSemVerLockRevision;
+var
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LPkg: TBoss4DPackage;
+  LLock: TBoss4DLock;
+  LDep: TBoss4DDependency;
+  LService: TBoss4DDependencyService;
+begin
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LPkg := TBoss4DPackage.Create;
+  try
+    LPkg.Name := 'pin-test';
+    LPkg.Version := '1.0.0';
+    LPkg.Dependencies.Add('github.com/example/branch-package', 'master');
+    LPackageRepo.Save(LPkg, GetBossFile);
+  finally
+    LPkg.Free;
+  end;
+  LLock := TBoss4DLock.Create;
+  LDep := TBoss4DDependency.Create(
+    'github.com/example/branch-package', 'master');
+  try
+    LLock.AddDependency(LDep, 'master', 'revision');
+    LLockRepo.Save(LLock, TPath.Combine(FTempDir, FILE_PACKAGE_LOCK));
+  finally
+    LDep.Free;
+    LLock.Free;
+  end;
+  LService := TBoss4DDependencyService.Create(LPackageRepo, LLockRepo,
+    TTestLogger.Create);
+  try
+    Assert.WillRaise(
+      procedure
+      begin
+        LService.Pin('branch-package');
+      end, EArgumentException);
+  finally
+    LService.Free;
+  end;
+end;
+
 procedure TTestsServices.TestPackageIndexSelectsVersionsDeterministically;
 var
   LConfig: TBoss4DConfigService;
@@ -1773,7 +1818,7 @@ begin
     LService.Free;
   end;
   LHttp := THttpClientMock.Create;
-  LHttp.AddResponse(CACHE_URL, '', 503);
+  LHttp.AddResponse(CACHE_URL, '{"schemaVersion":999}', 200);
   LService := TBoss4DPackageIndexService.Create(LConfig, LHttp,
     TTestLogger.Create);
   try

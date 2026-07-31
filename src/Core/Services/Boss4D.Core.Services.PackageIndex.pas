@@ -126,6 +126,19 @@ function TBoss4DPackageIndexService.ReadSource(const ASource: string): string;
 var
   LStatus: Integer;
   LCacheDirectory, LCachePath, LContent: string;
+  function IsValidRegistryContent(const AContent: string): Boolean;
+  begin
+    Result := False;
+    var LValue := TJSONObject.ParseJSONValue(AContent);
+    try
+      if not (LValue is TJSONObject) then Exit;
+      var LSchema := TJSONObject(LValue).GetValue<Integer>(
+        'schemaVersion', 0);
+      Result := LSchema in [1, 2];
+    finally
+      LValue.Free;
+    end;
+  end;
 begin
   if not ASource.StartsWith('http://', True) and
      not ASource.StartsWith('https://', True) then
@@ -138,7 +151,8 @@ begin
   LCachePath := TPath.Combine(LCacheDirectory,
     THashSHA2.GetHashString(ASource.ToLower).ToLower + '.json');
   LStatus := FHttp.Get(ASource, LContent);
-  if (LStatus >= 200) and (LStatus < 300) then
+  if (LStatus >= 200) and (LStatus < 300) and
+     IsValidRegistryContent(LContent) then
   begin
     TDirectory.CreateDirectory(LCacheDirectory);
     TFile.WriteAllText(LCachePath, LContent, TEncoding.UTF8);
@@ -147,7 +161,7 @@ begin
   if TFile.Exists(LCachePath) then
   begin
     FLogger.Log(TBoss4DLogLevel.Warning,
-      Format('Registry HTTP %d; usando cache local: %s',
+      Format('Registry HTTP/conteudo invalido (%d); usando cache local: %s',
         [LStatus, ASource]));
     Exit(TFile.ReadAllText(LCachePath, TEncoding.UTF8));
   end;
