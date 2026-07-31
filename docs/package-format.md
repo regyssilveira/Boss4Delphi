@@ -50,6 +50,20 @@ boss4d package install my-library
 boss4d package install my-library --no-source-fallback
 ```
 
+Before installing an OpenPGP-signed package, import its publisher's public key
+from the reviewed Registry and verify the complete fingerprint out of band.
+The official Boss4D key is
+`registry/keys/boss4d-release.asc`, fingerprint
+`A91FA178E7A1DE7FB10148C8308C9045E23B0279`:
+
+```text
+gpg --import registry/keys/boss4d-release.asc
+gpg --fingerprint A91FA178E7A1DE7FB10148C8308C9045E23B0279
+```
+
+Only the public key is distributed. Private keys, passphrases, and revocation
+material never belong in the Registry.
+
 Boss4D downloads into an isolated staging area, checks the package SHA-256,
 validates every embedded path and file digest, verifies a declared OpenPGP
 signature and in-toto subject digest, and only then replaces the module

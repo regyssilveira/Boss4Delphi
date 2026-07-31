@@ -43,6 +43,20 @@ boss4d package install minha-biblioteca --platform linux --compiler 3.2.2
 boss4d package install minha-biblioteca --no-source-fallback
 ```
 
+Antes de instalar um pacote assinado, importe a chave pública do publisher a
+partir do Registry revisado e confira o fingerprint completo por um canal
+independente. A chave oficial do Boss4D está em
+`registry/keys/boss4d-release.asc`, com fingerprint
+`A91FA178E7A1DE7FB10148C8308C9045E23B0279`:
+
+```text
+gpg --import registry/keys/boss4d-release.asc
+gpg --fingerprint A91FA178E7A1DE7FB10148C8308C9045E23B0279
+```
+
+Somente a chave pública é distribuída. Chave privada, senha e material de
+revogação nunca pertencem ao Registry.
+
 O Boss4D baixa para uma área isolada, confere o SHA-256 externo, valida caminhos
 e digests internos, verifica assinatura OpenPGP e o subject in-toto declarados,
 e somente então substitui o módulo. Uma falha preserva o destino anterior.

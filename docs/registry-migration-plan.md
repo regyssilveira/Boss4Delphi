@@ -8,17 +8,17 @@ request checks.
 
 ## Current baseline
 
-- 55 discoverable legacy v1 packages;
+- 52 discoverable legacy v1 packages;
 - 18 repository owners;
 - 16 packages in the already registered `regyssilveira` namespace;
 - 10 packages in the `HashLoad` namespace;
-- zero schema-v2 packages and zero authorized signer fingerprints;
-- 3 publisher-controlled packages passing the current reproducibility gates;
+- 3 signed schema-v2 packages and one authorized signer fingerprint;
+- 3 publisher-controlled packages published through the reproducibility gates;
 - 13 publisher-controlled packages requiring a release or corrected tag;
-- catalog health: 55 packages, 109 migration warnings, zero structural errors.
+- catalog health: 55 packages, 104 migration warnings, zero structural errors.
 
 The generated Registry portal is the public progress ledger. It currently
-reports 0 verified packages, 55 legacy packages, and 0% verified migration.
+reports 3 verified packages, 52 legacy packages, and 5% verified migration.
 Each accepted schema-v2 package with an authorized publisher fingerprint
 increments that metric automatically.
 
@@ -35,7 +35,7 @@ increments that metric automatically.
 
 The private key, passphrase, and revocation material must never be committed.
 
-### Prepared first artifact
+### Published first artifact
 
 The immutable `v1.6.0` tag (`e53b8eb`) has already been packed with the
 current deterministic packer:
@@ -45,8 +45,8 @@ current deterministic packer:
 - SHA-256:
   `903d6c3349fe75892430273a577d1b13f65d81f2f0ebe854b046ba9b4d1bda0b`;
 - in-toto subject digest: verified equal to the artifact digest;
-- remaining gates: OpenPGP signature, authorized fingerprint, asset upload,
-  and official Registry pull request.
+- OpenPGP signature, authorized fingerprint, release upload, independent
+  installation, and Registry metadata are complete on the active pull request.
 
 ## Wave 1 — publisher-controlled release-ready packages
 
@@ -55,14 +55,14 @@ registered publisher scope:
 
 | Package | Candidate | State |
 |---|---:|---|
-| Boss4Delphi | v1.6.0 | First end-to-end proof |
+| Boss4Delphi | v1.6.0 | Published and verified end to end |
 | horse-rate-limit | v1.0.0 | Blocked: undeclared REST test dependency and missing test unit |
 | horse-compression-v2 | v1.0.0 | Blocked: tag declares `2.0.0` in `boss.json` |
 | horse-static | v1.0.0 | Blocked: test manifest references a nonexistent repository |
 | horse-dto | v1.0.0 | Blocked: does not compile against resolved Horse 3.2.0 |
 | horse-rbac | v1.0.0 | Blocked: tests do not compile against resolved Horse 3.2.0 |
-| horse-schema-validation | v1.0.0 | Ready: install, compile, and 10/10 tests pass |
-| horse-multipart | v1.0.0 | Ready: install, compile, and upload integration test passes |
+| horse-schema-validation | v1.0.0 | Published; install, signature, provenance, and 10/10 tests pass |
+| horse-multipart | v1.0.0 | Published; install, signature, provenance, and upload integration test pass |
 | horse-helmet | v1.0.0 | Blocked: test manifest references a nonexistent repository |
 | horse-ssl-redirect | v1.0.0 | Blocked: tests do not compile against resolved Horse 3.2.0 |
 | horse-request-id | v1.0.0 | Blocked: uses Horse request services absent from 3.2.0 |
@@ -78,12 +78,13 @@ been packed from detached immutable checkouts. All eleven `.b4dpkg` files pass
 package conformance and all eleven in-toto subject digests match their
 artifacts. They remain local preparation artifacts until their project tests,
 OpenPGP signatures, release uploads, and Registry submissions are complete.
-Only `horse-schema-validation` and `horse-multipart` currently pass the
-project-test gate; package conformance alone is not release readiness.
+`horse-schema-validation` and `horse-multipart` have now completed the
+project-test, signing, upload, Registry, and verified-install gates. Package
+conformance alone remains insufficient for the other candidates.
 
 ### First publication batch
 
-After the signer is protected and authorized, publish in this order:
+The first publication batch completed in this order:
 
 1. Boss4Delphi `v1.6.0` as the end-to-end policy proof;
 2. `horse-schema-validation` `v1.0.0`, whose 10 Delphi tests pass;

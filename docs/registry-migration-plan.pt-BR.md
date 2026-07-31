@@ -8,17 +8,17 @@ passarem nos checks do pull request do Registry.
 
 ## Ponto de partida
 
-- 55 pacotes legados v1 pesquisáveis;
+- 52 pacotes legados v1 pesquisáveis;
 - 18 responsáveis por repositórios;
 - 16 pacotes no namespace `regyssilveira`, já cadastrado;
 - 10 pacotes no namespace `HashLoad`;
-- zero pacotes schema v2 e zero fingerprints autorizados;
-- 3 pacotes do publisher aprovados nos gates atuais de reprodutibilidade;
+- 3 pacotes schema v2 assinados e um fingerprint autorizado;
+- 3 pacotes do publisher publicados pelos gates de reprodutibilidade;
 - 13 pacotes do publisher que precisam de release ou correção da tag;
-- saúde: 55 pacotes, 109 avisos de migração e zero erros estruturais.
+- saúde: 55 pacotes, 104 avisos de migração e zero erros estruturais.
 
 O portal gerado do Registry é o painel público do progresso. No momento ele
-informa 0 pacotes verificados, 55 pacotes legados e 0% de migração verificada.
+informa 3 pacotes verificados, 52 pacotes legados e 5% de migração verificada.
 Cada pacote schema v2 aceito com fingerprint autorizado para o publisher
 incrementa essa métrica automaticamente.
 
@@ -36,7 +36,7 @@ incrementa essa métrica automaticamente.
 
 Chave privada, senha e material de revogação nunca devem ser commitados.
 
-### Primeiro artefato preparado
+### Primeiro artefato publicado
 
 A tag imutável `v1.6.0` (`e53b8eb`) já foi empacotada com o packer
 determinístico atual:
@@ -46,8 +46,8 @@ determinístico atual:
 - SHA-256:
   `903d6c3349fe75892430273a577d1b13f65d81f2f0ebe854b046ba9b4d1bda0b`;
 - digest do subject in-toto: verificado como igual ao digest do artefato;
-- gates restantes: assinatura OpenPGP, fingerprint autorizado, upload do asset
-  e pull request oficial do Registry.
+- assinatura OpenPGP, fingerprint autorizado, upload na release, instalação
+  independente e metadados do Registry estão completos na PR ativa.
 
 ## Onda 1 — pacotes do publisher com release pronta
 
@@ -56,14 +56,14 @@ do publisher cadastrado:
 
 | Pacote | Candidato | Estado |
 |---|---:|---|
-| Boss4Delphi | v1.6.0 | Primeira prova ponta a ponta |
+| Boss4Delphi | v1.6.0 | Publicado e verificado ponta a ponta |
 | horse-rate-limit | v1.0.0 | Bloqueado: dependência REST de teste não declarada e unit ausente |
 | horse-compression-v2 | v1.0.0 | Bloqueado: tag declara `2.0.0` no `boss.json` |
 | horse-static | v1.0.0 | Bloqueado: manifesto de testes referencia repositório inexistente |
 | horse-dto | v1.0.0 | Bloqueado: não compila com o Horse 3.2.0 resolvido |
 | horse-rbac | v1.0.0 | Bloqueado: testes não compilam com o Horse 3.2.0 resolvido |
-| horse-schema-validation | v1.0.0 | Pronto: instalação, compilação e 10/10 testes aprovados |
-| horse-multipart | v1.0.0 | Pronto: instalação, compilação e teste real de upload aprovados |
+| horse-schema-validation | v1.0.0 | Publicado; instalação, assinatura, proveniência e 10/10 testes aprovados |
+| horse-multipart | v1.0.0 | Publicado; instalação, assinatura, proveniência e teste real de upload aprovados |
 | horse-helmet | v1.0.0 | Bloqueado: manifesto de testes referencia repositório inexistente |
 | horse-ssl-redirect | v1.0.0 | Bloqueado: testes não compilam com o Horse 3.2.0 resolvido |
 | horse-request-id | v1.0.0 | Bloqueado: usa request services ausentes no Horse 3.2.0 |
@@ -80,13 +80,13 @@ empacotados a partir de checkouts imutáveis detached. Todos os onze arquivos
 correspondem aos artefatos. Eles continuam sendo preparação local até que
 testes dos projetos, assinaturas OpenPGP, uploads nas releases e submissões ao
 Registry estejam concluídos.
-Somente `horse-schema-validation` e `horse-multipart` passam atualmente pelo
-gate de testes do projeto; conformidade do pacote sozinha não significa que a
-release está pronta.
+`horse-schema-validation` e `horse-multipart` concluíram os gates de testes,
+assinatura, upload, Registry e instalação verificada. A conformidade do pacote
+sozinha continua insuficiente para os demais candidatos.
 
 ### Primeiro lote de publicação
 
-Depois que o signatário estiver protegido e autorizado, publique nesta ordem:
+O primeiro lote de publicação foi concluído nesta ordem:
 
 1. Boss4Delphi `v1.6.0` como prova ponta a ponta da política;
 2. `horse-schema-validation` `v1.0.0`, com 10 testes Delphi aprovados;
