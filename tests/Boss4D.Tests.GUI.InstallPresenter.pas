@@ -70,8 +70,10 @@ begin
 end;
 
 procedure TBoss4DGUIInstallPresenterTests.RejectsIncompleteSelection;
+var
+  LRequest: TBoss4DGUIInstallRequest;
 begin
-  var LRequest := CompleteRequest;
+  LRequest := CompleteRequest;
   LRequest.Version := '';
   Assert.WillRaise(
     procedure
@@ -100,10 +102,13 @@ begin
 end;
 
 procedure TBoss4DGUIInstallPresenterTests.ExecutorReportsCommandFailure;
+var
+  LMock: TProcessRunnerMock;
+  LExecutor: TBoss4DGUIInstallExecutor;
 begin
-  var LMock := TProcessRunnerMock.Create;
+  LMock := TProcessRunnerMock.Create;
   LMock.ShouldSucceed := False;
-  var LExecutor := TBoss4DGUIInstallExecutor.Create(LMock);
+  LExecutor := TBoss4DGUIInstallExecutor.Create(LMock);
   try
     Assert.WillRaise(
       procedure
