@@ -84,6 +84,8 @@ type
     [Test]
     procedure TestPackageIndexSelectsVersionsDeterministically;
     [Test]
+    procedure TestPackageIndexSparseRevocationAndMirrorMetadata;
+    [Test]
     procedure TestPublicRegistryIsDefaultSource;
 
     [Test]
@@ -1269,6 +1271,48 @@ begin
     Assert.AreEqual('3.0.0 (revoked)', LVersions[0]);
     Assert.AreEqual('2.0.0', LVersions[1]);
     Assert.AreEqual('1.5.0', LVersions[2]);
+  finally
+    LService.Free;
+    LConfig.Free;
+  end;
+end;
+
+procedure TTestsServices.TestPackageIndexSparseRevocationAndMirrorMetadata;
+var
+  LConfig: TBoss4DConfigService;
+  LService: TBoss4DPackageIndexService;
+  LRootPath, LSparsePath: string;
+  LEntry: TBoss4DPackageIndexEntry;
+begin
+  LRootPath := TPath.Combine(FTempDir, 'sparse-root.json');
+  LSparsePath := TPath.Combine(FTempDir, 'sparse-package.json');
+  TFile.WriteAllText(LSparsePath,
+    '{"schemaVersion":2,"packages":[{"name":"SparsePackage",' +
+    '"repository":"git.example.test/sparse","versions":[' +
+    '{"version":"2.0.0","artifact":"https://primary/2.b4dpkg",' +
+    '"mirrors":["https://mirror/2.b4dpkg"],"sha256":"sha2"},' +
+    '{"version":"1.0.0","artifact":"https://primary/1.b4dpkg",' +
+    '"sha256":"sha1"}]}]}', TEncoding.UTF8);
+  TFile.WriteAllText(LRootPath,
+    '{"schemaVersion":2,"sparse":["sparse-package.json"],' +
+    '"revocations":[{"name":"SparsePackage","version":"2.0.0",' +
+    '"reason":"security"}],"packages":[]}', TEncoding.UTF8);
+  LConfig := TBoss4DConfigService.Create(TTestLogger.Create);
+  LService := TBoss4DPackageIndexService.Create(LConfig,
+    THttpClientMock.Create, TTestLogger.Create);
+  try
+    LService.AddRegistry(LRootPath);
+    LEntry := LService.Info('SparsePackage');
+    try
+      Assert.IsNotNull(LEntry);
+      Assert.AreEqual('1.0.0', LEntry.LatestVersion);
+      Assert.IsTrue(LEntry.Versions[0].Revoked);
+      Assert.AreEqual<Integer>(1, LEntry.Versions[0].ArtifactMirrors.Count);
+      Assert.AreEqual('https://mirror/2.b4dpkg',
+        LEntry.Versions[0].ArtifactMirrors[0]);
+    finally
+      LEntry.Free;
+    end;
   finally
     LService.Free;
     LConfig.Free;

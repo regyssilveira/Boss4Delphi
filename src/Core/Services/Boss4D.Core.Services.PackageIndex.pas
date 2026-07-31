@@ -32,6 +32,7 @@ type
     FArtifactDigest: string;
     FSignatureUrl: string;
     FProvenanceUrl: string;
+    FArtifactMirrors: TList<string>;
     FVariants: TObjectList<TBoss4DPackageArtifactVariant>;
   public
     constructor Create;
@@ -44,6 +45,7 @@ type
     property ArtifactDigest: string read FArtifactDigest write FArtifactDigest;
     property SignatureUrl: string read FSignatureUrl write FSignatureUrl;
     property ProvenanceUrl: string read FProvenanceUrl write FProvenanceUrl;
+    property ArtifactMirrors: TList<string> read FArtifactMirrors;
     property Variants: TObjectList<TBoss4DPackageArtifactVariant> read FVariants;
   end;
 
@@ -64,6 +66,7 @@ type
   public
     constructor Create;
     destructor Destroy; override;
+    procedure RefreshLatest;
     function SelectVariant(const APlatform, ACompiler: string):
       TBoss4DPackageArtifactVariant;
     function ResolveVersion(const ARange: string): TBoss4DPackageVersion;
@@ -118,12 +121,45 @@ constructor TBoss4DPackageVersion.Create;
 begin
   inherited Create;
   FVariants := TObjectList<TBoss4DPackageArtifactVariant>.Create(True);
+  FArtifactMirrors := TList<string>.Create;
 end;
 
 destructor TBoss4DPackageVersion.Destroy;
 begin
+  FArtifactMirrors.Free;
   FVariants.Free;
   inherited Destroy;
+end;
+
+procedure TBoss4DPackageIndexEntry.RefreshLatest;
+begin
+  FLatestVersion := '';
+  FArtifactUrl := '';
+  FArtifactDigest := '';
+  FSignatureUrl := '';
+  FProvenanceUrl := '';
+  FVariants.Clear;
+  for var LPackageVersion in FVersions do
+    if not LPackageVersion.Revoked then
+    begin
+      FLatestVersion := LPackageVersion.Version;
+      FArtifactUrl := LPackageVersion.ArtifactUrl;
+      FArtifactDigest := LPackageVersion.ArtifactDigest;
+      FSignatureUrl := LPackageVersion.SignatureUrl;
+      FProvenanceUrl := LPackageVersion.ProvenanceUrl;
+      for var LVariant in LPackageVersion.Variants do
+      begin
+        var LCopy := TBoss4DPackageArtifactVariant.Create;
+        LCopy.Platform := LVariant.Platform;
+        LCopy.Compiler := LVariant.Compiler;
+        LCopy.ArtifactUrl := LVariant.ArtifactUrl;
+        LCopy.ArtifactDigest := LVariant.ArtifactDigest;
+        LCopy.SignatureUrl := LVariant.SignatureUrl;
+        LCopy.ProvenanceUrl := LVariant.ProvenanceUrl;
+        FVariants.Add(LCopy);
+      end;
+      Break;
+    end;
 end;
 
 function TBoss4DPackageVersion.SelectVariant(const APlatform,
@@ -260,6 +296,19 @@ procedure TBoss4DPackageIndexService.LoadRegistryInternal(const ASource: string;
 var
   LContent: string;
   LStatus: Integer;
+  function ResolveReference(const AReference: string): string;
+  begin
+    if AReference.StartsWith('http://', True) or
+       AReference.StartsWith('https://', True) or
+       TPath.IsPathRooted(AReference) then
+      Exit(AReference);
+    if ASource.StartsWith('http://', True) or
+       ASource.StartsWith('https://', True) then
+      Exit(ASource.Substring(0, ASource.LastIndexOf('/') + 1) +
+        AReference.Replace('\', '/'));
+    Result := TPath.GetFullPath(TPath.Combine(
+      TPath.GetDirectoryName(TPath.GetFullPath(ASource)), AReference));
+  end;
 begin
   if AVisited.ContainsKey(ASource.ToLower) then
     Exit;
@@ -292,19 +341,47 @@ begin
         for var LInclude in LIncludes do
         begin
           var LReference := LInclude.Value;
-          var LResolved: string;
-          if LReference.StartsWith('http://', True) or
-             LReference.StartsWith('https://', True) or
-             TPath.IsPathRooted(LReference) then
-            LResolved := LReference
-          else if ASource.StartsWith('http://', True) or
-                  ASource.StartsWith('https://', True) then
-            LResolved := ASource.Substring(0, ASource.LastIndexOf('/') + 1) +
-              LReference.Replace('\', '/')
-          else
-            LResolved := TPath.GetFullPath(TPath.Combine(
-              TPath.GetDirectoryName(TPath.GetFullPath(ASource)), LReference));
-          LoadRegistryInternal(LResolved, AEntries, AVisited);
+          LoadRegistryInternal(ResolveReference(LReference), AEntries, AVisited);
+        end;
+      var LSparse: TJSONArray := nil;
+      if TJSONObject(LValue).GetValue('sparse') is TJSONArray then
+        LSparse := TJSONArray(TJSONObject(LValue).GetValue('sparse'));
+      if Assigned(LSparse) then
+        for var LSparseValue in LSparse do
+        begin
+          if LSparseValue is TJSONString then
+            LoadRegistryInternal(ResolveReference(LSparseValue.Value),
+              AEntries, AVisited)
+          else if LSparseValue is TJSONObject then
+          begin
+            var LSparseObject := TJSONObject(LSparseValue);
+            var LCandidates := TList<string>.Create;
+            try
+              var LPath := LSparseObject.GetValue<string>('path', '');
+              if not LPath.IsEmpty then LCandidates.Add(LPath);
+              var LMirrors: TJSONArray := nil;
+              if LSparseObject.GetValue('mirrors') is TJSONArray then
+                LMirrors := TJSONArray(LSparseObject.GetValue('mirrors'));
+              if Assigned(LMirrors) then
+                for var LMirror in LMirrors do LCandidates.Add(LMirror.Value);
+              var LLoaded := False;
+              for var LCandidate in LCandidates do
+                try
+                  LoadRegistryInternal(ResolveReference(LCandidate),
+                    AEntries, AVisited);
+                  LLoaded := True;
+                  Break;
+                except
+                  on E: Exception do
+                    FLogger.Log(TBoss4DLogLevel.Warning,
+                      'Fonte sparse indisponivel: ' + E.Message);
+                end;
+              if not LLoaded then
+                raise Exception.Create('Nenhuma fonte sparse pode ser carregada.');
+            finally
+              LCandidates.Free;
+            end;
+          end;
         end;
     end;
     var LPackages := TJSONObject(LValue).GetValue<TJSONArray>('packages');
@@ -356,6 +433,14 @@ begin
                   'signature', '');
                 LPackageVersion.ProvenanceUrl := LVersionObject.GetValue<string>(
                   'provenance', '');
+                var LArtifactMirrors: TJSONArray := nil;
+                if LVersionObject.GetValue('mirrors') is TJSONArray then
+                  LArtifactMirrors := TJSONArray(
+                    LVersionObject.GetValue('mirrors'));
+                if Assigned(LArtifactMirrors) then
+                  for var LMirror in LArtifactMirrors do
+                    if LMirror is TJSONString then
+                      LPackageVersion.ArtifactMirrors.Add(LMirror.Value);
                 var LVariants: TJSONArray := nil;
                 if LVersionObject.GetValue('variants') is TJSONArray then
                   LVariants := TJSONArray(LVersionObject.GetValue('variants'));
@@ -390,27 +475,7 @@ begin
                   Inc(LInsertAt);
                 LEntry.Versions.Insert(LInsertAt, LPackageVersion);
               end;
-          for var LPackageVersion in LEntry.Versions do
-            if not LPackageVersion.Revoked then
-            begin
-              LEntry.LatestVersion := LPackageVersion.Version;
-              LEntry.ArtifactUrl := LPackageVersion.ArtifactUrl;
-              LEntry.ArtifactDigest := LPackageVersion.ArtifactDigest;
-              LEntry.SignatureUrl := LPackageVersion.SignatureUrl;
-              LEntry.ProvenanceUrl := LPackageVersion.ProvenanceUrl;
-              for var LVariant in LPackageVersion.Variants do
-              begin
-                var LVariantCopy := TBoss4DPackageArtifactVariant.Create;
-                LVariantCopy.Platform := LVariant.Platform;
-                LVariantCopy.Compiler := LVariant.Compiler;
-                LVariantCopy.ArtifactUrl := LVariant.ArtifactUrl;
-                LVariantCopy.ArtifactDigest := LVariant.ArtifactDigest;
-                LVariantCopy.SignatureUrl := LVariant.SignatureUrl;
-                LVariantCopy.ProvenanceUrl := LVariant.ProvenanceUrl;
-                LEntry.Variants.Add(LVariantCopy);
-              end;
-              Break;
-            end;
+          LEntry.RefreshLatest;
         end;
         if (LEntry.Versions.Count = 0) and
            TBoss4DSemVer.Create(LEntry.LatestVersion).IsValid then
@@ -429,6 +494,29 @@ begin
         else
           LEntry.Free;
       end;
+    if LSchemaVersion = 2 then
+    begin
+      var LRevocations: TJSONArray := nil;
+      if TJSONObject(LValue).GetValue('revocations') is TJSONArray then
+        LRevocations := TJSONArray(
+          TJSONObject(LValue).GetValue('revocations'));
+      if Assigned(LRevocations) then
+        for var LRevocationValue in LRevocations do
+          if LRevocationValue is TJSONObject then
+          begin
+            var LRevocation := TJSONObject(LRevocationValue);
+            var LName := LRevocation.GetValue<string>('name', '');
+            var LVersionName := LRevocation.GetValue<string>('version', '');
+            for var LEntry in AEntries do
+              if SameText(LEntry.Name, LName) then
+              begin
+                for var LPackageVersion in LEntry.Versions do
+                  if SameText(LPackageVersion.Version, LVersionName) then
+                    LPackageVersion.Revoked := True;
+                LEntry.RefreshLatest;
+              end;
+          end;
+    end;
   finally
     LValue.Free;
   end;
@@ -498,6 +586,8 @@ begin
           LVersionCopy.ArtifactDigest := LVersion.ArtifactDigest;
           LVersionCopy.SignatureUrl := LVersion.SignatureUrl;
           LVersionCopy.ProvenanceUrl := LVersion.ProvenanceUrl;
+          LVersionCopy.ArtifactMirrors.AddRange(
+            LVersion.ArtifactMirrors.ToArray);
           for var LVariant in LVersion.Variants do
           begin
             var LVariantCopy := TBoss4DPackageArtifactVariant.Create;
@@ -560,6 +650,8 @@ begin
           LVersionCopy.ArtifactDigest := LVersion.ArtifactDigest;
           LVersionCopy.SignatureUrl := LVersion.SignatureUrl;
           LVersionCopy.ProvenanceUrl := LVersion.ProvenanceUrl;
+          LVersionCopy.ArtifactMirrors.AddRange(
+            LVersion.ArtifactMirrors.ToArray);
           for var LVariant in LVersion.Variants do
           begin
             var LVariantCopy := TBoss4DPackageArtifactVariant.Create;
