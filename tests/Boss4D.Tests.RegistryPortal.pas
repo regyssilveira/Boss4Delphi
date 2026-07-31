@@ -13,12 +13,70 @@ type
     [Test] procedure EscapesUntrustedMetadata;
     [Test] procedure RejectsUnknownSchema;
     [Test] procedure GeneratesVersionedV2CatalogWithTrustEvidence;
+    [Test] procedure ComposesLocalIncludesSparseAndRevocations;
+    [Test] procedure RejectsReferenceOutsideRegistryRoot;
   end;
 
 implementation
 
 uses
-  System.SysUtils, Boss4D.Core.Services.RegistryPortal;
+  System.SysUtils, System.IOUtils, Boss4D.Core.Services.RegistryPortal;
+
+function CountOccurrences(const AText, AValue: string): Integer;
+var
+  LOffset: Integer;
+begin
+  Result := 0;
+  LOffset := 1;
+  repeat
+    LOffset := Pos(AValue, AText, LOffset);
+    if LOffset = 0 then
+      Exit;
+    Inc(Result);
+    Inc(LOffset, AValue.Length);
+  until False;
+end;
+
+procedure TBoss4DRegistryPortalTests.ComposesLocalIncludesSparseAndRevocations;
+var
+  LService: TBoss4DRegistryPortalService;
+  LRoot: string;
+  LHtml: string;
+begin
+  LRoot := TPath.Combine(TPath.GetTempPath,
+    'boss4d-portal-' + TGUID.NewGuid.ToString);
+  TDirectory.CreateDirectory(TPath.Combine(LRoot, 'packages'));
+  try
+    TFile.WriteAllText(TPath.Combine(LRoot, 'legacy.json'),
+      '{"schemaVersion":1,"includes":["index.json"],"packages":[' +
+      '{"name":"Horse","repository":"github.com/hashload/horse",' +
+      '"version":"3.1.0"}]}', TEncoding.UTF8);
+    TFile.WriteAllText(TPath.Combine(LRoot, 'packages\dext.json'),
+      '{"schemaVersion":2,"packages":[{"name":"Dext",' +
+      '"repository":"github.com/regyssilveira/dext","versions":[' +
+      '{"version":"1.0.0","sha256":"abc"}]}]}', TEncoding.UTF8);
+    TFile.WriteAllText(TPath.Combine(LRoot, 'index.json'),
+      '{"schemaVersion":2,"includes":["legacy.json"],' +
+      '"sparse":[{"path":"packages/dext.json"}],"revocations":[' +
+      '{"name":"Dext","version":"1.0.0","reason":"security"}],' +
+      '"packages":[]}', TEncoding.UTF8);
+    LService := TBoss4DRegistryPortalService.Create;
+    try
+      LHtml := LService.GenerateFromFile(
+        TPath.Combine(LRoot, 'index.json'));
+      Assert.IsTrue(LHtml.Contains('Horse'));
+      Assert.IsTrue(LHtml.Contains('Dext'));
+      Assert.IsTrue(LHtml.Contains('1.0.0 (revoked)'));
+      Assert.AreEqual(1,
+        CountOccurrences(LHtml, '<strong>Horse</strong>'),
+        'Ciclos de includes devem ser carregados uma unica vez.');
+    finally
+      LService.Free;
+    end;
+  finally
+    TDirectory.Delete(LRoot, True);
+  end;
+end;
 
 procedure TBoss4DRegistryPortalTests.GeneratesPackageCatalog;
 var
@@ -67,6 +125,34 @@ begin
       end, EArgumentException);
   finally
     LService.Free;
+  end;
+end;
+
+procedure TBoss4DRegistryPortalTests.RejectsReferenceOutsideRegistryRoot;
+var
+  LService: TBoss4DRegistryPortalService;
+  LRoot: string;
+begin
+  LRoot := TPath.Combine(TPath.GetTempPath,
+    'boss4d-portal-' + TGUID.NewGuid.ToString);
+  TDirectory.CreateDirectory(LRoot);
+  try
+    TFile.WriteAllText(TPath.Combine(LRoot, 'index.json'),
+      '{"schemaVersion":2,"includes":["../outside.json"],"packages":[]}',
+      TEncoding.UTF8);
+    LService := TBoss4DRegistryPortalService.Create;
+    try
+      Assert.WillRaise(
+        procedure
+        begin
+          LService.GenerateFromFile(TPath.Combine(LRoot, 'index.json'));
+        end,
+        EArgumentException);
+    finally
+      LService.Free;
+    end;
+  finally
+    TDirectory.Delete(LRoot, True);
   end;
 end;
 

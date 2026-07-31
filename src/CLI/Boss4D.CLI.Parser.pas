@@ -1711,8 +1711,8 @@ begin
   begin
     var LPortal := TBoss4DRegistryPortalService.Create;
     try
-      var LHtml := LPortal.Generate(TFile.ReadAllText(
-        TPath.GetFullPath(AArgs[2]), TEncoding.UTF8));
+      var LHtml := LPortal.GenerateFromFile(
+        TPath.GetFullPath(AArgs[2]));
       TFile.WriteAllText(TPath.GetFullPath(AArgs[3]), LHtml,
         TEncoding.UTF8);
       FLogger.Log(TBoss4DLogLevel.Info,
