@@ -24,6 +24,37 @@ semantic versions, variants, and evidence are checked automatically. A
 publisher-only onboarding can initially use an empty `allowedSigners`; no
 package can be accepted until an authorized owner registers a signer.
 
+## Establish a protected release signer
+
+On Windows, Boss4D can use the GnuPG executable bundled with Git for Windows:
+
+```powershell
+$gpg = 'C:\Program Files\Git\usr\bin\gpg.exe'
+& $gpg --version
+& $gpg --full-generate-key
+& $gpg --list-secret-keys --keyid-format LONG --with-fingerprint
+```
+
+Generate a signing-capable key for the publisher's durable release identity,
+set an expiration policy that will actually be maintained, and enter the
+passphrase only through GnuPG's protected pinentry. Never place a passphrase in
+a command argument, environment variable, script, CI log, or repository file.
+Copy the complete 40-character primary fingerprint exactly; short key IDs are
+not accepted by the Registry.
+
+Export only the public key for distribution:
+
+```powershell
+& $gpg --armor --export <40-character-fingerprint> |
+  Set-Content -Encoding ascii boss4d-release-public.asc
+```
+
+Keep the secret-key backup and revocation certificate encrypted and offline,
+separate from the workstation and repository. Test recovery and revocation
+before trusting the identity for releases. If an existing organizational key
+is imported instead, verify its fingerprint through an independent channel
+before adding it to `allowedSigners`.
+
 The pull-request workflow passes `github.actor` to the validator. A new
 publisher must include that account in `githubOwners`. Changes to an existing
 publisher are authorized against the owners from the target branch, so a

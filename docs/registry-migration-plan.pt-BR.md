@@ -84,6 +84,20 @@ Somente `horse-schema-validation` e `horse-multipart` passam atualmente pelo
 gate de testes do projeto; conformidade do pacote sozinha não significa que a
 release está pronta.
 
+### Primeiro lote de publicação
+
+Depois que o signatário estiver protegido e autorizado, publique nesta ordem:
+
+1. Boss4Delphi `v1.6.0` como prova ponta a ponta da política;
+2. `horse-schema-validation` `v1.0.0`, com 10 testes Delphi aprovados;
+3. `horse-multipart` `v1.0.0`, com teste real de upload aprovado.
+
+Para cada pacote, repita a mesma sequência imutável: assine e verifique o
+`.b4dpkg` preparado, envie `.b4dpkg`, `.asc` e `.intoto.json` para aquela
+release exata do GitHub, valide as três URLs públicas e o digest, execute
+`publish --official --dry-run` e depois `publish --official --open-pr`. Nunca
+reutilize a URL de evidência de um pacote em outro.
+
 ## Onda 2 — pacotes do publisher que precisam de release
 
 `Dext`, `horse-crud` e `horse-sanitize` ainda não possuem tag/release

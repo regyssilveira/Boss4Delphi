@@ -24,6 +24,37 @@ versão semântica, variantes e evidências são verificados automaticamente.
 Um cadastro somente de publisher pode começar com `allowedSigners` vazio;
 nenhum pacote será aceito até que um owner autorizado cadastre um signatário.
 
+## Estabelecendo um signatário de release protegido
+
+No Windows, o Boss4D pode usar o executável GnuPG incluído no Git for Windows:
+
+```powershell
+$gpg = 'C:\Program Files\Git\usr\bin\gpg.exe'
+& $gpg --version
+& $gpg --full-generate-key
+& $gpg --list-secret-keys --keyid-format LONG --with-fingerprint
+```
+
+Crie uma chave capaz de assinar para a identidade durável de release do
+publisher, defina uma expiração que será realmente mantida e informe a senha
+somente pelo pinentry protegido do GnuPG. Nunca coloque a senha em argumento,
+variável de ambiente, script, log de CI ou arquivo do repositório. Copie
+exatamente o fingerprint primário completo de 40 caracteres; IDs curtos não
+são aceitos pelo Registry.
+
+Exporte somente a chave pública para distribuição:
+
+```powershell
+& $gpg --armor --export <fingerprint-de-40-caracteres> |
+  Set-Content -Encoding ascii boss4d-release-public.asc
+```
+
+Mantenha o backup da chave secreta e o certificado de revogação criptografados
+e offline, separados da estação e do repositório. Teste recuperação e
+revogação antes de confiar nessa identidade para releases. Se uma chave
+organizacional existente for importada, confira seu fingerprint por um canal
+independente antes de adicioná-lo a `allowedSigners`.
+
 O workflow entrega `github.actor` ao validador. Um publisher novo deve incluir
 essa conta em `githubOwners`. Mudanças de publisher existente são autorizadas
 contra os owners presentes no branch de destino; assim, um colaborador não

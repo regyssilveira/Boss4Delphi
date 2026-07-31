@@ -81,6 +81,20 @@ OpenPGP signatures, release uploads, and Registry submissions are complete.
 Only `horse-schema-validation` and `horse-multipart` currently pass the
 project-test gate; package conformance alone is not release readiness.
 
+### First publication batch
+
+After the signer is protected and authorized, publish in this order:
+
+1. Boss4Delphi `v1.6.0` as the end-to-end policy proof;
+2. `horse-schema-validation` `v1.0.0`, whose 10 Delphi tests pass;
+3. `horse-multipart` `v1.0.0`, whose real upload integration test passes.
+
+For each package, repeat the same immutable sequence: sign and verify the
+prepared `.b4dpkg`, upload `.b4dpkg`, `.asc`, and `.intoto.json` to that exact
+GitHub release, verify all three public URLs and digest, run
+`publish --official --dry-run`, then run `publish --official --open-pr`.
+Never reuse one package's evidence URL for another package.
+
 ## Wave 2 — publisher-controlled packages needing a release
 
 `Dext`, `horse-crud`, and `horse-sanitize` have no published tag/release.
