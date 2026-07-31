@@ -174,7 +174,10 @@ uses
   Boss4D.Core.Services.BuildCapabilities,
   Boss4D.Core.Services.BuildDoctor,
   Boss4D.Core.Services.IDERegistration,
-  Boss4D.Core.Services.IDEProfiles;
+  Boss4D.Core.Services.IDEProfiles,
+  Boss4D.Core.Services.IDEProfileApplication,
+  Boss4D.Core.Services.IDEOperationResult,
+  Boss4D.Core.Services.IDEProcessPolicy;
 
 class function TBoss4DParserRuntime.Create(const ACompiler: IBoss4DCompiler;
   const ARegistrationHandler: TBoss4DIDERegistrationHandler;
@@ -538,6 +541,10 @@ var
   LCompiler: string;
   LDescription: string;
   LExecutable: string;
+  LBuildInventory: TBoss4DBuildInventory;
+  LApplication: TBoss4DIDEProfileApplication;
+  LCompilerService: IBoss4DCompiler;
+  LLockRepository: IBoss4DLockRepository;
   I: Integer;
 begin
   if Length(AArgs) < 3 then
@@ -548,6 +555,27 @@ begin
     GetBossHome, 'ide-profiles.json'));
   LService := TBoss4DIDEProfileService.Create(LStore,
     TPath.Combine(GetBossHome, 'ide-profiles'));
+  LBuildInventory := TBoss4DBuildInventory.Create(TPath.Combine(
+    GetBossHome, 'build-inventory.json'));
+  LBuildInventory.Load;
+  LCompilerService := FCompiler;
+  if not Assigned(LCompilerService) then
+    LCompilerService := TBoss4DDelphiCompilerAdapter.Create(
+      FRegistry, FLogger);
+  LLockRepository := TBoss4DLockJsonRepository.Create;
+  LApplication := TBoss4DIDEProfileApplication.Create(
+    LService, LBuildInventory, FPackageRepo, LLockRepository,
+    LCompilerService, FLogger,
+    function(const AProfile: TBoss4DIDEProfile):
+      TBoss4DIDERegistrationService
+    begin
+      Result := TBoss4DIDERegistrationService.Create(
+        TBoss4DWindowsIDERegistryStore.Create,
+        AProfile.InventoryPath, nil, nil, AProfile.Id, 30000,
+        nil, AProfile.Executable, AProfile.RegistryRoot);
+    end,
+    TBoss4DJsonIDEOperationResultStore.Create(TPath.Combine(
+      GetBossHome, 'ide-operation-results')));
   try
     if SameText(AArgs[2], 'list') then
     begin
@@ -685,9 +713,120 @@ begin
       Exit;
     end;
 
+    if SameText(AArgs[2], 'preview-install') then
+    begin
+      if Length(AArgs) <> 5 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile preview-install <perfil> <produto>.');
+      var LPlan := LApplication.PreviewInstall(AArgs[3], AArgs[4]);
+      try
+        FLogger.Log(TBoss4DLogLevel.Info,
+          'Preview: %d targets, %d copias de arquivo.',
+          [LPlan.Targets.Count, LPlan.Files.Count]);
+      finally
+        LPlan.Free;
+      end;
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'install') then
+    begin
+      if Length(AArgs) < 5 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile install <perfil> <produto> ' +
+          '[--conflict fail|warn|adopt|replace] ' +
+          '[--ide-open fail|defer|force].');
+      var LConflictPolicy := TBoss4DIDEConflictPolicy.Fail;
+      var LOpenPolicy := TBoss4DIDEOpenPolicy.Fail;
+      I := 5;
+      while I < Length(AArgs) do
+      begin
+        if I + 1 >= Length(AArgs) then
+          raise EArgumentException.Create(
+            'Informe um valor para ' + AArgs[I] + '.');
+        if SameText(AArgs[I], '--conflict') then
+        begin
+          if SameText(AArgs[I + 1], 'fail') then
+            LConflictPolicy := TBoss4DIDEConflictPolicy.Fail
+          else if SameText(AArgs[I + 1], 'warn') then
+            LConflictPolicy := TBoss4DIDEConflictPolicy.Warn
+          else if SameText(AArgs[I + 1], 'adopt') then
+            LConflictPolicy := TBoss4DIDEConflictPolicy.Adopt
+          else if SameText(AArgs[I + 1], 'replace') then
+            LConflictPolicy := TBoss4DIDEConflictPolicy.Replace
+          else
+            raise EArgumentException.Create(
+              'Politica de conflito invalida: ' + AArgs[I + 1]);
+        end
+        else if SameText(AArgs[I], '--ide-open') then
+        begin
+          if SameText(AArgs[I + 1], 'fail') then
+            LOpenPolicy := TBoss4DIDEOpenPolicy.Fail
+          else if SameText(AArgs[I + 1], 'defer') then
+            LOpenPolicy := TBoss4DIDEOpenPolicy.Defer
+          else if SameText(AArgs[I + 1], 'force') then
+            LOpenPolicy := TBoss4DIDEOpenPolicy.Force
+          else
+            raise EArgumentException.Create(
+              'Politica de IDE aberta invalida: ' + AArgs[I + 1]);
+        end
+        else
+          raise EArgumentException.Create(
+            'Opcao desconhecida para profile install: ' + AArgs[I]);
+        Inc(I, 2);
+      end;
+      var LSummary := LApplication.Install(AArgs[3], AArgs[4],
+        LConflictPolicy, LOpenPolicy);
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Perfil instalado: %d builds, %d registros.',
+        [LSummary.Built, LSummary.Affected]);
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'preview-uninstall') then
+    begin
+      if Length(AArgs) <> 5 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile preview-uninstall <perfil> <produto>.');
+      var LPlan := LApplication.PreviewUninstall(AArgs[3], AArgs[4]);
+      try
+        FLogger.Log(TBoss4DLogLevel.Info,
+          'Preview: %d targets, %d arquivos, %d valores de Registro.',
+          [LPlan.Targets.Count, LPlan.Files.Count, LPlan.Changes.Count]);
+      finally
+        LPlan.Free;
+      end;
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'uninstall') then
+    begin
+      if Length(AArgs) <> 5 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile uninstall <perfil> <produto>.');
+      var LSummary := LApplication.Uninstall(AArgs[3], AArgs[4]);
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Perfil atualizado: %d registros removidos.',
+        [LSummary.Affected]);
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'repair') then
+    begin
+      if Length(AArgs) <> 4 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile repair <perfil>.');
+      var LSummary := LApplication.Repair(AArgs[3]);
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Perfil reparado: %d registros.', [LSummary.Affected]);
+      Exit;
+    end;
+
     raise EArgumentException.Create(
       'Comando ide profile desconhecido: ' + AArgs[2]);
   finally
+    LApplication.Free;
+    LBuildInventory.Free;
     LService.Free;
     LStore.Free;
   end;

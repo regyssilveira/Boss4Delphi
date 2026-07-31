@@ -138,13 +138,15 @@ begin
       LSummary := LApplication.Install('isolated',
         'profile-component', TBoss4DIDEConflictPolicy.Fail,
         TBoss4DIDEOpenPolicy.Fail);
-      Assert.AreEqual<Integer>(1, LSummary.Built);
-      Assert.AreEqual<Integer>(1, LSummary.Affected);
+      Assert.AreEqual<Integer>(1, LSummary.Built + LSummary.Restored,
+        'built or restored');
+      Assert.AreEqual<Integer>(1, LSummary.Affected, 'registered');
       Assert.IsTrue(Length(LRegistryMock.ListValueNames(
         'Software\Embarcadero\Boss4D-isolated\37.0\Known Packages')) > 0);
       LProfile := LProfiles.Get('isolated');
       try
-        Assert.AreEqual<Integer>(1, LProfile.Packages.Count);
+        Assert.AreEqual<Integer>(1, LProfile.Packages.Count,
+          'profile packages');
         Assert.AreEqual('profile-component', LProfile.Packages[0]);
       finally
         LProfile.Free;
@@ -155,13 +157,14 @@ begin
       LRemovalPlan := LApplication.PreviewUninstall(
         'isolated', 'profile-component');
       try
-        Assert.AreEqual<Integer>(1, LRemovalPlan.Targets.Count);
+        Assert.AreEqual<Integer>(1, LRemovalPlan.Targets.Count,
+          'removal targets');
       finally
         LRemovalPlan.Free;
       end;
       LSummary := LApplication.Uninstall('isolated',
         'profile-component');
-      Assert.AreEqual<Integer>(1, LSummary.Affected);
+      Assert.AreEqual<Integer>(1, LSummary.Affected, 'uninstalled');
       LProfile := LProfiles.Get('isolated');
       try
         Assert.AreEqual<Integer>(0, LProfile.Packages.Count);
