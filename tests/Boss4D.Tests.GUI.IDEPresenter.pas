@@ -46,6 +46,9 @@ type
     function Repair(const AProfileId: string): Integer;
     function Undo: Integer;
     function History: TList<string>;
+    procedure Snapshot(const AProfileId, APath: string);
+    function Diff(const AProfileId, APath: string): TList<string>;
+    procedure RestoreSnapshot(const APath: string);
     procedure Launch(const AProfileId: string);
     procedure CreateProfile(const AName, ADescription, ACompiler,
       AExecutable: string);
@@ -160,6 +163,24 @@ begin
   LastAction := 'history';
   Result := TList<string>.Create;
   Result.Add('2026-07-31 | succeeded | profile-install | daily | horse');
+end;
+
+procedure TBackendMock.Snapshot(const AProfileId, APath: string);
+begin
+  LastAction := 'snapshot:' + AProfileId + ':' + APath;
+end;
+
+function TBackendMock.Diff(const AProfileId,
+  APath: string): TList<string>;
+begin
+  LastAction := 'diff:' + AProfileId + ':' + APath;
+  Result := TList<string>.Create;
+  Result.Add('packages');
+end;
+
+procedure TBackendMock.RestoreSnapshot(const APath: string);
+begin
+  LastAction := 'restore:' + APath;
 end;
 
 procedure TBackendMock.Launch(const AProfileId: string);
@@ -299,6 +320,14 @@ begin
     Assert.AreEqual('history', LBackendObject.LastAction);
     Assert.AreEqual<Integer>(1, LViewObject.Targets.Count);
     Assert.IsTrue(LViewObject.Targets[0].Contains('profile-install'));
+    LPresenter.Snapshot('daily.json');
+    Assert.AreEqual('snapshot:daily:daily.json',
+      LBackendObject.LastAction);
+    LPresenter.Diff('daily.json');
+    Assert.AreEqual('diff:daily:daily.json', LBackendObject.LastAction);
+    Assert.AreEqual('packages', LViewObject.Targets[0]);
+    LPresenter.RestoreSnapshot('daily.json');
+    Assert.AreEqual('restore:daily.json', LBackendObject.LastAction);
     LPresenter.Launch;
     Assert.AreEqual('launch:daily', LBackendObject.LastAction);
     LPresenter.CloneProfile('Review');

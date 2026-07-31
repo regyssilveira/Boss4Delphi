@@ -36,6 +36,9 @@ type
     function Repair(const AProfileId: string): Integer;
     function Undo: Integer;
     function History: TList<string>;
+    procedure Snapshot(const AProfileId, APath: string);
+    function Diff(const AProfileId, APath: string): TList<string>;
+    procedure RestoreSnapshot(const APath: string);
     procedure Launch(const AProfileId: string);
     procedure CreateProfile(const AName, ADescription, ACompiler,
       AExecutable: string);
@@ -133,6 +136,25 @@ begin
   finally
     LHistory.Free;
   end;
+end;
+
+procedure TBoss4DGUIIDEManagementBackend.Snapshot(
+  const AProfileId, APath: string);
+begin
+  FProfiles.CreateSnapshot(AProfileId, APath);
+end;
+
+function TBoss4DGUIIDEManagementBackend.Diff(
+  const AProfileId, APath: string): TList<string>;
+begin
+  Result := FProfiles.CompareSnapshot(AProfileId, APath);
+end;
+
+procedure TBoss4DGUIIDEManagementBackend.RestoreSnapshot(
+  const APath: string);
+begin
+  var LProfile := FProfiles.RestoreSnapshot(APath);
+  LProfile.Free;
 end;
 
 procedure TBoss4DGUIIDEManagementBackend.Launch(

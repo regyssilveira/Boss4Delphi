@@ -70,6 +70,9 @@ type
     BtnIDERemove: TButton;
     BtnIDEUndo: TButton;
     BtnIDEHistory: TButton;
+    BtnIDESnapshot: TButton;
+    BtnIDEDiff: TButton;
+    BtnIDERestoreSnapshot: TButton;
     ComboIDEConflictPolicy: TComboBox;
     ComboIDEOpenPolicy: TComboBox;
     LblIDEConflictPolicy: TLabel;
@@ -110,6 +113,9 @@ type
     procedure BtnIDERemoveClick(Sender: TObject);
     procedure BtnIDEUndoClick(Sender: TObject);
     procedure BtnIDEHistoryClick(Sender: TObject);
+    procedure BtnIDESnapshotClick(Sender: TObject);
+    procedure BtnIDEDiffClick(Sender: TObject);
+    procedure BtnIDERestoreSnapshotClick(Sender: TObject);
   private
     FCurrentProjectDir: string;
     FIDEProfileIds: TStringList;
@@ -980,6 +986,43 @@ end;
 procedure TFormMain.BtnIDEHistoryClick(Sender: TObject);
 begin
   FIDEPresenter.History;
+end;
+
+procedure TFormMain.BtnIDESnapshotClick(Sender: TObject);
+begin
+  var LDialog := TSaveDialog.Create(Self);
+  try
+    LDialog.Filter := 'Boss4D profile snapshot|*.json';
+    LDialog.DefaultExt := 'json';
+    if LDialog.Execute then FIDEPresenter.Snapshot(LDialog.FileName);
+  finally
+    LDialog.Free;
+  end;
+end;
+
+procedure TFormMain.BtnIDEDiffClick(Sender: TObject);
+begin
+  var LDialog := TOpenDialog.Create(Self);
+  try
+    LDialog.Filter := 'Boss4D profile snapshot|*.json';
+    if LDialog.Execute then FIDEPresenter.Diff(LDialog.FileName);
+  finally
+    LDialog.Free;
+  end;
+end;
+
+procedure TFormMain.BtnIDERestoreSnapshotClick(Sender: TObject);
+begin
+  var LDialog := TOpenDialog.Create(Self);
+  try
+    LDialog.Filter := 'Boss4D profile snapshot|*.json';
+    if LDialog.Execute and
+       (MessageDlg('Restaurar este snapshot de perfil?',
+        mtConfirmation, [mbYes, mbNo], 0) = mrYes) then
+      FIDEPresenter.RestoreSnapshot(LDialog.FileName);
+  finally
+    LDialog.Free;
+  end;
 end;
 
 end.

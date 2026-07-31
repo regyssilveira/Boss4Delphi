@@ -345,7 +345,7 @@ object FormMain: TFormMain
           Left = 0
           Top = 0
           Width = 689
-          Height = 100
+          Height = 130
           Align = alTop
           BevelOuter = bvNone
           TabOrder = 0
@@ -454,6 +454,33 @@ object FormMain: TFormMain
             Caption = 'Aplicar target'
             TabOrder = 8
             OnClick = BtnIDESaveTargetClick
+          end
+          object BtnIDESnapshot: TButton
+            Left = 400
+            Top = 71
+            Width = 82
+            Height = 25
+            Caption = 'Snapshot'
+            TabOrder = 9
+            OnClick = BtnIDESnapshotClick
+          end
+          object BtnIDEDiff: TButton
+            Left = 488
+            Top = 71
+            Width = 82
+            Height = 25
+            Caption = 'Comparar'
+            TabOrder = 10
+            OnClick = BtnIDEDiffClick
+          end
+          object BtnIDERestoreSnapshot: TButton
+            Left = 576
+            Top = 71
+            Width = 98
+            Height = 25
+            Caption = 'Restaurar'
+            TabOrder = 11
+            OnClick = BtnIDERestoreSnapshotClick
           end
         end
         object PanelIDEActions: TPanel

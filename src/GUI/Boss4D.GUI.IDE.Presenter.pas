@@ -25,6 +25,9 @@ type
     function Repair(const AProfileId: string): Integer;
     function Undo: Integer;
     function History: TList<string>;
+    procedure Snapshot(const AProfileId, APath: string);
+    function Diff(const AProfileId, APath: string): TList<string>;
+    procedure RestoreSnapshot(const APath: string);
     procedure Launch(const AProfileId: string);
     procedure CreateProfile(const AName, ADescription, ACompiler,
       AExecutable: string);
@@ -70,6 +73,9 @@ type
     procedure Repair;
     procedure Undo;
     procedure History;
+    procedure Snapshot(const APath: string);
+    procedure Diff(const APath: string);
+    procedure RestoreSnapshot(const APath: string);
     procedure Launch;
     procedure CreateProfile(const AName, ADescription, ACompiler,
       AExecutable: string);
@@ -312,6 +318,48 @@ begin
   except
     on E: Exception do
       FView.ShowIDEError(E.Message);
+  end;
+end;
+
+procedure TBoss4DIDEManagementPresenter.Snapshot(const APath: string);
+begin
+  try
+    if FSelectedProfile.IsEmpty then
+      raise EArgumentException.Create('Selecione um perfil.');
+    FBackend.Snapshot(FSelectedProfile, APath);
+    FView.ShowIDEStatus('Snapshot do perfil criado.');
+  except
+    on E: Exception do FView.ShowIDEError(E.Message);
+  end;
+end;
+
+procedure TBoss4DIDEManagementPresenter.Diff(const APath: string);
+begin
+  try
+    if FSelectedProfile.IsEmpty then
+      raise EArgumentException.Create('Selecione um perfil.');
+    FView.ClearTargets;
+    var LDiff := FBackend.Diff(FSelectedProfile, APath);
+    try
+      for var LItem in LDiff do FView.AddTarget(LItem);
+      FView.ShowIDEStatus(Format('%d divergencia(s).', [LDiff.Count]));
+    finally
+      LDiff.Free;
+    end;
+  except
+    on E: Exception do FView.ShowIDEError(E.Message);
+  end;
+end;
+
+procedure TBoss4DIDEManagementPresenter.RestoreSnapshot(
+  const APath: string);
+begin
+  try
+    FBackend.RestoreSnapshot(APath);
+    Refresh;
+    FView.ShowIDEStatus('Snapshot restaurado.');
+  except
+    on E: Exception do FView.ShowIDEError(E.Message);
   end;
 end;
 
