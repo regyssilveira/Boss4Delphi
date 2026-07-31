@@ -18,6 +18,7 @@ type
       AProjectPath: string): TBoss4DBuildCapability; static;
     class procedure RequireSupported(const ACompiler, APlatform,
       AProjectKind, AProjectPath: string); static;
+    class function SupportedCompilers: TArray<string>; static;
     class function SupportedPlatforms: TArray<string>; static;
     class function NormalizePlatform(const APlatform: string): string;
       static;
@@ -67,6 +68,14 @@ begin
     'Win32', 'Win64', 'Linux64', 'OSX32', 'OSX64',
     'iOSSimulator', 'iOSDevice32', 'iOSDevice64',
     'Android32', 'Android64');
+end;
+
+class function TBoss4DBuildCapabilities.SupportedCompilers:
+  TArray<string>;
+begin
+  Result := TArray<string>.Create(
+    'xe', 'xe2', 'xe3', 'xe4', 'xe5', 'xe6', 'xe7', 'xe8',
+    'd10', 'd101', 'd102', 'd103', 'd104', 'd11', 'd12', 'd13');
 end;
 
 class function TBoss4DBuildCapabilities.NormalizePlatform(

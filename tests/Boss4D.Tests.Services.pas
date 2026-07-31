@@ -2621,6 +2621,20 @@ begin
       'conformance registry|package'));
     Assert.IsTrue(LLogger.LastLogMessage.Contains(
       'package install <pacote>'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('support'));
+
+    LLogger.LastLogMessage := '';
+    LParser.ParseAndExecute(TArray<string>.Create('support',
+      '--compiler', 'd13', '--platform', 'Win64',
+      '--kind', 'application', '--project', 'server.dproj'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains(
+      'd13 | Win64 | application | certified'));
+    LLogger.LastLogMessage := '';
+    LParser.ParseAndExecute(TArray<string>.Create('support',
+      '--compiler', 'd13', '--platform', 'Linux64',
+      '--kind', 'application', '--project', 'server.cbproj'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains(
+      'd13 | Linux64 | application | unsupported'));
 
     // Gera um SBOM por meio do parser real, sem escrever JSON no fluxo de logs.
     LInit.Execute(True);

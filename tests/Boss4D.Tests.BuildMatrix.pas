@@ -28,6 +28,8 @@ type
     [Test]
     procedure TestCppBuilderUsesNativeMSBuildOutputProperties;
     [Test]
+    procedure TestCapabilityCatalogCoversEveryLegacyCompiler;
+    [Test]
     procedure TestMatrixExpandsTokensInProjectsAndDependencies;
     [Test]
     procedure TestLegacyManifestExpandsSingleCompatibleTarget;
@@ -575,6 +577,19 @@ begin
   Assert.IsTrue(LParameters.Contains(
     '/p:LibraryPath="C:\deps\include;$(LibraryPath)"'));
   Assert.IsFalse(LParameters.Contains('DCC_'));
+end;
+
+procedure TTestsBuildMatrix.TestCapabilityCatalogCoversEveryLegacyCompiler;
+begin
+  Assert.AreEqual<Integer>(16,
+    Length(TBoss4DBuildCapabilities.SupportedCompilers));
+  for var LCompiler in TBoss4DBuildCapabilities.SupportedCompilers do
+    Assert.IsFalse(
+      TBoss4DBuildConventions.ResolveCompiler(LCompiler).Alias.IsEmpty);
+  Assert.AreEqual('xe',
+    TBoss4DBuildCapabilities.SupportedCompilers[0]);
+  Assert.AreEqual('d13',
+    TBoss4DBuildCapabilities.SupportedCompilers[15]);
 end;
 
 procedure TTestsBuildMatrix.TestBuildGraphOrdersDependenciesBeforeConsumers;

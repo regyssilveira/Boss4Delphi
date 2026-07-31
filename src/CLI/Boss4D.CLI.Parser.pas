@@ -108,6 +108,7 @@ type
     procedure HandleConformance(const AArgs: TArray<string>);
     procedure HandleSpec(const AArgs: TArray<string>);
     procedure HandleBuild(const AArgs: TArray<string>);
+    procedure HandleSupport(const AArgs: TArray<string>);
     procedure HandleIDE(const AArgs: TArray<string>);
     function ParseSbomArguments(
       const AArgs: TArray<string>): TBoss4DSbomCommandOptions;
@@ -167,6 +168,7 @@ uses
   Boss4D.Core.Services.PackageInstall,
   Boss4D.Core.Services.BuildSpec,
   Boss4D.Core.Services.BuildConventions,
+  Boss4D.Core.Services.BuildCapabilities,
   Boss4D.Core.Services.BuildDoctor,
   Boss4D.Core.Services.IDERegistration;
 
@@ -276,6 +278,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  conformance registry|package <arq> Valida o protocolo publico.');
   FLogger.Log(TBoss4DLogLevel.Info, '  spec --detect [--compiler <versao>] Detecta projetos e gera buildMatrix.');
   FLogger.Log(TBoss4DLogLevel.Info, '  build                Compila a matriz declarada.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  support              Consulta suporte por compilador, plataforma e tipo.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --compiler, --platform, --configuration, --jobs, --force, --full, --explain, --register, --all-installed, --affected, --with-dependents.');
   FLogger.Log(TBoss4DLogLevel.Info, '  ide unregister <bpl> --compiler <versao> --platform <Win32|Win64>');
   FLogger.Log(TBoss4DLogLevel.Info, '  ide uninstall <pacote> Remove todos os targets gerenciados do pacote.');
@@ -384,10 +387,73 @@ begin
     HandleSpec(AArgs)
   else if LCommand = 'build' then
     HandleBuild(AArgs)
+  else if LCommand = 'support' then
+    HandleSupport(AArgs)
   else if LCommand = 'ide' then
     HandleIDE(AArgs)
   else if LCommand = 'sbom' then
     HandleSbom(AArgs);
+end;
+
+procedure TBoss4DCommandLineParser.HandleSupport(
+  const AArgs: TArray<string>);
+var
+  LCompilers, LPlatforms: TArray<string>;
+  LCompiler, LPlatform, LKind, LProject: string;
+  LCapability: TBoss4DBuildCapability;
+  I: Integer;
+begin
+  LCompiler := 'all';
+  LPlatform := 'all';
+  LKind := 'runtime';
+  LProject := 'package.dproj';
+  I := 1;
+  while I < Length(AArgs) do
+  begin
+    if (I + 1 >= Length(AArgs)) or not AArgs[I].StartsWith('--') then
+      raise EArgumentException.Create(
+        'Uso: boss4d support [--compiler <versao|all>] ' +
+        '[--platform <target|all>] [--kind <tipo>] [--project <arquivo>].');
+    if SameText(AArgs[I], '--compiler') then
+      LCompiler := AArgs[I + 1]
+    else if SameText(AArgs[I], '--platform') then
+      LPlatform := AArgs[I + 1]
+    else if SameText(AArgs[I], '--kind') then
+      LKind := AArgs[I + 1]
+    else if SameText(AArgs[I], '--project') then
+      LProject := AArgs[I + 1]
+    else
+      raise EArgumentException.Create(
+        'Opcao desconhecida para support: ' + AArgs[I]);
+    Inc(I, 2);
+  end;
+
+  if SameText(LCompiler, 'all') then
+    LCompilers := TBoss4DBuildCapabilities.SupportedCompilers
+  else
+  begin
+    TBoss4DBuildConventions.ResolveCompiler(LCompiler);
+    LCompilers := TArray<string>.Create(LCompiler);
+  end;
+  if SameText(LPlatform, 'all') then
+    LPlatforms := TBoss4DBuildCapabilities.SupportedPlatforms
+  else
+    LPlatforms := TArray<string>.Create(
+      TBoss4DBuildCapabilities.NormalizePlatform(LPlatform));
+
+  FLogger.Log(TBoss4DLogLevel.Info,
+    'compiler | platform | kind | level | reason');
+  for var LCompilerItem in LCompilers do
+    for var LPlatformItem in LPlatforms do
+    begin
+      LCapability := TBoss4DBuildCapabilities.Evaluate(
+        LCompilerItem, LPlatformItem, LKind, LProject);
+      FLogger.Log(TBoss4DLogLevel.Info, '%s | %s | %s | %s | %s',
+        [TBoss4DBuildConventions.ResolveCompiler(LCompilerItem).Alias,
+         LPlatformItem, LKind,
+         TBoss4DBuildCapability.LevelName(LCapability.Level),
+         LCapability.Reason]);
+    end;
 end;
 
 procedure TBoss4DCommandLineParser.HandleIDE(
