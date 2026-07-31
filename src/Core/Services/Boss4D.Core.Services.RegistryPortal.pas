@@ -449,6 +449,8 @@ begin
       '.stat,.controls>*{padding:.85rem;border:1px solid #334155;border-radius:.75rem;background:#111827}' +
       '.stat strong{display:block;font-size:1.5rem}.controls label{display:grid;gap:.35rem}' +
       'input,select{font:inherit;padding:.7rem;border-radius:.5rem;border:1px solid #475569;background:#0f172a;color:inherit}' +
+      '.submission{margin:1.2rem 0;padding:1rem 1.2rem;border:1px solid #0f766e;border-radius:.9rem;background:#102a2a}' +
+      '.submission a{display:inline-block;padding:.65rem .9rem;border-radius:.55rem;background:#0f766e;color:#fff;font-weight:700;text-decoration:none}' +
       '#packages{list-style:none;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}' +
       '#packages li{padding:1rem;border:1px solid #334155;border-radius:.9rem;background:#111827}' +
       '.publisher,code,#packages span{display:inline-block;margin:.2rem;padding:.2rem .45rem;border-radius:.4rem;background:#1e293b}' +
@@ -468,6 +470,10 @@ begin
       (LPackages.Count - LVerifiedCount).ToString +
       '</strong>legacy packages</div><div class="stat"><strong>' +
       LMigrationPercentage.ToString + '%</strong>verified migration</div>' +
+      '</section><section id="community-submit" class="submission" aria-labelledby="community-submit-title">' +
+      '<h2 id="community-submit-title">Submit a package</h2>' +
+      '<p>Community submissions are welcome. Submission does not publish a package: catalog inclusion requires identity and evidence validation, automated checks and explicit maintainer approval.</p>' +
+      '<a href="https://github.com/regyssilveira/Boss4Delphi/issues/new?template=registry-package-submission.yml">Submit package for review</a>' +
       '</section><section class="controls">' +
       '<label>Search<input id="package-search" type="search" placeholder="name or repository"></label>' +
       '<label>Trust<select id="trust-filter"><option value="">all</option>' +

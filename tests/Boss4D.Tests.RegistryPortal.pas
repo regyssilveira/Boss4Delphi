@@ -14,6 +14,7 @@ type
     [Test] procedure RejectsUnknownSchema;
     [Test] procedure GeneratesVersionedV2CatalogWithTrustEvidence;
     [Test] procedure ReportsVerifiedMigrationProgress;
+    [Test] procedure OffersReviewedCommunitySubmission;
     [Test] procedure ComposesLocalIncludesSparseAndRevocations;
     [Test] procedure RejectsReferenceOutsideRegistryRoot;
     [Test] procedure GeneratesConsolidatedSearchIndex;
@@ -279,6 +280,25 @@ begin
       '<option value="legacy">legacy package</option>'));
     Assert.IsTrue(LHtml.Contains('data-migration="verified"'));
     Assert.IsTrue(LHtml.Contains('data-migration="legacy"'));
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DRegistryPortalTests.OffersReviewedCommunitySubmission;
+var
+  LService: TBoss4DRegistryPortalService;
+  LHtml: string;
+begin
+  LService := TBoss4DRegistryPortalService.Create;
+  try
+    LHtml := LService.Generate('{"schemaVersion":2,"packages":[]}');
+    Assert.IsTrue(LHtml.Contains('id="community-submit"'));
+    Assert.IsTrue(LHtml.Contains(
+      'issues/new?template=registry-package-submission.yml'));
+    Assert.IsTrue(LHtml.Contains('Submission does not publish a package'));
+    Assert.IsTrue(LHtml.Contains(
+      'automated checks and explicit maintainer approval'));
   finally
     LService.Free;
   end;

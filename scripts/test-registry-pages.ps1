@@ -57,6 +57,22 @@ try {
   if (-not $failed) {
     throw 'Registry Pages validator accepted a portal without migration state.'
   }
+
+  Copy-Item -LiteralPath (Join-Path $workspace 'registry\index.html') `
+    -Destination $portalPath -Force
+  $portal = Get-Content -LiteralPath $portalPath -Raw
+  $portal.Replace('id="community-submit"', 'id="removed-submit"') |
+    Set-Content -LiteralPath $portalPath -Encoding UTF8
+
+  $failed = $false
+  try {
+    & $validator -Root $fixtureRoot
+  } catch {
+    $failed = $_.Exception.Message -like '*community-submit*'
+  }
+  if (-not $failed) {
+    throw 'Registry Pages validator accepted a portal without community submission.'
+  }
 } finally {
   if (Test-Path -LiteralPath $fixtureRoot) {
     Remove-Item -LiteralPath $fixtureRoot -Recurse -Force

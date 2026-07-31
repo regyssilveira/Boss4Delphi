@@ -84,6 +84,9 @@ foreach ($marker in @(
     'id="platform-filter"',
     'id="compiler-filter"',
     'id="visible-count"',
+    'id="community-submit"',
+    'issues/new?template=registry-package-submission.yml',
+    'automated checks and explicit maintainer approval',
     'verified packages',
     'legacy packages',
     'verified migration')) {
