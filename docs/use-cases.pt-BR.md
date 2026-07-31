@@ -25,7 +25,7 @@ estado da IDE específico da máquina.
 | Área | Situação cotidiana | Sensibilidade | Guia |
 |---|---|---|---|
 | Ciclo do projeto | Iniciar projeto, adicionar/atualizar/remover dependências, reproduzir restore, investigar o grafo e recuperar cache ou lock | Uma mudança no lock afeta builds de toda a equipe e da CI | [Fluxos de projeto e dependências](use-cases-project-lifecycle.pt-BR.md) |
-| Registry e credenciais | Selecionar fontes públicas/privadas, autenticar, trabalhar offline, verificar pacotes e publicar versões imutáveis | Segredos e fronteiras de confiança da cadeia de suprimentos | Planejado para a fase 3 |
+| Registry e credenciais | Selecionar fontes públicas/privadas, autenticar, trabalhar offline, verificar pacotes e publicar versões imutáveis | Segredos e fronteiras de confiança da cadeia de suprimentos | [Registry, credenciais e publicação](use-cases-registry-security.pt-BR.md) |
 | Conformidade e auditoria | Gerar CycloneDX/SPDX, publicar VEX, aplicar política de vulnerabilidade e criar atestações | Evidências precisam ser completas e reproduzíveis | Planejado para a fase 4 |
 | Build Multi-Delphi | Detectar packages, selecionar compilador/plataforma/configuração e usar incremental/paralelismo | Identidade incorreta pode misturar DCUs/BPLs incompatíveis | Planejado para a fase 5 |
 | Ciclo da IDE | Instalar, registrar, atualizar, remover, reparar e recuperar falha de design package | Registro e Library Path afetam a IDE globalmente | Planejado para a fase 6 |
@@ -53,4 +53,3 @@ imutável, faça dry run e preserve as evidências geradas.
 - [Política de confiança](trust-policy.pt-BR.md)
 - [Guia de SBOM](sbom.pt-BR.md)
 - [Publicação de pacotes](publish.pt-BR.md)
-

@@ -8,13 +8,15 @@ $root = (Resolve-Path -LiteralPath $RepositoryRoot).Path
 $hubPairs = @(
   @('docs\use-cases.md', 'docs\use-cases.pt-BR.md'),
   @('docs\use-cases-project-lifecycle.md',
-    'docs\use-cases-project-lifecycle.pt-BR.md')
+    'docs\use-cases-project-lifecycle.pt-BR.md'),
+  @('docs\use-cases-registry-security.md',
+    'docs\use-cases-registry-security.pt-BR.md')
 )
 $knownCommands = @(
   'add', 'audit', 'build', 'cache', 'ci', 'config', 'doctor', 'getit',
   'ide', 'init', 'install', 'license', 'outdated', 'plugin', 'publish',
-  'remove', 'run', 'sbom', 'spec', 'tool', 'tree', 'update', 'version',
-  'why'
+  'registry', 'remove', 'run', 'sbom', 'spec', 'tool', 'tree', 'update',
+  'version', 'why'
 )
 
 foreach ($pair in $hubPairs) {
@@ -66,4 +68,3 @@ if ($missingLinks.Count -gt 0) {
 }
 
 Write-Output 'Use-case documentation contract: OK'
-

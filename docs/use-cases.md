@@ -25,7 +25,7 @@ trees, or machine-specific IDE state.
 | Area | Everyday situation | Sensitivity | Guide |
 |---|---|---|---|
 | Project lifecycle | Start a project, add/update/remove dependencies, reproduce a restore, investigate the graph, recover from cache or lock problems | A lock change can alter every developer and CI build | [Project and dependency workflows](use-cases-project-lifecycle.md) |
-| Registry and credentials | Select public/private sources, authenticate, work offline, verify packages, publish immutable versions | Secrets and supply-chain trust boundaries | Planned in phase 3 |
+| Registry and credentials | Select public/private sources, authenticate, work offline, verify packages, publish immutable versions | Secrets and supply-chain trust boundaries | [Registry, credentials, and publication](use-cases-registry-security.md) |
 | Compliance and audit | Generate CycloneDX/SPDX, publish VEX, enforce vulnerability policy, create attestations | Compliance evidence must be complete and reproducible | Planned in phase 4 |
 | Multi-Delphi build | Detect packages, select compiler/platform/configuration, use incremental and parallel builds | Wrong target identity can mix incompatible DCUs/BPLs | Planned in phase 5 |
 | IDE lifecycle | Install, register, update, unregister, repair, and recover from a failed design-package change | Registry and Library Path changes affect the IDE globally | Planned in phase 6 |
@@ -52,4 +52,3 @@ For immutable publication, use a dry run and preserve the generated evidence.
 - [Trust policy](trust-policy.md)
 - [SBOM guide](sbom.md)
 - [Package publication](publish.md)
-
