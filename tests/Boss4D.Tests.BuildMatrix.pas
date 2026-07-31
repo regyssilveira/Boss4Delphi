@@ -47,12 +47,15 @@ type
     procedure TestBuildSchedulerHonorsCancellation;
     [Test]
     procedure TestBuildSchedulerStopsDependentsAfterFailure;
+    [Test]
+    procedure TestBuildSchedulerStartsReadyDependentWithoutLevelBarrier;
   end;
 
 implementation
 
 uses
   System.SysUtils, System.IOUtils, System.Classes,
+  System.Generics.Collections,
   Boss4D.Core.Domain.Package,
   Boss4D.Core.Domain.BuildMatrix,
   Boss4D.Core.Services.BuildMatrix,
@@ -386,6 +389,68 @@ begin
     end;
   finally
     LPackage.Free;
+  end;
+end;
+
+procedure TTestsBuildMatrix.TestBuildSchedulerStartsReadyDependentWithoutLevelBarrier;
+var
+  LFastRoot: TBoss4DBuildProject;
+  LFastConsumer: TBoss4DBuildProject;
+  LSlowRoot: TBoss4DBuildProject;
+  LPackage: TBoss4DPackage;
+  LTargets: TBoss4DBuildTargetList;
+  LOrder: TList<string>;
+  LGuard: TObject;
+begin
+  LOrder := TList<string>.Create;
+  LGuard := TObject.Create;
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'ready-scheduler';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+
+    LFastRoot := TBoss4DBuildProject.Create;
+    LFastRoot.Path := 'FastRuntime.dproj';
+    LPackage.BuildMatrix.Projects.Add(LFastRoot);
+    LFastConsumer := TBoss4DBuildProject.Create;
+    LFastConsumer.Path := 'FastDesign.dproj';
+    LFastConsumer.DependsOn.Add('FastRuntime.dproj');
+    LPackage.BuildMatrix.Projects.Add(LFastConsumer);
+    LSlowRoot := TBoss4DBuildProject.Create;
+    LSlowRoot.Path := 'SlowRuntime.dproj';
+    LPackage.BuildMatrix.Projects.Add(LSlowRoot);
+
+    LTargets := TBoss4DBuildMatrixExpander.Expand(LPackage,
+      TBoss4DBuildSelection.All);
+    try
+      TBoss4DBuildScheduler.Execute(LTargets, 2,
+        procedure(const ATarget: TBoss4DBuildTarget)
+        begin
+          if SameText(ATarget.ProjectPath, 'SlowRuntime.dproj') then
+            TThread.Sleep(300)
+          else
+            TThread.Sleep(20);
+          TMonitor.Enter(LGuard);
+          try
+            LOrder.Add(ATarget.ProjectPath);
+          finally
+            TMonitor.Exit(LGuard);
+          end;
+        end);
+      Assert.AreEqual<Integer>(3, LOrder.Count);
+      Assert.AreEqual<string>('FastRuntime.dproj', LOrder[0]);
+      Assert.AreEqual<string>('FastDesign.dproj', LOrder[1],
+        'A dependency-ready target must not wait for an unrelated slow root.');
+      Assert.AreEqual<string>('SlowRuntime.dproj', LOrder[2]);
+    finally
+      LTargets.Free;
+    end;
+  finally
+    LPackage.Free;
+    LGuard.Free;
+    LOrder.Free;
   end;
 end;
 

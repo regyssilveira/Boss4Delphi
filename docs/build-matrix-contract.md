@@ -134,11 +134,12 @@ consumers even when their own source files did not change.
 
 ## Parallel scheduling
 
-The scheduler executes one topological level at a time and never starts a
-consumer before all direct dependencies complete. Within a level, targets with
-different output roots can run concurrently up to the configured jobs limit.
+The scheduler is dependency-ready rather than level-barrier based. A consumer
+starts as soon as all of its direct dependencies complete, without waiting for
+unrelated targets from the same topological level. Independent targets with
+different output roots run concurrently up to the configured jobs limit.
 Projects sharing the same package/compiler/platform/configuration output root
-are grouped and serialized to avoid compiler and filesystem races.
+are serialized to avoid compiler and filesystem races.
 
 Cancellation is checked before scheduling and before each target. The first
 failure stops new work, waits for already-running tasks to finish safely, and
