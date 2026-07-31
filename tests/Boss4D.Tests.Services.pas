@@ -3575,6 +3575,20 @@ begin
       'Dry-run oficial nao pode criar bundle.');
     Assert.IsFalse(TDirectory.Exists(TPath.Combine(FTempDir,
       'registry-preview')), 'Dry-run nao pode alterar checkout.');
+
+    TDirectory.CreateDirectory(TPath.Combine(FTempDir, 'registry'));
+    TFile.WriteAllText(TPath.Combine(FTempDir,
+      'registry\publishers.json'),
+      '{"schemaVersion":1,"publishers":[]}', TEncoding.UTF8);
+    TFile.WriteAllText(TPath.Combine(FTempDir,
+      'registry\index-v2.json'),
+      '{"schemaVersion":2,"includes":[],"sparse":[],"packages":[]}',
+      TEncoding.UTF8);
+    LLogger.LastLogMessage := '';
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'registry', 'health', FTempDir));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains(
+      'packages=0; legacy=0; trusted=0; warnings=0; errors=0'));
   finally
     LParser.Free;
     LConfigService.Free;

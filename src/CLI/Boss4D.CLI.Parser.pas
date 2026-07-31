@@ -174,6 +174,7 @@ uses
   Boss4D.Core.Services.RegistrySubmission,
   Boss4D.Core.Services.RegistryCheckout,
   Boss4D.Core.Services.RegistryPullRequest,
+  Boss4D.Core.Services.RegistryHealth,
   Boss4D.Core.Services.SelfUpdate,
   Boss4D.Core.Services.Pack,
   Boss4D.Core.Services.Resolver,
@@ -272,7 +273,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  rollback             Restaura o ultimo snapshot de versao.');
   FLogger.Log(TBoss4DLogLevel.Info, '  audit               Consulta vulnerabilidades OSV por revisao do lock.');
   FLogger.Log(TBoss4DLogLevel.Info, '  doc [-o pasta] [--no-dependencies] Gera site estatico da API Pascal.');
-  FLogger.Log(TBoss4DLogLevel.Info, '  registry add|remove|list Gerencia indices publicos e privados.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  registry add|remove|list|health Gerencia e audita indices.');
   FLogger.Log(TBoss4DLogLevel.Info, '  registry portal|search-index <entrada> <saida> Gera artefatos estaticos do catalogo.');
   FLogger.Log(TBoss4DLogLevel.Info, '  search <termo>       Pesquisa pacotes nos indices configurados.');
   FLogger.Log(TBoss4DLogLevel.Info, '  info <pacote>        Exibe metadados de um pacote indexado.');
@@ -1925,7 +1926,25 @@ var
 begin
   if Length(AArgs) < 2 then
     raise EArgumentException.Create(
-      'Uso: boss4d registry add|remove|list [origem]');
+      'Uso: boss4d registry add|remove|list|health [origem]');
+  if SameText(AArgs[1], 'health') and (Length(AArgs) in [2, 3]) then
+  begin
+    var LRoot := GetCurrentDir;
+    if Length(AArgs) = 3 then
+      LRoot := AArgs[2];
+    var LHealthService := TBoss4DRegistryHealthService.Create;
+    try
+      var LHealth := LHealthService.Audit(LRoot);
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Saude do Registry: ' + LHealth.Summary);
+      if not LHealth.Passed then
+        raise Exception.Create(
+          'Auditoria de saude do Registry falhou.');
+    finally
+      LHealthService.Free;
+    end;
+    Exit;
+  end;
   if (Length(AArgs) = 4) and SameText(AArgs[1], 'portal') then
   begin
     var LPortal := TBoss4DRegistryPortalService.Create;
@@ -1969,7 +1988,7 @@ begin
       LService.RemoveRegistry(AArgs[2])
     else
       raise EArgumentException.Create(
-        'Uso: boss4d registry add|remove|list [origem]');
+        'Uso: boss4d registry add|remove|list|health [origem]');
   finally
     LService.Free;
   end;
