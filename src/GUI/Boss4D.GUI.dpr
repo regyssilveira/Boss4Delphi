@@ -6,6 +6,7 @@ uses
   Boss4D.GUI.Main in 'Boss4D.GUI.Main.pas' {FormMain},
   Boss4D.GUI.IDE.Presenter in 'Boss4D.GUI.IDE.Presenter.pas',
   Boss4D.GUI.IDE.Install.Presenter in 'Boss4D.GUI.IDE.Install.Presenter.pas',
+  Boss4D.GUI.IDE.Install.Dialog in 'Boss4D.GUI.IDE.Install.Dialog.pas',
   Boss4D.GUI.IDE.Timeline in 'Boss4D.GUI.IDE.Timeline.pas',
   Boss4D.GUI.IDE.Dashboard in 'Boss4D.GUI.IDE.Dashboard.pas',
   Boss4D.GUI.Logs in 'Boss4D.GUI.Logs.pas',

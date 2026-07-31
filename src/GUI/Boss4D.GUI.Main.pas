@@ -253,7 +253,9 @@ uses
   Boss4D.Core.Services.IDEProcessPolicy,
   Boss4D.GUI.IDE.Backend,
   Boss4D.GUI.IDE.Timeline.Dialog,
-  Boss4D.GUI.IDE.Dashboard.Dialog;
+  Boss4D.GUI.IDE.Dashboard.Dialog,
+  Boss4D.GUI.IDE.Install.Dialog,
+  Boss4D.GUI.IDE.Install.Presenter;
 
 type
   TGUILogger = class(TInterfacedObject, IBoss4DLogger)
@@ -1432,27 +1434,32 @@ end;
 
 procedure TFormMain.BtnIDEInstallClick(Sender: TObject);
 begin
-  if MessageDlg('Compilar e registrar o package selecionado neste perfil?',
-    mtConfirmation, [mbYes, mbNo], 0) = mrYes then
+  var LConflictPolicy := TBoss4DIDEConflictPolicy.Fail;
+  case ComboIDEConflictPolicy.ItemIndex of
+    1: LConflictPolicy := TBoss4DIDEConflictPolicy.Warn;
+    2: LConflictPolicy := TBoss4DIDEConflictPolicy.Adopt;
+    3: LConflictPolicy := TBoss4DIDEConflictPolicy.Replace;
+  end;
+  var LOpenPolicy := TBoss4DIDEOpenPolicy.Fail;
+  case ComboIDEOpenPolicy.ItemIndex of
+    1: LOpenPolicy := TBoss4DIDEOpenPolicy.Defer;
+    2: LOpenPolicy := TBoss4DIDEOpenPolicy.Force;
+  end;
+  var LRequest := Default(TBoss4DGUIIDEInstallRequest);
+  if TBoss4DGUIIDEInstallDialog.Execute(Self, FIDEBackend,
+    FIDEPresenter.SelectedProfile, SelectedIDEPackage,
+    LConflictPolicy, LOpenPolicy, LRequest) then
   begin
-    var LConflictPolicy := TBoss4DIDEConflictPolicy.Fail;
-    case ComboIDEConflictPolicy.ItemIndex of
-      1: LConflictPolicy := TBoss4DIDEConflictPolicy.Warn;
-      2: LConflictPolicy := TBoss4DIDEConflictPolicy.Adopt;
-      3: LConflictPolicy := TBoss4DIDEConflictPolicy.Replace;
-    end;
-    var LOpenPolicy := TBoss4DIDEOpenPolicy.Fail;
-    case ComboIDEOpenPolicy.ItemIndex of
-      1: LOpenPolicy := TBoss4DIDEOpenPolicy.Defer;
-      2: LOpenPolicy := TBoss4DIDEOpenPolicy.Force;
-    end;
     Screen.Cursor := crHourGlass;
     PanelIDEActions.Enabled := False;
     try
-      ShowIDEStatus('Compilando e registrando o package...');
+      FIDEPresenter.ChooseProfile(LRequest.ProfileId);
+      ShowIDEStatus(Format(
+        'Compilando e registrando %s no perfil %s...',
+        [LRequest.PackageName, LRequest.ProfileName]));
       Vcl.Forms.Application.ProcessMessages;
-      FIDEPresenter.Install(SelectedIDEPackage,
-        LConflictPolicy, LOpenPolicy);
+      FIDEPresenter.Install(LRequest.PackageName,
+        LRequest.ConflictPolicy, LRequest.OpenPolicy);
     finally
       PanelIDEActions.Enabled := True;
       Screen.Cursor := crDefault;
