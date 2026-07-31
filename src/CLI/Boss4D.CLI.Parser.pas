@@ -407,33 +407,58 @@ begin
 
     if SameText(AArgs[1], 'uninstall') then
     begin
-      if Length(AArgs) <> 3 then
+      if Length(AArgs) < 3 then
         raise EArgumentException.Create(
-          'Uso: boss4d ide uninstall <pacote>.');
+          'Uso: boss4d ide uninstall <pacote> [--cascade|--force].');
+      var LCascade := False;
+      var LForce := False;
+      for var LOptionIndex := 3 to Length(AArgs) - 1 do
+        if SameText(AArgs[LOptionIndex], '--cascade') then
+          LCascade := True
+        else if SameText(AArgs[LOptionIndex], '--force') then
+          LForce := True
+        else
+          raise EArgumentException.Create(
+            'Opcao desconhecida para ide uninstall: ' +
+            AArgs[LOptionIndex]);
+      if LCascade and LForce then
+        raise EArgumentException.Create(
+          '--cascade e --force nao podem ser combinados.');
       var LInventory := TBoss4DBuildInventory.Create(TPath.Combine(
         GetBossHome, 'build-inventory.json'));
       try
         LInventory.Load;
+        var LRemovalNames := TList<string>.Create;
+        try
+          LRemovalNames.Add(AArgs[2].ToLower);
         if LInventory.Contains(AArgs[2]) then
         begin
           var LDependents := LInventory.DependentsOf(AArgs[2]);
-          if Length(LDependents) > 0 then
+          if (Length(LDependents) > 0) and not LCascade and not LForce then
             raise EInvalidOpException.CreateFmt(
               'Nao e possivel remover %s; dependentes instalados: %s.',
               [AArgs[2], string.Join(', ', LDependents)]);
+          if LCascade then
+            LRemovalNames.AddRange(LDependents);
         end;
-        if Assigned(FUninstallHandler) then
-          LCount := FUninstallHandler(AArgs[2])
-        else
-        begin
+          var LOrder := LInventory.BuildOrder(LRemovalNames.ToArray);
+          LCount := 0;
+          if not Assigned(FUninstallHandler) then
           LIDEIntegration := TBoss4DIDEIntegrationService.Create(
             FRegistry, FLogger);
-          LCount := LIDEIntegration.UninstallPackage(AArgs[2]);
-        end;
-        if LInventory.Contains(AArgs[2]) then
-        begin
-          LInventory.RemovePackage(AArgs[2]);
+          for var LOrderIndex := Length(LOrder) - 1 downto 0 do
+          begin
+            var LOwner := LOrder[LOrderIndex];
+            if Assigned(FUninstallHandler) then
+              Inc(LCount, FUninstallHandler(LOwner))
+            else
+              Inc(LCount, LIDEIntegration.UninstallPackage(LOwner));
+            if LInventory.Contains(LOwner) then
+              LInventory.RemovePackage(LOwner);
+          end;
           LInventory.Save;
+        finally
+          LRemovalNames.Free;
         end;
       finally
         LInventory.Free;

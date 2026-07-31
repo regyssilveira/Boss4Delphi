@@ -262,7 +262,10 @@ boss4d ide repair
 `ide unregister` removes one exact Delphi package target. `ide uninstall`
 removes every managed compiler/platform target owned by the product, deletes
 its global build-inventory entry, and refuses the operation while installed
-consumers still depend on that product.
+consumers still depend on that product. `--cascade` removes the transitive
+consumer closure first, in reverse build order. `--force` explicitly bypasses
+the dependent protection for the selected product; it cannot be combined with
+`--cascade`.
 
 ## Doctor and troubleshooting
 

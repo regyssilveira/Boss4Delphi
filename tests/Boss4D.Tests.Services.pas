@@ -238,6 +238,7 @@ uses
   Boss4D.Core.Services.ArtifactCache,
   Boss4D.Core.Domain.BuildMatrix,
   Boss4D.Core.Services.BuildExecutor,
+  Boss4D.Core.Services.BuildInventory,
   Boss4D.Core.Services.BuildState,
   Boss4D.Core.Services.BuildPaths,
   Boss4D.Core.Services.IDERegistration,
@@ -1486,6 +1487,8 @@ var
   LPlatform: string;
   LRepairCalls: Integer;
   LUninstallPackage: string;
+  LUninstalledPackages: TList<string>;
+  LPreviousBossHome: string;
 begin
   LLogger := TTestLogger.Create;
   LPackageRepo := TBoss4DPackageJsonRepository.Create;
@@ -1496,6 +1499,9 @@ begin
     LLogger);
   LConfig := TBoss4DConfigService.Create(LLogger);
   LRepairCalls := 0;
+  LUninstalledPackages := TList<string>.Create;
+  LPreviousBossHome := GetEnvironmentVariable('BOSS_HOME');
+  SetEnvironmentVariable('BOSS_HOME', PChar(FTempDir));
   LParser := TBoss4DCommandLineParser.Create(LLogger, LInit, LInstall,
     LConfig, LPackageRepo, TRegistryMock.Create,
     TBoss4DParserRuntime.Create(nil, nil,
@@ -1515,6 +1521,7 @@ begin
       function(const AOwnerPackage: string): Integer
       begin
         LUninstallPackage := AOwnerPackage;
+        LUninstalledPackages.Add(AOwnerPackage);
         Result := 3;
       end));
   try
@@ -1533,7 +1540,7 @@ begin
     LPackageName := 'owner-' + TGUID.NewGuid.ToString;
     LParser.ParseAndExecute(TArray<string>.Create(
       'ide', 'uninstall', LPackageName));
-    Assert.AreEqual<string>(LPackageName, LUninstallPackage);
+    Assert.IsTrue(SameText(LPackageName, LUninstallPackage));
     Assert.IsTrue(LLogger.LastLogMessage.Contains(
       'Pacote removido de todas as IDEs: 3 registros.'));
 
@@ -1544,7 +1551,30 @@ begin
           'ide', 'unregister', 'Component370', '--compiler', 'd13'));
       end,
       EArgumentException);
+
+    var LBuildInventory := TBoss4DBuildInventory.Create(TPath.Combine(
+      FTempDir, 'build-inventory.json'));
+    try
+      LBuildInventory.RegisterPackage('core', TPath.Combine(FTempDir, 'core'),
+        []);
+      LBuildInventory.RegisterPackage('app', TPath.Combine(FTempDir, 'app'),
+        TArray<string>.Create('core'));
+      LBuildInventory.Save;
+    finally
+      LBuildInventory.Free;
+    end;
+    LUninstalledPackages.Clear;
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'ide', 'uninstall', 'core', '--cascade'));
+    Assert.AreEqual<Integer>(2, LUninstalledPackages.Count);
+    Assert.AreEqual<string>('app', LUninstalledPackages[0]);
+    Assert.AreEqual<string>('core', LUninstalledPackages[1]);
   finally
+    if LPreviousBossHome.IsEmpty then
+      SetEnvironmentVariable('BOSS_HOME', nil)
+    else
+      SetEnvironmentVariable('BOSS_HOME', PChar(LPreviousBossHome));
+    LUninstalledPackages.Free;
     LParser.Free;
     LConfig.Free;
     LInstall.Free;
