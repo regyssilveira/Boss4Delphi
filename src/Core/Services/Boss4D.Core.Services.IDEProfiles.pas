@@ -47,6 +47,8 @@ type
     procedure Remove(const AIdOrName: string);
     procedure AddPackage(const AProfileId, APackage: string);
     procedure RemovePackage(const AProfileId, APackage: string);
+    procedure ConfigureTarget(const AProfileId, APlatform,
+      AConfiguration: string);
     procedure ExportProfile(const AIdOrName, APath: string);
     function ImportProfile(const APath: string): TBoss4DIDEProfile;
     procedure Launch(const AIdOrName: string);
@@ -443,6 +445,24 @@ begin
     for var I := LProfile.Packages.Count - 1 downto 0 do
       if SameText(LProfile.Packages[I], APackage) then
         LProfile.Packages.Delete(I);
+    FStore.Save(LProfiles);
+  finally
+    LProfiles.Free;
+  end;
+end;
+
+procedure TBoss4DIDEProfileService.ConfigureTarget(
+  const AProfileId, APlatform, AConfiguration: string);
+begin
+  if APlatform.Trim.IsEmpty then
+    raise EArgumentException.Create('A plataforma e obrigatoria.');
+  if AConfiguration.Trim.IsEmpty then
+    raise EArgumentException.Create('A configuracao e obrigatoria.');
+  var LProfiles := FStore.Load;
+  try
+    var LProfile := Find(LProfiles, AProfileId);
+    LProfile.DefaultPlatform := APlatform.Trim;
+    LProfile.DefaultConfiguration := AConfiguration.Trim;
     FStore.Save(LProfiles);
   finally
     LProfiles.Free;

@@ -26,6 +26,8 @@ type
     procedure TestExportImportAndLaunchRegistryBranch;
     [Test]
     procedure TestRemoveRejectsProfileWithInstalledPackages;
+    [Test]
+    procedure TestConfigureTargetPersistsProfileDefaults;
   end;
 
 implementation
@@ -233,6 +235,34 @@ begin
         LService.Get('disposable').Free;
       end,
       EBoss4DIDEProfileError);
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TTestsIDEProfiles.TestConfigureTargetPersistsProfileDefaults;
+begin
+  var LService := TBoss4DIDEProfileService.Create(
+    TBoss4DIDEProfileStore(FStore),
+    TPath.Combine(FDirectory, 'data'));
+  try
+    var LProfile := LService.CreateProfile('Win64 Debug', '', 'd13',
+      'C:\Delphi13\bin\bds.exe');
+    LProfile.Free;
+    LService.ConfigureTarget('win64-debug', 'Win64', 'Debug');
+    LProfile := LService.Get('win64-debug');
+    try
+      Assert.AreEqual('Win64', LProfile.DefaultPlatform);
+      Assert.AreEqual('Debug', LProfile.DefaultConfiguration);
+    finally
+      LProfile.Free;
+    end;
+    Assert.WillRaise(
+      procedure
+      begin
+        LService.ConfigureTarget('win64-debug', '', 'Release');
+      end,
+      EArgumentException);
   finally
     LService.Free;
   end;
