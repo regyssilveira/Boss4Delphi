@@ -52,6 +52,7 @@ type
     FBrowsingPath: string;
     FDebugDcuPath: string;
     FRuntimePath: string;
+    FToolPath: string;
     FArtifactRoot: string;
     FArtifacts: TList<string>;
     FHelpFiles: TList<string>;
@@ -71,6 +72,7 @@ type
     property BrowsingPath: string read FBrowsingPath write FBrowsingPath;
     property DebugDcuPath: string read FDebugDcuPath write FDebugDcuPath;
     property RuntimePath: string read FRuntimePath write FRuntimePath;
+    property ToolPath: string read FToolPath write FToolPath;
     property ArtifactRoot: string read FArtifactRoot write FArtifactRoot;
     property Artifacts: TList<string> read FArtifacts;
     property HelpFiles: TList<string> read FHelpFiles;
@@ -212,6 +214,7 @@ begin
   Result.BrowsingPath := FBrowsingPath;
   Result.DebugDcuPath := FDebugDcuPath;
   Result.RuntimePath := FRuntimePath;
+  Result.ToolPath := FToolPath;
   Result.ArtifactRoot := FArtifactRoot;
   Result.Artifacts.AddRange(FArtifacts);
   Result.HelpFiles.AddRange(FHelpFiles);
@@ -367,6 +370,7 @@ begin
         'debugDcuPath', '');
       LRegistration.RuntimePath := LObject.GetValue<string>(
         'runtimePath', '');
+      LRegistration.ToolPath := LObject.GetValue<string>('toolPath', '');
       LRegistration.ArtifactRoot := LObject.GetValue<string>(
         'artifactRoot', '');
       var LArtifacts := LObject.GetValue<TJSONArray>('artifacts');
@@ -424,6 +428,7 @@ begin
       LObject.AddPair('browsingPath', LRegistration.BrowsingPath);
       LObject.AddPair('debugDcuPath', LRegistration.DebugDcuPath);
       LObject.AddPair('runtimePath', LRegistration.RuntimePath);
+      LObject.AddPair('toolPath', LRegistration.ToolPath);
       LObject.AddPair('artifactRoot', LRegistration.ArtifactRoot);
       var LArtifacts := TJSONArray.Create;
       for var LArtifact in LRegistration.Artifacts do
@@ -530,6 +535,8 @@ begin
     ARegistration.DebugDcuPath, ASnapshots);
   WritePathValue(AStore, 'Environment', 'Path',
     ARegistration.RuntimePath, ASnapshots);
+  WritePathValue(AStore, 'Environment', 'Path',
+    ARegistration.ToolPath, ASnapshots);
   for var LHelpFile in ARegistration.HelpFiles do
   begin
     var LHelpKey := 'Software\Embarcadero\BDS\' +
@@ -578,6 +585,8 @@ begin
     ARegistration.DebugDcuPath, ASnapshots);
   RemovePathValue(AStore, 'Environment', 'Path',
     ARegistration.RuntimePath, ASnapshots);
+  RemovePathValue(AStore, 'Environment', 'Path',
+    ARegistration.ToolPath, ASnapshots);
   for var LHelpFile in ARegistration.HelpFiles do
   begin
     var LHelpKey := 'Software\Embarcadero\BDS\' +
@@ -691,7 +700,9 @@ var
          (SameText(AKind, 'debug') and
           SameText(LOther.DebugDcuPath, APath)) or
          (SameText(AKind, 'runtime') and
-          SameText(LOther.RuntimePath, APath)) then
+          SameText(LOther.RuntimePath, APath)) or
+         (SameText(AKind, 'tool') and
+          SameText(LOther.ToolPath, APath)) then
         Exit(True);
     end;
   end;
@@ -763,6 +774,10 @@ begin
           LRegistration.RuntimePath, 'runtime') then
           RemovePathValue(FStore, 'Environment', 'Path',
             LRegistration.RuntimePath, LSnapshots);
+        if not PathUsedOutsideSelection(LRegistration,
+          LRegistration.ToolPath, 'tool') then
+          RemovePathValue(FStore, 'Environment', 'Path',
+            LRegistration.ToolPath, LSnapshots);
         TakeSnapshot(FStore, PackageKey(LRegistration),
           LRegistration.BplPath, LSnapshots);
         FStore.DeleteValue(PackageKey(LRegistration),
@@ -845,6 +860,9 @@ begin
     (ARegistration.RuntimePath.Trim.IsEmpty or
       (FStore.TryRead('Environment', 'Path', LValue) and
        ContainsPath(LValue, ARegistration.RuntimePath))) and
+    (ARegistration.ToolPath.Trim.IsEmpty or
+      (FStore.TryRead('Environment', 'Path', LValue) and
+       ContainsPath(LValue, ARegistration.ToolPath))) and
     FStore.TryRead(PackageKey(ARegistration), ARegistration.BplPath,
       LValue) and SameText(LValue, ARegistration.Description);
   if Result then

@@ -48,6 +48,8 @@ type
     [Test]
     procedure TestExecutesSelectedTargetsAndPlansIDERegistration;
     [Test]
+    procedure TestRejectsIDEAssetOutsidePackageRoot;
+    [Test]
     procedure TestRejectsInvalidJobs;
   end;
 
@@ -184,9 +186,18 @@ var
   LInventoryPath: string;
   LRuntimePath: string;
   LHelpFile: string;
+  LToolPath: string;
+  LTemplatePath: string;
+  LRegistryKey: string;
+  LRegistryValue: string;
 begin
   TFile.WriteAllText(TPath.Combine(FRoot, 'Design.dproj'),
     '<Project/>', TEncoding.UTF8);
+  TDirectory.CreateDirectory(TPath.Combine(FRoot, 'ide'));
+  TFile.WriteAllText(TPath.Combine(FRoot, 'ide\component-tool.exe'),
+    'test-tool', TEncoding.UTF8);
+  TFile.WriteAllText(TPath.Combine(FRoot, 'ide\component-template.zip'),
+    'test-template', TEncoding.UTF8);
   LPackage := TBoss4DPackage.Create;
   LLock := TBoss4DLock.Create;
   LCompiler := TBuildCommandCompilerMock.Create;
@@ -207,6 +218,14 @@ begin
     LProject.Path := 'Design.dproj';
     LProject.Kind := 'design';
     LPackage.BuildMatrix.Projects.Add(LProject);
+    LPackage.IDEAssets.Tools.Add('ide/component-tool.exe');
+    LPackage.IDEAssets.Templates.Add('ide/component-template.zip');
+    var LDeclaredRegistryValue := TBoss4DIDERegistryValue.Create;
+    LDeclaredRegistryValue.Key :=
+      'Software\Embarcadero\BDS\{compiler}\ComponentVendor';
+    LDeclaredRegistryValue.Name := 'TemplatePath';
+    LDeclaredRegistryValue.Value := '{templates}';
+    LPackage.IDEAssets.RegistryValues.Add(LDeclaredRegistryValue);
     LOptions := TBoss4DBuildCommandOptions.Parse(TArray<string>.Create(
       'build', '--compiler', 'all', '--platform', 'Win64',
       '--configuration', 'Release', '--jobs', '2', '--force',
@@ -218,8 +237,14 @@ begin
         LRegisteredPlatform := ARegistration.Platform;
         LRegisteredBpl := ARegistration.BplPath;
         LRuntimePath := ARegistration.RuntimePath;
+        LToolPath := ARegistration.ToolPath;
         if ARegistration.HelpFiles.Count > 0 then
           LHelpFile := ARegistration.HelpFiles[0];
+        if ARegistration.RegistryValues.Count > 0 then
+        begin
+          LRegistryKey := ARegistration.RegistryValues[0].Key;
+          LRegistryValue := ARegistration.RegistryValues[0].Value;
+        end;
       end,
       LInventory);
     try
@@ -234,6 +259,14 @@ begin
       Assert.IsTrue(TFile.Exists(TPath.Combine(LRuntimePath,
         'ComponentRuntime.dll')));
       Assert.IsTrue(TFile.Exists(LHelpFile));
+      Assert.IsTrue(TFile.Exists(TPath.Combine(LToolPath,
+        'component-tool.exe')));
+      LTemplatePath := TPath.Combine(TPath.GetDirectoryName(LToolPath),
+        'templates\component-template.zip');
+      Assert.IsTrue(TFile.Exists(LTemplatePath));
+      Assert.AreEqual(
+        'Software\Embarcadero\BDS\37.0\ComponentVendor', LRegistryKey);
+      Assert.AreEqual(TPath.GetDirectoryName(LTemplatePath), LRegistryValue);
       Assert.IsTrue(TFile.Exists(LInventoryPath));
       Assert.IsTrue(LInventory.Contains(LPackage.Name));
       Assert.AreEqual<Integer>(2,
@@ -243,6 +276,58 @@ begin
     end;
   finally
     LInventory.Free;
+    LLock.Free;
+    LPackage.Free;
+  end;
+end;
+
+procedure TTestsBuildCommand.TestRejectsIDEAssetOutsidePackageRoot;
+var
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+  LLock: TBoss4DLock;
+  LCommand: TBoss4DBuildCommand;
+  LOptions: TBoss4DBuildCommandOptions;
+  LOutsideFile: string;
+begin
+  TFile.WriteAllText(TPath.Combine(FRoot, 'Design.dproj'),
+    '<Project/>', TEncoding.UTF8);
+  LOutsideFile := TPath.Combine(TPath.GetDirectoryName(FRoot),
+    'outside-ide-asset.exe');
+  TFile.WriteAllText(LOutsideFile, 'outside', TEncoding.UTF8);
+  LPackage := TBoss4DPackage.Create;
+  LLock := TBoss4DLock.Create;
+  try
+    LPackage.Name := 'unsafe-assets';
+    LPackage.Version := '1.0.0';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'Design.dproj';
+    LProject.Kind := 'design';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+    LPackage.IDEAssets.Tools.Add('../outside-ide-asset.exe');
+    LOptions := TBoss4DBuildCommandOptions.Parse(TArray<string>.Create(
+      'build', '--register', '--force'));
+    LCommand := TBoss4DBuildCommand.Create(
+      TBuildCommandCompilerMock.Create, nil,
+      procedure(const ARegistration: TBoss4DIDERegistration)
+      begin
+      end);
+    try
+      Assert.WillRaise(
+        procedure
+        begin
+          LCommand.Execute(LPackage, LLock, FRoot, LOptions);
+        end,
+        EArgumentException);
+    finally
+      LCommand.Free;
+    end;
+  finally
+    if TFile.Exists(LOutsideFile) then
+      TFile.Delete(LOutsideFile);
     LLock.Free;
     LPackage.Free;
   end;

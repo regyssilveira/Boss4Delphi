@@ -212,6 +212,66 @@ var
   LExecutor: TBoss4DBuildExecutor;
   LTargets: TBoss4DBuildTargetList;
   LExecutionOptions: TBoss4DBuildExecutionOptions;
+  procedure CopyIDEAsset(const ADeclaredPath, ACategory,
+    ATargetRoot: string);
+  var
+    LSource: string;
+    LSourceRoot: string;
+    LDestination: string;
+  begin
+    if ADeclaredPath.Trim.IsEmpty or ADeclaredPath.Contains('*') or
+       ADeclaredPath.Contains('?') then
+      raise EArgumentException.CreateFmt(
+        'Ativo IDE deve declarar um caminho literal: %s.',
+        [ADeclaredPath]);
+    LSourceRoot := IncludeTrailingPathDelimiter(
+      TPath.GetFullPath(ARootDirectory));
+    LSource := TPath.GetFullPath(TPath.Combine(ARootDirectory,
+      ADeclaredPath));
+    if not LSource.StartsWith(LSourceRoot, True) then
+      raise EArgumentException.CreateFmt(
+        'Ativo IDE fora da raiz do pacote: %s.', [ADeclaredPath]);
+    LDestination := TPath.Combine(TPath.Combine(ATargetRoot, ACategory),
+      TPath.GetFileName(ExcludeTrailingPathDelimiter(LSource)));
+    if TFile.Exists(LSource) then
+    begin
+      TDirectory.CreateDirectory(TPath.GetDirectoryName(LDestination));
+      TFile.Copy(LSource, LDestination, True);
+    end
+    else if TDirectory.Exists(LSource) then
+    begin
+      for var LFile in TDirectory.GetFiles(LSource, '*',
+        TSearchOption.soAllDirectories) do
+      begin
+        var LRelative := LFile.Substring(
+          IncludeTrailingPathDelimiter(LSource).Length);
+        var LTarget := TPath.Combine(LDestination, LRelative);
+        TDirectory.CreateDirectory(TPath.GetDirectoryName(LTarget));
+        TFile.Copy(LFile, LTarget, True);
+      end;
+    end
+    else
+      raise EFileNotFoundException.CreateFmt(
+        'Ativo IDE declarado nao encontrado: %s.', [ADeclaredPath]);
+  end;
+
+  function ExpandIDEAssetTokens(const AValue: string;
+    const ATarget: TBoss4DBuildTarget; const ATargetRoot,
+    ABplDirectory: string): string;
+  begin
+    Result := AValue.Replace('{compiler}', ATarget.Compiler, [rfReplaceAll,
+      rfIgnoreCase]);
+    Result := Result.Replace('{platform}', ATarget.Platform, [rfReplaceAll,
+      rfIgnoreCase]);
+    Result := Result.Replace('{root}', ATargetRoot, [rfReplaceAll,
+      rfIgnoreCase]);
+    Result := Result.Replace('{bpl}', ABplDirectory, [rfReplaceAll,
+      rfIgnoreCase]);
+    Result := Result.Replace('{tools}', TPath.Combine(ATargetRoot, 'tools'),
+      [rfReplaceAll, rfIgnoreCase]);
+    Result := Result.Replace('{templates}', TPath.Combine(ATargetRoot,
+      'templates'), [rfReplaceAll, rfIgnoreCase]);
+  end;
 begin
   Result := Default(TBoss4DBuildCommandResult);
   LDependency := TBoss4DDependency.Create(
@@ -251,6 +311,10 @@ begin
               raise EFileNotFoundException.CreateFmt(
                 'Diretorio BPL nao encontrado para %s.',
                 [LTarget.Identity]);
+            for var LTool in APackage.IDEAssets.Tools do
+              CopyIDEAsset(LTool, 'tools', LRoot);
+            for var LTemplate in APackage.IDEAssets.Templates do
+              CopyIDEAsset(LTemplate, 'templates', LRoot);
             for var LDllFile in TDirectory.GetFiles(LRoot, '*.dll',
               TSearchOption.soAllDirectories) do
             begin
@@ -285,6 +349,8 @@ begin
                 if LBplIndex = 0 then
                 begin
                   LRegistration.RuntimePath := LBplDirectory;
+                  if APackage.IDEAssets.Tools.Count > 0 then
+                    LRegistration.ToolPath := TPath.Combine(LRoot, 'tools');
                   LRegistration.ArtifactRoot := LRoot;
                   for var LArtifact in TDirectory.GetFiles(LRoot, '*',
                     TSearchOption.soAllDirectories) do
@@ -299,6 +365,19 @@ begin
                     LRegistration.HelpFiles.Add(
                       TPath.GetFullPath(LHelpFile));
                   LRegistration.HelpFiles.Sort;
+                  for var LDeclaredValue in
+                    APackage.IDEAssets.RegistryValues do
+                  begin
+                    var LManagedValue :=
+                      TBoss4DIDEManagedRegistryValue.Create;
+                    LManagedValue.Key := ExpandIDEAssetTokens(
+                      LDeclaredValue.Key, LTarget, LRoot, LBplDirectory);
+                    LManagedValue.Name := ExpandIDEAssetTokens(
+                      LDeclaredValue.Name, LTarget, LRoot, LBplDirectory);
+                    LManagedValue.Value := ExpandIDEAssetTokens(
+                      LDeclaredValue.Value, LTarget, LRoot, LBplDirectory);
+                    LRegistration.RegistryValues.Add(LManagedValue);
+                  end;
                 end;
                 FRegistrationHandler(LRegistration);
                 Inc(Result.Registered);
