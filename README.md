@@ -124,8 +124,9 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d dependencies|tree|why|outdated` and `boss4d run <script>`
   Inspects the graph, explains dependencies, discovers updates, and runs
   manifest scripts.
-* `boss4d registry add|remove|list`, `search`, and `info`
-  Manages public/private Registry v1/v2 sources and package discovery.
+* `boss4d registry add|remove|list|health`, `search`, and `info`
+  Manages public/private Registry v1/v2 sources, audits the complete catalog,
+  and provides package discovery.
 * `boss4d package install <name>@<version>` and `boss4d pack`
   Installs or creates deterministic `.b4dpkg` files with compiler/platform
   selection, SHA-256, OpenPGP, and in-toto provenance.

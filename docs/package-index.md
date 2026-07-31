@@ -1,5 +1,15 @@
 # Package indexes and discovery
 
+## Catalog health
+
+Run `boss4d registry health [checkout-root]` before publishing Registry
+changes. The audit follows local v2 includes and sparse documents, rejects
+missing or duplicated references, detects duplicate package identities,
+validates required repository metadata, and verifies publisher scope and
+signer authorization for schema-v2 packages. Legacy v1 entries remain
+installable but are counted as migration warnings; missing legacy versions add
+another warning. Any structural or trust error returns a failing exit code.
+
 Boss4D queries the official public registry by default and can merge any number
 of private, HTTP, or local JSON indexes. If the public registry is temporarily
 unavailable, search remains usable through the built-in offline starter catalog

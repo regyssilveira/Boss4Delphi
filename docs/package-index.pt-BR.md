@@ -1,5 +1,16 @@
 # Índices e descoberta de pacotes
 
+## Saúde do catálogo
+
+Execute `boss4d registry health [raiz-do-checkout]` antes de publicar mudanças
+no Registry. A auditoria percorre includes locais e documentos sparse v2,
+rejeita referências ausentes ou duplicadas, detecta identidades de pacote
+duplicadas, valida os metadados obrigatórios do repositório e verifica escopo
+do publisher e autorização do signatário nos pacotes schema v2. Entradas v1
+continuam instaláveis, mas são contabilizadas como avisos de migração; versões
+legadas ausentes adicionam outro aviso. Qualquer erro estrutural ou de
+confiança retorna código de saída de falha.
+
 O Boss4D consulta o registro público oficial por padrão e combina múltiplos
 índices privados, HTTP ou arquivos JSON locais. Se o registro público estiver
 temporariamente indisponível, a busca continua funcionando com o catálogo

@@ -21,6 +21,7 @@ See the [authoritative delivery plan](ide-packages-profiles-gui-plan.md).
   reviewed GitHub pull request with fork support.
 - [x] Require a clean checkout and restore the original branch when local
   metadata application fails.
+- [x] Audit the complete v1/v2 catalog on Delphi, Linux, and macOS CI.
 - [ ] Publish and continuously validate the first curated package set.
 - [ ] Operate hosted search/index delivery with mirrors, backup, and status.
 - [ ] Expose package adoption, maintenance, compatibility, and trust metrics.
