@@ -8,17 +8,17 @@ request checks.
 
 ## Current baseline
 
-- 40 discoverable legacy v1 packages;
+- 39 discoverable legacy v1 packages;
 - 18 repository owners;
 - 16 packages in the already registered `regyssilveira` namespace;
 - 10 packages in the `HashLoad` namespace;
-- 15 signed schema-v2 packages and one authorized signer fingerprint;
-- 15 publisher-controlled packages published through the reproducibility gates;
-- one publisher-controlled package requiring a release;
-- catalog health: 55 packages, 80 migration warnings, zero structural errors.
+- 16 signed schema-v2 packages and one authorized signer fingerprint;
+- 16 publisher-controlled packages published through the reproducibility gates;
+- zero publisher-controlled packages requiring a release;
+- catalog health: 55 packages, 78 migration warnings, zero structural errors.
 
 The generated Registry portal is the public progress ledger. It currently
-reports 15 verified packages, 40 legacy packages, and 27% verified migration.
+reports 16 verified packages, 39 legacy packages, and 29% verified migration.
 Each accepted schema-v2 package with an authorized publisher fingerprint
 increments that metric automatically.
 
@@ -174,9 +174,15 @@ post-merge run covered successful CRUD operations and HTTP 404 behavior
 without leaks. The signed 16-file bundle passed independent signature,
 provenance, conformance, and verified no-fallback installation.
 
-`Dext` is the remaining publisher-controlled package that needs its first
-published tag/release. Before Registry migration it needs an exact SemVer tag,
-tests, immutable release assets, and the same signed publication workflow.
+`Dext` `v1.0.0-rc.2` completed the publisher-controlled migration. A dedicated
+direct-DCC runner avoids the Windows MSBuild command-line limit while retaining
+the project's complete 132-test core suite. Five consecutive runs plus a clean
+post-merge run passed before the immutable tag was packed. The signed
+3,170-file release candidate passed independent signature, provenance,
+conformance, and verified no-fallback installation.
+
+All packages controlled by the registered publisher have now completed the
+release and schema-v2 migration gates.
 
 ## Wave 3 — external publisher onboarding
 

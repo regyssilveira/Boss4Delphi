@@ -10,6 +10,7 @@
                  ],
     "sparse":  [
                    "packages/boss4delphi.json",
+                   "packages/dext.json",
                    "packages/horse-compression-v2.json",
                    "packages/horse-crud.json",
                    "packages/horse-dto.json",

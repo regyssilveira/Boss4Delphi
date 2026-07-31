@@ -8,17 +8,17 @@ passarem nos checks do pull request do Registry.
 
 ## Ponto de partida
 
-- 40 pacotes legados v1 pesquisáveis;
+- 39 pacotes legados v1 pesquisáveis;
 - 18 responsáveis por repositórios;
 - 16 pacotes no namespace `regyssilveira`, já cadastrado;
 - 10 pacotes no namespace `HashLoad`;
-- 15 pacotes schema v2 assinados e um fingerprint autorizado;
-- 15 pacotes do publisher publicados pelos gates de reprodutibilidade;
-- um pacote do publisher que precisa de release;
-- saúde: 55 pacotes, 80 avisos de migração e zero erros estruturais.
+- 16 pacotes schema v2 assinados e um fingerprint autorizado;
+- 16 pacotes do publisher publicados pelos gates de reprodutibilidade;
+- zero pacotes do publisher que precisam de release;
+- saúde: 55 pacotes, 78 avisos de migração e zero erros estruturais.
 
 O portal gerado do Registry é o painel público do progresso. No momento ele
-informa 15 pacotes verificados, 40 pacotes legados e 27% de migração verificada.
+informa 16 pacotes verificados, 39 pacotes legados e 29% de migração verificada.
 Cada pacote schema v2 aceito com fingerprint autorizado para o publisher
 incrementa essa métrica automaticamente.
 
@@ -186,9 +186,16 @@ CRUD bem-sucedidas e o comportamento HTTP 404 sem leaks. O bundle assinado de
 16 arquivos passou nas verificações independentes de assinatura, proveniência,
 conformidade e instalação verificada sem fallback.
 
-O `Dext` é o pacote restante controlado pelo publisher que precisa de sua
-primeira tag/release publicada. Antes da migração ele precisa de tag SemVer
-exata, testes, assets imutáveis e o mesmo fluxo de publicação assinada.
+O `Dext` `v1.0.0-rc.2` concluiu a migração dos pacotes controlados pelo
+publisher. Um runner dedicado com DCC direto evita o limite de linha de comando
+do MSBuild no Windows e preserva a suíte completa de 132 testes do núcleo.
+Cinco execuções consecutivas, mais uma execução limpa após o merge, passaram
+antes do empacotamento da tag imutável. O release candidate assinado de 3.170
+arquivos passou nas verificações independentes de assinatura, proveniência,
+conformidade e instalação verificada sem fallback.
+
+Todos os pacotes controlados pelo publisher cadastrado concluíram os gates de
+release e migração para schema v2.
 
 ## Onda 3 — onboarding de publishers externos
 
