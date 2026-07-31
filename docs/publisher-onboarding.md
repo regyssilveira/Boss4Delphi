@@ -6,19 +6,29 @@ publisher cannot upload mutable metadata directly to the repository.
 ## First registration
 
 1. Add a unique entry to `registry/publishers.json`.
-2. Declare only repository prefixes controlled by that publisher.
-3. Add at least one complete 40-character OpenPGP fingerprint to
+2. Add the GitHub logins allowed to submit for the publisher to
+   `githubOwners`. For an organization, list its authorized human maintainers.
+3. Declare only repository prefixes controlled by that publisher.
+4. Add at least one complete 40-character OpenPGP fingerprint to
    `allowedSigners`.
-4. Copy `registry/package-template.json` to
+5. Copy `registry/package-template.json` to
    `registry/packages/<normalized-name>.json`.
-5. Set `publisher` and `signerFingerprint` to registered values.
-6. Add `packages/<normalized-name>.json` to `sparse` in
+6. Set `publisher` and `signerFingerprint` to registered values.
+7. Add `packages/<normalized-name>.json` to `sparse` in
    `registry/index-v2.json`.
-7. Open a pull request.
+8. Open the pull request from a GitHub account declared in `githubOwners`.
 
 Every new version requires a `.b4dpkg`, its exact SHA-256, a detached OpenPGP
 signature, and in-toto provenance. Repository scope, signer authorization,
-semantic versions, variants, and evidence are checked automatically.
+semantic versions, variants, and evidence are checked automatically. A
+publisher-only onboarding can initially use an empty `allowedSigners`; no
+package can be accepted until an authorized owner registers a signer.
+
+The pull-request workflow passes `github.actor` to the validator. A new
+publisher must include that account in `githubOwners`. Changes to an existing
+publisher are authorized against the owners from the target branch, so a
+contributor cannot add themselves and a new signer in the same pull request.
+Package submissions are also restricted to the registered GitHub owners.
 
 ## Immutability
 
@@ -30,7 +40,7 @@ provenance statement, or selector of an existing version fails.
 Run the same checks locally:
 
 ```powershell
-./scripts/validate-registry-submission.ps1
+./scripts/validate-registry-submission.ps1 -Submitter <your-github-login>
 ./scripts/test-registry-submission.ps1
 ```
 

@@ -6,19 +6,29 @@ pode enviar metadados mutáveis diretamente ao repositório.
 ## Primeiro cadastro
 
 1. Adicione uma entrada única em `registry/publishers.json`.
-2. Declare somente prefixos de repositórios controlados pelo publisher.
-3. Adicione ao menos um fingerprint OpenPGP completo de 40 caracteres em
+2. Adicione em `githubOwners` os logins GitHub autorizados a enviar mudanças.
+   Para organizações, liste os mantenedores humanos autorizados.
+3. Declare somente prefixos de repositórios controlados pelo publisher.
+4. Adicione ao menos um fingerprint OpenPGP completo de 40 caracteres em
    `allowedSigners`.
-4. Copie `registry/package-template.json` para
+5. Copie `registry/package-template.json` para
    `registry/packages/<nome-normalizado>.json`.
-5. Preencha `publisher` e `signerFingerprint` com valores cadastrados.
-6. Adicione `packages/<nome-normalizado>.json` em `sparse` no
+6. Preencha `publisher` e `signerFingerprint` com valores cadastrados.
+7. Adicione `packages/<nome-normalizado>.json` em `sparse` no
    `registry/index-v2.json`.
-7. Abra um pull request.
+8. Abra a PR usando uma conta declarada em `githubOwners`.
 
 Cada versão exige o `.b4dpkg`, seu SHA-256 exato, assinatura OpenPGP destacada
 e proveniência in-toto. Escopo do repositório, autorização do signatário,
 versão semântica, variantes e evidências são verificados automaticamente.
+Um cadastro somente de publisher pode começar com `allowedSigners` vazio;
+nenhum pacote será aceito até que um owner autorizado cadastre um signatário.
+
+O workflow entrega `github.actor` ao validador. Um publisher novo deve incluir
+essa conta em `githubOwners`. Mudanças de publisher existente são autorizadas
+contra os owners presentes no branch de destino; assim, um colaborador não
+consegue adicionar a si próprio e um novo signatário na mesma PR. Submissões de
+pacotes também ficam limitadas aos owners cadastrados.
 
 ## Imutabilidade
 
@@ -31,7 +41,7 @@ falham.
 Execute localmente:
 
 ```powershell
-./scripts/validate-registry-submission.ps1
+./scripts/validate-registry-submission.ps1 -Submitter <seu-login-github>
 ./scripts/test-registry-submission.ps1
 ```
 

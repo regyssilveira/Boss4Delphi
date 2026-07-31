@@ -19,3 +19,13 @@ Antes de enviar o PR, por favor marque todas as opções válidas:
 - [ ] **Princípios S.O.L.I.D.**: O design de classes e interfaces foi respeitado.
 - [ ] **Limpeza de Recursos**: Todo objeto criado localmente está devidamente protegido por blocos `try..finally` para desalocação segura.
 - [ ] **Nomenclatura**: Adotei a padronização namespace `Boss4D.Core.*` e nomenclatura de classes `T/I` + `Boss4D`.
+
+## 📦 Submissões ao Registry
+
+Preencha somente quando a PR altera `registry/`:
+
+- [ ] A PR foi aberta por uma conta registrada em `githubOwners`.
+- [ ] O nome do arquivo do pacote está normalizado e consta em `index-v2.json`.
+- [ ] Cada versão possui `.b4dpkg`, SHA-256, assinatura OpenPGP e proveniência in-toto.
+- [ ] Não alterei nem removi uma versão ou entrada sparse já publicada.
+- [ ] Executei `./scripts/validate-registry-submission.ps1 -Submitter <meu-login>` e `./scripts/test-registry-submission.ps1`.
