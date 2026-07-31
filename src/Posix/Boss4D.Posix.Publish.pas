@@ -21,6 +21,12 @@ type
     SubmissionOutput: string;
     RegistryRoot: string;
     AppendVersion: Boolean;
+    OpenPullRequest: Boolean;
+    RegistryBranch: string;
+    RegistryRemote: string;
+    RegistryBase: string;
+    RegistryPullRequestRepository: string;
+    RegistryPullRequestHead: string;
   end;
 
   TBoss4DPublishPoster = function(const AUrl, APayload, AToken: string;

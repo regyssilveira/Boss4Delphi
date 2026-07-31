@@ -8,6 +8,7 @@ uses
   Boss4D.Posix.Compliance, Boss4D.Posix.Audit, Boss4D.Posix.Workflows,
   Boss4D.Posix.Update, Boss4D.Posix.Tools, Boss4D.Posix.Publish,
   Boss4D.Posix.RegistryCheckout, Boss4D.Posix.Project,
+  Boss4D.Posix.RegistryPullRequest,
   Boss4D.Posix.Documentation;
 
 procedure Help;
@@ -40,6 +41,8 @@ begin
   WriteLn('           --repository <host/owner/name> --fingerprint <hex>');
   WriteLn('           --sign <key> --artifact-url <https-url>');
   WriteLn('           [--registry-root <checkout>] [--append-version]');
+  WriteLn('           [--open-pr] [--registry-remote <remote>]');
+  WriteLn('           [--registry-pr-repo <owner/name>]');
   WriteLn('Docs: boss4d doc [-o <folder>] [--no-dependencies]');
 end;
 
@@ -127,6 +130,10 @@ var
   LPublishOptions: TBoss4DPublishOptions;
   LOfficialPublishResult: TBoss4DOfficialPublishResult;
   LRegistryCheckoutResult: TBoss4DRegistryCheckoutResult;
+  LRegistryPullRequestOptions: TBoss4DRegistryPullRequestOptions;
+  LRegistryPullRequestSession: TBoss4DRegistryPullRequestSession;
+  LRegistryPullRequestResult: TBoss4DRegistryPullRequestResult;
+  LRegistryPullRequestService: TBoss4DPosixRegistryPullRequestService;
   LPublishPayload, LPublishOutput, LTokenEnvironment: string;
   LPublishManifest: TJSONObject;
   LOfficialDryRun: Boolean;
@@ -698,6 +705,24 @@ begin
         OptionValue('--submission-output', '');
       LPublishOptions.RegistryRoot := OptionValue('--registry-root', '');
       LPublishOptions.AppendVersion := HasOption('--append-version');
+      LPublishOptions.OpenPullRequest := HasOption('--open-pr');
+      LPublishOptions.RegistryBranch :=
+        OptionValue('--registry-branch', '');
+      LPublishOptions.RegistryRemote :=
+        OptionValue('--registry-remote', 'origin');
+      LPublishOptions.RegistryBase :=
+        OptionValue('--registry-base', 'main');
+      LPublishOptions.RegistryPullRequestRepository :=
+        OptionValue('--registry-pr-repo',
+          'regyssilveira/Boss4Delphi');
+      LPublishOptions.RegistryPullRequestHead :=
+        OptionValue('--registry-pr-head', '');
+      if LPublishOptions.OpenPullRequest and
+         not LPublishOptions.Official then
+        raise Exception.Create('--open-pr requires --official');
+      if LPublishOptions.OpenPullRequest and
+         (LPublishOptions.RegistryRoot = '') then
+        raise Exception.Create('--open-pr requires --registry-root');
       if LPublishOptions.Official then
       begin
         LPublishManifest := LoadJsonObject(IncludeTrailingPathDelimiter(
@@ -714,6 +739,32 @@ begin
               LPublishManifest.Get('name', 'package') + '-' +
               LPublishManifest.Get('version', '0.0.0') +
               '.registry.json';
+          if LPublishOptions.RegistryBranch = '' then
+            LPublishOptions.RegistryBranch :=
+              TBoss4DPosixRegistryPullRequestService.DefaultBranch(
+                LPublishManifest.Get('name', ''),
+                LPublishManifest.Get('version', ''));
+          if LPublishOptions.RegistryPullRequestHead = '' then
+            LPublishOptions.RegistryPullRequestHead :=
+              LPublishOptions.RegistryBranch;
+          LRegistryPullRequestOptions :=
+            Default(TBoss4DRegistryPullRequestOptions);
+          LRegistryPullRequestOptions.RegistryRoot :=
+            LPublishOptions.RegistryRoot;
+          LRegistryPullRequestOptions.PackageName :=
+            LPublishManifest.Get('name', '');
+          LRegistryPullRequestOptions.Version :=
+            LPublishManifest.Get('version', '');
+          LRegistryPullRequestOptions.Branch :=
+            LPublishOptions.RegistryBranch;
+          LRegistryPullRequestOptions.PushRemote :=
+            LPublishOptions.RegistryRemote;
+          LRegistryPullRequestOptions.BaseBranch :=
+            LPublishOptions.RegistryBase;
+          LRegistryPullRequestOptions.PullRequestRepository :=
+            LPublishOptions.RegistryPullRequestRepository;
+          LRegistryPullRequestOptions.PullRequestHead :=
+            LPublishOptions.RegistryPullRequestHead;
         finally
           LPublishManifest.Free;
         end;
@@ -759,10 +810,53 @@ begin
             try
               if LPublishOptions.RegistryRoot <> '' then
               begin
-                LRegistryCheckoutResult := ApplyRegistrySubmission(
-                  LPublishOptions.RegistryRoot,
-                  LOfficialPublishResult.SubmissionPath,
-                  LPublishOptions.AppendVersion);
+                LRegistryPullRequestService := nil;
+                LRegistryPullRequestSession :=
+                  Default(TBoss4DRegistryPullRequestSession);
+                if LPublishOptions.OpenPullRequest then
+                begin
+                  LRegistryPullRequestService :=
+                    TBoss4DPosixRegistryPullRequestService.Create;
+                  LRegistryPullRequestSession :=
+                    LRegistryPullRequestService.Start(
+                      LRegistryPullRequestOptions);
+                end;
+                try
+                  try
+                    LRegistryCheckoutResult := ApplyRegistrySubmission(
+                      LPublishOptions.RegistryRoot,
+                      LOfficialPublishResult.SubmissionPath,
+                      LPublishOptions.AppendVersion);
+                  except
+                    if Assigned(LRegistryPullRequestService) then
+                      LRegistryPullRequestService.Cancel(
+                        LRegistryPullRequestOptions,
+                        LRegistryPullRequestSession,
+                        IncludeTrailingPathDelimiter(
+                          LPublishOptions.RegistryRoot) +
+                          'registry/packages/' +
+                          RegistryPackageSlug(
+                            LRegistryPullRequestOptions.PackageName) +
+                          '.json',
+                        IncludeTrailingPathDelimiter(
+                          LPublishOptions.RegistryRoot) +
+                          'registry/index-v2.json');
+                    raise;
+                  end;
+                  if Assigned(LRegistryPullRequestService) then
+                  begin
+                    LRegistryPullRequestResult :=
+                      LRegistryPullRequestService.Submit(
+                        LRegistryPullRequestOptions,
+                        LRegistryPullRequestSession,
+                        LRegistryCheckoutResult.PackagePath,
+                        LRegistryCheckoutResult.IndexPath);
+                    WriteLn('pull request created: ' +
+                      LRegistryPullRequestResult.PullRequestUrl);
+                  end;
+                finally
+                  LRegistryPullRequestService.Free;
+                end;
                 WriteLn('Registry checkout updated: ' +
                   LRegistryCheckoutResult.PackagePath);
               end;

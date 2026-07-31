@@ -134,6 +134,19 @@ type
     property Success: Boolean read FSuccess write FSuccess;
   end;
 
+  TRegistryPullRequestRunnerMock = class
+  private
+    FCommands: TStringList;
+    FDirty: Boolean;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    function Run(const ACommand, ADirectory: string;
+      out AOutput: string): Boolean;
+    property Commands: TStringList read FCommands;
+    property Dirty: Boolean read FDirty write FDirty;
+  end;
+
   TPosixCoreTests = class(TTestCase)
   published
     procedure TestPlatform;
@@ -198,6 +211,8 @@ type
     procedure TestPublishRequiresLockEvidence;
     procedure TestOfficialPublishBundle;
     procedure TestRegistryCheckoutApplyAndAppend;
+    procedure TestRegistryPullRequestCommands;
+    procedure TestRegistryPullRequestRejectsDirtyCheckout;
     procedure TestProjectWorkflowCommands;
     procedure TestUpdateRollback;
     procedure TestUpdatePreservesRegistryArtifact;
@@ -213,7 +228,8 @@ uses
   Boss4D.Posix.Package,
   Boss4D.Posix.Operations, Boss4D.Posix.Compliance, Boss4D.Posix.Audit,
   Boss4D.Posix.Workflows, Boss4D.Posix.Update, Boss4D.Posix.Tools,
-  Boss4D.Posix.Documentation, Boss4D.Posix.RegistryCheckout;
+  Boss4D.Posix.Documentation, Boss4D.Posix.RegistryCheckout,
+  Boss4D.Posix.RegistryPullRequest;
 
 procedure SaveFixture(const APath, AContent: string); forward;
 
@@ -1325,6 +1341,36 @@ begin
   else Result := '2.0.0';
 end;
 
+constructor TRegistryPullRequestRunnerMock.Create;
+begin
+  inherited Create;
+  FCommands := TStringList.Create;
+end;
+
+destructor TRegistryPullRequestRunnerMock.Destroy;
+begin
+  FCommands.Free;
+  inherited Destroy;
+end;
+
+function TRegistryPullRequestRunnerMock.Run(const ACommand,
+  ADirectory: string; out AOutput: string): Boolean;
+begin
+  FCommands.Add(ACommand);
+  Result := True;
+  if ACommand = 'git status --porcelain' then
+  begin
+    if FDirty then AOutput := ' M registry/index-v2.json'
+    else AOutput := '';
+  end
+  else if ACommand = 'git branch --show-current' then
+    AOutput := 'main'
+  else if Pos('gh pr create', ACommand) = 1 then
+    AOutput := 'https://github.com/example/registry/pull/8'
+  else
+    AOutput := '';
+end;
+
 function CreateComplianceLock(const ADirectory: string): string;
 begin
   Result := IncludeTrailingPathDelimiter(ADirectory) + 'boss-lock.json';
@@ -2075,6 +2121,94 @@ begin
     Fail('Duplicate immutable version must fail');
   except
     on E: Exception do AssertTrue(Pos('immutable', E.Message) > 0);
+  end;
+end;
+
+procedure TPosixCoreTests.TestRegistryPullRequestCommands;
+var
+  LRoot, LPackage, LIndex: string;
+  LRunner: TRegistryPullRequestRunnerMock;
+  LService: TBoss4DPosixRegistryPullRequestService;
+  LOptions: TBoss4DRegistryPullRequestOptions;
+  LSession: TBoss4DRegistryPullRequestSession;
+  LResult: TBoss4DRegistryPullRequestResult;
+begin
+  LRoot := NewTempDirectory;
+  ForceDirectories(IncludeTrailingPathDelimiter(LRoot) +
+    'registry/packages');
+  LPackage := IncludeTrailingPathDelimiter(LRoot) +
+    'registry/packages/horse.json';
+  LIndex := IncludeTrailingPathDelimiter(LRoot) +
+    'registry/index-v2.json';
+  SaveFixture(LPackage, '{}');
+  SaveFixture(LIndex, '{}');
+  LOptions := Default(TBoss4DRegistryPullRequestOptions);
+  LOptions.RegistryRoot := LRoot;
+  LOptions.PackageName := 'Horse';
+  LOptions.Version := '3.2.1';
+  LOptions.Branch :=
+    TBoss4DPosixRegistryPullRequestService.DefaultBranch(
+      LOptions.PackageName, LOptions.Version);
+  LOptions.PushRemote := 'fork';
+  LOptions.BaseBranch := 'main';
+  LOptions.PullRequestRepository := 'regyssilveira/Boss4Delphi';
+  LOptions.PullRequestHead := 'regys:' + LOptions.Branch;
+  LRunner := TRegistryPullRequestRunnerMock.Create;
+  try
+    LService := TBoss4DPosixRegistryPullRequestService.Create(
+      @LRunner.Run);
+    try
+      LSession := LService.Start(LOptions);
+      LResult := LService.Submit(LOptions, LSession,
+        LPackage, LIndex);
+      AssertEquals('https://github.com/example/registry/pull/8',
+        LResult.PullRequestUrl);
+      AssertTrue(Pos('git add -- ''registry/index-v2.json'' ' +
+        '''registry/packages/horse.json''', LRunner.Commands[3]) = 1);
+      AssertTrue(Pos('git add .', LRunner.Commands[3]) = 0);
+      AssertTrue(Pos('--head ''regys:boss4d/package-horse-3.2.1''',
+        LRunner.Commands[6]) > 0);
+    finally
+      LService.Free;
+    end;
+  finally
+    LRunner.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.TestRegistryPullRequestRejectsDirtyCheckout;
+var
+  LRoot: string;
+  LRunner: TRegistryPullRequestRunnerMock;
+  LService: TBoss4DPosixRegistryPullRequestService;
+  LOptions: TBoss4DRegistryPullRequestOptions;
+begin
+  LRoot := NewTempDirectory;
+  LOptions := Default(TBoss4DRegistryPullRequestOptions);
+  LOptions.RegistryRoot := LRoot;
+  LOptions.Branch := 'boss4d/package-test-1.0.0';
+  LOptions.PushRemote := 'origin';
+  LOptions.BaseBranch := 'main';
+  LOptions.PullRequestRepository := 'regyssilveira/Boss4Delphi';
+  LOptions.PullRequestHead := LOptions.Branch;
+  LRunner := TRegistryPullRequestRunnerMock.Create;
+  LRunner.Dirty := True;
+  try
+    LService := TBoss4DPosixRegistryPullRequestService.Create(
+      @LRunner.Run);
+    try
+      try
+        LService.Start(LOptions);
+        Fail('Dirty Registry checkout must be rejected');
+      except
+        on E: Exception do
+          AssertTrue(Pos('local changes', E.Message) > 0);
+      end;
+    finally
+      LService.Free;
+    end;
+  finally
+    LRunner.Free;
   end;
 end;
 

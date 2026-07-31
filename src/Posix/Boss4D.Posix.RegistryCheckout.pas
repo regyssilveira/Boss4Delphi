@@ -15,6 +15,7 @@ type
 
 function ApplyRegistrySubmission(const ARoot, ASubmissionPath: string;
   const AAppendVersion: Boolean): TBoss4DRegistryCheckoutResult;
+function RegistryPackageSlug(const AName: string): string;
 
 implementation
 
@@ -55,7 +56,7 @@ begin
   end;
 end;
 
-function PackageSlug(const AName: string): string;
+function RegistryPackageSlug(const AName: string): string;
 var
   I: Integer;
   LDash: Boolean;
@@ -164,7 +165,7 @@ begin
     LRepository := LPackage.Get('repository', '');
     LFingerprint := UpperCase(LPackage.Get('signerFingerprint', ''));
     Result.PackagePath := IncludeTrailingPathDelimiter(LPackageDirectory) +
-      PackageSlug(Result.PackageName) + '.json';
+      RegistryPackageSlug(Result.PackageName) + '.json';
     LSparsePath := 'packages/' + ExtractFileName(Result.PackagePath);
 
     LFoundPublisher := False;
