@@ -8,7 +8,7 @@ $content = Get-Content -LiteralPath $Path -Raw
 $required = @(
   'pull_request:',
   'ubuntu-24.04',
-  'macos-14',
+  'macos-15',
   'brew install fpc',
   'Boss4DPosixTests --all --format=plain',
   'boss4d platform',

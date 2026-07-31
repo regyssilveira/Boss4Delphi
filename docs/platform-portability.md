@@ -21,9 +21,10 @@ return an explicit unsupported-platform error. The VCL GUI and RAD Studio
 plugin remain Windows products; the command-line application is the portability
 target.
 
-## Current Linux status
+## Current POSIX status
 
-The native FPC 3.2.2 Linux x86-64 host is built and tested in Docker. It
+The native FPC 3.2.2 host is built and tested on Linux x86-64 and macOS arm64.
+Linux also has a reproducible local Docker gate. The POSIX CLI
 supports manifest initialization, `add`, `remove`, `list`, Git installation,
 lock schema v3, runtime/development scopes, production mode, frozen and offline
 installation, CI mode, highest/minimal SemVer selection, Registry v1/v2
@@ -36,8 +37,10 @@ verified install is recorded in the legacy-compatible manifest and lock v3.
 The host also provides structured progress, stable automation exit codes,
 cooperative Ctrl+C cancellation, and `doctor` checks for Git, SHA-256, GPG,
 FPC, and a writable Boss home.
-Secret Service credentials, environment-only CI tokens, bare Git mirrors,
-cache maintenance, and POSIX workspace symlinks are native Linux workflows.
+Secret Service credentials are a Linux integration. Environment-only CI
+tokens, bare Git mirrors, cache maintenance, and POSIX workspace symlinks work
+on both hosts. SHA-256 uses `sha256sum` when available and the native
+`shasum -a 256` fallback on macOS.
 Global FPC tools are compiled and installed transactionally under
 `~/.boss/bin`.
 
@@ -47,11 +50,10 @@ boundaries are intentional and documented, not silently emulated.
 
 ## Next portability steps
 
-1. Add a native macOS host and release artifact.
-2. Evaluate Linux ARM64 and publish a support matrix per architecture.
-3. Maintain recurring cache and installation benchmarks on distributed
+1. Evaluate Linux ARM64 and publish a support matrix per architecture.
+2. Maintain recurring cache and installation benchmarks on distributed
    platforms.
 
 Every new portable capability requires unit tests and an actual target-host
-build. Linux is currently supported for the dependency workflow listed above;
-full cross-host feature parity remains in progress.
+build. Linux and macOS support the dependency workflow listed above; Windows
+remains the only host for RAD Studio-specific capabilities.

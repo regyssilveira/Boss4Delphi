@@ -42,6 +42,36 @@ jobs:
             .release/artifact-matrix.json
           if-no-files-found: error
 
+  macos:
+    name: macOS arm64 / FPC
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Free Pascal
+        run: brew install fpc
+      - name: Compile and test
+        run: |
+          mkdir -p .release/macos
+          fpc -B -Fu./src/Posix -FE./.release/macos -oboss4d ./src/Posix/boss4d.lpr
+          fpc -B -Fu./src/Posix -Fu./tests/posix -FE./.release/macos ./tests/posix/Boss4DPosixTests.lpr
+          ./.release/macos/Boss4DPosixTests --all --format=plain
+          test "$(./.release/macos/boss4d platform)" = "macos"
+      - name: Package macOS CLI
+        run: |
+          chmod 755 .release/macos/boss4d
+          archive="boss4d-macos-$(uname -m).tar.gz"
+          tar -C .release/macos -czf ".release/$archive" boss4d
+          cd .release
+          shasum -a 256 "$archive" > SHA256SUMS-macos.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-macos-arm64
+          path: |
+            .release/boss4d-macos-*.tar.gz
+            .release/SHA256SUMS-macos.txt
+          if-no-files-found: error
+
   windows:
     name: Delphi 13 / Win32 + Win64
     runs-on: [self-hosted, windows, delphi-13]
@@ -105,7 +135,7 @@ jobs:
   publish:
     name: Publish immutable release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [linux, windows]
+    needs: [linux, macos, windows]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -120,13 +150,16 @@ jobs:
       - name: Create combined checksums
         working-directory: release
         run: |
-          sha256sum boss4d-linux-x86_64.tar.gz boss4d-windows.zip \
+          # shellcheck disable=SC2035
+          sha256sum boss4d-linux-x86_64.tar.gz boss4d-macos-*.tar.gz \
+            boss4d-windows.zip \
             Boss4D_Setup.exe *.b4dpkg > SHA256SUMS.txt
       - name: Attest release archives
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
             release/boss4d-linux-x86_64.tar.gz
+            release/boss4d-macos-*.tar.gz
             release/boss4d-windows.zip
             release/Boss4D_Setup.exe
             release/*.b4dpkg
@@ -136,6 +169,7 @@ jobs:
           fail_on_unmatched_files: true
           files: |
             release/boss4d-linux-x86_64.tar.gz
+            release/boss4d-macos-*.tar.gz
             release/boss4d-windows.zip
             release/Boss4D_Setup.exe
             release/SHA256SUMS.txt

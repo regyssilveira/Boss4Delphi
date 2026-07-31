@@ -18,9 +18,10 @@ Windows ou `cmd.exe`. Comandos específicos consultam capacidades e retornam err
 explícito quando a plataforma não é suportada. A GUI VCL e o plugin do RAD
 Studio permanecem produtos Windows; a CLI é o alvo da portabilidade.
 
-## Estado atual no Linux
+## Estado atual em POSIX
 
-O host nativo FPC 3.2.2 para Linux x86-64 é compilado e testado em Docker. Ele
+O host nativo FPC 3.2.2 é compilado e testado em Linux x86-64 e macOS arm64.
+Linux também possui um gate local reproduzível em Docker. A CLI POSIX
 oferece inicialização do manifesto, `add`, `remove`, `list`, instalação Git,
 lock schema v3, escopos runtime/desenvolvimento, modo de produção, instalações
 frozen e offline, modo CI, seleção SemVer highest/minimal, descoberta Registry
@@ -34,8 +35,10 @@ instalação verificada é registrada no manifesto compatível e no lock v3.
 O host também oferece progresso estruturado, códigos de saída estáveis,
 cancelamento cooperativo por Ctrl+C e `doctor` para Git, SHA-256, GPG, FPC e
 diretório home gravável.
-Credenciais no Secret Service, tokens efêmeros de CI, mirrors Git bare,
-manutenção de cache e links simbólicos de workspace são fluxos nativos Linux.
+Credenciais no Secret Service são uma integração Linux. Tokens efêmeros de CI,
+mirrors Git bare, manutenção de cache e links simbólicos de workspace funcionam
+nos dois hosts. SHA-256 usa `sha256sum` quando disponível e o fallback nativo
+`shasum -a 256` no macOS.
 Ferramentas globais FPC são compiladas e instaladas transacionalmente em
 `~/.boss/bin`.
 
@@ -44,9 +47,10 @@ plugins da IDE. Esses limites são explícitos.
 
 ## Próximas etapas de portabilidade
 
-1. Adicionar um host e artefato nativos para macOS.
-2. Avaliar Linux ARM64 e publicar uma matriz de suporte por arquitetura.
-3. Manter benchmarks recorrentes de cache e instalação nas plataformas
+1. Avaliar Linux ARM64 e publicar uma matriz de suporte por arquitetura.
+2. Manter benchmarks recorrentes de cache e instalação nas plataformas
    distribuídas.
 
 Cada nova capacidade portátil exige testes unitários e build no sistema alvo.
+Linux e macOS suportam o fluxo de dependências descrito acima; Windows continua
+sendo o único host para capacidades específicas do RAD Studio.

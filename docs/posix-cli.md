@@ -1,7 +1,7 @@
-# FPC/Linux CLI
+# FPC/POSIX CLI
 
-Boss4D includes a native FPC 3.2.2 host that is compiled and tested on Linux,
-not cross-compiled from Windows:
+Boss4D includes a native FPC 3.2.2 host compiled and tested on Linux x86-64
+and macOS arm64, not cross-compiled from Windows:
 
 ```powershell
 ./scripts/ci-fpc-linux.ps1
@@ -10,6 +10,12 @@ not cross-compiled from Windows:
 The script uses the existing `fpc-test:latest` Docker image, builds an x86-64
 Linux executable, runs its FPCUnit suite, and smoke-tests `version` and
 `platform`.
+
+The `POSIX CI` workflow repeats the complete suite on GitHub's macOS 15 arm64
+runner. Releases publish `boss4d-linux-x86_64.tar.gz` and
+`boss4d-macos-arm64.tar.gz`; verified self-update selects the correct archive
+from the runtime platform and CPU. macOS uses its native `shasum -a 256` when
+GNU `sha256sum` is unavailable.
 
 The portable host currently supports:
 

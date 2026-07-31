@@ -31,7 +31,7 @@ Veja o [plano oficial da entrega](ide-packages-profiles-gui-plan.pt-BR.md).
 - [x] **[Story] CLI Linux nativa**
   - Oferecer dependências, Registry, conformidade, publicação, atualização,
     workspaces, cache, credenciais e ferramentas globais em Linux x86_64/FPC.
-- [ ] **[Story] Distribuição macOS nativa**
+- [x] **[Story] Distribuição macOS nativa**
   - Adicionar host e artefato macOS testados, mantendo RAD Studio e GetIt
     limitados por capacidade ao Windows.
 

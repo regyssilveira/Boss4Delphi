@@ -6,7 +6,7 @@ registro são avaliadas separadamente da quantidade de comandos.
 | Capacidade | Boss4D | BOSS | DPM | GetIt | Classe Cargo/npm/Composer |
 |---|---|---|---|---|---|
 | Dependências Delphi | CLI, GUI e IDE completas | CLI e complemento de IDE | Pacotes e IDE completos | Instalação por catálogo | Não específico para Delphi |
-| Lazarus/FPC/Linux | CLI e release nativas em FPC 3.2.2 | Fluxo Delphi/Lazarus consolidado | Foco Delphi/Windows | Não | Nativo em cada ecossistema |
+| Lazarus/FPC/POSIX | CLI e releases nativas em FPC 3.2.2 para Linux x86_64 e macOS arm64 | Fluxo Delphi/Lazarus consolidado | Foco Delphi/Windows | Não | Nativo em cada ecossistema |
 | CLI cotidiana | Install, update, tree, why, outdated, run e ferramentas globais | Install, update, dependencies, run e global | Create/push/install/restore no estilo NuGet | Orientado à IDE | Ampla e madura |
 | Descoberta pública | Registry v2 Git com 55 entradas legadas; catálogo `.b4dpkg` ainda precisa ser povoado | Atalhos de repositório/nome e adoção histórica | Fonte hospedada `delphi.dev` em operação | Catálogo do fornecedor | Grandes registros hospedados |
 | Protocolo do Registry | Composição v1/v2, sparse, validadores HTTP, mirrors e revogação | Resolução orientada a Git | Múltiplas fontes locais/hospedadas | Controlado pelo fornecedor | APIs sparse/index e CDNs |
@@ -58,7 +58,7 @@ definida:
 1. Popular o Registry sparse com releases `.b4dpkg` assinadas pelos mantenedores.
 2. Adicionar frontend hospedado de leitura/busca e CDN, mantendo Git revisado
    como fonte autoritativa.
-3. Adicionar release nativa para macOS e ampliar variantes mantidas.
+3. Ampliar variantes mantidas e adicionar Linux ARM64.
 4. Publicar benchmarks recorrentes de resolução e cache frio/quente.
 5. Adicionar opcionalmente transparência/Sigstore junto ao OpenPGP.
 

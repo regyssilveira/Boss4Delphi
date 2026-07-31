@@ -6,7 +6,7 @@ scale are kept separate from CLI feature count.
 | Capability | Boss4D | BOSS | DPM | GetIt | Cargo/npm/Composer class |
 |---|---|---|---|---|---|
 | Delphi dependency workflow | Full CLI, GUI and IDE | Full CLI and IDE complement | Full package workflow and IDE | Catalog installation | Not Delphi-specific |
-| Lazarus/FPC/Linux | Native FPC 3.2.2 CLI and release | Established Delphi/Lazarus workflow | Delphi-focused; Windows | No | Native per ecosystem |
+| Lazarus/FPC/POSIX | Native FPC 3.2.2 CLI and releases for Linux x86_64 and macOS arm64 | Established Delphi/Lazarus workflow | Delphi-focused; Windows | No | Native per ecosystem |
 | Daily CLI | Install, update, tree, why, outdated, run, global tools | Install, update, dependencies, run, global install | NuGet-style create/push/install/restore | IDE-driven | Broad and mature |
 | Public discovery | Git Registry v2 with 55 legacy entries; `.b4dpkg` catalog still needs population | Repository/name shortcuts and historical adoption | Operational hosted `delphi.dev` source | Vendor catalog | Large hosted registries |
 | Registry protocol | v1/v2 composition, sparse metadata, HTTP validators, mirrors, revocation | Git-oriented resolution | Multiple hosted/local sources | Vendor-controlled | Sparse/index APIs and CDNs |
@@ -58,7 +58,7 @@ targeted parity criteria:
 1. Populate the sparse Registry with signed `.b4dpkg` releases from maintainers.
 2. Add a hosted read/search frontend and CDN while keeping reviewed Git metadata
    authoritative.
-3. Add a native macOS release and broaden maintained package variants.
+3. Broaden maintained package variants and add Linux ARM64.
 4. Publish resolver and cold/warm-cache benchmarks on a recurring schedule.
 5. Add optional transparency-log/Sigstore identity alongside OpenPGP.
 

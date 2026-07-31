@@ -29,7 +29,8 @@ foreach ($artifact in @($matrix.artifacts)) {
 foreach ($required in @(
   'windows/x86/delphi/37.0',
   'windows/x86_64/delphi/37.0',
-  'linux/x86_64/fpc/3.2.2'
+  'linux/x86_64/fpc/3.2.2',
+  'macos/arm64/fpc/3.2.2'
 )) {
   if (-not $targets.ContainsKey($required)) {
     throw "Release matrix is missing target: $required"
@@ -80,8 +81,14 @@ foreach ($requiredText in @(
 }
 
 $updateSource = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\src\Posix\Boss4D.Posix.Update.pas') -Raw
-if (-not $updateSource.Contains('boss4d-linux-x86_64.tar.gz')) {
-  throw 'Linux matrix artifact no longer matches the self-update contract.'
+foreach ($requiredText in @(
+  "Result := 'boss4d-' + PlatformName",
+  "'arm64'",
+  "'x86_64'"
+)) {
+  if (-not $updateSource.Contains($requiredText)) {
+    throw "POSIX matrix artifact no longer matches self-update: $requiredText"
+  }
 }
 
 Write-Output 'Release artifact matrix: OK'

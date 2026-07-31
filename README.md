@@ -8,8 +8,9 @@
 
 **Boss4D** is a modern native dependency manager for Delphi and Lazarus
 projects. The Windows CLI is built with Delphi 13, the IDE plugin targets
-Delphi 10/10.1 and is validated locally with Delphi 10, 11, 12, and 13, and the Linux
-x86-64 CLI is built natively with FPC 3.2.2.
+Delphi 10/10.1 and is validated locally with Delphi 10, 11, 12, and 13. Native
+FPC 3.2.2 command-line releases are built and tested for Linux x86-64 and
+macOS arm64.
 
 ---
 
@@ -204,15 +205,15 @@ cd /d d:\Projetos\BossDelphi
 * **[Project Templates](docs/templates.md)**: Delphi, VCL, FMX, Horse+Dext API, DUnitX, Lazarus, and workspace presets.
 * **[Package Publishing](docs/publish.md)**: Dry-run, validation gates, token handling, and public/private registry contracts.
 * **[Version Management](docs/version-management.md)**: Registry versions, revocation, pin/unpin, upgrade/downgrade, mirrors, and rollback.
-* **[Platform Portability](docs/platform-portability.md)**: Portable contracts, current Linux parity, and the next POSIX targets.
+* **[Platform Portability](docs/platform-portability.md)**: Portable contracts, native Linux/macOS coverage, and explicit Windows capability boundaries.
 * **[Terminal Progress](docs/terminal-progress.md)**: Interactive, plain, JSON Lines, and quiet progress output for installs and CI.
 * **[Secure Self-update](docs/self-update.md)**: Release discovery, SHA-256 verification, staging, and installer handoff.
-* **[Release Artifact Matrix](docs/release-artifact-matrix.md)**: Windows/Linux builders, checksums, OIDC provenance, and tag promotion gates.
+* **[Release Artifact Matrix](docs/release-artifact-matrix.md)**: Windows/Linux/macOS builders, checksums, OIDC provenance, and tag promotion gates.
 * **[Publisher Onboarding](docs/publisher-onboarding.md)**: Public Registry identity, signer, immutable metadata, and review workflow.
 * **[Parity Completion Audit](docs/parity-audit-2026-07-30.md)**: Requirement-by-requirement implementation and verification evidence.
 * **[Immutable Package Format](docs/package-format.md)**: Deterministic `.b4dpkg`, verified installation, OpenPGP/in-toto evidence, source fallback, and compiler/platform variants.
 * **[Legacy Delphi Compatibility](docs/legacy-delphi.md)**: Full modern wizard plus legacy integration profiles for Delphi 10 Seattle/BDS 17.0 and Delphi 10.1 Berlin/BDS 18.0.
-* **[FPC/Linux CLI](docs/posix-cli.md)**: Native Linux build, dependency lifecycle, lock v3, frozen/offline CI, SemVer resolution, and FPCUnit tests.
+* **[FPC/POSIX CLI](docs/posix-cli.md)**: Native Linux/macOS builds, dependency lifecycle, lock v3, frozen/offline CI, SemVer resolution, and FPCUnit tests.
 * **[Static API Documentation](docs/api-documentation.md)**: Motivation, syntax, supported declarations, safe scanning, CI workflows, and current limits.
 * **[Competitive Positioning](docs/competitive-positioning.md)**: Evidence-based comparison with BOSS, DPM, GetIt, Lazarus OPM, and mature package ecosystems.
 * **[Resolution and Secure Credentials](docs/resolution-and-credentials.md)**: Highest/minimal SemVer policies and native credential storage.

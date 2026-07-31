@@ -16,6 +16,10 @@ $required = @(
   'build_release.bat',
   'test-delphi-plugin-matrix.ps1',
   'boss4d-linux-x86_64.tar.gz',
+  'macos-15',
+  'brew install fpc',
+  'boss4d-macos-*.tar.gz',
+  'shasum -a 256',
   'boss4d-windows.zip',
   'Boss4D_Setup.exe',
   'dist\bin\boss4d.exe pack',
@@ -26,7 +30,7 @@ $required = @(
   'artifact-matrix.json',
   'actions/attest-build-provenance@v2',
   'id-token: write',
-  'needs: [linux, windows]',
+  'needs: [linux, macos, windows]',
   "startsWith(github.ref, 'refs/tags/v')"
 )
 

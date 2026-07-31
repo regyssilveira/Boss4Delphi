@@ -30,7 +30,7 @@ See the [authoritative delivery plan](ide-packages-profiles-gui-plan.md).
 - [x] **[Story] Native Linux CLI**
   - Provide dependency, Registry, compliance, publishing, update, workspace,
     cache, credential, and global-tool workflows on Linux x86_64/FPC.
-- [ ] **[Story] Native macOS distribution**
+- [x] **[Story] Native macOS distribution**
   - Add a tested macOS host and release artifact while keeping RAD Studio and
     GetIt features capability-gated to Windows.
 

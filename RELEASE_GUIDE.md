@@ -58,6 +58,10 @@ Antes de qualquer release, compile todos os executáveis oficiais e os plugins d
    docker run --rm -v "${PWD}:/work" -w /work fpc-test:latest sh -lc "tar -czf installer/Output/boss4d-linux-x86_64.tar.gz -C .fpc-build boss4d"
    ```
 
+   O job macOS 15 arm64 da release compila a mesma fonte, executa toda a suíte
+   FPCUnit e publica `boss4d-macos-arm64.tar.gz`. Esse artefato deve vir do
+   runner macOS nativo, não de cross-compilação local.
+
 7. Gere o pacote imutável do Registry e sua proveniência:
 
 ```powershell
@@ -70,8 +74,8 @@ dist\bin\boss4d.exe pack --output "dist\boss4d-$version.b4dpkg"
    atestação OIDC do GitHub. A entrada no Registry v2 ainda exige a assinatura
    OpenPGP destacada.
 
-8. Gere `installer/Output/SHA256SUMS.txt` cobrindo o instalador, o arquivo
-   Linux, os dois SBOMs e as duas atestações.
+8. Gere `installer/Output/SHA256SUMS.txt` cobrindo o instalador, os arquivos
+   Linux/macOS, os dois SBOMs e as atestações.
 
 ---
 
