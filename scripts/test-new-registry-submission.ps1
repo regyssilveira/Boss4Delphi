@@ -25,9 +25,11 @@ try {
   $fingerprint = '1234567890ABCDEF1234567890ABCDEF12345678'
   $publishers = '{"schemaVersion":1,"publishers":[{"id":"demo","displayName":"Demo","githubOwners":["demo-owner"],"repositories":["github.com/demo/"],"allowedSigners":["' + $fingerprint + '"]}]}'
   $index = '{"schemaVersion":2,"includes":[],"sparse":[],"packages":[]}'
+  $legacyIndex = '{"schemaVersion":1,"packages":[{"name":"Demo Package","repository":"github.com/demo/package","description":"Legacy"},{"name":"Other","repository":"github.com/demo/other","description":"Keep"}]}'
   foreach ($root in @($base, $current)) {
     Write-Utf8 (Join-Path $root 'registry\publishers.json') $publishers
     Write-Utf8 (Join-Path $root 'registry\index-v2.json') $index
+    Write-Utf8 (Join-Path $root 'registry\index-v1.json') $legacyIndex
   }
 
   & $generator -Root $current -PackageName 'Demo Package' -Publisher demo `
@@ -48,9 +50,30 @@ try {
       @($generatedIndex.sparse) -notcontains 'packages/demo-package.json') {
     throw 'Generator did not normalize evidence or update sparse metadata.'
   }
+  $generatedLegacyIndex = Get-Content -LiteralPath `
+    (Join-Path $current 'registry\index-v1.json') -Raw | ConvertFrom-Json
+  if (@($generatedLegacyIndex.packages).Count -ne 1 -or
+      $generatedLegacyIndex.packages[0].name -cne 'Other') {
+    throw 'Generator did not atomically replace matching legacy discovery.'
+  }
   & $validator -Root $current -BaseRoot $base `
     -ChangedFiles @('registry/packages/demo-package.json',
-      'registry/index-v2.json') -Submitter demo-owner
+      'registry/index-v1.json', 'registry/index-v2.json') -Submitter demo-owner
+
+  $tampered = Join-Path $temp 'tampered'
+  Copy-Item -LiteralPath $current -Destination $tampered -Recurse
+  $tamperedLegacyPath = Join-Path $tampered 'registry\index-v1.json'
+  $tamperedLegacy = Get-Content -LiteralPath $tamperedLegacyPath -Raw |
+    ConvertFrom-Json
+  $tamperedLegacy.packages = @()
+  Write-Utf8 $tamperedLegacyPath (
+    $tamperedLegacy | ConvertTo-Json -Depth 20)
+  Expect-Failure {
+    & $validator -Root $tampered -BaseRoot $base `
+      -ChangedFiles @('registry/packages/demo-package.json',
+        'registry/index-v1.json', 'registry/index-v2.json') `
+      -Submitter demo-owner
+  } 'matching schema-v2 metadata'
 
   New-Item -ItemType Directory -Force `
     (Join-Path $base 'registry\packages') | Out-Null
@@ -58,6 +81,8 @@ try {
     (Join-Path $base 'registry\packages\demo-package.json') -Force
   Copy-Item -LiteralPath (Join-Path $current 'registry\index-v2.json') `
     -Destination (Join-Path $base 'registry\index-v2.json') -Force
+  Copy-Item -LiteralPath (Join-Path $current 'registry\index-v1.json') `
+    -Destination (Join-Path $base 'registry\index-v1.json') -Force
   & $generator -Root $current -PackageName 'Demo Package' -Publisher demo `
     -Repository 'github.com/demo/package' -SignerFingerprint $fingerprint `
     -Version '1.1.0' -Artifact 'https://example.test/demo-1.1.b4dpkg' `

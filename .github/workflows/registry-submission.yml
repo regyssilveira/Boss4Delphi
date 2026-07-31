@@ -5,6 +5,7 @@ on:
     paths:
       - "registry/packages/**"
       - "registry/publishers.json"
+      - "registry/index-v1.json"
       - "registry/index-v2.json"
       - "scripts/validate-registry-submission.ps1"
       - "scripts/test-registry-community-governance.ps1"

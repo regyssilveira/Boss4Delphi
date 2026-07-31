@@ -58,6 +58,7 @@ foreach ($uriValue in @($Artifact, $Signature, $Provenance)) {
 
 $publisherPath = Join-Path $Root 'registry\publishers.json'
 $indexPath = Join-Path $Root 'registry\index-v2.json'
+$legacyIndexPath = Join-Path $Root 'registry\index-v1.json'
 $packageDirectory = Join-Path $Root 'registry\packages'
 $packagePath = Join-Path $packageDirectory "$slug.json"
 $publishers = Read-Json $publisherPath
@@ -107,6 +108,8 @@ $versionEntry = [ordered]@{
   provenance = $Provenance
 }
 $originalPackage = ''
+$originalLegacyIndex = ''
+$legacyIndexChanged = $false
 if ($AppendVersion) {
   $originalPackage = Get-Content -LiteralPath $packagePath -Raw
   $packageDocument = $originalPackage | ConvertFrom-Json
@@ -143,6 +146,21 @@ if ($AppendVersion) {
     packages = @($packageEntry)
   }
   $index.sparse = @($existingSparse + $sparsePath | Sort-Object -Unique)
+  if (Test-Path -LiteralPath $legacyIndexPath -PathType Leaf) {
+    $originalLegacyIndex = Get-Content -LiteralPath $legacyIndexPath -Raw
+    $legacyIndex = $originalLegacyIndex | ConvertFrom-Json
+    $legacyPackages = @($legacyIndex.packages)
+    $remainingLegacyPackages = @($legacyPackages | Where-Object {
+      $legacySlug = ($_.name.ToLowerInvariant() -replace
+        '[^a-z0-9]+', '-').Trim('-')
+      -not ($legacySlug -ceq $slug -and
+        $_.repository -ieq $Repository)
+    })
+    if ($remainingLegacyPackages.Count -ne $legacyPackages.Count) {
+      $legacyIndex.packages = $remainingLegacyPackages
+      $legacyIndexChanged = $true
+    }
+  }
 }
 $packageJson = $packageDocument | ConvertTo-Json -Depth 20
 $indexJson = $index | ConvertTo-Json -Depth 20
@@ -152,6 +170,10 @@ New-Item -ItemType Directory -Force $packageDirectory | Out-Null
 try {
   Write-Utf8 $packagePath $packageJson
   Write-Utf8 $indexPath $indexJson
+  if ($legacyIndexChanged) {
+    Write-Utf8 $legacyIndexPath (
+      $legacyIndex | ConvertTo-Json -Depth 20)
+  }
 } catch {
   if ($AppendVersion -and $originalPackage) {
     [IO.File]::WriteAllText($packagePath, $originalPackage,
@@ -161,6 +183,10 @@ try {
   }
   [IO.File]::WriteAllText($indexPath, $originalIndex,
     [Text.UTF8Encoding]::new($false))
+  if ($legacyIndexChanged) {
+    [IO.File]::WriteAllText($legacyIndexPath, $originalLegacyIndex,
+      [Text.UTF8Encoding]::new($false))
+  }
   throw
 }
 
@@ -169,4 +195,7 @@ if ($AppendVersion) {
 } else {
   Write-Output "Registry submission created: registry/packages/$slug.json"
   Write-Output "Sparse index updated: registry/index-v2.json"
+  if ($legacyIndexChanged) {
+    Write-Output "Legacy discovery entry migrated: registry/index-v1.json"
+  }
 }

@@ -133,7 +133,8 @@ foreach ($entry in @($indexDocument.sparse)) {
 if ($ChangedFiles.Count -eq 0) {
   if ($BaseRef) {
     $ChangedFiles = @(& git -C $Root diff --name-only "$BaseRef...HEAD" -- `
-      'registry/packages/*.json' 'registry/publishers.json' 'registry/index-v2.json')
+      'registry/packages/*.json' 'registry/publishers.json' `
+      'registry/index-v1.json' 'registry/index-v2.json')
   } else {
     $packageDirectory = Join-Path $Root 'registry\packages'
     if (Test-Path -LiteralPath $packageDirectory -PathType Container) {
@@ -186,6 +187,7 @@ if (($normalizedChanges -contains 'registry/index-v2.json') -and
   }
 }
 
+$changedPackageIdentities = @{}
 foreach ($relativePath in $ChangedFiles) {
   $relativePath = $relativePath.Replace('/', '\')
   if ($relativePath -notlike 'registry\packages\*.json') { continue }
@@ -198,6 +200,9 @@ foreach ($relativePath in $ChangedFiles) {
     throw "$relativePath must contain exactly one schema-v2 package."
   }
   $package = @($document.packages)[0]
+  $packageIdentity = ($package.name.ToLowerInvariant() + '|' +
+    $package.repository.ToLowerInvariant())
+  $changedPackageIdentities[$packageIdentity] = $true
   $slug = ($package.name.ToLowerInvariant() -replace '[^a-z0-9]+', '-').Trim('-')
   if (([IO.Path]::GetFileNameWithoutExtension($relativePath)) -cne $slug) {
     throw "$relativePath must use normalized package filename '$slug.json'."
@@ -243,6 +248,48 @@ foreach ($relativePath in $ChangedFiles) {
         throw "$relativePath modifies immutable version $($baseVersion.version)."
       }
     }
+  }
+}
+
+if ($normalizedChanges -contains 'registry/index-v1.json') {
+  $baseLegacy = Get-BaseJson 'registry/index-v1.json'
+  $currentLegacy = Read-JsonObject (
+    Join-Path $Root 'registry\index-v1.json')
+  if ($null -eq $baseLegacy -or $baseLegacy.schemaVersion -ne 1 -or
+      $currentLegacy.schemaVersion -ne 1) {
+    throw 'Legacy migration requires schema-v1 base and current indexes.'
+  }
+  $baseLegacyEntries = @{}
+  foreach ($legacyPackage in @($baseLegacy.packages)) {
+    $identity = ($legacyPackage.name.ToLowerInvariant() + '|' +
+      $legacyPackage.repository.ToLowerInvariant())
+    $baseLegacyEntries[$identity] = ConvertTo-StableJson $legacyPackage
+  }
+  $currentLegacyEntries = @{}
+  foreach ($legacyPackage in @($currentLegacy.packages)) {
+    $identity = ($legacyPackage.name.ToLowerInvariant() + '|' +
+      $legacyPackage.repository.ToLowerInvariant())
+    if (-not $baseLegacyEntries.ContainsKey($identity)) {
+      throw "Legacy Registry cannot add package '$($legacyPackage.name)'."
+    }
+    if ($baseLegacyEntries[$identity] -cne
+        (ConvertTo-StableJson $legacyPackage)) {
+      throw "Legacy Registry cannot modify package '$($legacyPackage.name)'."
+    }
+    $currentLegacyEntries[$identity] = $true
+  }
+  $removedLegacyCount = 0
+  foreach ($identity in $baseLegacyEntries.Keys) {
+    if (-not $currentLegacyEntries.ContainsKey($identity)) {
+      $removedLegacyCount++
+      if (-not $changedPackageIdentities.ContainsKey($identity)) {
+        throw "Legacy Registry package '$identity' can only be removed " +
+          'when matching schema-v2 metadata is submitted.'
+      }
+    }
+  }
+  if ($removedLegacyCount -eq 0) {
+    throw 'Legacy Registry changes must migrate at least one package.'
   }
 }
 
