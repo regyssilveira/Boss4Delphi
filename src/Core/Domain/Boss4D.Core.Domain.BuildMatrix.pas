@@ -21,6 +21,8 @@ type
   private
     FPath: string;
     FPackageName: string;
+    FIDEPackageDescription: string;
+    FPalettePage: string;
     FKind: string;
     FDependsOn: TList<string>;
     FCompilers: TList<string>;
@@ -33,6 +35,9 @@ type
     destructor Destroy; override;
     property Path: string read FPath write FPath;
     property PackageName: string read FPackageName write FPackageName;
+    property IDEPackageDescription: string read FIDEPackageDescription
+      write FIDEPackageDescription;
+    property PalettePage: string read FPalettePage write FPalettePage;
     property Kind: string read FKind write FKind;
     property Role: TBoss4DBuildProjectRole read GetRole write SetRole;
     property DependsOn: TList<string> read FDependsOn;
@@ -96,6 +101,8 @@ type
     FPackageName: string;
     FComponentName: string;
     FComponentNameDeclared: Boolean;
+    FIDEPackageDescription: string;
+    FPalettePage: string;
     FProjectPath: string;
     FProjectKind: string;
     FCompiler: string;
@@ -112,6 +119,9 @@ type
     property ComponentName: string read FComponentName write FComponentName;
     property ComponentNameDeclared: Boolean read FComponentNameDeclared
       write FComponentNameDeclared;
+    property IDEPackageDescription: string read FIDEPackageDescription
+      write FIDEPackageDescription;
+    property PalettePage: string read FPalettePage write FPalettePage;
     property ProjectPath: string read FProjectPath write FProjectPath;
     property ProjectKind: string read FProjectKind write FProjectKind;
     property Role: TBoss4DBuildProjectRole read GetRole write SetRole;

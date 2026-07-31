@@ -315,6 +315,9 @@ begin
                         LTarget.ComponentName := LProject.PackageName;
                         LTarget.ComponentNameDeclared :=
                           not LProject.PackageName.IsEmpty;
+                        LTarget.IDEPackageDescription :=
+                          LProject.IDEPackageDescription;
+                        LTarget.PalettePage := LProject.PalettePage;
                         if LTarget.ComponentName.IsEmpty then
                           LTarget.ComponentName :=
                             TPath.GetFileNameWithoutExtension(

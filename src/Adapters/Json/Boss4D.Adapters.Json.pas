@@ -303,6 +303,13 @@ begin
     try
       LProject.Path := ReadString(LProjectObject, 'path');
       LProject.PackageName := ReadString(LProjectObject, 'packageName');
+      var LIDEObject := ReadObject(LProjectObject, 'ide');
+      if Assigned(LIDEObject) then
+      begin
+        LProject.IDEPackageDescription :=
+          ReadString(LIDEObject, 'description');
+        LProject.PalettePage := ReadString(LIDEObject, 'palettePage');
+      end;
       LProject.Kind := ReadString(LProjectObject, 'kind');
       if LProject.Kind.IsEmpty then
         LProject.Kind := 'runtime';
@@ -556,6 +563,17 @@ begin
         LProjectObject.AddPair('path', LProject.Path);
         if not LProject.PackageName.IsEmpty then
           LProjectObject.AddPair('packageName', LProject.PackageName);
+        if not LProject.IDEPackageDescription.IsEmpty or
+           not LProject.PalettePage.IsEmpty then
+        begin
+          var LIDEObject := TJSONObject.Create;
+          if not LProject.IDEPackageDescription.IsEmpty then
+            LIDEObject.AddPair('description',
+              LProject.IDEPackageDescription);
+          if not LProject.PalettePage.IsEmpty then
+            LIDEObject.AddPair('palettePage', LProject.PalettePage);
+          LProjectObject.AddPair('ide', LIDEObject);
+        end;
         LProjectObject.AddPair('kind', LProject.Kind);
         AddStringArrayIfPresent(LProjectObject, 'dependsOn',
           LProject.DependsOn);

@@ -35,6 +35,8 @@ begin
     LDesign.ComponentName := 'Design';
     LDesign.ProjectPath := 'Design.dproj';
     LDesign.Role := TBoss4DBuildProjectRole.DesignPackage;
+    LDesign.IDEPackageDescription := 'Design integration';
+    LDesign.PalettePage := 'Boss4D';
     LDesign.Compiler := '37.0';
     LDesign.Platform := 'Win32';
     LDesign.Configuration := 'Release';
@@ -67,6 +69,9 @@ begin
       Assert.AreEqual('isolated', LPlan[0].Identity.Profile);
       Assert.AreEqual('Design.dproj', LPlan[1].ProjectPath);
       Assert.AreEqual(TBoss4DComponentState.Compiled, LPlan[1].State);
+      Assert.AreEqual('Design integration',
+        LPlan[1].IDEPackageDescription);
+      Assert.AreEqual('Boss4D', LPlan[1].PalettePage);
       Assert.AreEqual<Integer>(1, LPlan[1].Dependencies.Count);
     finally
       LPlan.Free;

@@ -23,16 +23,21 @@ type
   private
     FIdentity: TBoss4DComponentPackageIdentity;
     FProjectPath: string;
+    FIDEPackageDescription: string;
+    FPalettePage: string;
     FDependencies: TList<string>;
     FState: TBoss4DComponentState;
   public
     constructor Create(
       const AIdentity: TBoss4DComponentPackageIdentity;
       const AProjectPath: string; const ADependencies: TList<string>;
-      const AState: TBoss4DComponentState);
+      const AState: TBoss4DComponentState;
+      const AIDEPackageDescription, APalettePage: string);
     destructor Destroy; override;
     property Identity: TBoss4DComponentPackageIdentity read FIdentity;
     property ProjectPath: string read FProjectPath;
+    property IDEPackageDescription: string read FIDEPackageDescription;
+    property PalettePage: string read FPalettePage;
     property Dependencies: TList<string> read FDependencies;
     property State: TBoss4DComponentState read FState;
   end;
@@ -73,11 +78,14 @@ end;
 constructor TBoss4DComponentPlanItem.Create(
   const AIdentity: TBoss4DComponentPackageIdentity;
   const AProjectPath: string; const ADependencies: TList<string>;
-  const AState: TBoss4DComponentState);
+  const AState: TBoss4DComponentState;
+  const AIDEPackageDescription, APalettePage: string);
 begin
   inherited Create;
   FIdentity := AIdentity;
   FProjectPath := AProjectPath;
+  FIDEPackageDescription := AIDEPackageDescription;
+  FPalettePage := APalettePage;
   FState := AState;
   FDependencies := TList<string>.Create;
   FDependencies.AddRange(ADependencies);
@@ -113,7 +121,8 @@ begin
         if Assigned(AStateResolver) then
           LState := AStateResolver(LIdentity);
         Result.Add(TBoss4DComponentPlanItem.Create(LIdentity,
-          LTarget.ProjectPath, LTarget.DependsOn, LState));
+          LTarget.ProjectPath, LTarget.DependsOn, LState,
+          LTarget.IDEPackageDescription, LTarget.PalettePage));
       end;
     finally
       LOrdered.Free;

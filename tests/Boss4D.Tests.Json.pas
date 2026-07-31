@@ -235,6 +235,8 @@ begin
     LProject := TBoss4DBuildProject.Create;
     LProject.Path := 'packages/design.dproj';
     LProject.PackageName := 'DesignPackage';
+    LProject.IDEPackageDescription := 'Design-time integration';
+    LProject.PalettePage := 'Boss4D Samples';
     LProject.Kind := 'design';
     LProject.DependsOn.Add('packages/runtime.dproj');
     LProject.Compilers.Add('37.0');
@@ -260,6 +262,10 @@ begin
     Assert.AreEqual('design', LLoaded.BuildMatrix.Projects[0].Kind);
     Assert.AreEqual('DesignPackage',
       LLoaded.BuildMatrix.Projects[0].PackageName);
+    Assert.AreEqual('Design-time integration',
+      LLoaded.BuildMatrix.Projects[0].IDEPackageDescription);
+    Assert.AreEqual('Boss4D Samples',
+      LLoaded.BuildMatrix.Projects[0].PalettePage);
     Assert.AreEqual<Integer>(1,
       LLoaded.BuildMatrix.Projects[0].DependsOn.Count);
     Assert.AreEqual('packages/runtime.dproj',
