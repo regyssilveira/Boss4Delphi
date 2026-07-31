@@ -110,6 +110,7 @@ type
     procedure HandleBuild(const AArgs: TArray<string>);
     procedure HandleSupport(const AArgs: TArray<string>);
     procedure HandleIDEUninstall(const AArgs: TArray<string>);
+    procedure HandleIDEProfile(const AArgs: TArray<string>);
     procedure HandleIDE(const AArgs: TArray<string>);
     function ParseSbomArguments(
       const AArgs: TArray<string>): TBoss4DSbomCommandOptions;
@@ -155,6 +156,7 @@ uses
   Boss4D.Core.Domain.Sbom,
   Boss4D.Core.Domain.Env,
   Boss4D.Core.Domain.Consts,
+  Boss4D.Core.Domain.IDEProfile,
   Boss4D.Core.Platform,
   Boss4D.Core.Services.Dependencies,
   Boss4D.Core.Services.Audit,
@@ -171,7 +173,8 @@ uses
   Boss4D.Core.Services.BuildConventions,
   Boss4D.Core.Services.BuildCapabilities,
   Boss4D.Core.Services.BuildDoctor,
-  Boss4D.Core.Services.IDERegistration;
+  Boss4D.Core.Services.IDERegistration,
+  Boss4D.Core.Services.IDEProfiles;
 
 class function TBoss4DParserRuntime.Create(const ACompiler: IBoss4DCompiler;
   const ARegistrationHandler: TBoss4DIDERegistrationHandler;
@@ -526,6 +529,170 @@ begin
     'Pacote removido de todas as IDEs: %d registros.', [LCount]);
 end;
 
+procedure TBoss4DCommandLineParser.HandleIDEProfile(
+  const AArgs: TArray<string>);
+var
+  LStore: TBoss4DIDEProfileStore;
+  LService: TBoss4DIDEProfileService;
+  LProfile: TBoss4DIDEProfile;
+  LCompiler: string;
+  LDescription: string;
+  LExecutable: string;
+  I: Integer;
+begin
+  if Length(AArgs) < 3 then
+    raise EArgumentException.Create(
+      'Uso: boss4d ide profile list|create|show|clone|remove|' +
+      'export|import|launch.');
+  LStore := TBoss4DIDEProfileStore.Create(TPath.Combine(
+    GetBossHome, 'ide-profiles.json'));
+  LService := TBoss4DIDEProfileService.Create(LStore,
+    TPath.Combine(GetBossHome, 'ide-profiles'));
+  try
+    if SameText(AArgs[2], 'list') then
+    begin
+      var LProfiles := LService.List;
+      try
+        for LProfile in LProfiles do
+          FLogger.Log(TBoss4DLogLevel.Info,
+            '%s  %s  Delphi %s  %s',
+            [LProfile.Id, LProfile.Name, LProfile.Compiler,
+             LProfile.RegistryBranch]);
+      finally
+        LProfiles.Free;
+      end;
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'create') then
+    begin
+      if Length(AArgs) < 4 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile create <nome> --compiler <versao>.');
+      I := 4;
+      while I < Length(AArgs) do
+      begin
+        if I + 1 >= Length(AArgs) then
+          raise EArgumentException.Create(
+            'Informe um valor para ' + AArgs[I] + '.');
+        if SameText(AArgs[I], '--compiler') then
+          LCompiler := AArgs[I + 1]
+        else if SameText(AArgs[I], '--description') then
+          LDescription := AArgs[I + 1]
+        else if SameText(AArgs[I], '--executable') then
+          LExecutable := AArgs[I + 1]
+        else
+          raise EArgumentException.Create(
+            'Opcao desconhecida para ide profile create: ' + AArgs[I]);
+        Inc(I, 2);
+      end;
+      if LCompiler.Trim.IsEmpty then
+        raise EArgumentException.Create('--compiler e obrigatorio.');
+      LCompiler := TBoss4DBuildConventions.ResolveCompiler(
+        LCompiler).BDSVersion;
+      if LExecutable.Trim.IsEmpty then
+      begin
+        var LIDEPath := FRegistry.GetDelphiPath(LCompiler);
+        if not LIDEPath.Trim.IsEmpty then
+          LExecutable := TPath.Combine(LIDEPath, 'bin\bds.exe');
+      end;
+      LProfile := LService.CreateProfile(AArgs[3], LDescription,
+        LCompiler, LExecutable);
+      try
+        FLogger.Log(TBoss4DLogLevel.Info,
+          'Perfil IDE criado: %s (%s).',
+          [LProfile.Id, LProfile.RegistryBranch]);
+      finally
+        LProfile.Free;
+      end;
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'show') then
+    begin
+      if Length(AArgs) <> 4 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile show <perfil>.');
+      LProfile := LService.Get(AArgs[3]);
+      try
+        FLogger.Log(TBoss4DLogLevel.Info,
+          '%s | Delphi %s | branch %s | packages: %s',
+          [LProfile.Name, LProfile.Compiler, LProfile.RegistryBranch,
+           string.Join(', ', LProfile.Packages.ToArray)]);
+      finally
+        LProfile.Free;
+      end;
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'clone') then
+    begin
+      if Length(AArgs) <> 5 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile clone <origem> <novo-nome>.');
+      LProfile := LService.CloneProfile(AArgs[3], AArgs[4]);
+      try
+        FLogger.Log(TBoss4DLogLevel.Info,
+          'Perfil IDE clonado: %s.', [LProfile.Id]);
+      finally
+        LProfile.Free;
+      end;
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'remove') then
+    begin
+      if Length(AArgs) <> 4 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile remove <perfil>.');
+      LService.Remove(AArgs[3]);
+      FLogger.Log(TBoss4DLogLevel.Info,
+        'Perfil IDE removido: %s.', [AArgs[3]]);
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'export') then
+    begin
+      if (Length(AArgs) <> 6) or
+         not SameText(AArgs[4], '--output') then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile export <perfil> --output <arquivo>.');
+      LService.ExportProfile(AArgs[3], AArgs[5]);
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'import') then
+    begin
+      if Length(AArgs) <> 4 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile import <arquivo>.');
+      LProfile := LService.ImportProfile(AArgs[3]);
+      try
+        FLogger.Log(TBoss4DLogLevel.Info,
+          'Perfil IDE importado: %s.', [LProfile.Id]);
+      finally
+        LProfile.Free;
+      end;
+      Exit;
+    end;
+
+    if SameText(AArgs[2], 'launch') then
+    begin
+      if Length(AArgs) <> 4 then
+        raise EArgumentException.Create(
+          'Uso: boss4d ide profile launch <perfil>.');
+      LService.Launch(AArgs[3]);
+      Exit;
+    end;
+
+    raise EArgumentException.Create(
+      'Comando ide profile desconhecido: ' + AArgs[2]);
+  finally
+    LService.Free;
+    LStore.Free;
+  end;
+end;
+
 procedure TBoss4DCommandLineParser.HandleIDE(
   const AArgs: TArray<string>);
 var
@@ -546,6 +713,11 @@ begin
   LRegistrationService := nil;
   LInventory := nil;
   try
+    if SameText(AArgs[1], 'profile') then
+    begin
+      HandleIDEProfile(AArgs);
+      Exit;
+    end;
     if SameText(AArgs[1], 'repair') then
     begin
       if Length(AArgs) <> 2 then

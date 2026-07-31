@@ -149,6 +149,8 @@ type
     procedure TestCLIBuildExecutesSelectedMatrix;
     [Test]
     procedure TestCLIIDEUnregisterAndRepairAreExactlyScoped;
+    [Test]
+    procedure TestCLIIDEProfileLifecycle;
 
     [Test]
     procedure TestCompilerAutodetectAndOverride;
@@ -1611,6 +1613,57 @@ begin
     else
       SetEnvironmentVariable('BOSS_HOME', PChar(LPreviousBossHome));
     LUninstalledPackages.Free;
+    LParser.Free;
+    LConfig.Free;
+    LInstall.Free;
+    LInit.Free;
+  end;
+end;
+
+procedure TTestsServices.TestCLIIDEProfileLifecycle;
+var
+  LInit: TBoss4DInitService;
+  LInstall: TBoss4DInstallService;
+  LConfig: TBoss4DConfigService;
+  LParser: TBoss4DCommandLineParser;
+  LLogger: TTestLogger;
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LExportPath: string;
+  LStorePath: string;
+begin
+  LLogger := TTestLogger.Create;
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LInit := TBoss4DInitService.Create(LPackageRepo, LLogger);
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo,
+    TGitClientMock.Create, THttpClientMock.Create, TCompilerMock.Create,
+    LLogger);
+  LConfig := TBoss4DConfigService.Create(LLogger);
+  LParser := TBoss4DCommandLineParser.Create(LLogger, LInit, LInstall,
+    LConfig, LPackageRepo, TRegistryMock.Create);
+  try
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'ide', 'profile', 'create', 'Developer CI',
+      '--compiler', 'd13', '--description', 'isolated profile'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('developer-ci'));
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'ide', 'profile', 'show', 'developer-ci'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('Boss4D-developer-ci'));
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'ide', 'profile', 'clone', 'developer-ci', 'QA'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('qa'));
+    LExportPath := TPath.Combine(FTempDir, 'qa-export.json');
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'ide', 'profile', 'export', 'qa', '--output', LExportPath));
+    Assert.IsTrue(TFile.Exists(LExportPath));
+    LParser.ParseAndExecute(TArray<string>.Create(
+      'ide', 'profile', 'remove', 'developer-ci'));
+    LStorePath := TPath.Combine(GetBossHome, 'ide-profiles.json');
+    var LContent := TFile.ReadAllText(LStorePath, TEncoding.UTF8);
+    Assert.IsFalse(LContent.Contains('"id": "developer-ci"'));
+    Assert.IsTrue(LContent.Contains('"id": "qa"'));
+  finally
     LParser.Free;
     LConfig.Free;
     LInstall.Free;
