@@ -160,6 +160,7 @@ type
     procedure TestAddAndRemoveDependency;
     procedure TestListHonorsProduction;
     procedure TestInstallWritesV3Lock;
+    procedure TestInstallResolvesRegistryAliasWithoutLockedRegistryAccess;
     procedure TestFrozenRejectsManifestDrift;
     procedure TestHighestVersionResolution;
     procedure TestMinimalVersionResolution;
@@ -1078,6 +1079,42 @@ begin
     AssertTrue(Assigned(LLock.Find('installedModules')));
   finally
     LLock.Free;
+  end;
+end;
+
+procedure TPosixCoreTests.
+  TestInstallResolvesRegistryAliasWithoutLockedRegistryAccess;
+var
+  LDir, LRegistryPath: string;
+  LOptions: TBoss4DInstallOptions;
+  LExisting, LEntry: TJSONObject;
+begin
+  LDir := NewTempDirectory;
+  LRegistryPath := IncludeTrailingPathDelimiter(LDir) + 'registry.json';
+  SaveFixture(LRegistryPath,
+    '{"schemaVersion":1,"packages":[{"name":"Horse",' +
+    '"repository":"github.com/HashLoad/horse","version":"3.2.0"}]}');
+  FillChar(LOptions, SizeOf(LOptions), 0);
+  LOptions.RegistrySource := LRegistryPath;
+  AssertEquals('github.com/HashLoad/horse',
+    ResolveDependencyRepository('horse', LOptions, nil));
+  AssertEquals('github.com/example/direct',
+    ResolveDependencyRepository('github.com/example/direct',
+      LOptions, nil));
+
+  LExisting := TJSONObject.Create;
+  try
+    LEntry := TJSONObject.Create;
+    LEntry.Add('name', 'horse');
+    LEntry.Add('repository', 'github.com/HashLoad/horse');
+    LExisting.Add('https://github.com/hashload/horse', LEntry);
+    LOptions.Locked := True;
+    LOptions.RegistrySource := IncludeTrailingPathDelimiter(LDir) +
+      'must-not-be-read.json';
+    AssertEquals('github.com/HashLoad/horse',
+      ResolveDependencyRepository('horse', LOptions, LExisting));
+  finally
+    LExisting.Free;
   end;
 end;
 

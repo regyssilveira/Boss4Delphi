@@ -58,7 +58,7 @@ registered publisher scope:
 | Boss4Delphi | v1.6.0 | First end-to-end proof |
 | horse-rate-limit | v1.0.0 | Blocked: undeclared REST test dependency and missing test unit |
 | horse-compression-v2 | v1.0.0 | Blocked: tag declares `2.0.0` in `boss.json` |
-| horse-static | v1.0.0 | Blocked: dependency alias resolves to `https://horse/` |
+| horse-static | v1.0.0 | Blocked: test manifest references a nonexistent repository |
 | horse-dto | v1.0.0 | Blocked: does not compile against resolved Horse 3.2.0 |
 | horse-rbac | v1.0.0 | Blocked: tests do not compile against resolved Horse 3.2.0 |
 | horse-schema-validation | v1.0.0 | Ready: install, compile, and 10/10 tests pass |

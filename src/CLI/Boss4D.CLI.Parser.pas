@@ -2262,6 +2262,8 @@ var
   LOptions: TBoss4DInstallOptions;
   I: Integer;
   LProgressMode: string;
+  LIndex: TBoss4DPackageIndexService;
+  LHttp: IBoss4DHttpClient;
 begin
   LDepToInstall := '';
   LOptions := Default(TBoss4DInstallOptions);
@@ -2365,7 +2367,27 @@ begin
       '--locked instala somente o grafo completo declarado no lock.');
   FInstallService.SetProgressMode(LProgressMode);
   LOptions.InstallSingle := LDepToInstall;
-  FInstallService.Execute(LOptions);
+  LHttp := TBoss4DHttpNativeAdapter.Create;
+  LIndex := TBoss4DPackageIndexService.Create(
+    FConfigService, LHttp, FLogger);
+  try
+    FInstallService.SetDependencyAliasResolver(
+      function(const AAlias: string): string
+      begin
+        Result := '';
+        var LEntry := LIndex.Info(AAlias);
+        try
+          if Assigned(LEntry) then
+            Result := LEntry.Repository;
+        finally
+          LEntry.Free;
+        end;
+      end);
+    FInstallService.Execute(LOptions);
+  finally
+    FInstallService.SetDependencyAliasResolver(nil);
+    LIndex.Free;
+  end;
 end;
 
 procedure TBoss4DCommandLineParser.HandleCI(const AArgs: TArray<string>);

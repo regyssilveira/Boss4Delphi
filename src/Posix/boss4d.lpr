@@ -172,6 +172,10 @@ begin
       LOptions.Offline := HasOption('--offline');
       LOptions.Production := HasOption('--production');
       LOptions.Resolution := OptionValue('--resolution', 'highest');
+      LOptions.RegistrySource := OptionValue('--registry',
+        GetEnvironmentVariable('BOSS4D_REGISTRY'));
+      if LOptions.RegistrySource = '' then
+        LOptions.RegistrySource := PublicRegistryUrl;
       if not SameText(LOptions.Resolution, 'highest') and
          not SameText(LOptions.Resolution, 'minimal') then
         raise Exception.Create('resolution must be highest or minimal');

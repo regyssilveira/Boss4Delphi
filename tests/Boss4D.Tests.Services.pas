@@ -62,6 +62,8 @@ type
     procedure TestInstallBuildMatrixTriggersAutomaticIDEInstallation;
     [Test]
     procedure TestInstallNoRegisterSkipsLibraryPathIntegration;
+    [Test]
+    procedure TestInstallResolvesRegistryAliasIntoCanonicalLock;
 
     [Test]
     procedure TestInstallBranchDependency;
@@ -1284,6 +1286,75 @@ begin
     LInstall.Execute(LOptions);
     Assert.AreEqual(0, LPathCalls,
       '--no-register nao deve alterar Library Paths globais.');
+  finally
+    LInstall.Free;
+  end;
+end;
+
+procedure TTestsServices.TestInstallResolvesRegistryAliasIntoCanonicalLock;
+var
+  LPackageRepo: IBoss4DPackageRepository;
+  LLockRepo: IBoss4DLockRepository;
+  LPackage: TBoss4DPackage;
+  LInstall: TBoss4DInstallService;
+  LOptions: TBoss4DInstallOptions;
+  LGit: TGitClientMock;
+  LLock: TBoss4DLock;
+  LCanonical: TBoss4DDependency;
+  LLocked: TBoss4DLockedDependency;
+  LResolverCalls: Integer;
+begin
+  LPackageRepo := TBoss4DPackageJsonRepository.Create;
+  LLockRepo := TBoss4DLockJsonRepository.Create;
+  LPackage := TBoss4DPackage.Create;
+  try
+    LPackage.Name := 'registry-alias-install';
+    LPackage.Version := '1.0.0';
+    LPackage.AddDependency('horse', '^3.1.0');
+    LPackageRepo.Save(LPackage, GetBossFile);
+  finally
+    LPackage.Free;
+  end;
+  LGit := TGitClientMock.Create;
+  LGit.AddMockTags('github.com/hashload/horse',
+    TArray<string>.Create('v3.1.0'));
+  LResolverCalls := 0;
+  LInstall := TBoss4DInstallService.Create(LPackageRepo, LLockRepo,
+    LGit, THttpClientMock.Create, TCompilerMock.Create,
+    TTestLogger.Create);
+  try
+    LInstall.SetDependencyAliasResolver(
+      function(const AAlias: string): string
+      begin
+        Inc(LResolverCalls);
+        Assert.AreEqual('horse', AAlias);
+        Result := 'github.com/hashload/horse';
+      end);
+    LOptions := Default(TBoss4DInstallOptions);
+    LOptions.InstallIDEs := False;
+    LInstall.Execute(LOptions);
+    LLock := LLockRepo.Load(TPath.Combine(FTempDir, FILE_PACKAGE_LOCK));
+    try
+      LCanonical := TBoss4DDependency.Create(
+        'github.com/hashload/horse', '');
+      try
+        Assert.IsTrue(LLock.GetInstalled(LCanonical, LLocked));
+        Assert.IsTrue(LLock.RootDependencies.Contains(
+          LCanonical.GetKey));
+        Assert.IsFalse(LLock.RootDependencies.Contains('https://horse'));
+      finally
+        LCanonical.Free;
+      end;
+    finally
+      LLock.Free;
+    end;
+    Assert.IsTrue(LResolverCalls > 0);
+
+    var LCallsBeforeLocked := LResolverCalls;
+    LOptions.Locked := True;
+    LInstall.Execute(LOptions);
+    Assert.AreEqual(LCallsBeforeLocked, LResolverCalls,
+      'Instalacao congelada deve resolver alias somente pelo lock.');
   finally
     LInstall.Free;
   end;

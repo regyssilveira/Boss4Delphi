@@ -27,6 +27,22 @@ boss4d package install InternalLib@^2.0.0
 boss4d registry remove C:\empresa\boss4d-index.json
 ```
 
+Nomes simples de dependência no `boss.json` são aliases do Registry:
+
+```json
+{
+  "dependencies": {
+    "Horse": "^3.0.0"
+  }
+}
+```
+
+Na primeira instalação, o Boss4D resolve o nome exato nos catálogos
+configurados e grava no lock a identidade canônica do repositório. Depois,
+`--locked` e `--offline` recuperam esse mapeamento exclusivamente do lock, sem
+precisar acessar o Registry. Valores que já identificam URL, host, caminho ou
+repositório com escopo nunca são reescritos como aliases.
+
 O ponto de entrada oficial usa o schema v2 e fica versionado no Git. A versão
 2 compõe catálogos por referências relativas, permitindo manter famílias de
 pacotes em arquivos ou repositórios separados:

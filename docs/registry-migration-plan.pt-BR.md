@@ -59,7 +59,7 @@ do publisher cadastrado:
 | Boss4Delphi | v1.6.0 | Primeira prova ponta a ponta |
 | horse-rate-limit | v1.0.0 | Bloqueado: dependência REST de teste não declarada e unit ausente |
 | horse-compression-v2 | v1.0.0 | Bloqueado: tag declara `2.0.0` no `boss.json` |
-| horse-static | v1.0.0 | Bloqueado: alias da dependência resolve para `https://horse/` |
+| horse-static | v1.0.0 | Bloqueado: manifesto de testes referencia repositório inexistente |
 | horse-dto | v1.0.0 | Bloqueado: não compila com o Horse 3.2.0 resolvido |
 | horse-rbac | v1.0.0 | Bloqueado: testes não compilam com o Horse 3.2.0 resolvido |
 | horse-schema-validation | v1.0.0 | Pronto: instalação, compilação e 10/10 testes aprovados |

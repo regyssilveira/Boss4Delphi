@@ -13,6 +13,8 @@ type
     const APackage: TBoss4DPackage);
   TBoss4DIDEPathIntegrationHandler = reference to procedure(
     const APlatform: string);
+  TBoss4DDependencyAliasResolver = reference to function(
+    const AAlias: string): string;
 
   TBoss4DInstallOptions = record
     Platform: string;
@@ -46,6 +48,7 @@ type
     FProgress: IBoss4DProgressReporter;
     FIDEInstallHandler: TBoss4DIDEInstallHandler;
     FIDEPathIntegrationHandler: TBoss4DIDEPathIntegrationHandler;
+    FDependencyAliasResolver: TBoss4DDependencyAliasResolver;
     FOperationGate: TBoss4DKeyedOperationGate;
 
     procedure ProcessDependency(const ADep: TBoss4DDependency; const ALock: TBoss4DLock;
@@ -69,6 +72,8 @@ type
       const ALock: TBoss4DLock);
     procedure ApplyLockScopes(const ALock: TBoss4DLock);
     function SignerAllowed(const ASigner: string): Boolean;
+    procedure ResolveDependencyAlias(const ADependency: TBoss4DDependency;
+      const ALock: TBoss4DLock = nil);
   public
     constructor Create(
       const APackageRepo: IBoss4DPackageRepository;
@@ -90,6 +95,8 @@ type
     procedure SetProgressMode(const AMode: string);
     procedure SetIDEPathIntegrationHandler(
       const AHandler: TBoss4DIDEPathIntegrationHandler);
+    procedure SetDependencyAliasResolver(
+      const AResolver: TBoss4DDependencyAliasResolver);
   end;
 
 implementation
@@ -246,6 +253,7 @@ var
   LExistingLocked: TBoss4DLockedDependency;
   LHasExisting: Boolean;
 begin
+  ResolveDependencyAlias(ADep, ALock);
   var LDepKey := ADep.GetKey;
 
   // 1. Evita loop de dependencias circulares na ramificacao
@@ -425,6 +433,8 @@ begin
     var LSubPackage := FPackageRepo.Load(LPkgPath);
     try
       LSubDeps := LSubPackage.GetParsedDependencies;
+      for var LSubDep in LSubDeps do
+        ResolveDependencyAlias(LSubDep);
 
       FGitCriticalSection.Enter;
       try
@@ -627,6 +637,46 @@ begin
   Execute(LOptions);
 end;
 
+procedure TBoss4DInstallService.ResolveDependencyAlias(
+  const ADependency: TBoss4DDependency; const ALock: TBoss4DLock);
+begin
+  if not Assigned(ADependency) then
+    Exit;
+  var LAlias := ADependency.Repository.Trim;
+  if LAlias.IsEmpty or LAlias.Contains('/') or LAlias.Contains('\') or
+     LAlias.Contains(':') or LAlias.Contains('@') or LAlias.Contains('.') then
+    Exit;
+  if FOptions.Locked then
+  begin
+    var LMatchedRepository := '';
+    if Assigned(ALock) then
+      for var LLocked in ALock.Installed.Values do
+        if SameText(LLocked.Name, LAlias) then
+        begin
+          if not LMatchedRepository.IsEmpty and
+             not SameText(LMatchedRepository, LLocked.Repository) then
+            raise Exception.CreateFmt(
+              'Alias %s e ambiguo no lock congelado.', [LAlias]);
+          LMatchedRepository := LLocked.Repository;
+        end;
+    if LMatchedRepository.IsEmpty then
+      raise Exception.CreateFmt(
+        'Alias %s nao possui identidade canonica no lock congelado.',
+        [LAlias]);
+    ADependency.Repository := LMatchedRepository;
+    Exit;
+  end;
+  if not Assigned(FDependencyAliasResolver) then
+    Exit;
+  var LRepository := FDependencyAliasResolver(LAlias).Trim;
+  if LRepository.IsEmpty then
+    Exit;
+  ADependency.Repository := LRepository;
+  FLogger.Log(TBoss4DLogLevel.Debug,
+    'Alias de Registry %s resolvido para %s.',
+    [LAlias, LRepository]);
+end;
+
 function TBoss4DInstallService.SignerAllowed(const ASigner: string): Boolean;
 begin
   if not Assigned(FTrust) or (FTrust.AllowedSigners.Count = 0) then
@@ -679,6 +729,7 @@ begin
     begin
       LDep := TBoss4DDependency.Parse(LPair.Key, LPair.Value);
       try
+        ResolveDependencyAlias(LDep, ALock);
         LDeclared.Add(LDep.GetKey);
       finally
         LDep.Free;
@@ -699,6 +750,7 @@ begin
       begin
         LDep := TBoss4DDependency.Parse(LPair.Key, LPair.Value);
         try
+          ResolveDependencyAlias(LDep, ALock);
           LDeclared.Add(LDep.GetKey);
         finally
           LDep.Free;
@@ -777,6 +829,7 @@ var
     var LDeclaredDependencies := LPkg.GetParsedDependencies;
     for var LDeclaredDependency in LDeclaredDependencies do
       try
+        ResolveDependencyAlias(LDeclaredDependency, LLock);
         LLock.RootDependencies.Add(LDeclaredDependency.GetKey);
       finally
         LDeclaredDependency.Free;
@@ -786,6 +839,7 @@ var
     var LDeclaredDevDependencies := LPkg.GetParsedDevDependencies;
     for var LDeclaredDevDependency in LDeclaredDevDependencies do
       try
+        ResolveDependencyAlias(LDeclaredDevDependency, LLock);
         LLock.RootDevDependencies.Add(LDeclaredDevDependency.GetKey);
       finally
         LDeclaredDevDependency.Free;
@@ -1064,6 +1118,12 @@ procedure TBoss4DInstallService.SetIDEPathIntegrationHandler(
   const AHandler: TBoss4DIDEPathIntegrationHandler);
 begin
   FIDEPathIntegrationHandler := AHandler;
+end;
+
+procedure TBoss4DInstallService.SetDependencyAliasResolver(
+  const AResolver: TBoss4DDependencyAliasResolver);
+begin
+  FDependencyAliasResolver := AResolver;
 end;
 
 procedure TBoss4DInstallService.RunInstallTask(const ADep: TBoss4DDependency; const ALock: TBoss4DLock;
