@@ -29,6 +29,10 @@ essa conta em `githubOwners`. Mudanças de publisher existente são autorizadas
 contra os owners presentes no branch de destino; assim, um colaborador não
 consegue adicionar a si próprio e um novo signatário na mesma PR. Submissões de
 pacotes também ficam limitadas aos owners cadastrados.
+Para publisher legado anterior a `githubOwners`, uma única atualização de
+bootstrap é permitida somente quando o login do autor corresponde ao namespace
+pessoal `github.com/<login>/` já presente no branch de destino. As mudanças
+seguintes usam exclusivamente `githubOwners`.
 
 ## Gerando uma submissão de pacote
 

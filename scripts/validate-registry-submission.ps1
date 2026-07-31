@@ -73,9 +73,22 @@ function Assert-AuthorizedSubmitter($Publisher, [string]$Context) {
   if ([string]::IsNullOrWhiteSpace($Submitter)) {
     throw "$Context requires -Submitter (the GitHub login opening the change)."
   }
-  if (@($Publisher.githubOwners) -notcontains $Submitter) {
-    throw "$Context is not authorized for GitHub submitter '$Submitter'."
+  $registeredOwners = @($Publisher.githubOwners | Where-Object {
+    -not [string]::IsNullOrWhiteSpace($_)
+  })
+  if ($registeredOwners -contains $Submitter) {
+    return
   }
+  if ($registeredOwners.Count -eq 0) {
+    $personalPrefix = "github.com/$Submitter/"
+    foreach ($repository in @($Publisher.repositories)) {
+      if ($repository.StartsWith($personalPrefix,
+          [StringComparison]::OrdinalIgnoreCase)) {
+        return
+      }
+    }
+  }
+  throw "$Context is not authorized for GitHub submitter '$Submitter'."
 }
 
 $publisherDocument = Read-JsonObject (Join-Path $Root 'registry\publishers.json')

@@ -29,6 +29,10 @@ publisher must include that account in `githubOwners`. Changes to an existing
 publisher are authorized against the owners from the target branch, so a
 contributor cannot add themselves and a new signer in the same pull request.
 Package submissions are also restricted to the registered GitHub owners.
+For a legacy publisher that predates `githubOwners`, one bootstrap update is
+allowed only when the submitter login matches a personal
+`github.com/<login>/` repository namespace already present in the target
+branch. Later changes use `githubOwners` exclusively.
 
 ## Generate a package submission
 

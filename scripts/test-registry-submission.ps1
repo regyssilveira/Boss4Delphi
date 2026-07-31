@@ -48,6 +48,17 @@ try {
       -ChangedFiles 'registry/packages/demo.json' -Submitter 'attacker'
   } 'not authorized'
 
+  $legacyPublishers = $publishers.Replace(
+    ',"githubOwners":["demo-owner"]', '')
+  Write-Utf8 (Join-Path $base 'registry\publishers.json') $legacyPublishers
+  & $validator -Root $current -BaseRoot $base `
+    -ChangedFiles 'registry/publishers.json' -Submitter 'demo'
+  Expect-Failure {
+    & $validator -Root $current -BaseRoot $base `
+      -ChangedFiles 'registry/publishers.json' -Submitter 'attacker'
+  } 'not authorized'
+  Write-Utf8 (Join-Path $base 'registry\publishers.json') $publishers
+
   $escalatedPublishers = $publishers.Replace(
     '"githubOwners":["demo-owner"]',
     '"githubOwners":["demo-owner","attacker"]')
