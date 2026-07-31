@@ -35,8 +35,10 @@ Veja o [plano oficial da entrega](ide-packages-profiles-gui-plan.pt-BR.md).
   e proveniência.
 - [ ] Completar cards ricos com grafo de dependências, estado de
   compatibilidade, navegação do changelog e consulta do SBOM.
-- [ ] Assistente guiado para pacote, versão, perfil, compilador, plataforma,
-  preview e confirmação explícita.
+- [x] Instalação guiada do Registry com pacote, versão exata, compilador,
+  plataforma, política de fallback para fontes, preview da CLI e confirmação.
+- [ ] Estender o fluxo guiado de componentes com seleção de perfil isolado e
+  preview completo de targets/alterações antes da instalação.
 - [ ] Progresso por operação e target, cancelamento seguro, retry, tempo
   decorrido e comando CLI equivalente copiável.
 - [ ] Central de saúde com diagnósticos agrupados e ações diretas de reparo,

@@ -665,6 +665,9 @@ A interface gráfica do **Boss4D** (**`Boss4D.GUI.exe`**) fornece uma aplicaçã
      Ao selecionar um pacote, a GUI exibe descrição, licença, histórico de
      versões/revogações, variantes por compilador/plataforma e as evidências
      disponíveis de digest, assinatura e proveniência.
+     A ação **Instalar** abre um fluxo guiado para versão exata, compilador,
+     plataforma e política de fallback para fontes, mostra o comando
+     `boss4d package install` equivalente e exige confirmação explícita.
    * **Boss4D Doctor**: Executa verificações estruturadas e auto-correções no ambiente do Delphi sem precisar da linha de comando.
    * **Gerenciar Cache**: Exibe o uso de disco do cache global e fornece opções para limpar (`Clean`) ou realizar o prune (`Otimizar Cache`) de versões antigas.
    * **Componentes e IDEs**: Gerencia perfis isolados, targets padrão,

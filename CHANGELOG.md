@@ -60,6 +60,9 @@
   deterministic installation behavior.
 - Rich GUI catalog details for description, license, version and revocation
   history, compiler/platform variants, and digest/signature/provenance evidence.
+- Guided GUI installation of immutable Registry packages with explicit version,
+  compiler, platform, source-fallback policy, confirmation, and a copyable
+  equivalent CLI command.
 
 ### Changed
 
