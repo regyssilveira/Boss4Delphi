@@ -111,6 +111,61 @@ begin
   Result := '';
 end;
 
+procedure ValidatePublisher(const APublishers: TJSONObject;
+  const APublisherId, ARepository, AFingerprint: string);
+var
+  LEntries, LSigners, LRepositories: TJSONArray;
+  LPublisher: TJSONObject;
+  LFound, LSignerAllowed, LRepositoryAllowed: Boolean;
+  I: Integer;
+begin
+  LFound := False;
+  LSignerAllowed := False;
+  LRepositoryAllowed := False;
+  if APublishers.Find('publishers') is TJSONArray then
+  begin
+    LEntries := TJSONArray(APublishers.Find('publishers'));
+    for I := 0 to LEntries.Count - 1 do
+      if LEntries.Items[I] is TJSONObject then
+      begin
+        LPublisher := TJSONObject(LEntries.Items[I]);
+        if LPublisher.Get('id', '') <> APublisherId then Continue;
+        LFound := True;
+        if LPublisher.Find('allowedSigners') is TJSONArray then
+        begin
+          LSigners := TJSONArray(LPublisher.Find('allowedSigners'));
+          LSignerAllowed := ArrayHasValue(LSigners, AFingerprint);
+        end;
+        if LPublisher.Find('repositories') is TJSONArray then
+        begin
+          LRepositories := TJSONArray(LPublisher.Find('repositories'));
+          LRepositoryAllowed := RepositoryAllowed(
+            LRepositories, ARepository);
+        end;
+        Break;
+      end;
+  end;
+  if not LFound then
+    raise Exception.Create('publisher is not registered: ' + APublisherId);
+  if not LSignerAllowed then
+    raise Exception.Create('fingerprint is not authorized for publisher');
+  if not LRepositoryAllowed then
+    raise Exception.Create('repository is outside publisher scope');
+end;
+
+function SparseContains(const AIndex: TJSONObject;
+  const APath: string): Boolean;
+var
+  LArray: TJSONArray;
+  I: Integer;
+begin
+  Result := False;
+  if not (AIndex.Find('sparse') is TJSONArray) then Exit;
+  LArray := TJSONArray(AIndex.Find('sparse'));
+  for I := 0 to LArray.Count - 1 do
+    if SameText(SparseValue(LArray.Items[I]), APath) then Exit(True);
+end;
+
 function ApplyRegistrySubmission(const ARoot, ASubmissionPath: string;
   const AAppendVersion: Boolean): TBoss4DRegistryCheckoutResult;
 var
@@ -118,11 +173,10 @@ var
     LSparsePath, LOriginalIndex, LOriginalPackage, LPublisherId,
     LRepository, LFingerprint: string;
   LSubmission, LPublishers, LIndex, LExisting,
-    LPackage, LVersion, LPublisher, LExistingPackage: TJSONObject;
-  LPackages, LVersions, LPublisherEntries, LSigners, LRepositories,
-    LSparseArray, LExistingPackages, LExistingVersions: TJSONArray;
-  LFoundPublisher, LSignerAllowed, LRepositoryAllowed,
-    LPackageExisted, LSparsePresent: Boolean;
+    LPackage, LVersion, LExistingPackage: TJSONObject;
+  LPackages, LVersions, LSparseArray, LExistingPackages,
+    LExistingVersions: TJSONArray;
+  LPackageExisted, LSparsePresent: Boolean;
   LSortedSparse: TStringList;
   I: Integer;
 begin
@@ -168,47 +222,8 @@ begin
       RegistryPackageSlug(Result.PackageName) + '.json';
     LSparsePath := 'packages/' + ExtractFileName(Result.PackagePath);
 
-    LFoundPublisher := False;
-    LSignerAllowed := False;
-    LRepositoryAllowed := False;
-    if LPublishers.Find('publishers') is TJSONArray then
-    begin
-      LPublisherEntries := TJSONArray(LPublishers.Find('publishers'));
-      for I := 0 to LPublisherEntries.Count - 1 do
-        if LPublisherEntries.Items[I] is TJSONObject then
-        begin
-          LPublisher := TJSONObject(LPublisherEntries.Items[I]);
-          if LPublisher.Get('id', '') <> LPublisherId then Continue;
-          LFoundPublisher := True;
-          if LPublisher.Find('allowedSigners') is TJSONArray then
-          begin
-            LSigners := TJSONArray(LPublisher.Find('allowedSigners'));
-            LSignerAllowed := ArrayHasValue(LSigners, LFingerprint);
-          end;
-          if LPublisher.Find('repositories') is TJSONArray then
-          begin
-            LRepositories := TJSONArray(LPublisher.Find('repositories'));
-            LRepositoryAllowed :=
-              RepositoryAllowed(LRepositories, LRepository);
-          end;
-          Break;
-        end;
-    end;
-    if not LFoundPublisher then
-      raise Exception.Create('publisher is not registered: ' + LPublisherId);
-    if not LSignerAllowed then
-      raise Exception.Create('fingerprint is not authorized for publisher');
-    if not LRepositoryAllowed then
-      raise Exception.Create('repository is outside publisher scope');
-
-    LSparsePresent := False;
-    if LIndex.Find('sparse') is TJSONArray then
-    begin
-      LSparseArray := TJSONArray(LIndex.Find('sparse'));
-      for I := 0 to LSparseArray.Count - 1 do
-        if SameText(SparseValue(LSparseArray.Items[I]), LSparsePath) then
-          LSparsePresent := True;
-    end;
+    ValidatePublisher(LPublishers, LPublisherId, LRepository, LFingerprint);
+    LSparsePresent := SparseContains(LIndex, LSparsePath);
     LPackageExisted := FileExists(Result.PackagePath);
     if LPackageExisted and not AAppendVersion then
       raise Exception.Create('package metadata already exists; use append');

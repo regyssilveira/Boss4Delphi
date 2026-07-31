@@ -87,6 +87,8 @@ var
   LRead: LongInt;
   LStream: TMemoryStream;
 begin
+  Result := False;
+  AOutput := '';
   LProcess := TProcess.Create(nil);
   LStream := TMemoryStream.Create;
   try

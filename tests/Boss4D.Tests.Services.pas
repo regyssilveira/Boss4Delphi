@@ -1755,11 +1755,11 @@ begin
       TFile.ReadAllText(LPackagePath)) as TJSONObject;
     try
       LPackages := LDocument.GetValue<TJSONArray>('packages');
-      LVersions := TJSONObject(LPackages.Items[0])
+      LVersions := TJSONObject(LPackages[0])
         .GetValue<TJSONArray>('versions');
       Assert.AreEqual(2, LVersions.Count);
       Assert.AreEqual('1.1.0',
-        TJSONObject(LVersions.Items[1]).GetValue<string>('version'));
+        TJSONObject(LVersions[1]).GetValue<string>('version'));
     finally
       LDocument.Free;
     end;
