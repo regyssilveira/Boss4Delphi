@@ -3,7 +3,7 @@ unit Boss4D.Core.Services.PackageIndex;
 interface
 
 uses
-  System.Generics.Collections, Boss4D.Core.Ports,
+  System.Generics.Collections, System.JSON, Boss4D.Core.Ports,
   Boss4D.Core.Services.Config;
 
 type
@@ -94,6 +94,22 @@ type
     FHttp: IBoss4DHttpClient;
     FLogger: IBoss4DLogger;
     function ReadSource(const ASource: string): string;
+    function ResolveRegistryReference(const ASource,
+      AReference: string): string;
+    procedure ReadStringArray(const AObject: TJSONObject;
+      const AName: string; const ATarget: TList<string>);
+    function ParseVariant(const AObject: TJSONObject):
+      TBoss4DPackageArtifactVariant;
+    function ParseVersion(const AObject: TJSONObject):
+      TBoss4DPackageVersion;
+    function ParsePackage(const ASource: string; const ASchemaVersion: Integer;
+      const AObject: TJSONObject): TBoss4DPackageIndexEntry;
+    procedure LoadRegistryLinks(const ASource: string;
+      const ARoot: TJSONObject;
+      const AEntries: TObjectList<TBoss4DPackageIndexEntry>;
+      const AVisited: TDictionary<string, Boolean>);
+    procedure ApplyRegistryRevocations(const ARoot: TJSONObject;
+      const AEntries: TObjectList<TBoss4DPackageIndexEntry>);
     procedure AddBuiltIn(const AEntries: TObjectList<TBoss4DPackageIndexEntry>);
     procedure LoadRegistry(const ASource: string;
       const AEntries: TObjectList<TBoss4DPackageIndexEntry>);
@@ -115,7 +131,7 @@ type
 implementation
 
 uses
-  System.SysUtils, System.IOUtils, System.JSON, System.Hash,
+  System.SysUtils, System.IOUtils, System.Hash,
   Boss4D.Core.Domain.SemVer, Boss4D.Core.Services.Resolver;
 
 const
@@ -355,231 +371,206 @@ begin
   end;
 end;
 
+function TBoss4DPackageIndexService.ResolveRegistryReference(
+  const ASource, AReference: string): string;
+begin
+  if AReference.StartsWith('http://', True) or
+     AReference.StartsWith('https://', True) or
+     TPath.IsPathRooted(AReference) then
+    Exit(AReference);
+  if ASource.StartsWith('http://', True) or
+     ASource.StartsWith('https://', True) then
+    Exit(ASource.Substring(0, ASource.LastIndexOf('/') + 1) +
+      AReference.Replace('\', '/'));
+  Result := TPath.GetFullPath(TPath.Combine(
+    TPath.GetDirectoryName(TPath.GetFullPath(ASource)), AReference));
+end;
+
+procedure TBoss4DPackageIndexService.ReadStringArray(
+  const AObject: TJSONObject; const AName: string;
+  const ATarget: TList<string>);
+begin
+  if not (AObject.GetValue(AName) is TJSONArray) then Exit;
+  for var LValue in TJSONArray(AObject.GetValue(AName)) do
+    if LValue is TJSONString then ATarget.Add(LValue.Value);
+end;
+
+function TBoss4DPackageIndexService.ParseVariant(
+  const AObject: TJSONObject): TBoss4DPackageArtifactVariant;
+begin
+  Result := TBoss4DPackageArtifactVariant.Create;
+  Result.Platform := AObject.GetValue<string>('platform', '');
+  Result.Compiler := AObject.GetValue<string>('compiler', '');
+  Result.ArtifactUrl := AObject.GetValue<string>('artifact', '');
+  Result.ArtifactDigest := AObject.GetValue<string>('sha256', '');
+  Result.SignatureUrl := AObject.GetValue<string>('signature', '');
+  Result.ProvenanceUrl := AObject.GetValue<string>('provenance', '');
+  ReadStringArray(AObject, 'mirrors', Result.ArtifactMirrors);
+  if Result.ArtifactUrl.IsEmpty or Result.ArtifactDigest.IsEmpty then
+    FreeAndNil(Result);
+end;
+
+function TBoss4DPackageIndexService.ParseVersion(
+  const AObject: TJSONObject): TBoss4DPackageVersion;
+begin
+  Result := TBoss4DPackageVersion.Create;
+  Result.Version := AObject.GetValue<string>('version', '');
+  if not TBoss4DSemVer.Create(Result.Version).IsValid then
+  begin
+    FreeAndNil(Result);
+    Exit;
+  end;
+  Result.Revoked := AObject.GetValue<Boolean>('revoked', False);
+  Result.ArtifactUrl := AObject.GetValue<string>('artifact', '');
+  Result.ArtifactDigest := AObject.GetValue<string>('sha256', '');
+  Result.SignatureUrl := AObject.GetValue<string>('signature', '');
+  Result.ProvenanceUrl := AObject.GetValue<string>('provenance', '');
+  ReadStringArray(AObject, 'mirrors', Result.ArtifactMirrors);
+  if AObject.GetValue('variants') is TJSONArray then
+    for var LValue in TJSONArray(AObject.GetValue('variants')) do
+      if LValue is TJSONObject then
+      begin
+        var LVariant := ParseVariant(TJSONObject(LValue));
+        if Assigned(LVariant) then Result.Variants.Add(LVariant);
+      end;
+end;
+
+function TBoss4DPackageIndexService.ParsePackage(const ASource: string;
+  const ASchemaVersion: Integer;
+  const AObject: TJSONObject): TBoss4DPackageIndexEntry;
+begin
+  Result := TBoss4DPackageIndexEntry.Create;
+  Result.Name := AObject.GetValue<string>('name', '');
+  Result.Repository := AObject.GetValue<string>('repository', '');
+  Result.Description := AObject.GetValue<string>('description', '');
+  Result.LatestVersion := AObject.GetValue<string>('version', '');
+  Result.License := AObject.GetValue<string>('license', '');
+  Result.ArtifactUrl := AObject.GetValue<string>('artifact', '');
+  Result.ArtifactDigest := AObject.GetValue<string>('sha256', '');
+  Result.SignatureUrl := AObject.GetValue<string>('signature', '');
+  Result.ProvenanceUrl := AObject.GetValue<string>('provenance', '');
+  if (ASchemaVersion = 2) and
+     (AObject.GetValue('versions') is TJSONArray) then
+    for var LValue in TJSONArray(AObject.GetValue('versions')) do
+      if LValue is TJSONObject then
+      begin
+        var LVersion := ParseVersion(TJSONObject(LValue));
+        if not Assigned(LVersion) then Continue;
+        var LInsertAt := 0;
+        while (LInsertAt < Result.Versions.Count) and
+          (TBoss4DSemVer.Create(Result.Versions[LInsertAt].Version) >
+           TBoss4DSemVer.Create(LVersion.Version)) do Inc(LInsertAt);
+        Result.Versions.Insert(LInsertAt, LVersion);
+      end;
+  if ASchemaVersion = 2 then Result.RefreshLatest;
+  if (Result.Versions.Count = 0) and
+     TBoss4DSemVer.Create(Result.LatestVersion).IsValid then
+  begin
+    var LLegacy := TBoss4DPackageVersion.Create;
+    LLegacy.Version := Result.LatestVersion;
+    LLegacy.ArtifactUrl := Result.ArtifactUrl;
+    LLegacy.ArtifactDigest := Result.ArtifactDigest;
+    LLegacy.SignatureUrl := Result.SignatureUrl;
+    LLegacy.ProvenanceUrl := Result.ProvenanceUrl;
+    Result.Versions.Add(LLegacy);
+  end;
+  Result.Source := ASource;
+  if Result.Name.IsEmpty or Result.Repository.IsEmpty then
+    FreeAndNil(Result);
+end;
+
+procedure TBoss4DPackageIndexService.LoadRegistryLinks(
+  const ASource: string; const ARoot: TJSONObject;
+  const AEntries: TObjectList<TBoss4DPackageIndexEntry>;
+  const AVisited: TDictionary<string, Boolean>);
+begin
+  if ARoot.GetValue('includes') is TJSONArray then
+    for var LInclude in TJSONArray(ARoot.GetValue('includes')) do
+      LoadRegistryInternal(ResolveRegistryReference(ASource, LInclude.Value),
+        AEntries, AVisited);
+  if not (ARoot.GetValue('sparse') is TJSONArray) then Exit;
+  for var LSparse in TJSONArray(ARoot.GetValue('sparse')) do
+  begin
+    var LCandidates := TList<string>.Create;
+    try
+      if LSparse is TJSONString then LCandidates.Add(LSparse.Value)
+      else if LSparse is TJSONObject then
+      begin
+        var LPath := TJSONObject(LSparse).GetValue<string>('path', '');
+        if not LPath.IsEmpty then LCandidates.Add(LPath);
+        ReadStringArray(TJSONObject(LSparse), 'mirrors', LCandidates);
+      end;
+      var LLoaded := False;
+      for var LCandidate in LCandidates do
+        try
+          LoadRegistryInternal(ResolveRegistryReference(
+            ASource, LCandidate), AEntries, AVisited);
+          LLoaded := True;
+          Break;
+        except
+          on E: Exception do FLogger.Log(TBoss4DLogLevel.Warning,
+            'Fonte sparse indisponivel: ' + E.Message);
+        end;
+      if not LLoaded then
+        raise Exception.Create('Nenhuma fonte sparse pode ser carregada.');
+    finally
+      LCandidates.Free;
+    end;
+  end;
+end;
+
+procedure TBoss4DPackageIndexService.ApplyRegistryRevocations(
+  const ARoot: TJSONObject;
+  const AEntries: TObjectList<TBoss4DPackageIndexEntry>);
+begin
+  if not (ARoot.GetValue('revocations') is TJSONArray) then Exit;
+  for var LValue in TJSONArray(ARoot.GetValue('revocations')) do
+    if LValue is TJSONObject then
+    begin
+      var LName := TJSONObject(LValue).GetValue<string>('name', '');
+      var LVersionName := TJSONObject(LValue).GetValue<string>('version', '');
+      for var LEntry in AEntries do
+        if SameText(LEntry.Name, LName) then
+        begin
+          for var LVersion in LEntry.Versions do
+            if SameText(LVersion.Version, LVersionName) then
+              LVersion.Revoked := True;
+          LEntry.RefreshLatest;
+        end;
+    end;
+end;
+
 procedure TBoss4DPackageIndexService.LoadRegistryInternal(const ASource: string;
   const AEntries: TObjectList<TBoss4DPackageIndexEntry>;
   const AVisited: TDictionary<string, Boolean>);
-var
-  LContent: string;
-  function ResolveReference(const AReference: string): string;
-  begin
-    if AReference.StartsWith('http://', True) or
-       AReference.StartsWith('https://', True) or
-       TPath.IsPathRooted(AReference) then
-      Exit(AReference);
-    if ASource.StartsWith('http://', True) or
-       ASource.StartsWith('https://', True) then
-      Exit(ASource.Substring(0, ASource.LastIndexOf('/') + 1) +
-        AReference.Replace('\', '/'));
-    Result := TPath.GetFullPath(TPath.Combine(
-      TPath.GetDirectoryName(TPath.GetFullPath(ASource)), AReference));
-  end;
 begin
-  if AVisited.ContainsKey(ASource.ToLower) then
-    Exit;
+  if AVisited.ContainsKey(ASource.ToLower) then Exit;
   AVisited.Add(ASource.ToLower, True);
-  LContent := ReadSource(ASource);
-  var LValue := TJSONObject.ParseJSONValue(LContent);
+  var LValue := TJSONObject.ParseJSONValue(ReadSource(ASource));
   try
     if not (LValue is TJSONObject) then
       raise Exception.Create('Indice deve ser um objeto JSON: ' + ASource);
-    var LSchemaVersion := TJSONObject(LValue).GetValue<Integer>(
-      'schemaVersion', 0);
+    var LRoot := TJSONObject(LValue);
+    var LSchemaVersion := LRoot.GetValue<Integer>('schemaVersion', 0);
     if not (LSchemaVersion in [1, 2]) then
       raise Exception.CreateFmt('Schema de registry nao suportado: %d',
         [LSchemaVersion]);
     if LSchemaVersion = 2 then
-    begin
-      var LIncludes: TJSONArray := nil;
-      if TJSONObject(LValue).GetValue('includes') is TJSONArray then
-        LIncludes := TJSONArray(TJSONObject(LValue).GetValue('includes'));
-      if Assigned(LIncludes) then
-        for var LInclude in LIncludes do
-        begin
-          var LReference := LInclude.Value;
-          LoadRegistryInternal(ResolveReference(LReference), AEntries, AVisited);
-        end;
-      var LSparse: TJSONArray := nil;
-      if TJSONObject(LValue).GetValue('sparse') is TJSONArray then
-        LSparse := TJSONArray(TJSONObject(LValue).GetValue('sparse'));
-      if Assigned(LSparse) then
-        for var LSparseValue in LSparse do
-        begin
-          if LSparseValue is TJSONString then
-            LoadRegistryInternal(ResolveReference(LSparseValue.Value),
-              AEntries, AVisited)
-          else if LSparseValue is TJSONObject then
-          begin
-            var LSparseObject := TJSONObject(LSparseValue);
-            var LCandidates := TList<string>.Create;
-            try
-              var LPath := LSparseObject.GetValue<string>('path', '');
-              if not LPath.IsEmpty then LCandidates.Add(LPath);
-              var LMirrors: TJSONArray := nil;
-              if LSparseObject.GetValue('mirrors') is TJSONArray then
-                LMirrors := TJSONArray(LSparseObject.GetValue('mirrors'));
-              if Assigned(LMirrors) then
-                for var LMirror in LMirrors do LCandidates.Add(LMirror.Value);
-              var LLoaded := False;
-              for var LCandidate in LCandidates do
-                try
-                  LoadRegistryInternal(ResolveReference(LCandidate),
-                    AEntries, AVisited);
-                  LLoaded := True;
-                  Break;
-                except
-                  on E: Exception do
-                    FLogger.Log(TBoss4DLogLevel.Warning,
-                      'Fonte sparse indisponivel: ' + E.Message);
-                end;
-              if not LLoaded then
-                raise Exception.Create('Nenhuma fonte sparse pode ser carregada.');
-            finally
-              LCandidates.Free;
-            end;
-          end;
-        end;
-    end;
-    var LPackages := TJSONObject(LValue).GetValue<TJSONArray>('packages');
+      LoadRegistryLinks(ASource, LRoot, AEntries, AVisited);
+    var LPackages := LRoot.GetValue<TJSONArray>('packages');
     if not Assigned(LPackages) then
       if LSchemaVersion = 1 then
         raise Exception.Create('Indice nao contem packages: ' + ASource)
       else
         Exit;
-    for var I := 0 to LPackages.Count - 1 do
-      if LPackages[I] is TJSONObject then
+    for var LValueItem in LPackages do
+      if LValueItem is TJSONObject then
       begin
-        var LObject := TJSONObject(LPackages[I]);
-        var LEntry := TBoss4DPackageIndexEntry.Create;
-        LEntry.Name := LObject.GetValue<string>('name', '');
-        LEntry.Repository := LObject.GetValue<string>('repository', '');
-        LEntry.Description := LObject.GetValue<string>('description', '');
-        LEntry.LatestVersion := LObject.GetValue<string>('version', '');
-        LEntry.License := LObject.GetValue<string>('license', '');
-        LEntry.ArtifactUrl := LObject.GetValue<string>('artifact', '');
-        LEntry.ArtifactDigest := LObject.GetValue<string>('sha256', '');
-        LEntry.SignatureUrl := LObject.GetValue<string>('signature', '');
-        LEntry.ProvenanceUrl := LObject.GetValue<string>('provenance', '');
-        if LSchemaVersion = 2 then
-        begin
-          var LVersions: TJSONArray := nil;
-          if LObject.GetValue('versions') is TJSONArray then
-            LVersions := TJSONArray(LObject.GetValue('versions'));
-          if Assigned(LVersions) then
-            for var LVersionValue in LVersions do
-              if LVersionValue is TJSONObject then
-              begin
-                var LVersionObject := TJSONObject(LVersionValue);
-                var LPackageVersion := TBoss4DPackageVersion.Create;
-                LPackageVersion.Version := LVersionObject.GetValue<string>(
-                  'version', '');
-                var LSemVer := TBoss4DSemVer.Create(LPackageVersion.Version);
-                if not LSemVer.IsValid then
-                begin
-                  LPackageVersion.Free;
-                  Continue;
-                end;
-                LPackageVersion.Revoked := LVersionObject.GetValue<Boolean>(
-                  'revoked', False);
-                LPackageVersion.ArtifactUrl := LVersionObject.GetValue<string>(
-                  'artifact', '');
-                LPackageVersion.ArtifactDigest := LVersionObject.GetValue<string>(
-                  'sha256', '');
-                LPackageVersion.SignatureUrl := LVersionObject.GetValue<string>(
-                  'signature', '');
-                LPackageVersion.ProvenanceUrl := LVersionObject.GetValue<string>(
-                  'provenance', '');
-                var LArtifactMirrors: TJSONArray := nil;
-                if LVersionObject.GetValue('mirrors') is TJSONArray then
-                  LArtifactMirrors := TJSONArray(
-                    LVersionObject.GetValue('mirrors'));
-                if Assigned(LArtifactMirrors) then
-                  for var LMirror in LArtifactMirrors do
-                    if LMirror is TJSONString then
-                      LPackageVersion.ArtifactMirrors.Add(LMirror.Value);
-                var LVariants: TJSONArray := nil;
-                if LVersionObject.GetValue('variants') is TJSONArray then
-                  LVariants := TJSONArray(LVersionObject.GetValue('variants'));
-                if Assigned(LVariants) then
-                  for var LVariantValue in LVariants do
-                    if LVariantValue is TJSONObject then
-                    begin
-                      var LVariantObject := TJSONObject(LVariantValue);
-                      var LVariant := TBoss4DPackageArtifactVariant.Create;
-                      LVariant.Platform := LVariantObject.GetValue<string>(
-                        'platform', '');
-                      LVariant.Compiler := LVariantObject.GetValue<string>(
-                        'compiler', '');
-                      LVariant.ArtifactUrl := LVariantObject.GetValue<string>(
-                        'artifact', '');
-                      LVariant.ArtifactDigest := LVariantObject.GetValue<string>(
-                        'sha256', '');
-                      LVariant.SignatureUrl := LVariantObject.GetValue<string>(
-                        'signature', '');
-                      LVariant.ProvenanceUrl := LVariantObject.GetValue<string>(
-                        'provenance', '');
-                      var LVariantMirrors: TJSONArray := nil;
-                      if LVariantObject.GetValue('mirrors') is TJSONArray then
-                        LVariantMirrors := TJSONArray(
-                          LVariantObject.GetValue('mirrors'));
-                      if Assigned(LVariantMirrors) then
-                        for var LMirror in LVariantMirrors do
-                          if LMirror is TJSONString then
-                            LVariant.ArtifactMirrors.Add(LMirror.Value);
-                      if not LVariant.ArtifactUrl.IsEmpty and
-                         not LVariant.ArtifactDigest.IsEmpty then
-                        LPackageVersion.Variants.Add(LVariant)
-                      else
-                        LVariant.Free;
-                    end;
-                var LInsertAt := 0;
-                while (LInsertAt < LEntry.Versions.Count) and
-                  (TBoss4DSemVer.Create(
-                    LEntry.Versions[LInsertAt].Version) > LSemVer) do
-                  Inc(LInsertAt);
-                LEntry.Versions.Insert(LInsertAt, LPackageVersion);
-              end;
-          LEntry.RefreshLatest;
-        end;
-        if (LEntry.Versions.Count = 0) and
-           TBoss4DSemVer.Create(LEntry.LatestVersion).IsValid then
-        begin
-          var LLegacyVersion := TBoss4DPackageVersion.Create;
-          LLegacyVersion.Version := LEntry.LatestVersion;
-          LLegacyVersion.ArtifactUrl := LEntry.ArtifactUrl;
-          LLegacyVersion.ArtifactDigest := LEntry.ArtifactDigest;
-          LLegacyVersion.SignatureUrl := LEntry.SignatureUrl;
-          LLegacyVersion.ProvenanceUrl := LEntry.ProvenanceUrl;
-          LEntry.Versions.Add(LLegacyVersion);
-        end;
-        LEntry.Source := ASource;
-        if not LEntry.Name.IsEmpty and not LEntry.Repository.IsEmpty then
-          AEntries.Add(LEntry)
-        else
-          LEntry.Free;
+        var LEntry := ParsePackage(ASource, LSchemaVersion,
+          TJSONObject(LValueItem));
+        if Assigned(LEntry) then AEntries.Add(LEntry);
       end;
-    if LSchemaVersion = 2 then
-    begin
-      var LRevocations: TJSONArray := nil;
-      if TJSONObject(LValue).GetValue('revocations') is TJSONArray then
-        LRevocations := TJSONArray(
-          TJSONObject(LValue).GetValue('revocations'));
-      if Assigned(LRevocations) then
-        for var LRevocationValue in LRevocations do
-          if LRevocationValue is TJSONObject then
-          begin
-            var LRevocation := TJSONObject(LRevocationValue);
-            var LName := LRevocation.GetValue<string>('name', '');
-            var LVersionName := LRevocation.GetValue<string>('version', '');
-            for var LEntry in AEntries do
-              if SameText(LEntry.Name, LName) then
-              begin
-                for var LPackageVersion in LEntry.Versions do
-                  if SameText(LPackageVersion.Version, LVersionName) then
-                    LPackageVersion.Revoked := True;
-                LEntry.RefreshLatest;
-              end;
-          end;
-    end;
+    if LSchemaVersion = 2 then ApplyRegistryRevocations(LRoot, AEntries);
   finally
     LValue.Free;
   end;

@@ -100,7 +100,7 @@ begin
   LDirectories := TDirectory.GetDirectories(HistoryDirectory);
   LLatest := '';
   for LDirectory in LDirectories do
-    if (LLatest.IsEmpty) or
+    if LLatest.IsEmpty or
        (CompareText(TPath.GetFileName(LDirectory),
          TPath.GetFileName(LLatest)) > 0) then
       LLatest := LDirectory;

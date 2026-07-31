@@ -45,7 +45,8 @@ begin
       LRevoked := 0;
       for var LVersion in LEntry.Versions do
         if LVersion.Revoked then Inc(LRevoked);
-      LRow.VersionSummary := Format('%d versao(oes)', [LEntry.Versions.Count]);
+      LRow.VersionSummary := Format('%d versao(oes)',
+        [Integer(LEntry.Versions.Count)]);
       if LRevoked > 0 then
         LRow.VersionSummary := LRow.VersionSummary +
           Format(', %d revogada(s)', [LRevoked]);
