@@ -13,6 +13,8 @@ type
     procedure TestRequiresExplicitCascadeForDependents;
     [Test]
     procedure TestCascadeRemovesConsumersBeforeDependencies;
+    [Test]
+    procedure TestFailurePersistsRecoveryWithoutChangingInventory;
   end;
 
 implementation
@@ -22,7 +24,8 @@ uses
   System.IOUtils,
   System.Generics.Collections,
   Boss4D.Core.Services.BuildInventory,
-  Boss4D.Core.Services.ComponentRemoval;
+  Boss4D.Core.Services.ComponentRemoval,
+  Boss4D.Core.Services.IDEOperationResult;
 
 procedure Populate(const AInventory: TBoss4DBuildInventory;
   const ARoot: string);
@@ -116,6 +119,69 @@ begin
     end;
   finally
     LCalls.Free;
+    LInventory.Free;
+    TDirectory.Delete(LDirectory, True);
+  end;
+end;
+
+procedure TTestsComponentRemoval.TestFailurePersistsRecoveryWithoutChangingInventory;
+var
+  LDirectory: string;
+  LInventory: TBoss4DBuildInventory;
+  LService: TBoss4DComponentRemovalService;
+  LPlan: TBoss4DComponentRemovalPlan;
+  LStoreObject: TBoss4DJsonIDEOperationResultStore;
+  LStore: IBoss4DIDEOperationResultStore;
+  LResult: TBoss4DIDEOperationResult;
+begin
+  LDirectory := TPath.Combine(TPath.GetTempPath,
+    'boss4d_removal_result_' + TGUID.NewGuid.ToString);
+  TDirectory.CreateDirectory(LDirectory);
+  LInventory := TBoss4DBuildInventory.Create(
+    TPath.Combine(LDirectory, 'inventory.json'));
+  LStoreObject := TBoss4DJsonIDEOperationResultStore.Create(
+    TPath.Combine(LDirectory, 'results'));
+  LStore := LStoreObject;
+  try
+    Populate(LInventory, LDirectory);
+    LService := TBoss4DComponentRemovalService.Create(LInventory,
+      function(const AOwnerPackage: string): Integer
+      begin
+        if SameText(AOwnerPackage, 'middleware') then
+          raise Exception.Create('simulated uninstall failure');
+        Result := 1;
+      end,
+      LStore, 'isolated');
+    try
+      LPlan := LService.Plan('core', True);
+      try
+        Assert.WillRaise(
+          procedure
+          begin
+            LService.Execute(LPlan);
+          end,
+          Exception);
+      finally
+        LPlan.Free;
+      end;
+    finally
+      LService.Free;
+    end;
+    Assert.IsTrue(LInventory.Contains('app'));
+    Assert.IsTrue(LInventory.Contains('middleware'));
+    Assert.IsTrue(LInventory.Contains('core'));
+    LResult := LStoreObject.LoadLatest;
+    try
+      Assert.AreEqual(TBoss4DIDEOperationStatus.Failed, LResult.Status);
+      Assert.AreEqual<Integer>(1, LResult.CompletedActions.Count);
+      Assert.AreEqual('uninstall app', LResult.CompletedActions[0]);
+      Assert.IsTrue(LResult.RecoveryInstruction.Contains('doctor'));
+      Assert.AreEqual('isolated', LResult.Profile);
+    finally
+      LResult.Free;
+    end;
+  finally
+    LStore := nil;
     LInventory.Free;
     TDirectory.Delete(LDirectory, True);
   end;

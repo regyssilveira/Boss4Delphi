@@ -5,7 +5,8 @@ interface
 uses
   System.SysUtils,
   System.Generics.Collections,
-  Boss4D.Core.Services.BuildInventory;
+  Boss4D.Core.Services.BuildInventory,
+  Boss4D.Core.Services.IDEOperationResult;
 
 type
   EBoss4DDependentComponents = class(Exception);
@@ -26,9 +27,13 @@ type
   private
     FInventory: TBoss4DBuildInventory;
     FUninstall: TBoss4DProductUninstallHandler;
+    FResultStore: IBoss4DIDEOperationResultStore;
+    FProfile: string;
   public
     constructor Create(const AInventory: TBoss4DBuildInventory;
-      const AUninstall: TBoss4DProductUninstallHandler);
+      const AUninstall: TBoss4DProductUninstallHandler;
+      const AResultStore: IBoss4DIDEOperationResultStore = nil;
+      const AProfile: string = 'default');
     function Plan(const AOwnerPackage: string;
       const ACascade: Boolean): TBoss4DComponentRemovalPlan;
     function Execute(const APlan: TBoss4DComponentRemovalPlan): Integer;
@@ -50,7 +55,9 @@ end;
 
 constructor TBoss4DComponentRemovalService.Create(
   const AInventory: TBoss4DBuildInventory;
-  const AUninstall: TBoss4DProductUninstallHandler);
+  const AUninstall: TBoss4DProductUninstallHandler;
+  const AResultStore: IBoss4DIDEOperationResultStore;
+  const AProfile: string);
 begin
   inherited Create;
   if not Assigned(AInventory) then
@@ -59,6 +66,10 @@ begin
     raise EArgumentNilException.Create('AUninstall');
   FInventory := AInventory;
   FUninstall := AUninstall;
+  FResultStore := AResultStore;
+  FProfile := AProfile.Trim;
+  if FProfile.IsEmpty then
+    raise EArgumentException.Create('O perfil da IDE e obrigatorio.');
 end;
 
 function TBoss4DComponentRemovalService.Plan(
@@ -95,13 +106,40 @@ function TBoss4DComponentRemovalService.Execute(
 begin
   if not Assigned(APlan) then
     raise EArgumentNilException.Create('APlan');
+  if APlan.Products.Count = 0 then
+    Exit(0);
   Result := 0;
-  for var LProduct in APlan.Products do
-    Inc(Result, FUninstall(LProduct));
-  for var LProduct in APlan.Products do
-    FInventory.RemovePackage(LProduct);
-  if APlan.Products.Count > 0 then
-    FInventory.Save;
+  var LOperation := TBoss4DIDEOperationResult.New(
+    'cascade-uninstall', FProfile,
+    APlan.Products[APlan.Products.Count - 1]);
+  try
+    try
+      for var LProduct in APlan.Products do
+      begin
+        Inc(Result, FUninstall(LProduct));
+        LOperation.CompletedActions.Add('uninstall ' + LProduct);
+      end;
+      for var LProduct in APlan.Products do
+        FInventory.RemovePackage(LProduct);
+      FInventory.Save;
+      LOperation.Complete;
+      if Assigned(FResultStore) then
+        FResultStore.Save(LOperation);
+    except
+      on E: Exception do
+      begin
+        LOperation.Fail(E.Message,
+          'Execute doctor e repair no perfil ' + FProfile +
+          ' e repita o uninstall em cascata. Acoes concluidas: ' +
+          string.Join(', ', LOperation.CompletedActions.ToArray));
+        if Assigned(FResultStore) then
+          FResultStore.Save(LOperation);
+        raise;
+      end;
+    end;
+  finally
+    LOperation.Free;
+  end;
 end;
 
 end.
