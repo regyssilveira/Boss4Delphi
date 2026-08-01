@@ -77,6 +77,22 @@ begin
     'Software\Embarcadero\Boss4D-isolated\37.0\Known Packages')) > 0);
 end;
 
+procedure AssertUninstallOperationSnapshots(
+  const AProfiles: TBoss4DIDEProfileService;
+  const AOperation: TBoss4DIDEOperationResult);
+begin
+  Assert.IsTrue(TFile.Exists(AOperation.UndoSnapshot));
+  Assert.IsTrue(TFile.Exists(AOperation.AfterSnapshot));
+  var LChanges := AProfiles.CompareSnapshots(
+    AOperation.UndoSnapshot, AOperation.AfterSnapshot);
+  try
+    Assert.IsTrue(LChanges.Contains('packages'));
+    Assert.IsTrue(LChanges.Contains('inventory'));
+  finally
+    LChanges.Free;
+  end;
+end;
+
 procedure TTestsIDEProfileApplication.Setup;
 begin
   FPreviousDirectory := TDirectory.GetCurrentDirectory;
@@ -251,16 +267,7 @@ begin
           LOperation.Status);
         Assert.AreEqual('profile-uninstall', LOperation.Kind);
         LUninstallOperationId := LOperation.OperationId;
-        Assert.IsTrue(TFile.Exists(LOperation.UndoSnapshot));
-        Assert.IsTrue(TFile.Exists(LOperation.AfterSnapshot));
-        var LChanges := LProfiles.CompareSnapshots(
-          LOperation.UndoSnapshot, LOperation.AfterSnapshot);
-        try
-          Assert.IsTrue(LChanges.Contains('packages'));
-          Assert.IsTrue(LChanges.Contains('inventory'));
-        finally
-          LChanges.Free;
-        end;
+        AssertUninstallOperationSnapshots(LProfiles, LOperation);
       finally
         LOperation.Free;
       end;
