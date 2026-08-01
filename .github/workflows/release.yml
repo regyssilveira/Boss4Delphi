@@ -82,13 +82,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Verify Delphi plugin matrix
-        shell: pwsh
+        shell: powershell
         run: ./scripts/test-delphi-plugin-matrix.ps1
       - name: Compile and validate release
         shell: cmd
         run: build_release.bat
       - name: Build Windows installer
-        shell: pwsh
+        shell: powershell
         run: |
           $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
           if (-not (Test-Path -LiteralPath $iscc)) {
@@ -99,7 +99,7 @@ jobs:
             throw 'Inno Setup compilation failed.'
           }
       - name: Build immutable Boss4D package
-        shell: pwsh
+        shell: powershell
         run: |
           $version = (Get-Content boss.json -Raw | ConvertFrom-Json).version
           $packageName = "boss4d-$version.b4dpkg"
@@ -112,7 +112,7 @@ jobs:
           Move-Item "dist\$packageName.intoto.json" `
             ".release\$packageName.intoto.json"
       - name: Archive Windows distribution
-        shell: pwsh
+        shell: powershell
         run: |
           New-Item -ItemType Directory -Force .release | Out-Null
           Compress-Archive -Path dist\* -DestinationPath .release\boss4d-windows.zip
