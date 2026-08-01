@@ -444,40 +444,72 @@ begin
     Result := '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
       '<meta name="viewport" content="width=device-width,initial-scale=1">' +
       '<title>Boss4D Public Registry</title><style>' +
-      ':root{color-scheme:light dark;font-family:system-ui,sans-serif}' +
-      'body{margin:0;background:#0b1020;color:#e8ecf7}' +
-      'main{max-width:1180px;margin:auto;padding:2rem 1rem}' +
-      'header{padding:2rem;border-radius:1.2rem;background:linear-gradient(135deg,#172554,#0f766e)}' +
-      '.stats,.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1rem;margin:1.2rem 0}' +
-      '.stat,.controls>*{padding:.85rem;border:1px solid #334155;border-radius:.75rem;background:#111827}' +
-      '.stat strong{display:block;font-size:1.5rem}.controls label{display:grid;gap:.35rem}' +
-      'input,select{font:inherit;padding:.7rem;border-radius:.5rem;border:1px solid #475569;background:#0f172a;color:inherit}' +
-      '.submission{margin:1.2rem 0;padding:1rem 1.2rem;border:1px solid #0f766e;border-radius:.9rem;background:#102a2a}' +
-      '.submission a{display:inline-block;padding:.65rem .9rem;border-radius:.55rem;background:#0f766e;color:#fff;font-weight:700;text-decoration:none}' +
-      '#packages{list-style:none;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}' +
-      '#packages li{padding:1rem;border:1px solid #334155;border-radius:.9rem;background:#111827}' +
-      '.publisher,code,#packages span{display:inline-block;margin:.2rem;padding:.2rem .45rem;border-radius:.4rem;background:#1e293b}' +
-      'a{color:#5eead4} [hidden]{display:none!important}' +
-      '@media(max-width:700px){.stats,.controls{grid-template-columns:1fr}header{padding:1.25rem}}' +
-      '</style></head><body><main><header><h1>Boss4D Public Registry</h1>' +
-      '<p>Discover Delphi and Lazarus packages with explicit trust evidence.</p>' +
-      '<p>Protocol v' + LSchemaVersion.ToString + '</p></header>' +
+      ':root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:#25272a;background:#f7f7f5}' +
+      '*{box-sizing:border-box}body{margin:0;line-height:1.55}' +
+      'a{color:#176b5d;text-underline-offset:.18em}a:hover{color:#0c4d43}' +
+      '.site-header{border-bottom:1px solid #deded9;background:#fff}' +
+      '.site-header div{max-width:1040px;margin:auto;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem}' +
+      '.brand{font-weight:700;color:#25272a;text-decoration:none;letter-spacing:-.02em}' +
+      '.site-header nav{display:flex;gap:1rem;font-size:.9rem}' +
+      'main{max-width:1040px;margin:auto;padding:0 1.25rem 4rem}' +
+      '.intro{padding:4.5rem 0 3rem;max-width:700px}' +
+      '.eyebrow{margin:0 0 .75rem;color:#176b5d;font-size:.78rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase}' +
+      'h1{margin:0;font-size:clamp(2.2rem,6vw,4.25rem);line-height:1.02;letter-spacing:-.055em;font-weight:720}' +
+      '.lede{margin:1.25rem 0 0;max-width:620px;color:#656762;font-size:1.1rem}' +
+      '.stats{display:flex;flex-wrap:wrap;gap:.65rem 1.75rem;padding:1.1rem 0;border-top:1px solid #deded9;border-bottom:1px solid #deded9;color:#656762;font-size:.86rem}' +
+      '.stat strong{color:#25272a;font-size:1rem;margin-right:.3rem}' +
+      '.submission{margin:3rem 0;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:1.5rem;padding:1.4rem 0;border-bottom:1px solid #deded9}' +
+      '.submission h2,.catalog-heading h2{margin:0;font-size:1.15rem;letter-spacing:-.02em}' +
+      '.submission p{margin:.35rem 0 0;color:#656762;max-width:680px}' +
+      '.button{display:inline-block;padding:.62rem .9rem;border:1px solid #b8bab4;border-radius:.35rem;background:#fff;color:#25272a;font-weight:650;text-decoration:none;white-space:nowrap}' +
+      '.button:hover{border-color:#176b5d;color:#176b5d}' +
+      '.catalog-heading{display:flex;align-items:end;justify-content:space-between;gap:1rem;margin-bottom:1rem}' +
+      '.catalog-heading p{margin:0;color:#777973;font-size:.88rem}' +
+      '.controls{display:grid;grid-template-columns:2fr repeat(4,1fr);gap:.65rem;margin-bottom:1.5rem}' +
+      '.controls label{display:grid;gap:.35rem;color:#656762;font-size:.76rem;font-weight:650}' +
+      'input,select{width:100%;font:inherit;color:#25272a;padding:.65rem .7rem;border:1px solid #d1d2cd;border-radius:.35rem;background:#fff}' +
+      'input:focus,select:focus{outline:2px solid #91c7bc;outline-offset:1px;border-color:#176b5d}' +
+      '#packages{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid #deded9}' +
+      '#packages li{min-width:0;padding:1.3rem 1.3rem 1.3rem 0;border-bottom:1px solid #deded9}' +
+      '#packages li:nth-child(odd){border-right:1px solid #deded9}' +
+      '#packages li:nth-child(even){padding-left:1.3rem}' +
+      '.package-name{display:inline-block;font-size:1.04rem;overflow-wrap:anywhere}' +
+      '.publisher,.evidence,code{display:inline-block;margin:.35rem .25rem 0 0;padding:.12rem .38rem;border-radius:.25rem;background:#ecece8;color:#555752;font-size:.72rem}' +
+      '.publisher{background:#e2f0ec;color:#176b5d}' +
+      '#packages li p{min-height:3em;margin:.8rem 0;color:#656762;font-size:.91rem}' +
+      '.repository{font-size:.86rem;font-weight:650}' +
+      '.empty{padding:2rem 0;color:#656762;border-bottom:1px solid #deded9}' +
+      '.site-footer{max-width:1040px;margin:auto;padding:1.5rem 1.25rem;border-top:1px solid #deded9;color:#777973;font-size:.82rem;display:flex;justify-content:space-between;gap:1rem}' +
+      '[hidden]{display:none!important}' +
+      '@media(max-width:820px){.controls{grid-template-columns:repeat(2,1fr)}.controls label:first-child{grid-column:1/-1}}' +
+      '@media(max-width:640px){.intro{padding:3rem 0 2.25rem}.site-header nav a:first-child{display:none}.submission{grid-template-columns:1fr}.controls,#packages{grid-template-columns:1fr}#packages li:nth-child(odd){border-right:0}#packages li:nth-child(even){padding-left:0}.site-footer{display:block}}' +
+      '</style></head><body><header class="site-header"><div>' +
+      '<a class="brand" href=".">Boss4D</a><nav aria-label="Main navigation">' +
+      '<a href="https://github.com/regyssilveira/Boss4Delphi">Project</a>' +
+      '<a href="https://github.com/regyssilveira/Boss4Delphi#readme">Documentation</a>' +
+      '</nav></div></header><main><section class="intro">' +
+      '<p class="eyebrow">Public registry · Protocol v' +
+      LSchemaVersion.ToString + '</p><h1>Packages for Delphi and Lazarus.</h1>' +
+      '<p class="lede">A community catalog with clear publisher identity, version evidence and review before publication.</p>' +
+      '</section>' +
       '<section class="stats" aria-label="Catalog statistics">' +
-      '<div class="stat"><strong id="visible-count">' +
-      LPackages.Count.ToString + '</strong>visible packages</div>' +
+      '<div class="stat"><strong id="visible-count" aria-live="polite">' +
+      LPackages.Count.ToString + '</strong>packages</div>' +
       '<div class="stat"><strong>' + LVersionCount.ToString +
-      '</strong>indexed versions</div><div class="stat"><strong>' +
-      LRegisteredCount.ToString + '</strong>registered namespaces</div>' +
+      '</strong>versions</div><div class="stat"><strong>' +
+      LRegisteredCount.ToString + '</strong>registered</div>' +
       '<div class="stat"><strong>' + LVerifiedCount.ToString +
-      '</strong>verified packages</div><div class="stat"><strong>' +
+      '</strong>verified</div><div class="stat"><strong>' +
       (LPackages.Count - LVerifiedCount).ToString +
-      '</strong>legacy packages</div><div class="stat"><strong>' +
-      LMigrationPercentage.ToString + '%</strong>verified migration</div>' +
+      '</strong>legacy</div><div class="stat"><strong>' +
+      LMigrationPercentage.ToString + '%</strong>migration</div>' +
       '</section><section id="community-submit" class="submission" aria-labelledby="community-submit-title">' +
-      '<h2 id="community-submit-title">Submit a package</h2>' +
-      '<p>Community submissions are welcome. Submission does not publish a package: catalog inclusion requires identity and evidence validation, automated checks and explicit maintainer approval.</p>' +
-      '<a href="https://github.com/regyssilveira/Boss4Delphi/issues/new?template=registry-package-submission.yml">Submit package for review</a>' +
-      '</section><section class="controls">' +
+      '<div><h2 id="community-submit-title">Add your package</h2>' +
+      '<p>Submissions go through identity and evidence checks, followed by maintainer review. Nothing is published automatically.</p></div>' +
+      '<a class="button" href="https://github.com/regyssilveira/Boss4Delphi/issues/new?template=registry-package-submission.yml">Submit for review</a>' +
+      '</section><div class="catalog-heading"><h2>Catalog</h2>' +
+      '<p>Filter by name, trust, platform or compiler.</p></div>' +
+      '<section class="controls" aria-label="Package filters">' +
       '<label>Search<input id="package-search" type="search" placeholder="name or repository"></label>' +
       '<label>Trust<select id="trust-filter"><option value="">all</option>' +
       '<option value="authorized">authorized publisher</option>' +
@@ -503,7 +535,8 @@ begin
         '" data-platform="' + EscapeHtml(
           PackageSelectorData(LPackage, 'platform')) +
         '" data-compiler="' + EscapeHtml(
-          PackageSelectorData(LPackage, 'compiler')) + '"><strong>' +
+          PackageSelectorData(LPackage, 'compiler')) +
+        '"><strong class="package-name">' +
         EscapeHtml(LPackage.GetValue<string>('name', '')) +
         '</strong>';
       var LPublisherName := LPackage.GetValue<string>(
@@ -537,11 +570,11 @@ begin
                 Result := Result + ' (revoked)';
               Result := Result + '</code>';
               if not LVersion.GetValue<string>('sha256', '').IsEmpty then
-                Result := Result + ' <span>SHA-256</span>';
+                Result := Result + ' <span class="evidence">SHA-256</span>';
               if not LVersion.GetValue<string>('signature', '').IsEmpty then
-                Result := Result + ' <span>signature</span>';
+                Result := Result + ' <span class="evidence">signature</span>';
               if not LVersion.GetValue<string>('provenance', '').IsEmpty then
-                Result := Result + ' <span>provenance</span>';
+                Result := Result + ' <span class="evidence">provenance</span>';
               Result := Result + '</div>';
             end;
         end
@@ -551,11 +584,13 @@ begin
       end;
       Result := Result + '<p>' +
         EscapeHtml(LPackage.GetValue<string>('description', '')) +
-        '</p><a href="https://' +
+        '</p><a class="repository" href="https://' +
         EscapeHtml(LPackage.GetValue<string>('repository', '')) +
-        '">repository</a></li>';
+        '">View repository</a></li>';
     end;
-    Result := Result + '</ul></main><script>' +
+    Result := Result + '</ul><p id="empty-state" class="empty" hidden>No packages match these filters.</p></main>' +
+      '<footer class="site-footer"><span>Boss4D Public Registry</span>' +
+      '<span>Community maintained · Reviewed submissions</span></footer><script>' +
       'const cards=[...document.querySelectorAll("#packages li")];' +
       'const search=document.getElementById("package-search"),trust=document.getElementById("trust-filter"),' +
       'migration=document.getElementById("migration-filter"),platform=document.getElementById("platform-filter"),' +
@@ -568,7 +603,8 @@ begin
       '(!migration.value||c.dataset.migration===migration.value)&&' +
       '(!platform.value||c.dataset.platform.split(",").includes(platform.value))&&' +
       '(!compiler.value||c.dataset.compiler.split(",").includes(compiler.value));c.hidden=!show;if(show)visible++;});' +
-      'document.getElementById("visible-count").textContent=visible;}' +
+      'document.getElementById("visible-count").textContent=visible;' +
+      'document.getElementById("empty-state").hidden=visible!==0;}' +
       '[search,trust,migration,platform,compiler].forEach(x=>x.addEventListener("input",apply));' +
       '</script></body></html>';
   finally

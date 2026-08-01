@@ -86,10 +86,10 @@ foreach ($marker in @(
     'id="visible-count"',
     'id="community-submit"',
     'issues/new?template=registry-package-submission.yml',
-    'automated checks and explicit maintainer approval',
-    'verified packages',
-    'legacy packages',
-    'verified migration')) {
+    'Nothing is published automatically',
+    'class="catalog-heading"',
+    'No packages match these filters.',
+    'class="site-footer"')) {
   if (-not $portal.Contains($marker)) {
     throw "Registry portal is missing required marker: $marker"
   }
@@ -102,7 +102,8 @@ for ($index = 0; $index -lt $catalog.Count; $index++) {
     throw "Search index order/content mismatch at package $index."
   }
   $encoded = [Net.WebUtility]::HtmlEncode($expected)
-  if (-not $portal.Contains("<strong>$encoded</strong>")) {
+  if (-not $portal.Contains(
+      "<strong class=`"package-name`">$encoded</strong>")) {
     throw "Registry portal does not contain package: $expected"
   }
 }
