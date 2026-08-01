@@ -3,14 +3,34 @@
 Este documento é o mapa oficial de implementação e aceite do goal de maturidade
 na instalação de componentes.
 
-## Evidência atual e lacunas
+## Estado da entrega
+
+As fases 1 a 5 e os gates originais de validação foram concluídos e integrados
+em 31 de julho de 2026 pelo pull request 48. A tabela de lacunas abaixo preserva
+o ponto de partida histórico; ela não representa o estado atual do produto. As
+evidências atuais incluem:
+
+- identidades runtime/design tipadas e planos determinísticos de componentes;
+- instalação, reparo e remoção com preview, lock e transação;
+- perfis isolados com targets, clone, import/export, snapshot, diff, restore,
+  histórico, undo e abertura com `/r:`;
+- serviços compartilhados e presenters testáveis para CLI e GUI;
+- fluxos GUI para packages, targets, perfis, preview, políticas, instalação,
+  reparo, remoção, snapshots e histórico;
+- 295 testes Delphi 13 aprovados em Win32 e Win64, artefatos do Registry
+  validados, CI FPC em Linux/macOS e Quality Gate Sonar limpo.
+
+As melhorias de experiência visual posteriores à entrega são acompanhadas
+separadamente no [Épico 24 do backlog](backlog.pt-BR.md).
+
+## Evidência inicial e lacunas
 
 O Boss4D já possui matriz runtime/design, detecção de `.dpk`, grafo e build
 paralelo, artefatos isolados, registro exato, snapshots do Registro, rollback,
 reparo ativo, uninstall seguro, conflitos e ativos como DLL, CHM, ferramentas e
 templates.
 
-As lacunas reais são:
+A tabela abaixo registra as lacunas identificadas antes da implementação:
 
 | Área | Estado atual | Lacuna |
 |---|---|---|

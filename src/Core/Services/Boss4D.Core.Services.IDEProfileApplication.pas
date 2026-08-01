@@ -7,6 +7,8 @@ uses
   Boss4D.Core.Ports,
   Boss4D.Core.Domain.IDEProfile,
   Boss4D.Core.Services.BuildCommand,
+  Boss4D.Core.Services.BuildExecutor,
+  Boss4D.Core.Services.BuildScheduler,
   Boss4D.Core.Services.BuildInventory,
   Boss4D.Core.Services.IDEProfiles,
   Boss4D.Core.Services.IDERegistration,
@@ -35,9 +37,13 @@ type
     FLogger: IBoss4DLogger;
     FRegistrationFactory: TBoss4DIDERegistrationServiceFactory;
     FResultStore: IBoss4DIDEOperationResultStore;
+    FTargetProgress: TBoss4DBuildTargetProgressHandler;
+    FBuildCancellation: TBoss4DBuildCancellationProbe;
     function BuildOptions(const AProfile: TBoss4DIDEProfile;
       const AConflictPolicy: TBoss4DIDEConflictPolicy):
       TBoss4DBuildCommandOptions;
+    function ExecuteRepair(const AProfileId, AIdentity: string):
+      TBoss4DIDEProfileOperationSummary;
   public
     constructor Create(const AProfiles: TBoss4DIDEProfileService;
       const ABuildInventory: TBoss4DBuildInventory;
@@ -59,8 +65,17 @@ type
       AOwnerPackage: string): TBoss4DIDEProfileOperationSummary;
     function Repair(const AProfileId: string):
       TBoss4DIDEProfileOperationSummary;
+    function RepairTarget(const AProfileId, AIdentity: string):
+      TBoss4DIDEProfileOperationSummary;
+    function FindDrift(const AProfileId: string): TArray<string>;
     function UndoLatest: TBoss4DIDEProfileOperationSummary;
+    function Rollback(const AOperationId: string):
+      TBoss4DIDEProfileOperationSummary;
     function History: TObjectList<TBoss4DIDEOperationResult>;
+    property TargetProgress: TBoss4DBuildTargetProgressHandler
+      read FTargetProgress write FTargetProgress;
+    property BuildCancellation: TBoss4DBuildCancellationProbe
+      read FBuildCancellation write FBuildCancellation;
   end;
 
 implementation
@@ -117,6 +132,8 @@ begin
   Result.RegisterTargets := True;
   Result.ConflictPolicy := AConflictPolicy;
   Result.Jobs := 1;
+  Result.TargetProgress := FTargetProgress;
+  Result.Cancellation := FBuildCancellation;
 end;
 
 function TBoss4DIDEProfileApplication.PreviewInstall(
@@ -207,6 +224,10 @@ begin
         LPackage.Free;
       end;
       FProfiles.AddPackage(LProfile.Id, AOwnerPackage);
+      LOperation.AfterSnapshot := TPath.Combine(
+        TPath.GetDirectoryName(LOperation.UndoSnapshot),
+        LOperation.OperationId + '-after.json');
+      FProfiles.CreateSnapshot(LProfile.Id, LOperation.AfterSnapshot);
       LOperation.CompletedActions.Add('build ' + AOwnerPackage);
       LOperation.CompletedActions.Add('register ' + AOwnerPackage);
       LOperation.Complete;
@@ -266,6 +287,10 @@ begin
         LRegistrationService.Free;
       end;
       FProfiles.RemovePackage(LProfile.Id, AOwnerPackage);
+      LOperation.AfterSnapshot := TPath.Combine(
+        TPath.GetDirectoryName(LOperation.UndoSnapshot),
+        LOperation.OperationId + '-after.json');
+      FProfiles.CreateSnapshot(LProfile.Id, LOperation.AfterSnapshot);
       LOperation.CompletedActions.Add('unregister ' + AOwnerPackage);
       LOperation.Complete;
       if Assigned(FResultStore) then
@@ -287,14 +312,32 @@ begin
   end;
 end;
 
-function TBoss4DIDEProfileApplication.UndoLatest:
+function TBoss4DIDEProfileApplication.Rollback(
+  const AOperationId: string):
   TBoss4DIDEProfileOperationSummary;
 begin
   Result := Default(TBoss4DIDEProfileOperationSummary);
   if not Assigned(FResultStore) then
     raise EBoss4DIDEProfileError.Create(
       'Undo requer um store de resultados de operacoes IDE.');
-  var LPrevious := FResultStore.LoadLatest;
+  if AOperationId.Trim.IsEmpty then
+    raise EBoss4DIDEProfileError.Create(
+      'O ID da operacao para rollback e obrigatorio.');
+  var LPrevious: TBoss4DIDEOperationResult := nil;
+  var LHistory := FResultStore.History;
+  try
+    for var I := 0 to LHistory.Count - 1 do
+      if SameText(LHistory[I].OperationId, AOperationId) then
+      begin
+        LPrevious := LHistory.Extract(LHistory[I]);
+        Break;
+      end;
+  finally
+    LHistory.Free;
+  end;
+  if not Assigned(LPrevious) then
+    raise EBoss4DIDEProfileError.CreateFmt(
+      'Operacao IDE nao encontrada: %s.', [AOperationId]);
   try
     if LPrevious.Status <> TBoss4DIDEOperationStatus.Succeeded then
       raise EBoss4DIDEProfileError.Create(
@@ -312,6 +355,17 @@ begin
       'profile-undo', LPrevious.Profile, LPrevious.OperationId);
     try
       try
+        var LCurrentProfile := FProfiles.Get(LPrevious.Profile);
+        try
+          LOperation.UndoSnapshot := TPath.Combine(
+            TPath.Combine(TPath.GetDirectoryName(
+              LCurrentProfile.InventoryPath), 'snapshots'),
+            LOperation.OperationId + '.json');
+          FProfiles.CreateSnapshot(LCurrentProfile.Id,
+            LOperation.UndoSnapshot);
+        finally
+          LCurrentProfile.Free;
+        end;
         if SameText(LPrevious.Kind, 'profile-uninstall') then
         begin
           var LInstallSummary := Install(LPrevious.Profile,
@@ -354,11 +408,33 @@ begin
         end;
         LOperation.CompletedActions.Add(
           'undo ' + LPrevious.OperationId);
+        LOperation.AfterSnapshot := TPath.Combine(
+          TPath.GetDirectoryName(LOperation.UndoSnapshot),
+          LOperation.OperationId + '-after.json');
+        FProfiles.CreateSnapshot(LPrevious.Profile,
+          LOperation.AfterSnapshot);
         LOperation.Complete;
         FResultStore.Save(LOperation);
       except
         on E: Exception do
         begin
+          if not LOperation.UndoSnapshot.Trim.IsEmpty and
+             TFile.Exists(LOperation.UndoSnapshot) then
+          begin
+            var LRestored := FProfiles.RestoreSnapshot(
+              LOperation.UndoSnapshot);
+            try
+              var LRegistrationService :=
+                FRegistrationFactory(LRestored);
+              try
+                LRegistrationService.Repair;
+              finally
+                LRegistrationService.Free;
+              end;
+            finally
+              LRestored.Free;
+            end;
+          end;
           LOperation.Fail(E.Message,
             'Execute profile repair para ' + LPrevious.Profile + '.');
           FResultStore.Save(LOperation);
@@ -382,22 +458,85 @@ begin
   Result := FResultStore.History;
 end;
 
+function TBoss4DIDEProfileApplication.FindDrift(
+  const AProfileId: string): TArray<string>;
+begin
+  var LProfile := FProfiles.Get(AProfileId);
+  try
+    var LRegistrationService := FRegistrationFactory(LProfile);
+    try
+      Result := LRegistrationService.FindDrift;
+    finally
+      LRegistrationService.Free;
+    end;
+  finally
+    LProfile.Free;
+  end;
+end;
+
+function TBoss4DIDEProfileApplication.UndoLatest:
+  TBoss4DIDEProfileOperationSummary;
+begin
+  if not Assigned(FResultStore) then
+    raise EBoss4DIDEProfileError.Create(
+      'Undo requer um store de resultados de operacoes IDE.');
+  var LLatest := FResultStore.LoadLatest;
+  try
+    Result := Rollback(LLatest.OperationId);
+  finally
+    LLatest.Free;
+  end;
+end;
+
 function TBoss4DIDEProfileApplication.Repair(
   const AProfileId: string): TBoss4DIDEProfileOperationSummary;
 begin
+  Result := ExecuteRepair(AProfileId, '');
+end;
+
+function TBoss4DIDEProfileApplication.RepairTarget(
+  const AProfileId, AIdentity: string):
+  TBoss4DIDEProfileOperationSummary;
+begin
+  if AIdentity.Trim.IsEmpty then
+    raise EArgumentException.Create(
+      'A identidade do registro IDE e obrigatoria.');
+  Result := ExecuteRepair(AProfileId, AIdentity.Trim);
+end;
+
+function TBoss4DIDEProfileApplication.ExecuteRepair(
+  const AProfileId, AIdentity: string):
+  TBoss4DIDEProfileOperationSummary;
+var
+  LKind: string;
+  LTarget: string;
+begin
   Result := Default(TBoss4DIDEProfileOperationSummary);
   var LProfile := FProfiles.Get(AProfileId);
+  if AIdentity.IsEmpty then
+  begin
+    LKind := 'profile-repair';
+    LTarget := LProfile.Id;
+  end
+  else
+  begin
+    LKind := 'registration-repair';
+    LTarget := AIdentity;
+  end;
   var LOperation := TBoss4DIDEOperationResult.New(
-    'profile-repair', LProfile.Id, LProfile.Id);
+    LKind, LProfile.Id, LTarget);
   try
     try
       var LRegistrationService := FRegistrationFactory(LProfile);
       try
-        Result.Affected := LRegistrationService.Repair;
+        if AIdentity.IsEmpty then
+          Result.Affected := LRegistrationService.Repair
+        else
+          Result.Affected := LRegistrationService.Repair(AIdentity);
       finally
         LRegistrationService.Free;
       end;
-      LOperation.CompletedActions.Add('repair ' + LProfile.Id);
+      LOperation.CompletedActions.Add('repair ' + LTarget);
       LOperation.Complete;
       if Assigned(FResultStore) then
         FResultStore.Save(LOperation);

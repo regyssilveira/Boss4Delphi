@@ -96,8 +96,9 @@ git tag -a vX.Y.Z -m "Boss4D vX.Y.Z"
 git push origin vX.Y.Z
 ```
 
-**Resultado esperado:** workflow compila Windows/Linux independentemente,
-combina checksums, cria atestações e publica apenas após ambos aprovarem.
+**Resultado esperado:** o workflow compila Windows, Linux e macOS
+independentemente, combina checksums, cria atestações e publica apenas após
+todos os jobs de plataforma aprovarem.
 
 **Controles de risco:** marque somente commit revisado. Tags e identidades
 `(nome, versão)` são contratos imutáveis; nunca mova tag publicada.
@@ -108,12 +109,18 @@ na mesma identidade.
 
 ## 6. Verificar artefatos baixados
 
-**Situação:** usuário ou deploy baixou arquivos Windows/Linux e manifest.
+**Situação:** usuário ou deploy baixou arquivos Windows/Linux/macOS e manifest.
 
 No Linux:
 
 ```bash
 sha256sum --check SHA256SUMS.txt
+```
+
+No macOS:
+
+```bash
+shasum -a 256 -c SHA256SUMS.txt
 ```
 
 No PowerShell:

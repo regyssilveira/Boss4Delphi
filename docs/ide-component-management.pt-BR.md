@@ -111,7 +111,16 @@ da restauracao do inventario anterior.
 
 `profile history` lista cada entrada imutavel do diario com data, status,
 operacao, perfil e alvo. A GUI apresenta a mesma lista em **Historico** e
-mantem `latest.json` apenas como um ponteiro de conveniencia.
+mantem `latest.json` apenas como um ponteiro de conveniencia. A linha do tempo
+visual exibe primeiro as entradas mais recentes, indica quando ha dados para
+desfazer e apresenta acoes concluidas, erros e instrucoes de recuperacao no
+painel de detalhes. Operacoes novas persistem snapshots de antes e depois; o
+painel lista os campos alterados (`packages`, `inventory`, compilador, branch e
+target) e permite rollback da entrada de install/uninstall selecionada. Antes
+do rollback, a GUI pede confirmacao e o servico cria outro snapshot do estado
+corrente para restauracao compensatoria se alguma etapa falhar. Entradas
+historicas antigas continuam legiveis, mas nao oferecem comparacao sem o par
+de snapshots.
 
 Projetos podem se vincular a um perfil no `boss.json`:
 
@@ -156,18 +165,39 @@ Políticas para IDE aberta:
 
 Abra `Boss4D.GUI.exe` e selecione **Componentes e IDEs**:
 
-1. crie, clone, selecione, remova ou inicie um perfil;
-2. escolha plataforma e configuração padrão;
-3. selecione um produto do inventário global de builds;
-4. consulte **Preview instalar** antes de alterar a IDE;
-5. escolha as políticas de conflito e IDE aberta e instale;
-6. use **Reparar** para reconciliar drift;
-7. use **Desfazer** ou **Historico** para recuperar ou auditar operacoes.
-7. consulte **Preview remover** e remova o produto gerenciado.
+1. abra **Dashboard** para revisar todos os perfis, drift real, produtos
+   instalados, compilador/target e Registry branch;
+2. selecione dois perfis no dashboard para comparar produtos exclusivos e
+   compartilhados, ou selecione um e use **Abrir IDE**;
+3. crie, clone, selecione, remova ou inicie um perfil;
+4. escolha plataforma e configuração padrão;
+5. selecione um produto do inventário global de builds;
+6. use **Preview instalar** para uma consulta rápida dos targets ou pressione
+   **Instalar** para abrir o fluxo guiado completo;
+7. no assistente, confirme explicitamente perfil isolado, package, política de
+   conflito e política para IDE aberta. Revise compilador, Registry branch,
+   targets runtime/design exatos, snapshot transacional, registro e mudança no
+   inventário antes de pressionar **Instalar**;
+8. use **Reparar** para reconciliar drift;
+9. use **Desfazer** para a ultima operacao ou abra **Historico**, selecione um
+   install/uninstall elegivel, revise a comparacao antes/depois e use
+   **Rollback selecionado** para recuperar aquele estado;
+10. consulte **Preview remover** e remova o produto gerenciado.
 
 A grade diferencia produtos disponíveis no inventário de builds dos instalados
-no perfil selecionado. A lista de targets mostra as identidades exatas afetadas
-pela próxima operação.
+no perfil selecionado. A lista de targets oferece um preview rápido; o
+assistente é a superfície oficial de confirmação e apresenta a solicitação
+exata enviada ao serviço transacional compartilhado. Trocar o perfil dentro do
+diálogo recarrega os produtos disponíveis e recalcula o preview de
+targets/alterações.
+
+Após a confirmação, a compilação roda fora da thread visual. A barra da
+operação avança com a contagem real de targets concluídos/total e identifica o
+target runtime/design atual. Estados iniciado, compilado, restaurado do cache,
+inalterado e falhou são gravados imediatamente no log estruturado. O
+cancelamento é propagado ao scheduler de build, e solicitações de componente
+que falharam ou foram canceladas permanecem disponíveis em **Tentar
+novamente**.
 
 ## Situações cotidianas
 
@@ -188,6 +218,13 @@ antes do início da compilação.
 Feche a IDE e execute `repair`. O Boss4D compara Registro e artefatos com o
 inventário do perfil, restaura entradas recuperáveis e grava um journal. Se
 faltarem artefatos de origem, recompile o produto e repita a instalação.
+
+A Central de Saúde da GUI também lista cada identidade com drift
+separadamente. Selecionar uma delas habilita **Registrar target novamente**,
+que repara somente essa identidade do inventário, preserva registros saudáveis
+e grava uma operação transacional `registration-repair`. Uma linha de
+projeto/build saudável habilita **Rebuild completo**, com cancelamento e
+progresso ao vivo por target.
 
 ### Validar em CI sem uma IDE antiga
 

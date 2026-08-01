@@ -56,6 +56,8 @@ package families in separate files or repositories:
   "packages": [{
     "name": "InternalLib",
     "repository": "git.example.com/team/internal",
+    "publisherRepository": "git.example.com/team/internal",
+    "distributionRepository": "github.com/distributor/internal-package",
     "description": "Internal Delphi library",
     "license": "MIT",
     "versions": [{
@@ -64,6 +66,9 @@ package families in separate files or repositories:
       "sha256": "...",
       "signature": "https://packages.example.com/InternalLib-2.4.0.b4dpkg.asc",
       "provenance": "https://packages.example.com/InternalLib-2.4.0.b4dpkg.intoto.json",
+      "changelog": "https://packages.example.com/InternalLib/2.4.0/changes",
+      "sbom": "https://packages.example.com/InternalLib-2.4.0.cdx.json",
+      "dependencies": ["RuntimeCore", "JsonCore"],
       "variants": [{
         "platform": "Win64",
         "compiler": "37.0",
@@ -79,6 +84,14 @@ package families in separate files or repositories:
 }
 ```
 
+`repository` identifies the canonical upstream source used by Git fallback and
+displayed to users. `publisherRepository` identifies the original publisher's
+canonical repository and normally matches `repository`. When a registered
+distributor packages and signs that upstream from a separate repository, the
+optional `distributionRepository` identifies the artifact host for signer and
+namespace validation. Artifact, signature, and provenance URLs may remain
+there; this does not change upstream ownership.
+
 References may be HTTP(S) URLs, absolute local paths, or paths relative to the
 index containing them. Cycles are detected and loaded only once. Unsafe parent
 traversal is rejected by the conformance validator.
@@ -87,6 +100,12 @@ Schema v1 remains fully supported. Existing indexes and the original
 string-to-string `dependencies` map in `boss.json` do not require migration.
 In v2, `versions` is optional, and a package may still expose the v1-compatible
 top-level `version`, `artifact`, and `sha256` fields.
+
+`dependencies`, `changelog`, and `sbom` are optional at package or version
+level. Version metadata takes precedence for the selected release. They let
+catalog clients render the declared dependency graph and provide safe
+navigation to release notes and an externally published SBOM without
+downloading or executing the package.
 
 ## Sparse metadata and revocation
 
@@ -142,7 +161,13 @@ indexes.
 Unknown protocol schemas are rejected. Artifact URLs are always paired with
 their immutable SHA-256 digest, including entries inside `versions`.
 The standalone GUI catalog and RAD Studio search action use the same index
-service as the CLI.
+service as the CLI. The GUI exposes dependency graph, compatibility matrix,
+version/revocation and supply-chain details, plus validated HTTP navigation to
+the repository, changelog, and SBOM when those links are declared, and invokes
+the same `package install` contract through a guided
+version/compiler/platform flow. Its operation bar distinguishes success,
+failure, and cancellation, tracks elapsed time, and preserves failed or
+cancelled requests for retry.
 
 For static hosting and external discovery services, generate a consolidated
 snapshot:

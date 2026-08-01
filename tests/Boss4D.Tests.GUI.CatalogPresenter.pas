@@ -10,11 +10,16 @@ type
   TBoss4DGUICatalogPresenterTests = class
   public
     [Test] procedure ExposesLatestAndRevokedVersionSummary;
+    [Test] procedure ExposesPackageMetadataAndSupplyChainEvidence;
+    [Test] procedure IdentifiesSourcePackageWithoutArtifactEvidence;
+    [Test] procedure ExposesDependencyGraphCompatibilityAndLinks;
+    [Test] procedure AllowsOnlyHttpCatalogNavigation;
   end;
 
 implementation
 
 uses
+  System.SysUtils,
   System.Generics.Collections,
   Boss4D.Core.Services.PackageIndex,
   Boss4D.GUI.Catalog.Presenter;
@@ -43,12 +48,124 @@ begin
     Assert.AreEqual<Integer>(1, Length(LRows));
     Assert.AreEqual('Horse', LRows[0].Name);
     Assert.AreEqual('3.2.1', LRows[0].Version);
+    Assert.AreEqual<Integer>(1, Length(LRows[0].InstallVersions));
+    Assert.AreEqual('3.2.1', LRows[0].InstallVersions[0]);
     Assert.AreEqual('2 versao(oes), 1 revogada(s)',
       LRows[0].VersionSummary);
   finally
     LPresenter.Free;
     LEntries.Free;
   end;
+end;
+
+procedure TBoss4DGUICatalogPresenterTests.ExposesPackageMetadataAndSupplyChainEvidence;
+var
+  LEntries: TObjectList<TBoss4DPackageIndexEntry>;
+  LPresenter: TBoss4DGUICatalogPresenter;
+begin
+  LEntries := TObjectList<TBoss4DPackageIndexEntry>.Create(True);
+  LPresenter := TBoss4DGUICatalogPresenter.Create;
+  try
+    var LEntry := TBoss4DPackageIndexEntry.Create;
+    LEntry.Name := 'Horse';
+    LEntry.Description := 'Framework web';
+    LEntry.License := 'MIT';
+    LEntry.Repository := 'github.com/hashload/horse';
+    var LCurrent := TBoss4DPackageVersion.Create;
+    LCurrent.Version := '3.2.1';
+    LCurrent.ArtifactDigest := 'sha256:abc';
+    LCurrent.SignatureUrl := 'horse.sig';
+    LCurrent.ProvenanceUrl := 'horse.intoto.jsonl';
+    var LVariant := TBoss4DPackageArtifactVariant.Create;
+    LVariant.Platform := 'win32';
+    LVariant.Compiler := 'delphi13';
+    LCurrent.Variants.Add(LVariant);
+    LEntry.Versions.Add(LCurrent);
+    LEntry.RefreshLatest;
+    LEntries.Add(LEntry);
+
+    var LRows := LPresenter.BuildRows(LEntries);
+    Assert.AreEqual('Framework web', LRows[0].Description);
+    Assert.AreEqual('MIT', LRows[0].License);
+    Assert.AreEqual('3.2.1', LRows[0].Versions);
+    Assert.AreEqual('win32 / delphi13', LRows[0].VariantSummary);
+    Assert.AreEqual(
+      'Digest: sim | Assinatura: sim | Proveniencia: sim',
+      LRows[0].SupplyChainSummary);
+  finally
+    LPresenter.Free;
+    LEntries.Free;
+  end;
+end;
+
+procedure TBoss4DGUICatalogPresenterTests.IdentifiesSourcePackageWithoutArtifactEvidence;
+var
+  LEntries: TObjectList<TBoss4DPackageIndexEntry>;
+  LPresenter: TBoss4DGUICatalogPresenter;
+begin
+  LEntries := TObjectList<TBoss4DPackageIndexEntry>.Create(True);
+  LPresenter := TBoss4DGUICatalogPresenter.Create;
+  try
+    var LEntry := TBoss4DPackageIndexEntry.Create;
+    LEntry.Name := 'Legacy';
+    LEntry.Repository := 'github.com/example/legacy';
+    LEntries.Add(LEntry);
+
+    var LRows := LPresenter.BuildRows(LEntries);
+    Assert.AreEqual('Pacote baseado em codigo-fonte',
+      LRows[0].VariantSummary);
+    Assert.AreEqual(
+      'Digest: nao | Assinatura: nao | Proveniencia: nao',
+      LRows[0].SupplyChainSummary);
+  finally
+    LPresenter.Free;
+    LEntries.Free;
+  end;
+end;
+
+procedure TBoss4DGUICatalogPresenterTests.ExposesDependencyGraphCompatibilityAndLinks;
+begin
+  var LEntries := TObjectList<TBoss4DPackageIndexEntry>.Create(True);
+  var LPresenter := TBoss4DGUICatalogPresenter.Create;
+  try
+    var LEntry := TBoss4DPackageIndexEntry.Create;
+    LEntry.Name := 'WebStack';
+    LEntry.Repository := 'github.com/example/webstack';
+    LEntry.Dependencies.Add('Horse');
+    LEntry.Dependencies.Add('Jhonson');
+    LEntry.ChangelogUrl := 'https://example.test/changelog';
+    LEntry.SbomUrl := 'https://example.test/sbom.cdx.json';
+    var LVariant := TBoss4DPackageArtifactVariant.Create;
+    LVariant.Platform := 'Win64';
+    LVariant.Compiler := '37.0';
+    LEntry.Variants.Add(LVariant);
+    LEntries.Add(LEntry);
+    var LRows := LPresenter.BuildRows(LEntries);
+    Assert.AreEqual<Integer>(2, Length(LRows[0].Dependencies));
+    Assert.AreEqual('WebStack -> Horse, Jhonson',
+      LRows[0].DependencyGraph);
+    Assert.IsTrue(LRows[0].CompatibilitySummary.Contains(
+      'Win64 / 37.0'));
+    Assert.AreEqual('https://example.test/changelog',
+      LRows[0].ChangelogUrl);
+    Assert.AreEqual('https://example.test/sbom.cdx.json',
+      LRows[0].SbomUrl);
+  finally
+    LPresenter.Free;
+    LEntries.Free;
+  end;
+end;
+
+procedure TBoss4DGUICatalogPresenterTests.AllowsOnlyHttpCatalogNavigation;
+begin
+  Assert.IsTrue(TBoss4DGUICatalogPresenter.IsNavigableUrl(
+    'https://example.test/changelog'));
+  Assert.IsTrue(TBoss4DGUICatalogPresenter.IsNavigableUrl(
+    'http://localhost/sbom.json'));
+  Assert.IsFalse(TBoss4DGUICatalogPresenter.IsNavigableUrl(
+    'file:///C:/secret.txt'));
+  Assert.IsFalse(TBoss4DGUICatalogPresenter.IsNavigableUrl(
+    'javascript:alert(1)'));
 end;
 
 initialization

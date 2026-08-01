@@ -8,6 +8,7 @@ __recovery/
 *.local
 *.identcache
 *.dsk
+*.dsv
 *.projdata
 *.tvsconfig
 *.stat
@@ -66,3 +67,4 @@ dist/
 installer/Output/
 docs-api/
 src/IDE/Boss4D.IDE.Plugin.res
+src/GUI/Boss4D.GUI.dproj

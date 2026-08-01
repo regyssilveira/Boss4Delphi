@@ -93,6 +93,8 @@ type
     procedure RunInstallTask(const ADep: TBoss4DDependency; const ALock: TBoss4DLock; const ATasks: TList<ITask>);
     procedure SetProgressOutput(const AOutput: IBoss4DProgressOutput);
     procedure SetProgressMode(const AMode: string);
+    procedure SetProgressReporter(
+      const AReporter: IBoss4DProgressReporter);
     procedure SetIDEPathIntegrationHandler(
       const AHandler: TBoss4DIDEPathIntegrationHandler);
     procedure SetDependencyAliasResolver(
@@ -114,6 +116,7 @@ uses
   Boss4D.Core.Services.Transaction,
   Boss4D.Core.Services.ArtifactCache,
   Boss4D.Core.Services.Progress,
+  Boss4D.Core.Services.BuildExecutor,
   Boss4D.Core.Services.BuildCommand,
   Boss4D.Core.Services.BuildInventory,
   Boss4D.Core.Services.BuildCoordinator,
@@ -156,6 +159,15 @@ begin
     FProgress := TBoss4DNullProgressReporter.Create
   else
     FProgress := TBoss4DProgressReporter.Create(FProgressOutput, AMode);
+end;
+
+procedure TBoss4DInstallService.SetProgressReporter(
+  const AReporter: IBoss4DProgressReporter);
+begin
+  if Assigned(AReporter) then
+    FProgress := AReporter
+  else
+    FProgress := TBoss4DNullProgressReporter.Create;
 end;
 
 destructor TBoss4DInstallService.Destroy;
@@ -564,6 +576,7 @@ var
   LLocked: TBoss4DLockedDependency;
   LChecksum: string;
   LArtifactCache: TBoss4DArtifactCacheService;
+  LCurrent: Integer;
 begin
   LChecksum := '';
   if ALock.GetInstalled(ADep, LLocked) then
@@ -587,10 +600,12 @@ begin
 
   if Length(LFiles) > 0 then
   begin
+    LCurrent := 0;
     FProgress.Report(TBoss4DProgressEvent.Create(ADep.GetKey, ADep.Name,
       TBoss4DProgressPhase.Compiling, 0, Length(LFiles), 'compilando'));
     for var LFile in LFiles do
     begin
+      Inc(LCurrent);
       var LLowerPath := LFile.ToLower;
       if LLowerPath.Contains('\samples\') or
          LLowerPath.Contains('\tests\') or
@@ -606,12 +621,20 @@ begin
          LLowerPath.Contains('/demos/') or
          LLowerPath.Contains('/test/') or
          LLowerPath.Contains('/sample/') then
+      begin
+        FProgress.Report(TBoss4DProgressEvent.Create(
+          ADep.GetKey, ADep.Name, TBoss4DProgressPhase.Compiling,
+          LCurrent, Length(LFiles), 'ignorado: ' + LFile));
         Continue;
+      end;
 
       // Executa compilaÃ§Ã£o nativa
       if not FCompiler.Compile(LFile, ADep, ALock, APlatform,
         ACompilerVersion) then
         raise Exception.Create('Falha ao compilar dependencia: ' + ADep.Name);
+      FProgress.Report(TBoss4DProgressEvent.Create(
+        ADep.GetKey, ADep.Name, TBoss4DProgressPhase.Compiling,
+        LCurrent, Length(LFiles), LFile));
     end;
   end
   else
@@ -1074,6 +1097,17 @@ begin
           var LBuildOptions := Default(TBoss4DBuildCommandOptions);
           LBuildOptions.AllInstalledIDEs := True;
           LBuildOptions.RegisterTargets := True;
+          LBuildOptions.TargetProgress :=
+            procedure(const AEvent: TBoss4DBuildTargetProgressEvent)
+            begin
+              var LPhase := TBoss4DProgressPhase.Compiling;
+              if AEvent.State = TargetFailed then
+                LPhase := TBoss4DProgressPhase.Failed;
+              FProgress.Report(TBoss4DProgressEvent.Create(
+                'ide-build', LPkg.Name, LPhase, AEvent.Current,
+                AEvent.Total, AEvent.TargetIdentity + ': ' +
+                AEvent.Message));
+            end;
           LCoordinator.Execute(GetCurrentDir, LBuildOptions);
         finally
           LCoordinator.Free;

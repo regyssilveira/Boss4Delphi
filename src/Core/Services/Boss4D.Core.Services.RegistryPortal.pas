@@ -219,7 +219,10 @@ begin
       if not (LPackageValue is TJSONObject) then
         Continue;
       var LPackage := TJSONObject(LPackageValue);
-      var LRepository := LPackage.GetValue<string>('repository', '');
+        var LRepository := LPackage.GetValue<string>(
+          'distributionRepository',
+          LPackage.GetValue<string>('publisherRepository',
+            LPackage.GetValue<string>('repository', '')));
       var LDeclaredPublisher := LPackage.GetValue<string>('publisher', '');
       var LSelected: TJSONObject := nil;
       for var LPublisherValue in TJSONArray(LPublishersValue) do

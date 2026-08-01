@@ -4,7 +4,9 @@
                      {
                          "name":  "Dext",
                          "publisher":  "boss4d",
-                         "repository":  "github.com/regyssilveira/dext",
+                         "repository":  "github.com/cesarliws/dext",
+                         "publisherRepository":  "github.com/cesarliws/dext",
+                         "distributionRepository":  "github.com/regyssilveira/dext",
                          "signerFingerprint":  "A91FA178E7A1DE7FB10148C8308C9045E23B0279",
                          "description":  "Modern full-stack framework for Delphi",
                          "license":  "Apache-2.0",

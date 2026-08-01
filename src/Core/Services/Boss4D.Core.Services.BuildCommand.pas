@@ -9,7 +9,9 @@ uses
   Boss4D.Core.Domain.Lock,
   Boss4D.Core.Domain.BuildMatrix,
   Boss4D.Core.Services.IDERegistration,
-  Boss4D.Core.Services.BuildInventory;
+  Boss4D.Core.Services.BuildInventory,
+  Boss4D.Core.Services.BuildExecutor,
+  Boss4D.Core.Services.BuildScheduler;
 
 type
   TBoss4DPlannedFile = class
@@ -51,6 +53,8 @@ type
     ConflictPolicy: TBoss4DIDEConflictPolicy;
     RemoteCachePath: string;
     Jobs: Integer;
+    TargetProgress: TBoss4DBuildTargetProgressHandler;
+    Cancellation: TBoss4DBuildCancellationProbe;
     class function Parse(
       const AArgs: TArray<string>): TBoss4DBuildCommandOptions; static;
   end;
@@ -99,7 +103,6 @@ uses
   Boss4D.Core.Domain.Consts,
   Boss4D.Core.Services.BuildConventions,
   Boss4D.Core.Services.BuildCapabilities,
-  Boss4D.Core.Services.BuildExecutor,
   Boss4D.Core.Services.BuildMatrix,
   Boss4D.Core.Services.BuildPaths;
 
@@ -454,6 +457,8 @@ begin
     LExecutionOptions.Force := AOptions.Force;
     LExecutionOptions.Jobs := AOptions.Jobs;
     LExecutionOptions.RemoteCachePath := AOptions.RemoteCachePath;
+    LExecutionOptions.TargetProgress := AOptions.TargetProgress;
+    LExecutionOptions.Cancellation := AOptions.Cancellation;
     Result.Scheduled := LExecutor.Execute(APackage, LDependency, ALock,
       ARootDirectory, LExecutionOptions);
     Result.Built := LExecutor.BuiltCount;

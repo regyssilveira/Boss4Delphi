@@ -264,7 +264,7 @@ begin
     begin
       LPackage.AddProject(AName + '.dpr');
       LPackage.AddDependency('github.com/hashload/horse', '^3.0.0');
-      LPackage.AddDependency('github.com/regyssilveira/dext', '*');
+      LPackage.AddDependency('github.com/cesarliws/dext', '*');
       WriteApiTemplate(AName, LTargetDirectory);
     end;
     if SameText(ATemplate, 'dunitx') then

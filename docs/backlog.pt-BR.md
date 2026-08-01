@@ -13,6 +13,55 @@
 
 Veja o [plano oficial da entrega](ide-packages-profiles-gui-plan.pt-BR.md).
 
+## Épico 23: Ecossistema oficial do Registry
+
+- [x] Gerar submissões schema v2 assinadas nas CLIs Delphi e POSIX.
+- [x] Aplicar novos pacotes e versões imutáveis transacionalmente em um
+  checkout.
+- [x] Criar branch isolado, commit apenas dos arquivos exatos, push
+  configurável e pull request revisado no GitHub com suporte a fork.
+- [x] Exigir checkout limpo e restaurar o branch original quando a aplicação
+  local dos metadados falhar.
+- [x] Auditar o catálogo v1/v2 completo nas CIs Delphi, Linux e macOS.
+- [x] Publicar e validar continuamente o primeiro conjunto curado
+  (16 pacotes schema v2 assinados e zero erros estruturais no Registry).
+- [ ] Operar busca/índice hospedado com mirrors, backup e página de status.
+- [ ] Expor métricas de adoção, manutenção, compatibilidade e confiança.
+
+## Épico 24: Experiência de produto da GUI
+
+- [x] Base de detalhes do catálogo com descrição, licença, histórico de
+  versões/revogações, variantes por compilador/plataforma, digest, assinatura
+  e proveniência.
+- [x] Completar detalhes ricos com grafo de dependências declarado, estado de
+  compatibilidade por fonte/artefato, navegação validada do changelog e
+  consulta do SBOM quando o Registry fornece os metadados.
+- [x] Instalação guiada do Registry com pacote, versão exata, compilador,
+  plataforma, política de fallback para fontes, preview da CLI e confirmação.
+- [x] Estender o fluxo guiado de componentes com seleção de perfil isolado e
+  preview completo de targets/alterações antes da instalação.
+- [x] Progresso da instalação guiada, tempo decorrido, processo Windows
+  cancelável, estado explícito de cancelamento, retry e preview do comando CLI.
+- [x] Adicionar progresso determinado por target e saída estruturada ao vivo
+  aos fluxos de build e gerenciamento de componentes.
+- [x] Central de Saúde estruturada com diagnósticos de ambiente agrupados,
+  resumo, remediação, auto-correção, reparo/undo da IDE e otimização de cache.
+- [x] Adicionar grupos de saúde de projeto/build com ações diretas de rebuild e
+  novo registro exato.
+- [x] Linha do tempo visual tipada, da operação mais recente para a mais
+  antiga, com estado, operação, perfil, target, ações concluídas, detalhes de
+  erro/recuperação e disponibilidade de desfazer.
+- [x] Estender a linha do tempo com comparação explícita antes/depois e
+  rollback transacional de uma entrada histórica selecionada.
+- [x] Dashboard de perfis com drift real do Registry, comparação lado a lado
+  dos produtos instalados, compilador/target/branch e abertura direta da IDE
+  isolada.
+- [x] Logs estruturados e pesquisáveis com colunas de horário/nível/origem,
+  filtro por nível, pesquisa instantânea, foco direto nos erros, limpeza e
+  exportação de diagnóstico em JSON.
+- [ ] Acessibilidade, preferências persistentes, temas claro/escuro, navegação
+  por teclado e notificações nativas de conclusão.
+
 ## Épico 21: CLI portável e fundação de distribuição
 
 - [x] **[Story] Fundação de abstração de plataforma**

@@ -33,6 +33,8 @@ type
     [Test]
     procedure TestSnapshotRejectsTamperedInventory;
     [Test]
+    procedure TestComparesTwoSnapshots;
+    [Test]
     procedure TestProjectBindingResolvesCompatibleProfile;
     [Test]
     procedure TestProjectBindingRejectsCompilerMismatch;
@@ -195,6 +197,43 @@ begin
         LService.RestoreSnapshot(LSnapshotPath).Free;
       end,
       EBoss4DIDEProfileError);
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TTestsIDEProfiles.TestComparesTwoSnapshots;
+begin
+  var LService := TBoss4DIDEProfileService.Create(
+    TBoss4DIDEProfileStore(FStore),
+    TPath.Combine(FDirectory, 'data'));
+  try
+    var LProfile := LService.CreateProfile('Compare Test', '', 'd13',
+      'C:\Delphi13\bin\bds.exe');
+    LProfile.Free;
+    var LBeforePath := TPath.Combine(FDirectory, 'before.json');
+    var LAfterPath := TPath.Combine(FDirectory, 'after.json');
+    LService.CreateSnapshot('compare-test', LBeforePath);
+    LService.AddPackage('compare-test', 'Horse@3.1.0');
+    LProfile := LService.Get('compare-test');
+    try
+      TDirectory.CreateDirectory(
+        TPath.GetDirectoryName(LProfile.InventoryPath));
+      TFile.WriteAllText(LProfile.InventoryPath, '{"version":1}',
+        TEncoding.UTF8);
+    finally
+      LProfile.Free;
+    end;
+    LService.CreateSnapshot('compare-test', LAfterPath);
+    var LChanges := LService.CompareSnapshots(
+      LBeforePath, LAfterPath);
+    try
+      Assert.AreEqual<Integer>(2, LChanges.Count);
+      Assert.IsTrue(LChanges.Contains('packages'));
+      Assert.IsTrue(LChanges.Contains('inventory'));
+    finally
+      LChanges.Free;
+    end;
   finally
     LService.Free;
   end;

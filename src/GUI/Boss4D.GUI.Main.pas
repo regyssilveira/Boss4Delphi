@@ -6,12 +6,26 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.ComCtrls,
   Boss4D.Core.Ports, Boss4D.Core.Domain.Dependency, Boss4D.Core.Domain.Package,
+  Boss4D.Core.Domain.Progress,
   Boss4D.Core.Services.BuildInventory, Boss4D.Core.Services.IDEProfiles,
   Boss4D.Core.Services.IDEProfileApplication,
+  Boss4D.Core.Services.BuildExecutor,
   Boss4D.Core.Services.IDEManagementQuery,
-  Boss4D.GUI.IDE.Presenter;
+  Boss4D.GUI.IDE.Presenter,
+  Boss4D.GUI.IDE.Timeline,
+  Boss4D.GUI.IDE.Dashboard,
+  Boss4D.GUI.Logs,
+  Boss4D.GUI.Catalog.Presenter,
+  Boss4D.GUI.Install.Presenter,
+  Boss4D.GUI.IDE.Install.Presenter,
+  Boss4D.GUI.Operation.Presenter,
+  Boss4D.GUI.TargetProgress,
+  Boss4D.GUI.Health.Presenter;
 
 type
+  TBoss4DGUIOperationKind = (OperationNone, OperationRegistryInstall,
+    OperationProjectInstall, OperationProjectRebuild, OperationIDEInstall);
+
   TFormMain = class(TForm, IBoss4DIDEManagementView)
     PanelSidebar: TPanel;
     BtnPageProject: TButton;
@@ -42,10 +56,22 @@ type
     EditSearch: TEdit;
     BtnInstallSelected: TButton;
     ListCatalog: TListView;
+    PanelCatalogDetails: TPanel;
+    MemoCatalogDetails: TMemo;
+    PanelCatalogLinks: TPanel;
+    BtnCatalogRepository: TButton;
+    BtnCatalogChangelog: TButton;
+    BtnCatalogSbom: TButton;
     PanelDocTop: TPanel;
     BtnDocCheck: TButton;
     BtnDocFix: TButton;
-    MemoDoctor: TMemo;
+    BtnDocRepairIDE: TButton;
+    BtnDocUndoIDE: TButton;
+    BtnDocOptimizeCache: TButton;
+    BtnDocRebuild: TButton;
+    BtnDocReregister: TButton;
+    LblDocSummary: TLabel;
+    ListDoctorHealth: TListView;
     PanelCacheTop: TPanel;
     BtnCacheClean: TButton;
     BtnCachePrune: TButton;
@@ -57,6 +83,7 @@ type
     BtnIDECloneProfile: TButton;
     BtnIDERemoveProfile: TButton;
     BtnIDELaunch: TButton;
+    BtnIDEDashboard: TButton;
     ComboIDETargetPlatform: TComboBox;
     ComboIDETargetConfiguration: TComboBox;
     BtnIDESaveTarget: TButton;
@@ -80,9 +107,22 @@ type
     ListIDETargets: TListBox;
     LblIDEStatus: TLabel;
     PanelLogs: TPanel;
-    MemoLogs: TMemo;
+    PanelOperation: TPanel;
+    LblOperation: TLabel;
+    ProgressOperation: TProgressBar;
+    BtnCancelOperation: TButton;
+    BtnRetryOperation: TButton;
+    PanelLogFilters: TPanel;
+    ComboLogLevel: TComboBox;
+    EditLogSearch: TEdit;
+    BtnLogErrors: TButton;
+    BtnLogExport: TButton;
+    BtnLogClear: TButton;
+    ListLogs: TListView;
+    TimerOperation: TTimer;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure BtnPageProjectClick(Sender: TObject);
     procedure BtnPageCatalogClick(Sender: TObject);
     procedure BtnPageDoctorClick(Sender: TObject);
@@ -95,8 +135,20 @@ type
     procedure BtnProjTreeClick(Sender: TObject);
     procedure EditSearchChange(Sender: TObject);
     procedure BtnInstallSelectedClick(Sender: TObject);
+    procedure ListCatalogSelectItem(Sender: TObject; Item: TListItem;
+      Selected: Boolean);
+    procedure BtnCatalogRepositoryClick(Sender: TObject);
+    procedure BtnCatalogChangelogClick(Sender: TObject);
+    procedure BtnCatalogSbomClick(Sender: TObject);
     procedure BtnDocCheckClick(Sender: TObject);
     procedure BtnDocFixClick(Sender: TObject);
+    procedure BtnDocRepairIDEClick(Sender: TObject);
+    procedure BtnDocUndoIDEClick(Sender: TObject);
+    procedure BtnDocOptimizeCacheClick(Sender: TObject);
+    procedure BtnDocRebuildClick(Sender: TObject);
+    procedure BtnDocReregisterClick(Sender: TObject);
+    procedure ListDoctorHealthSelectItem(Sender: TObject;
+      Item: TListItem; Selected: Boolean);
     procedure BtnCacheCleanClick(Sender: TObject);
     procedure BtnCachePruneClick(Sender: TObject);
     procedure ComboIDEProfilesChange(Sender: TObject);
@@ -105,6 +157,7 @@ type
     procedure BtnIDECloneProfileClick(Sender: TObject);
     procedure BtnIDERemoveProfileClick(Sender: TObject);
     procedure BtnIDELaunchClick(Sender: TObject);
+    procedure BtnIDEDashboardClick(Sender: TObject);
     procedure BtnIDESaveTargetClick(Sender: TObject);
     procedure BtnIDEPreviewInstallClick(Sender: TObject);
     procedure BtnIDEInstallClick(Sender: TObject);
@@ -116,6 +169,14 @@ type
     procedure BtnIDESnapshotClick(Sender: TObject);
     procedure BtnIDEDiffClick(Sender: TObject);
     procedure BtnIDERestoreSnapshotClick(Sender: TObject);
+    procedure BtnCancelOperationClick(Sender: TObject);
+    procedure BtnRetryOperationClick(Sender: TObject);
+    procedure TimerOperationTimer(Sender: TObject);
+    procedure ComboLogLevelChange(Sender: TObject);
+    procedure EditLogSearchChange(Sender: TObject);
+    procedure BtnLogErrorsClick(Sender: TObject);
+    procedure BtnLogExportClick(Sender: TObject);
+    procedure BtnLogClearClick(Sender: TObject);
   private
     FCurrentProjectDir: string;
     FIDEProfileIds: TStringList;
@@ -126,12 +187,54 @@ type
     FIDEQuery: TBoss4DIDEManagementQuery;
     FIDEBackend: IBoss4DIDEManagementBackend;
     FIDEPresenter: TBoss4DIDEManagementPresenter;
+    FCatalogRows: TArray<TBoss4DGUICatalogRow>;
+    FOperationPresenter: TBoss4DGUIOperationPresenter;
+    FLogStore: TBoss4DGUILogStore;
+    FCancelRequested: Integer;
+    FLastInstallRequest: TBoss4DGUIInstallRequest;
+    FHasLastInstallRequest: Boolean;
+    FLastIDEInstallRequest: TBoss4DGUIIDEInstallRequest;
+    FHasLastIDEInstallRequest: Boolean;
+    FOperationKind: TBoss4DGUIOperationKind;
+    FOperationTitle: string;
+    FHealthRows: TArray<TBoss4DGUIHealthRow>;
     procedure InitializeIDEManagement;
     function SelectedIDEPackage: string;
     procedure LoadProjectDependencies(const AProjectDir: string);
     procedure LogMessage(const AMessage: string);
+    procedure LogStructured(const ALevel: TBoss4DLogLevel;
+      const ASource, AMessage: string);
+    procedure QueueLogEntry(const AEntry: TBoss4DGUILogEntry);
+    procedure RefreshLogs;
+    function CurrentLogFilter: TBoss4DGUILogFilter;
     procedure PopulateCatalog;
+    procedure ShowCatalogDetails(const AIndex: Integer);
+    procedure OpenCatalogUrl(const AUrl, ALabel: string);
     procedure RunAsyncCommand(const ATitle, ACommand: string; const AArgs: string = '');
+    procedure RunAsyncGuidedInstall(
+      const ARequest: TBoss4DGUIInstallRequest);
+    procedure FinishGuidedInstall(const ACancelled: Boolean;
+      const AOutput, AError, AProjectDirectory: string);
+    procedure QueueProjectProgress(const AEvent: TBoss4DProgressEvent);
+    procedure HandleProjectProgress(const AEvent: TBoss4DProgressEvent);
+    procedure FinishProjectInstall(const AError,
+      AProjectDirectory: string);
+    procedure RunAsyncIDEInstall(
+      const ARequest: TBoss4DGUIIDEInstallRequest);
+    procedure QueueIDETargetProgress(
+      const AEvent: TBoss4DBuildTargetProgressEvent);
+    procedure HandleIDETargetProgress(
+      const AEvent: TBoss4DBuildTargetProgressEvent);
+    procedure FinishIDEInstall(const ARequest: TBoss4DGUIIDEInstallRequest;
+      const AAffected: Integer; const AError: string;
+      const ACancelled: Boolean);
+    procedure UpdateOperationUI;
+    procedure RunHealthCheck(const AFix: Boolean);
+    procedure RunAsyncProjectRebuild;
+    procedure UpdateHealthActions;
+    procedure PopulateHealth(const ARows: TArray<TBoss4DGUIHealthRow>;
+      const ASummary: string);
+    function FindBoss4DExecutable: string;
     procedure ClearProfiles;
     procedure AddProfile(const AId, AName, ACompiler,
       ARegistryBranch: string; const APackageCount: Integer);
@@ -142,6 +245,10 @@ type
       const AInstalled: Boolean);
     procedure ClearTargets;
     procedure AddTarget(const AIdentity: string);
+    procedure ShowHistory(
+      const ARows: TArray<TBoss4DGUITimelineRow>);
+    procedure ShowDashboard(
+      const ARows: TArray<TBoss4DGUIProfileDashboardRow>);
     procedure ShowIDEStatus(const AMessage: string);
     procedure ShowIDEError(const AMessage: string);
   end;
@@ -154,7 +261,9 @@ implementation
 {$R *.dfm}
 
 uses
-  System.IOUtils, System.Threading, System.JSON,
+  System.IOUtils, System.Threading, System.JSON, System.StrUtils,
+  System.SyncObjs,
+  Winapi.ShellAPI,
   Boss4D.Adapters.Json,
   Boss4D.Adapters.Http,
   Boss4D.Adapters.Git,
@@ -168,13 +277,20 @@ uses
   Boss4D.Core.Services.Tree,
   Boss4D.Core.Services.Outdated,
   Boss4D.Core.Services.PackageIndex,
-  Boss4D.GUI.Catalog.Presenter,
+  Boss4D.GUI.Install.Dialog,
+  Boss4D.GUI.Process.Windows,
   Boss4D.Core.Domain.Env,
   Boss4D.Core.Domain.IDEProfile,
   Boss4D.Core.Services.IDERegistration,
+  Boss4D.Core.Services.BuildDoctor,
+  Boss4D.Core.Services.BuildCommand,
+  Boss4D.Core.Services.BuildCoordinator,
   Boss4D.Core.Services.IDEOperationResult,
   Boss4D.Core.Services.IDEProcessPolicy,
-  Boss4D.GUI.IDE.Backend;
+  Boss4D.GUI.IDE.Backend,
+  Boss4D.GUI.IDE.Timeline.Dialog,
+  Boss4D.GUI.IDE.Dashboard.Dialog,
+  Boss4D.GUI.IDE.Install.Dialog;
 
 type
   TGUILogger = class(TInterfacedObject, IBoss4DLogger)
@@ -196,16 +312,8 @@ begin
 end;
 
 procedure TGUILogger.Log(const ALevel: TBoss4DLogLevel; const AMessage: string);
-var
-  LPrefix: string;
 begin
-  case ALevel of
-    Debug: LPrefix := '[DEBUG] ';
-    Info: LPrefix := '[INFO] ';
-    Warning: LPrefix := '[WARN] ';
-    Error: LPrefix := '[ERRO] ';
-  end;
-  FForm.LogMessage(LPrefix + AMessage);
+  FForm.LogStructured(ALevel, 'Core', AMessage);
 end;
 
 procedure TGUILogger.Log(const ALevel: TBoss4DLogLevel; const AMessage: string; const AArgs: array of const);
@@ -227,6 +335,8 @@ begin
     PageControlMain.Pages[I].TabVisible := False;
 
   PageControlMain.ActivePage := TabProject;
+  FOperationPresenter := TBoss4DGUIOperationPresenter.Create;
+  FLogStore := TBoss4DGUILogStore.Create;
   FIDEProfileIds := TStringList.Create;
   InitializeIDEManagement;
   PopulateCatalog;
@@ -235,6 +345,7 @@ end;
 
 procedure TFormMain.FormDestroy(Sender: TObject);
 begin
+  TInterlocked.Exchange(FCancelRequested, 1);
   FIDEPresenter.Free;
   FIDEBackend := nil;
   FIDEQuery.Free;
@@ -243,6 +354,16 @@ begin
   FIDEProfiles.Free;
   FIDEProfileStore.Free;
   FIDEProfileIds.Free;
+  FLogStore.Free;
+  FOperationPresenter.Free;
+end;
+
+procedure TFormMain.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+begin
+  CanClose := FOperationPresenter.State <> GUIRunning;
+  if not CanClose then
+    ShowMessage('Cancele a operacao atual e aguarde sua finalizacao antes ' +
+      'de fechar a GUI.');
 end;
 
 procedure TFormMain.InitializeIDEManagement;
@@ -417,6 +538,8 @@ var
   LPresenter: TBoss4DGUICatalogPresenter;
 begin
   ListCatalog.Items.Clear;
+  FCatalogRows := nil;
+  MemoCatalogDetails.Clear;
   LLogger := TGUILogger.Create(Self);
   LHttp := TBoss4DHttpNativeAdapter.Create;
   LConfig := TBoss4DConfigService.Create(LLogger);
@@ -425,7 +548,8 @@ begin
   try
     var LEntries := LService.Search(Trim(EditSearch.Text));
     try
-      for var LRow in LPresenter.BuildRows(LEntries) do
+      FCatalogRows := LPresenter.BuildRows(LEntries);
+      for var LRow in FCatalogRows do
       begin
         LItem := ListCatalog.Items.Add;
         LItem.Caption := LRow.Name;
@@ -443,24 +567,272 @@ begin
   end;
 end;
 
+procedure TFormMain.ShowCatalogDetails(const AIndex: Integer);
+var
+  LRow: TBoss4DGUICatalogRow;
+begin
+  MemoCatalogDetails.Clear;
+  BtnCatalogRepository.Enabled := False;
+  BtnCatalogChangelog.Enabled := False;
+  BtnCatalogSbom.Enabled := False;
+  if (AIndex < 0) or (AIndex >= Length(FCatalogRows)) then
+    Exit;
+  LRow := FCatalogRows[AIndex];
+  MemoCatalogDetails.Lines.Add(LRow.Name + ' ' + LRow.Version);
+  if LRow.Description <> '' then
+    MemoCatalogDetails.Lines.Add(LRow.Description);
+  MemoCatalogDetails.Lines.Add('Licenca: ' +
+    IfThen(LRow.License <> '', LRow.License, 'nao informada'));
+  MemoCatalogDetails.Lines.Add('Versoes: ' +
+    IfThen(LRow.Versions <> '', LRow.Versions, 'nao informadas'));
+  MemoCatalogDetails.Lines.Add('Variantes: ' + LRow.VariantSummary);
+  MemoCatalogDetails.Lines.Add('Compatibilidade: ' +
+    LRow.CompatibilitySummary);
+  MemoCatalogDetails.Lines.Add('Dependencias: ' + LRow.DependencyGraph);
+  MemoCatalogDetails.Lines.Add('Conformidade: ' + LRow.SupplyChainSummary);
+  if LRow.ChangelogUrl.IsEmpty then
+    MemoCatalogDetails.Lines.Add('Changelog: nao informado no Registry')
+  else
+    MemoCatalogDetails.Lines.Add('Changelog: disponivel');
+  if LRow.SbomUrl.IsEmpty then
+    MemoCatalogDetails.Lines.Add('SBOM: nao informado no Registry')
+  else
+    MemoCatalogDetails.Lines.Add('SBOM: disponivel');
+  MemoCatalogDetails.Lines.Add('Repositorio: ' + LRow.Repository);
+  BtnCatalogRepository.Enabled := not LRow.Repository.Trim.IsEmpty;
+  BtnCatalogChangelog.Enabled :=
+    TBoss4DGUICatalogPresenter.IsNavigableUrl(LRow.ChangelogUrl);
+  BtnCatalogSbom.Enabled :=
+    TBoss4DGUICatalogPresenter.IsNavigableUrl(LRow.SbomUrl);
+end;
+
+procedure TFormMain.OpenCatalogUrl(const AUrl, ALabel: string);
+begin
+  var LUrl := AUrl.Trim;
+  if not LUrl.Contains('://') then
+    LUrl := 'https://' + LUrl;
+  if not TBoss4DGUICatalogPresenter.IsNavigableUrl(LUrl) then
+  begin
+    ShowMessage(ALabel + ' nao possui uma URL HTTP valida.');
+    Exit;
+  end;
+  if ShellExecute(Handle, 'open', PChar(LUrl), nil, nil,
+     SW_SHOWNORMAL) <= 32 then
+    ShowMessage('Nao foi possivel abrir ' + ALabel + '.');
+end;
+
+procedure TFormMain.BtnCatalogRepositoryClick(Sender: TObject);
+begin
+  if Assigned(ListCatalog.Selected) then
+    OpenCatalogUrl(FCatalogRows[ListCatalog.Selected.Index].Repository,
+      'o repositorio');
+end;
+
+procedure TFormMain.BtnCatalogChangelogClick(Sender: TObject);
+begin
+  if Assigned(ListCatalog.Selected) then
+    OpenCatalogUrl(FCatalogRows[ListCatalog.Selected.Index].ChangelogUrl,
+      'o changelog');
+end;
+
+procedure TFormMain.BtnCatalogSbomClick(Sender: TObject);
+begin
+  if Assigned(ListCatalog.Selected) then
+    OpenCatalogUrl(FCatalogRows[ListCatalog.Selected.Index].SbomUrl,
+      'o SBOM');
+end;
+
+procedure TFormMain.ListCatalogSelectItem(Sender: TObject; Item: TListItem;
+  Selected: Boolean);
+begin
+  if Selected then
+    ShowCatalogDetails(Item.Index)
+  else if ListCatalog.Selected = nil then
+    ShowCatalogDetails(-1);
+end;
+
 procedure TFormMain.EditSearchChange(Sender: TObject);
 begin
   PopulateCatalog;
 end;
 
 procedure TFormMain.LogMessage(const AMessage: string);
-var
-  LMsg: string;
 begin
-  LMsg := AMessage;
+  QueueLogEntry(TBoss4DGUILogs.ParseLegacy(AMessage));
+end;
+
+procedure TFormMain.LogStructured(const ALevel: TBoss4DLogLevel;
+  const ASource, AMessage: string);
+begin
+  QueueLogEntry(TBoss4DGUILogEntry.Create(
+    ALevel, ASource, AMessage));
+end;
+
+procedure TFormMain.QueueLogEntry(const AEntry: TBoss4DGUILogEntry);
+var
+  LEntry: TBoss4DGUILogEntry;
+begin
+  LEntry := AEntry;
   TThread.Queue(nil,
     TThreadProcedure(
       procedure
       begin
-        MemoLogs.Lines.Add(LMsg);
+        if not Assigned(FLogStore) then
+          Exit;
+        FLogStore.Add(LEntry);
+        RefreshLogs;
       end
     )
   );
+end;
+
+function TFormMain.CurrentLogFilter: TBoss4DGUILogFilter;
+begin
+  case ComboLogLevel.ItemIndex of
+    1: Result := TBoss4DGUILogFilter.DebugLogs;
+    2: Result := TBoss4DGUILogFilter.InfoLogs;
+    3: Result := TBoss4DGUILogFilter.WarningLogs;
+    4: Result := TBoss4DGUILogFilter.ErrorLogs;
+  else
+    Result := TBoss4DGUILogFilter.AllLogs;
+  end;
+end;
+
+procedure TFormMain.RefreshLogs;
+begin
+  if not Assigned(FLogStore) then
+    Exit;
+  var LEntries := FLogStore.Query(
+    CurrentLogFilter, EditLogSearch.Text);
+  ListLogs.Items.BeginUpdate;
+  try
+    ListLogs.Items.Clear;
+    for var LEntry in LEntries do
+    begin
+      var LItem := ListLogs.Items.Add;
+      LItem.Caption := LEntry.OccurredAt;
+      LItem.SubItems.Add(LEntry.LevelName);
+      LItem.SubItems.Add(LEntry.Source);
+      LItem.SubItems.Add(LEntry.MessageText);
+    end;
+  finally
+    ListLogs.Items.EndUpdate;
+  end;
+  if ListLogs.Items.Count > 0 then
+    ListLogs.Items[ListLogs.Items.Count - 1].MakeVisible(False);
+end;
+
+procedure TFormMain.ComboLogLevelChange(Sender: TObject);
+begin
+  RefreshLogs;
+end;
+
+procedure TFormMain.EditLogSearchChange(Sender: TObject);
+begin
+  RefreshLogs;
+end;
+
+procedure TFormMain.BtnLogErrorsClick(Sender: TObject);
+begin
+  ComboLogLevel.ItemIndex := 4;
+  RefreshLogs;
+  if ListLogs.Items.Count > 0 then
+  begin
+    ListLogs.Selected := ListLogs.Items[ListLogs.Items.Count - 1];
+    ListLogs.Selected.MakeVisible(False);
+    ListLogs.SetFocus;
+  end;
+end;
+
+procedure TFormMain.BtnLogExportClick(Sender: TObject);
+begin
+  var LDialog := TSaveDialog.Create(Self);
+  try
+    LDialog.Title := 'Exportar diagnostico da GUI';
+    LDialog.Filter := 'JSON (*.json)|*.json';
+    LDialog.DefaultExt := 'json';
+    LDialog.FileName := 'boss4d-gui-diagnostics.json';
+    if LDialog.Execute then
+    begin
+      TBoss4DGUILogs.SaveJson(LDialog.FileName,
+        FLogStore.Query(TBoss4DGUILogFilter.AllLogs));
+      ShowMessage('Diagnostico exportado para ' + LDialog.FileName);
+    end;
+  finally
+    LDialog.Free;
+  end;
+end;
+
+procedure TFormMain.BtnLogClearClick(Sender: TObject);
+begin
+  FLogStore.Clear;
+  RefreshLogs;
+end;
+
+procedure TFormMain.QueueProjectProgress(
+  const AEvent: TBoss4DProgressEvent);
+var
+  LEvent: TBoss4DProgressEvent;
+begin
+  LEvent := AEvent;
+  TThread.Queue(nil,
+    procedure
+    begin
+      HandleProjectProgress(LEvent);
+    end);
+end;
+
+procedure TFormMain.HandleProjectProgress(
+  const AEvent: TBoss4DProgressEvent);
+begin
+  var LPhase := Boss4DProgressPhaseName(AEvent.Phase);
+  if AEvent.Total > 0 then
+  begin
+    ProgressOperation.Style := pbstNormal;
+    ProgressOperation.Min := 0;
+    ProgressOperation.Max := AEvent.Total;
+    ProgressOperation.Position := AEvent.Current;
+    LblOperation.Caption := Format('%s - %s %d/%d - %s',
+      [FOperationTitle, AEvent.PackageName, AEvent.Current,
+       AEvent.Total, AEvent.Message]);
+  end
+  else
+  begin
+    ProgressOperation.Style := pbstMarquee;
+    LblOperation.Caption := FOperationTitle + ' - ' +
+      AEvent.PackageName + ' - ' + AEvent.Message;
+  end;
+  if AEvent.Phase = TBoss4DProgressPhase.Failed then
+    LogStructured(TBoss4DLogLevel.Error, 'Project Build',
+      '[' + LPhase + '] ' + AEvent.PackageName + ': ' + AEvent.Message)
+  else
+    LogStructured(TBoss4DLogLevel.Info, 'Project Build',
+      '[' + LPhase + '] ' + AEvent.PackageName + ': ' + AEvent.Message);
+end;
+
+procedure TFormMain.FinishProjectInstall(const AError,
+  AProjectDirectory: string);
+begin
+  if (FOperationKind = OperationProjectRebuild) and
+     (TInterlocked.CompareExchange(FCancelRequested, 0, 0) <> 0) then
+  begin
+    FOperationPresenter.Cancel(GetTickCount64);
+    LogStructured(TBoss4DLogLevel.Warning, 'Project Build',
+      'Rebuild cancelado pelo usuario.');
+  end
+  else if not AError.IsEmpty then
+  begin
+    FOperationPresenter.Fail(AError, GetTickCount64);
+    LogStructured(TBoss4DLogLevel.Error, 'Project Build', AError);
+  end
+  else
+  begin
+    FOperationPresenter.Complete(GetTickCount64);
+    LoadProjectDependencies(AProjectDirectory);
+    LogStructured(TBoss4DLogLevel.Info, 'Project Build',
+      'Operacao de projeto concluida.');
+  end;
+  UpdateOperationUI;
 end;
 
 procedure TFormMain.RunAsyncCommand(const ATitle, ACommand: string; const AArgs: string);
@@ -471,6 +843,20 @@ begin
     Exit;
   end;
 
+  if SameText(ACommand, 'install') then
+  begin
+    if FOperationPresenter.State = GUIRunning then
+    begin
+      ShowMessage('Aguarde ou cancele a operacao atual.');
+      Exit;
+    end;
+    FOperationKind := OperationProjectInstall;
+    FOperationTitle := ATitle;
+    FOperationPresenter.Start(GetTickCount64);
+    ProgressOperation.Style := pbstMarquee;
+    ProgressOperation.Position := 0;
+    UpdateOperationUI;
+  end;
   LogMessage('Iniciando: ' + ATitle);
 
   TTask.Run(
@@ -487,7 +873,9 @@ begin
       LGitClient: IBoss4DGitClient;
       LInstallService: TBoss4DInstallService;
       LInitService: TBoss4DInitService;
+      LError: string;
     begin
+      LError := '';
       try
         LLogger := TGUILogger.Create(Self);
         LPackageRepo := TBoss4DPackageJsonRepository.Create;
@@ -510,6 +898,12 @@ begin
           LInstallService := TBoss4DInstallService.Create(
             LPackageRepo, LLockRepo, LGitClient, LHttpClient, LCompiler, LLogger);
           try
+            LInstallService.SetProgressReporter(
+              TBoss4DGUIProgressReporter.Create(
+                procedure(const AEvent: TBoss4DProgressEvent)
+                begin
+                  QueueProjectProgress(AEvent);
+                end));
             TDirectory.SetCurrentDirectory(FCurrentProjectDir);
             LInstallService.Execute(AArgs);
             LogMessage('Comando finalizado com sucesso: ' + ATitle);
@@ -517,7 +911,7 @@ begin
               TThreadProcedure(
                 procedure
                 begin
-                  LoadProjectDependencies(FCurrentProjectDir);
+                  FinishProjectInstall('', FCurrentProjectDir);
                 end
               )
             );
@@ -546,10 +940,335 @@ begin
         end;
       except
         on E: Exception do
+        begin
+          LError := E.Message;
           LogMessage('[FALHA] Erro ao executar ' + ATitle + ': ' + E.Message);
+          if SameText(ACommand, 'install') then
+            TThread.Queue(nil,
+              procedure
+              begin
+                FinishProjectInstall(LError, FCurrentProjectDir);
+              end);
+        end;
       end;
     end
   );
+end;
+
+function TFormMain.FindBoss4DExecutable: string;
+var
+  LBuffer: array[0..MAX_PATH] of Char;
+  LLength: DWORD;
+  LFilePart: PChar;
+begin
+  Result := TPath.Combine(ExtractFilePath(ParamStr(0)), 'boss4d.exe');
+  if TFile.Exists(Result) then
+    Exit;
+  LFilePart := nil;
+  LLength := Winapi.Windows.SearchPath(nil, 'boss4d.exe', nil,
+    Length(LBuffer), LBuffer, LFilePart);
+  if (LLength > 0) and (LLength < Length(LBuffer)) then
+    SetString(Result, LBuffer, LLength)
+  else
+    Result := '';
+end;
+
+procedure TFormMain.RunAsyncGuidedInstall(
+  const ARequest: TBoss4DGUIInstallRequest);
+var
+  LExecutable: string;
+  LProjectDirectory: string;
+  LRequest: TBoss4DGUIInstallRequest;
+begin
+  if FOperationPresenter.State = GUIRunning then
+  begin
+    ShowMessage('Aguarde ou cancele a operacao atual.');
+    Exit;
+  end;
+  if FCurrentProjectDir = '' then
+  begin
+    ShowMessage('Por favor, selecione a pasta do projeto local primeiro!');
+    Exit;
+  end;
+  LExecutable := FindBoss4DExecutable;
+  if LExecutable = '' then
+  begin
+    ShowMessage('boss4d.exe nao foi encontrado ao lado da GUI ou no PATH.');
+    Exit;
+  end;
+  LProjectDirectory := FCurrentProjectDir;
+  LRequest := ARequest;
+  FLastInstallRequest := ARequest;
+  FHasLastInstallRequest := True;
+  FOperationKind := OperationRegistryInstall;
+  FOperationTitle := 'Instalando pacote';
+  TInterlocked.Exchange(FCancelRequested, 0);
+  FOperationPresenter.Start(GetTickCount64);
+  ProgressOperation.Style := pbstMarquee;
+  ProgressOperation.Position := 0;
+  UpdateOperationUI;
+  LogMessage('Iniciando: ' +
+    TBoss4DGUIInstallPresenter.BuildEquivalentCommand(LRequest));
+  TTask.Run(
+    procedure
+    var
+      LExecutor: TBoss4DGUIInstallExecutor;
+      LOutput: string;
+      LError: string;
+      LCancelled: Boolean;
+    begin
+      LCancelled := False;
+      LError := '';
+      LExecutor := TBoss4DGUIInstallExecutor.Create(
+        TBoss4DGUIWindowsProcessRunner.Create);
+      try
+        try
+          LOutput := LExecutor.Execute(LExecutable,
+            LProjectDirectory, LRequest,
+            function: Boolean
+            begin
+              Result := TInterlocked.CompareExchange(
+                FCancelRequested, 0, 0) <> 0;
+            end,
+            LCancelled);
+        except
+          on E: Exception do
+            LError := E.Message;
+        end;
+      finally
+        LExecutor.Free;
+      end;
+      TThread.Queue(nil,
+        TThreadProcedure(
+          procedure
+          begin
+            FinishGuidedInstall(LCancelled, LOutput, LError,
+              LProjectDirectory);
+          end
+        )
+      );
+    end
+  );
+end;
+
+procedure TFormMain.QueueIDETargetProgress(
+  const AEvent: TBoss4DBuildTargetProgressEvent);
+var
+  LEvent: TBoss4DBuildTargetProgressEvent;
+begin
+  LEvent := AEvent;
+  TThread.Queue(nil,
+    procedure
+    begin
+      HandleIDETargetProgress(LEvent);
+    end);
+end;
+
+procedure TFormMain.HandleIDETargetProgress(
+  const AEvent: TBoss4DBuildTargetProgressEvent);
+begin
+  var LRow := TBoss4DGUITargetProgress.FromBuildEvent(AEvent);
+  ProgressOperation.Style := pbstNormal;
+  ProgressOperation.Min := 0;
+  ProgressOperation.Max := LRow.Total;
+  ProgressOperation.Position := LRow.Current;
+  LblOperation.Caption := Format('%s - %d/%d (%d%%) - %s',
+    [FOperationTitle, LRow.Current, LRow.Total, LRow.Percentage,
+     LRow.TargetIdentity]);
+  if LRow.IsFailure then
+    LogStructured(TBoss4DLogLevel.Error, 'IDE Build',
+      LRow.TargetIdentity + ' [' + LRow.State + '] ' + LRow.Message)
+  else
+    LogStructured(TBoss4DLogLevel.Info, 'IDE Build',
+      LRow.TargetIdentity + ' [' + LRow.State + '] ' + LRow.Message);
+end;
+
+procedure TFormMain.RunAsyncIDEInstall(
+  const ARequest: TBoss4DGUIIDEInstallRequest);
+var
+  LRequest: TBoss4DGUIIDEInstallRequest;
+begin
+  if FOperationPresenter.State = GUIRunning then
+  begin
+    ShowMessage('Aguarde ou cancele a operacao atual.');
+    Exit;
+  end;
+  LRequest := ARequest;
+  FLastIDEInstallRequest := ARequest;
+  FHasLastIDEInstallRequest := True;
+  FOperationKind := OperationIDEInstall;
+  FOperationTitle := 'Instalando ' + ARequest.PackageName;
+  TInterlocked.Exchange(FCancelRequested, 0);
+  FOperationPresenter.Start(GetTickCount64);
+  ProgressOperation.Style := pbstNormal;
+  ProgressOperation.Min := 0;
+  ProgressOperation.Max := Length(ARequest.Targets);
+  ProgressOperation.Position := 0;
+  PanelIDEActions.Enabled := False;
+  FIDEOperations.TargetProgress :=
+    procedure(const AEvent: TBoss4DBuildTargetProgressEvent)
+    begin
+      QueueIDETargetProgress(AEvent);
+    end;
+  FIDEOperations.BuildCancellation :=
+    function: Boolean
+    begin
+      Result := TInterlocked.CompareExchange(
+        FCancelRequested, 0, 0) <> 0;
+    end;
+  UpdateOperationUI;
+  LogStructured(TBoss4DLogLevel.Info, 'IDE Build',
+    'Iniciando ' + ARequest.PackageName + ' em ' +
+    ARequest.ProfileName + ' com ' +
+    Length(ARequest.Targets).ToString + ' target(s).');
+  TTask.Run(
+    procedure
+    var
+      LAffected: Integer;
+      LError: string;
+      LCancelled: Boolean;
+    begin
+      LAffected := 0;
+      LError := '';
+      LCancelled := False;
+      try
+        LAffected := FIDEBackend.Install(LRequest.ProfileId,
+          LRequest.PackageName, LRequest.ConflictPolicy,
+          LRequest.OpenPolicy);
+      except
+        on E: Exception do
+        begin
+          LCancelled := TInterlocked.CompareExchange(
+            FCancelRequested, 0, 0) <> 0;
+          if not LCancelled then
+            LError := E.Message;
+        end;
+      end;
+      TThread.Queue(nil,
+        procedure
+        begin
+          FinishIDEInstall(LRequest, LAffected, LError, LCancelled);
+        end);
+    end);
+end;
+
+procedure TFormMain.FinishIDEInstall(
+  const ARequest: TBoss4DGUIIDEInstallRequest;
+  const AAffected: Integer; const AError: string;
+  const ACancelled: Boolean);
+begin
+  FIDEOperations.TargetProgress := nil;
+  FIDEOperations.BuildCancellation := nil;
+  PanelIDEActions.Enabled := True;
+  if ACancelled then
+  begin
+    FOperationPresenter.Cancel(GetTickCount64);
+    LogStructured(TBoss4DLogLevel.Warning, 'IDE Build',
+      'Instalacao cancelada pelo usuario.');
+    ShowIDEStatus('Instalacao de componente cancelada.');
+  end
+  else if not AError.IsEmpty then
+  begin
+    FOperationPresenter.Fail(AError, GetTickCount64);
+    LogStructured(TBoss4DLogLevel.Error, 'IDE Build', AError);
+    ShowIDEError(AError);
+  end
+  else
+  begin
+    FOperationPresenter.Complete(GetTickCount64);
+    ProgressOperation.Position := ProgressOperation.Max;
+    LogStructured(TBoss4DLogLevel.Info, 'IDE Build',
+      Format('Instalacao concluida: %d registro(s) afetado(s).',
+        [AAffected]));
+    FIDEPresenter.ChooseProfile(ARequest.ProfileId);
+    ShowIDEStatus(Format(
+      'Instalacao concluida: %d registro(s) afetado(s).',
+      [AAffected]));
+  end;
+  UpdateOperationUI;
+end;
+
+procedure TFormMain.FinishGuidedInstall(const ACancelled: Boolean;
+  const AOutput, AError, AProjectDirectory: string);
+begin
+  if AOutput <> '' then
+    LogMessage(AOutput);
+  if ACancelled then
+  begin
+    FOperationPresenter.Cancel(GetTickCount64);
+    LogMessage('Instalacao cancelada pelo usuario.');
+  end
+  else if AError <> '' then
+  begin
+    FOperationPresenter.Fail(AError, GetTickCount64);
+    LogMessage('[ERRO] ' + AError);
+  end
+  else
+  begin
+    FOperationPresenter.Complete(GetTickCount64);
+    LogMessage('Instalacao guiada concluida com sucesso.');
+    LoadProjectDependencies(AProjectDirectory);
+  end;
+  UpdateOperationUI;
+end;
+
+procedure TFormMain.UpdateOperationUI;
+var
+  LState: string;
+begin
+  case FOperationPresenter.State of
+    GUIIdle: LState := 'Nenhuma operacao';
+    GUIRunning: LState := Format('%s (tentativa %d) - %s',
+      [FOperationTitle, FOperationPresenter.Attempt,
+       FOperationPresenter.ElapsedText(GetTickCount64)]);
+    GUISucceeded: LState := 'Instalacao concluida - ' +
+      FOperationPresenter.ElapsedText(GetTickCount64);
+    GUIFailed: LState := 'Instalacao falhou - ' +
+      FOperationPresenter.ElapsedText(GetTickCount64);
+    GUICancelled: LState := 'Instalacao cancelada - ' +
+      FOperationPresenter.ElapsedText(GetTickCount64);
+  else
+    LState := '';
+  end;
+  LblOperation.Caption := LState;
+  ProgressOperation.Visible := FOperationPresenter.State = GUIRunning;
+  BtnCancelOperation.Enabled := FOperationPresenter.CanCancel and
+    (FOperationKind <> OperationProjectInstall);
+  BtnRetryOperation.Enabled := FOperationPresenter.CanRetry and
+    (((FOperationKind = OperationRegistryInstall) and
+      FHasLastInstallRequest) or
+     ((FOperationKind = OperationIDEInstall) and
+      FHasLastIDEInstallRequest));
+  TimerOperation.Enabled := FOperationPresenter.State = GUIRunning;
+end;
+
+procedure TFormMain.BtnCancelOperationClick(Sender: TObject);
+begin
+  if FOperationPresenter.CanCancel then
+  begin
+    TInterlocked.Exchange(FCancelRequested, 1);
+    BtnCancelOperation.Enabled := False;
+    LblOperation.Caption := 'Cancelando operacao...';
+  end;
+end;
+
+procedure TFormMain.BtnRetryOperationClick(Sender: TObject);
+begin
+  if not FOperationPresenter.CanRetry then
+    Exit;
+  case FOperationKind of
+    OperationRegistryInstall:
+      if FHasLastInstallRequest then
+        RunAsyncGuidedInstall(FLastInstallRequest);
+    OperationIDEInstall:
+      if FHasLastIDEInstallRequest then
+        RunAsyncIDEInstall(FLastIDEInstallRequest);
+  end;
+end;
+
+procedure TFormMain.TimerOperationTimer(Sender: TObject);
+begin
+  UpdateOperationUI;
 end;
 
 procedure TFormMain.BtnProjInitClick(Sender: TObject);
@@ -635,8 +1354,6 @@ begin
 end;
 
 procedure TFormMain.BtnInstallSelectedClick(Sender: TObject);
-var
-  LRepo: string;
 begin
   if ListCatalog.Selected = nil then
   begin
@@ -644,80 +1361,313 @@ begin
     Exit;
   end;
 
-  LRepo := ListCatalog.Selected.SubItems[2];
-  RunAsyncCommand('Instalacao de ' + ListCatalog.Selected.Caption, 'install', LRepo);
+  var LIndex := ListCatalog.Selected.Index;
+  if LIndex >= Length(FCatalogRows) then
+    Exit;
+  var LRequest := Default(TBoss4DGUIInstallRequest);
+  if TBoss4DGUIInstallDialog.Execute(Self, FCatalogRows[LIndex].Name,
+    FCatalogRows[LIndex].InstallVersions, LRequest) then
+    RunAsyncGuidedInstall(LRequest);
 end;
 
 procedure TFormMain.BtnDocCheckClick(Sender: TObject);
 begin
-  MemoDoctor.Clear;
-  MemoDoctor.Lines.Add('Iniciando diagnostico do ambiente...');
-  TTask.Run(
-    procedure
-      var
-        LLogger: IBoss4DLogger;
-        LRegistry: IBoss4DRegistryService;
-        LService: TBoss4DDoctorService;
-      begin
-        try
-          LLogger := TGUILogger.Create(Self);
-          LRegistry := TBoss4DWindowsRegistryAdapter.Create;
-          LService := TBoss4DDoctorService.Create(LRegistry, LLogger);
-          try
-            LService.Check(False);
-            TThread.Queue(nil,
-              TThreadProcedure(
-                procedure
-                begin
-                  MemoDoctor.Lines.Add('Diagnostico finalizado.');
-                end
-              )
-            );
-          finally
-            LService.Free;
-          end;
-      except
-        on E: Exception do
-          MemoDoctor.Lines.Add('[ERRO] ' + E.Message);
-      end;
-    end
-  );
+  RunHealthCheck(False);
 end;
 
 procedure TFormMain.BtnDocFixClick(Sender: TObject);
 begin
-  MemoDoctor.Clear;
-  MemoDoctor.Lines.Add('Iniciando auto-correcao do ambiente...');
+  RunHealthCheck(True);
+end;
+
+procedure TFormMain.RunHealthCheck(const AFix: Boolean);
+var
+  LFix: Boolean;
+  LProjectDirectory: string;
+  LProfileId: string;
+begin
+  LFix := AFix;
+  LProjectDirectory := FCurrentProjectDir;
+  LProfileId := FIDEPresenter.SelectedProfile;
+  ListDoctorHealth.Items.Clear;
+  if LFix then
+    LblDocSummary.Caption := 'Aplicando correcoes e verificando...'
+  else
+    LblDocSummary.Caption := 'Verificando ambiente...';
+  BtnDocCheck.Enabled := False;
+  BtnDocFix.Enabled := False;
   TTask.Run(
     procedure
-      var
-        LLogger: IBoss4DLogger;
-        LRegistry: IBoss4DRegistryService;
-        LService: TBoss4DDoctorService;
-      begin
+    var
+      LLogger: IBoss4DLogger;
+      LRegistry: IBoss4DRegistryService;
+      LService: TBoss4DDoctorService;
+      LReport: TBoss4DDoctorReport;
+      LRows: TArray<TBoss4DGUIHealthRow>;
+      LSummary: string;
+      LError: string;
+      LPackageRepository: IBoss4DPackageRepository;
+      LPackage: TBoss4DPackage;
+      LBuildDoctor: TBoss4DBuildDoctor;
+      LBuildReport: TBoss4DBuildDoctorResult;
+    begin
+      LError := '';
+      LLogger := TGUILogger.Create(Self);
+      LRegistry := TBoss4DWindowsRegistryAdapter.Create;
+      LService := TBoss4DDoctorService.Create(LRegistry, LLogger);
+      try
         try
-          LLogger := TGUILogger.Create(Self);
-          LRegistry := TBoss4DWindowsRegistryAdapter.Create;
-          LService := TBoss4DDoctorService.Create(LRegistry, LLogger);
+          LReport := LService.Diagnose(LFix);
           try
-            LService.Check(True);
-            TThread.Queue(nil,
-              TThreadProcedure(
-                procedure
-                begin
-                  MemoDoctor.Lines.Add('Auto-correcao finalizada.');
-                end
-              )
-            );
+            LRows := TBoss4DGUIHealthPresenter.BuildRows(LReport);
+            LSummary := TBoss4DGUIHealthPresenter.Summarize(LReport).Text;
           finally
-            LService.Free;
+            LReport.Free;
           end;
-      except
-        on E: Exception do
-          MemoDoctor.Lines.Add('[ERRO] ' + E.Message);
+          if not LProjectDirectory.IsEmpty and
+             TFile.Exists(TPath.Combine(
+            LProjectDirectory, 'boss.json')) then
+          begin
+            LPackageRepository := TBoss4DPackageJsonRepository.Create;
+            LPackage := LPackageRepository.Load(TPath.Combine(
+              LProjectDirectory, 'boss.json'));
+            try
+              LBuildDoctor := TBoss4DBuildDoctor.Create(LRegistry,
+                function: TArray<string>
+                begin
+                  if LProfileId.IsEmpty then
+                    Result := nil
+                  else
+                    Result := FIDEOperations.FindDrift(LProfileId);
+                end);
+              try
+                LBuildReport := LBuildDoctor.Diagnose(
+                  LPackage, LProjectDirectory);
+                try
+                  LRows := TBoss4DGUIHealthPresenter.AppendBuildRows(
+                    LRows, LBuildReport);
+                  LSummary := LSummary + Format(
+                    '; projeto/build: %d diagnostico(s)',
+                    [LBuildReport.Issues.Count]);
+                finally
+                  LBuildReport.Free;
+                end;
+              finally
+                LBuildDoctor.Free;
+              end;
+            finally
+              LPackage.Free;
+            end;
+          end;
+        except
+          on E: Exception do
+            LError := E.Message;
+        end;
+      finally
+        LService.Free;
       end;
+      TThread.Queue(nil,
+        TThreadProcedure(
+          procedure
+          begin
+            BtnDocCheck.Enabled := True;
+            BtnDocFix.Enabled := True;
+            if LError <> '' then
+            begin
+              LblDocSummary.Caption := 'Falha no diagnostico: ' + LError;
+              LogMessage('[ERRO] ' + LError);
+            end
+            else
+              PopulateHealth(LRows, LSummary);
+          end
+        )
+      );
     end
   );
+end;
+
+procedure TFormMain.PopulateHealth(
+  const ARows: TArray<TBoss4DGUIHealthRow>; const ASummary: string);
+begin
+  FHealthRows := Copy(ARows);
+  ListDoctorHealth.Items.BeginUpdate;
+  try
+    ListDoctorHealth.Items.Clear;
+    for var LRow in ARows do
+    begin
+      var LItem := ListDoctorHealth.Items.Add;
+      LItem.Caption := LRow.Group;
+      LItem.SubItems.Add(LRow.Status);
+      LItem.SubItems.Add(LRow.Code);
+      LItem.SubItems.Add(LRow.Message);
+      LItem.SubItems.Add(LRow.Remediation);
+      LItem.SubItems.Add(LRow.ActionLabel);
+    end;
+    LblDocSummary.Caption := ASummary;
+  finally
+    ListDoctorHealth.Items.EndUpdate;
+  end;
+  UpdateHealthActions;
+end;
+
+procedure TFormMain.ListDoctorHealthSelectItem(Sender: TObject;
+  Item: TListItem; Selected: Boolean);
+begin
+  UpdateHealthActions;
+end;
+
+procedure TFormMain.UpdateHealthActions;
+begin
+  BtnDocRebuild.Enabled := False;
+  BtnDocReregister.Enabled := False;
+  if not Assigned(ListDoctorHealth.Selected) or
+     (ListDoctorHealth.Selected.Index >= Length(FHealthRows)) then
+    Exit;
+  case FHealthRows[ListDoctorHealth.Selected.Index].Action of
+    HealthActionRebuild: BtnDocRebuild.Enabled := True;
+    HealthActionReregister: BtnDocReregister.Enabled := True;
+  end;
+end;
+
+procedure TFormMain.BtnDocRepairIDEClick(Sender: TObject);
+begin
+  FIDEPresenter.Repair;
+end;
+
+procedure TFormMain.BtnDocUndoIDEClick(Sender: TObject);
+begin
+  FIDEPresenter.Undo;
+end;
+
+procedure TFormMain.BtnDocOptimizeCacheClick(Sender: TObject);
+begin
+  BtnCachePruneClick(Sender);
+end;
+
+procedure TFormMain.BtnDocRebuildClick(Sender: TObject);
+begin
+  RunAsyncProjectRebuild;
+end;
+
+procedure TFormMain.BtnDocReregisterClick(Sender: TObject);
+begin
+  if not Assigned(ListDoctorHealth.Selected) or
+     (ListDoctorHealth.Selected.Index >= Length(FHealthRows)) then
+    Exit;
+  var LRow := FHealthRows[ListDoctorHealth.Selected.Index];
+  if (LRow.Action <> HealthActionReregister) or
+     LRow.ActionTarget.IsEmpty then
+    Exit;
+  if FIDEPresenter.SelectedProfile.IsEmpty then
+  begin
+    ShowMessage('Selecione um perfil IDE antes de registrar novamente.');
+    Exit;
+  end;
+  if MessageDlg('Registrar novamente apenas o target ' +
+    LRow.ActionTarget + '?', mtConfirmation, [mbYes, mbNo], 0) <> mrYes then
+    Exit;
+  try
+    var LAffected := FIDEBackend.RepairTarget(
+      FIDEPresenter.SelectedProfile, LRow.ActionTarget);
+    ShowIDEStatus(Format(
+      'Novo registro exato concluido: %d alteracao(oes).',
+      [LAffected]));
+    RunHealthCheck(False);
+  except
+    on E: Exception do
+      ShowIDEError(E.Message);
+  end;
+end;
+
+procedure TFormMain.RunAsyncProjectRebuild;
+var
+  LProjectDirectory: string;
+begin
+  if FCurrentProjectDir.IsEmpty then
+  begin
+    ShowMessage('Selecione a pasta do projeto antes do rebuild.');
+    Exit;
+  end;
+  if FOperationPresenter.State = GUIRunning then
+  begin
+    ShowMessage('Aguarde ou cancele a operacao atual.');
+    Exit;
+  end;
+  LProjectDirectory := FCurrentProjectDir;
+  FOperationKind := OperationProjectRebuild;
+  FOperationTitle := 'Rebuild completo';
+  TInterlocked.Exchange(FCancelRequested, 0);
+  FOperationPresenter.Start(GetTickCount64);
+  ProgressOperation.Style := pbstMarquee;
+  ProgressOperation.Position := 0;
+  UpdateOperationUI;
+  TTask.Run(
+    procedure
+    var
+      LLogger: IBoss4DLogger;
+      LRegistry: IBoss4DRegistryService;
+      LCompiler: IBoss4DCompiler;
+      LPackageRepository: IBoss4DPackageRepository;
+      LLockRepository: IBoss4DLockRepository;
+      LInventory: TBoss4DBuildInventory;
+      LCoordinator: TBoss4DBuildCoordinator;
+      LOptions: TBoss4DBuildCommandOptions;
+      LError: string;
+    begin
+      LError := '';
+      try
+        LLogger := TGUILogger.Create(Self);
+        LRegistry := TBoss4DWindowsRegistryAdapter.Create;
+        LCompiler := TBoss4DDelphiCompilerAdapter.Create(
+          LRegistry, LLogger);
+        LPackageRepository := TBoss4DPackageJsonRepository.Create;
+        LLockRepository := TBoss4DLockJsonRepository.Create;
+        LInventory := TBoss4DBuildInventory.Create(TPath.Combine(
+          GetBossHome, 'build-inventory.json'));
+        try
+          LInventory.Load;
+          LCoordinator := TBoss4DBuildCoordinator.Create(
+            LCompiler, LLogger, LPackageRepository, LLockRepository,
+            nil, LInventory);
+          try
+            LOptions := Default(TBoss4DBuildCommandOptions);
+            LOptions.Force := True;
+            LOptions.Jobs := 1;
+            LOptions.Cancellation :=
+              function: Boolean
+              begin
+                Result := TInterlocked.CompareExchange(
+                  FCancelRequested, 0, 0) <> 0;
+              end;
+            LOptions.TargetProgress :=
+              procedure(
+                const AEvent: TBoss4DBuildTargetProgressEvent)
+              begin
+                var LPhase := TBoss4DProgressPhase.Compiling;
+                if AEvent.State = TargetFailed then
+                  LPhase := TBoss4DProgressPhase.Failed;
+                QueueProjectProgress(TBoss4DProgressEvent.Create(
+                  'project-rebuild', 'projeto', LPhase,
+                  AEvent.Current, AEvent.Total,
+                  AEvent.TargetIdentity + ': ' + AEvent.Message));
+              end;
+            LCoordinator.Execute(LProjectDirectory, LOptions);
+          finally
+            LCoordinator.Free;
+          end;
+        finally
+          LInventory.Free;
+        end;
+      except
+        on E: Exception do
+          LError := E.Message;
+      end;
+      TThread.Queue(nil,
+        procedure
+        begin
+          FinishProjectInstall(LError, LProjectDirectory);
+        end);
+    end);
 end;
 
 procedure TFormMain.BtnCacheCleanClick(Sender: TObject);
@@ -854,6 +1804,30 @@ begin
   ListIDETargets.Items.Add(AIdentity);
 end;
 
+procedure TFormMain.ShowHistory(
+  const ARows: TArray<TBoss4DGUITimelineRow>);
+begin
+  var LOperationId := TBoss4DGUITimelineDialog.Execute(Self, ARows);
+  if not LOperationId.IsEmpty and
+     (MessageDlg(
+       'Restaurar o estado anterior a esta operacao? ' +
+       'Um snapshot de seguranca sera criado antes do rollback.',
+       mtConfirmation, [mbYes, mbNo], 0) = mrYes) then
+    FIDEPresenter.Rollback(LOperationId);
+end;
+
+procedure TFormMain.ShowDashboard(
+  const ARows: TArray<TBoss4DGUIProfileDashboardRow>);
+begin
+  var LProfileId := TBoss4DGUIProfileDashboardDialog.Execute(
+    Self, ARows);
+  if not LProfileId.IsEmpty then
+  begin
+    FIDEPresenter.ChooseProfile(LProfileId);
+    FIDEPresenter.Launch;
+  end;
+end;
+
 procedure TFormMain.ShowIDEStatus(const AMessage: string);
 begin
   LblIDEStatus.Caption := AMessage;
@@ -923,6 +1897,11 @@ begin
   FIDEPresenter.Launch;
 end;
 
+procedure TFormMain.BtnIDEDashboardClick(Sender: TObject);
+begin
+  FIDEPresenter.Dashboard;
+end;
+
 procedure TFormMain.BtnIDESaveTargetClick(Sender: TObject);
 begin
   FIDEPresenter.ConfigureTarget(
@@ -937,32 +1916,22 @@ end;
 
 procedure TFormMain.BtnIDEInstallClick(Sender: TObject);
 begin
-  if MessageDlg('Compilar e registrar o package selecionado neste perfil?',
-    mtConfirmation, [mbYes, mbNo], 0) = mrYes then
-  begin
-    var LConflictPolicy := TBoss4DIDEConflictPolicy.Fail;
-    case ComboIDEConflictPolicy.ItemIndex of
-      1: LConflictPolicy := TBoss4DIDEConflictPolicy.Warn;
-      2: LConflictPolicy := TBoss4DIDEConflictPolicy.Adopt;
-      3: LConflictPolicy := TBoss4DIDEConflictPolicy.Replace;
-    end;
-    var LOpenPolicy := TBoss4DIDEOpenPolicy.Fail;
-    case ComboIDEOpenPolicy.ItemIndex of
-      1: LOpenPolicy := TBoss4DIDEOpenPolicy.Defer;
-      2: LOpenPolicy := TBoss4DIDEOpenPolicy.Force;
-    end;
-    Screen.Cursor := crHourGlass;
-    PanelIDEActions.Enabled := False;
-    try
-      ShowIDEStatus('Compilando e registrando o package...');
-      Vcl.Forms.Application.ProcessMessages;
-      FIDEPresenter.Install(SelectedIDEPackage,
-        LConflictPolicy, LOpenPolicy);
-    finally
-      PanelIDEActions.Enabled := True;
-      Screen.Cursor := crDefault;
-    end;
+  var LConflictPolicy := TBoss4DIDEConflictPolicy.Fail;
+  case ComboIDEConflictPolicy.ItemIndex of
+    1: LConflictPolicy := TBoss4DIDEConflictPolicy.Warn;
+    2: LConflictPolicy := TBoss4DIDEConflictPolicy.Adopt;
+    3: LConflictPolicy := TBoss4DIDEConflictPolicy.Replace;
   end;
+  var LOpenPolicy := TBoss4DIDEOpenPolicy.Fail;
+  case ComboIDEOpenPolicy.ItemIndex of
+    1: LOpenPolicy := TBoss4DIDEOpenPolicy.Defer;
+    2: LOpenPolicy := TBoss4DIDEOpenPolicy.Force;
+  end;
+  var LRequest := Default(TBoss4DGUIIDEInstallRequest);
+  if TBoss4DGUIIDEInstallDialog.Execute(Self, FIDEBackend,
+    FIDEPresenter.SelectedProfile, SelectedIDEPackage,
+    LConflictPolicy, LOpenPolicy, LRequest) then
+    RunAsyncIDEInstall(LRequest);
 end;
 
 procedure TFormMain.BtnIDERepairClick(Sender: TObject);

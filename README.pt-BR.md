@@ -103,6 +103,10 @@ cd /d d:\Projetos\BossDelphi
   Gerencia e consulta todo o ciclo de vida das dependências, com rollback
   automático de `boss.json`, `boss-lock.json` e `modules/` em caso de falha.
   Consulte o [guia do ciclo de vida](docs/dependency-lifecycle.pt-BR.md).
+* `boss4d package versions`, `pin|unpin`, `upgrade|downgrade` e `rollback`
+  Oferece seleção SemVer determinística, pins exatos, snapshots duráveis do
+  histórico de versões e recuperação transacional. Consulte
+  [gerenciamento de versões](docs/version-management.pt-BR.md).
 * `boss4d ci` / `boss4d install --locked|--frozen-lockfile|--offline|--production [--jobs <n>]`
   Executa instalações reproduzíveis com CI limpo, cache offline e dependências
   somente de produção.
@@ -111,7 +115,8 @@ cd /d d:\Projetos\BossDelphi
   scripts do manifesto.
 * `boss4d registry add|remove|list|health`, `search` e `info`
   Gerencia fontes públicas/privadas, audita o catálogo Registry v1/v2 completo
-  e consulta seus pacotes.
+  e consulta seus pacotes. O catálogo atual contém 55 pacotes: 16 releases
+  schema v2 assinadas e 39 entradas legadas de descoberta.
 * `boss4d package install <nome>@<versão>` e `boss4d pack`
   Instala ou produz `.b4dpkg` determinísticos com seleção por compilador e
   plataforma, SHA-256, OpenPGP e proveniência in-toto.
@@ -123,6 +128,11 @@ cd /d d:\Projetos\BossDelphi
   Consulta vulnerabilidades OSV das revisões travadas, com cache offline e VEX.
 * `boss4d doctor`, `cache`, `tool`, `plugin`, `getit` e `license report`
   Cobre diagnóstico, cache, ferramentas globais, integrações Windows e licenças.
+  A Central de Saúde da GUI agrupa as verificações de ambiente e oferece
+  remediação, auto-correção, reparo/undo da IDE e otimização de cache. Com um
+  projeto selecionado, também diagnostica matriz, grafo, paths, colisões,
+  toolchains e drift do Registry, com ações diretas de rebuild completo e novo
+  registro transacional exato.
 * `boss4d doc [-o <diretório>] [--no-dependencies]`
   Gera um site pesquisável usando comentários PascalDoc/XML Doc do projeto e
   das dependências instaladas. Consulte o
@@ -142,10 +152,19 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d ide unregister <pacote> --compiler <versão> --platform <plataforma>`
   e `boss4d ide repair`
   Removem um registro exato ou reconciliam divergências transacionalmente.
-* `boss4d ide profile list|create|show|target|clone|remove|export|import|launch`
-  e `preview-install|install|repair|preview-uninstall|uninstall`
+* `boss4d ide profile list|create|show|target|clone|remove|export|import|launch`,
+  `snapshot|diff|restore|history|undo` e
+  `preview-install|install|repair|preview-uninstall|uninstall`
   Gerencia Registry branches isolados do RAD Studio e executa instalação
-  transacional de produtos com preview. Consulte o
+  transacional de produtos com preview. A GUI apresenta o diário imutável de
+  operações como uma linha do tempo estruturada com evidências de recuperação
+  e desfazer, além de um dashboard de perfis com drift real, comparação de
+  produtos instalados e abertura direta da IDE isolada. A instalação de
+  componentes usa uma confirmação guiada explícita para perfil, package,
+  políticas, targets exatos, Registry branch e mudanças transacionais, seguida
+  por progresso determinado e saída estruturada ao vivo. O console estruturado
+  oferece filtros por severidade, pesquisa, foco nos erros e exportação de
+  diagnóstico em JSON. Consulte o
   [guia de perfis e componentes](docs/ide-component-management.pt-BR.md).
 * `boss4d config delphi use <caminho_ou_versao>`
   Configura o caminho global do Delphi ou a versão de release (ex: "23.0", "22.0") para a compilação do MSBuild. Se não configurado, o resolvedor autodetecta dinamicamente a versão mais recente instalada.
@@ -187,7 +206,9 @@ cd /d d:\Projetos\BossDelphi
 * **[Escopos de Dependências](docs/dependency-scopes.pt-BR.md)**: `devDependencies`, instalação de produção, lock v3 e escopo no SBOM.
 * **[Auditoria de Vulnerabilidades](docs/audit.pt-BR.md)**: OSV por commit, cache offline, políticas de severidade e VEX.
 * **[Política de Confiança Git](docs/trust-policy.pt-BR.md)**: Verificação de commits/tags assinados e signatários permitidos.
-* **[Índices de Pacotes](docs/package-index.pt-BR.md)**: Registries públicos/privados, search/info, catálogo GUI e busca na IDE.
+* **[Índices de Pacotes](docs/package-index.pt-BR.md)**: Registries
+  públicos/privados, search/info, catálogo GUI rico, instalação guiada por
+  versão/plataforma, progresso cancelável/retry e busca na IDE.
 * **[GitHub Dependency Submission](docs/github-dependency-submission.pt-BR.md)**: Publicação do lock v3 no Dependency Graph.
 * **[Estratégia de Cache](docs/cache-strategy.pt-BR.md)**: Reuso seguro de objetos Git e executáveis isolados por plataforma/compilador.
 * **[Templates de Projeto](docs/templates.pt-BR.md)**: Presets Delphi, VCL, FMX, API Horse+Dext, DUnitX, Lazarus e workspace.

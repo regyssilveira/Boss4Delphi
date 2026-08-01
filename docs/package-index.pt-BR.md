@@ -57,6 +57,8 @@ pacotes em arquivos ou repositórios separados:
   "packages": [{
     "name": "InternalLib",
     "repository": "git.example.com/team/internal",
+    "publisherRepository": "git.example.com/team/internal",
+    "distributionRepository": "github.com/distribuidor/pacote-interno",
     "description": "Biblioteca Delphi interna",
     "license": "MIT",
     "versions": [{
@@ -65,6 +67,9 @@ pacotes em arquivos ou repositórios separados:
       "sha256": "...",
       "signature": "https://packages.example.com/InternalLib-2.4.0.b4dpkg.asc",
       "provenance": "https://packages.example.com/InternalLib-2.4.0.b4dpkg.intoto.json",
+      "changelog": "https://packages.example.com/InternalLib/2.4.0/changes",
+      "sbom": "https://packages.example.com/InternalLib-2.4.0.cdx.json",
+      "dependencies": ["RuntimeCore", "JsonCore"],
       "variants": [{
         "platform": "Win64",
         "compiler": "37.0",
@@ -80,6 +85,14 @@ pacotes em arquivos ou repositórios separados:
 }
 ```
 
+`repository` identifica a origem canônica usada pelo fallback Git e exibida
+aos usuários. `publisherRepository` identifica o repositório canônico do
+publisher original e normalmente coincide com `repository`. Quando um
+distribuidor cadastrado empacota e assina esse upstream em outro repositório,
+o campo opcional `distributionRepository` identifica o host dos artefatos para
+validação do namespace e do signatário. URLs de artefato, assinatura e
+proveniência podem permanecer ali; isso não altera a autoria do upstream.
+
 As referências podem ser URLs HTTP(S), caminhos locais absolutos ou caminhos
 relativos ao índice que as declara. Ciclos são detectados e carregados apenas
 uma vez. O validador de conformidade rejeita travessia insegura para diretórios
@@ -89,6 +102,11 @@ O schema v1 continua totalmente suportado. Índices existentes e o mapa
 string/string original de `dependencies` no `boss.json` não precisam de
 migração. No v2, `versions` é opcional, e um pacote ainda pode expor os campos
 compatíveis com v1 `version`, `artifact` e `sha256` no nível superior.
+
+`dependencies`, `changelog` e `sbom` são opcionais no pacote ou na versão.
+Os metadados da versão selecionada têm precedência. Assim, clientes do
+catálogo podem apresentar o grafo declarado e navegar com segurança para as
+notas da release e seu SBOM publicado, sem baixar ou executar o pacote.
 
 ## Metadados esparsos e revogação
 
@@ -144,7 +162,14 @@ aviso sem ocultar resultados das demais. Schemas desconhecidos são rejeitados,
 e a URL de um artefato sempre deve estar acompanhada de seu SHA-256 imutável,
 inclusive dentro de `versions`.
 
-O catálogo da GUI e a busca do RAD Studio usam o mesmo serviço da CLI.
+O catálogo da GUI e a busca do RAD Studio usam o mesmo serviço da CLI. A GUI
+expõe grafo de dependências, matriz de compatibilidade, versão/revogação e
+cadeia de fornecimento, além de navegação HTTP validada para repositório,
+changelog e SBOM quando esses links são declarados, e invoca o mesmo
+contrato `package install` por um fluxo guiado de versão, compilador e
+plataforma. A barra da operação separa sucesso, falha e cancelamento, acompanha
+o tempo decorrido e preserva solicitações que falharam ou foram canceladas para
+retry.
 
 Para hospedagem estática e serviços externos de descoberta, gere um snapshot
 consolidado:

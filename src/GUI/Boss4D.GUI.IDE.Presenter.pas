@@ -6,7 +6,9 @@ uses
   System.Generics.Collections,
   Boss4D.Core.Services.IDEManagementQuery,
   Boss4D.Core.Services.IDERegistration,
-  Boss4D.Core.Services.IDEProcessPolicy;
+  Boss4D.Core.Services.IDEProcessPolicy,
+  Boss4D.GUI.IDE.Timeline,
+  Boss4D.GUI.IDE.Dashboard;
 
 type
   IBoss4DIDEManagementBackend = interface
@@ -23,8 +25,11 @@ type
       const AIDEOpenPolicy: TBoss4DIDEOpenPolicy): Integer;
     function Uninstall(const AProfileId, APackage: string): Integer;
     function Repair(const AProfileId: string): Integer;
+    function RepairTarget(const AProfileId, AIdentity: string): Integer;
     function Undo: Integer;
-    function History: TList<string>;
+    function Rollback(const AOperationId: string): Integer;
+    function History: TArray<TBoss4DGUITimelineRow>;
+    function Dashboard: TArray<TBoss4DGUIProfileDashboardRow>;
     procedure Snapshot(const AProfileId, APath: string);
     function Diff(const AProfileId, APath: string): TList<string>;
     procedure RestoreSnapshot(const APath: string);
@@ -49,6 +54,10 @@ type
       const AInstalled: Boolean);
     procedure ClearTargets;
     procedure AddTarget(const AIdentity: string);
+    procedure ShowHistory(
+      const ARows: TArray<TBoss4DGUITimelineRow>);
+    procedure ShowDashboard(
+      const ARows: TArray<TBoss4DGUIProfileDashboardRow>);
     procedure ShowIDEStatus(const AMessage: string);
     procedure ShowIDEError(const AMessage: string);
   end;
@@ -72,7 +81,9 @@ type
     procedure Uninstall(const APackage: string);
     procedure Repair;
     procedure Undo;
+    procedure Rollback(const AOperationId: string);
     procedure History;
+    procedure Dashboard;
     procedure Snapshot(const APath: string);
     procedure Diff(const APath: string);
     procedure RestoreSnapshot(const APath: string);
@@ -305,16 +316,37 @@ end;
 procedure TBoss4DIDEManagementPresenter.History;
 begin
   try
-    FView.ClearTargets;
     var LHistory := FBackend.History;
-    try
-      for var LItem in LHistory do
-        FView.AddTarget(LItem);
-      FView.ShowIDEStatus(Format(
-        '%d operacao(oes) no historico.', [LHistory.Count]));
-    finally
-      LHistory.Free;
-    end;
+    FView.ShowHistory(LHistory);
+    FView.ShowIDEStatus(Format(
+      '%d operacao(oes) no historico.', [Length(LHistory)]));
+  except
+    on E: Exception do
+      FView.ShowIDEError(E.Message);
+  end;
+end;
+
+procedure TBoss4DIDEManagementPresenter.Rollback(
+  const AOperationId: string);
+begin
+  try
+    var LAffected := FBackend.Rollback(AOperationId);
+    LoadPackages;
+    FView.ShowIDEStatus(Format(
+      'Rollback concluido: %d alteracao(oes).', [LAffected]));
+  except
+    on E: Exception do
+      FView.ShowIDEError(E.Message);
+  end;
+end;
+
+procedure TBoss4DIDEManagementPresenter.Dashboard;
+begin
+  try
+    var LRows := FBackend.Dashboard;
+    FView.ShowDashboard(LRows);
+    FView.ShowIDEStatus(Format(
+      '%d perfil(is) no dashboard.', [Length(LRows)]));
   except
     on E: Exception do
       FView.ShowIDEError(E.Message);

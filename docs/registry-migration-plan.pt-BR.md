@@ -186,16 +186,22 @@ CRUD bem-sucedidas e o comportamento HTTP 404 sem leaks. O bundle assinado de
 16 arquivos passou nas verificações independentes de assinatura, proveniência,
 conformidade e instalação verificada sem fallback.
 
-O `Dext` `v1.0.0-rc.2` concluiu a migração dos pacotes controlados pelo
-publisher. Um runner dedicado com DCC direto evita o limite de linha de comando
+O `Dext` `v1.0.0-rc.2`, cujo upstream canônico é
+`github.com/cesarliws/dext`, concluiu uma migração empacotada pelo publisher.
+O repositório do publisher original também é `github.com/cesarliws/dext`. O
+host de artefatos do Boss4D é declarado separadamente por
+`distributionRepository`: ele hospeda o pacote assinado sem substituir nem
+atribuir incorretamente a origem oficial. Um runner dedicado com DCC direto
+evita o limite de linha de comando
 do MSBuild no Windows e preserva a suíte completa de 132 testes do núcleo.
 Cinco execuções consecutivas, mais uma execução limpa após o merge, passaram
 antes do empacotamento da tag imutável. O release candidate assinado de 3.170
 arquivos passou nas verificações independentes de assinatura, proveniência,
 conformidade e instalação verificada sem fallback.
 
-Todos os pacotes controlados pelo publisher cadastrado concluíram os gates de
-release e migração para schema v2.
+Todos os pacotes produzidos pelo publisher cadastrado concluíram os gates de
+release e migração para schema v2, inclusive upstreams mantidos externamente
+cuja relação de distribuição dos artefatos está declarada explicitamente.
 
 ## Onda 3 — onboarding de publishers externos
 

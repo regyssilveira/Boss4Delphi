@@ -22,9 +22,42 @@ See the [authoritative delivery plan](ide-packages-profiles-gui-plan.md).
 - [x] Require a clean checkout and restore the original branch when local
   metadata application fails.
 - [x] Audit the complete v1/v2 catalog on Delphi, Linux, and macOS CI.
-- [ ] Publish and continuously validate the first curated package set.
+- [x] Publish and continuously validate the first curated package set
+  (16 signed schema-v2 packages, zero Registry structural errors).
 - [ ] Operate hosted search/index delivery with mirrors, backup, and status.
 - [ ] Expose package adoption, maintenance, compatibility, and trust metrics.
+
+## Epic 24: GUI product experience
+
+- [x] Catalog detail foundation for description, license, version/revocation
+  history, compiler/platform variants, digest, signature, and provenance.
+- [x] Complete rich package details with declared dependency graph,
+  source/artifact compatibility status, validated changelog navigation, and
+  SBOM browsing when Registry metadata is available.
+- [x] Guided Registry installation for package, exact version, compiler,
+  platform, source-fallback policy, CLI preview, and explicit confirmation.
+- [x] Extend the guided component workflow with isolated profile selection and
+  a complete target/change preview before installation.
+- [x] Guided-install operation progress, elapsed time, cancellable Windows
+  process execution, explicit cancelled state, retry, and CLI command preview.
+- [x] Add determinate per-target progress and live structured output across
+  build and component-management workflows.
+- [x] Structured Health Center with grouped environment diagnostics, summary,
+  remediation, auto-fix, IDE repair/undo, and cache-prune actions.
+- [x] Add project/build health groups with direct rebuild and exact
+  re-registration actions.
+- [x] Typed visual operation timeline with newest-first status, operation,
+  profile, target, completed actions, error/recovery details, and undo
+  availability.
+- [x] Extend the operation timeline with explicit before/after comparison and
+  transactional rollback of a selected historical entry.
+- [x] Profile dashboard with live Registry drift, side-by-side installed-product
+  comparison, compiler/target/branch details, and direct isolated IDE launch.
+- [x] Structured searchable logs with timestamp/level/source columns, level
+  filters, instant search, direct focus on errors, clearing, and JSON
+  diagnostic export.
+- [ ] Accessibility, persistent preferences, light/dark themes, keyboard
+  navigation, and native completion notifications.
 
 ## Epic 21: Portable CLI and distribution foundation
 

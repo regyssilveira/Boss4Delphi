@@ -111,7 +111,15 @@ previous inventory is restored.
 
 `profile history` lists every immutable journal entry with timestamp, status,
 operation, profile, and target. The GUI exposes the same list through
-**History** and keeps `latest.json` only as a convenience pointer.
+**History** and keeps `latest.json` only as a convenience pointer. The visual
+timeline shows newest entries first, indicates whether undo data is available,
+and exposes completed actions, errors, and recovery instructions in a detail
+panel. New operations persist before and after snapshots; the detail panel
+lists changed fields (`packages`, `inventory`, compiler, branch, and target)
+and allows rollback of the selected eligible install/uninstall entry. The GUI
+asks for confirmation and the service captures the current state before
+rollback so it can compensate if any step fails. Legacy entries remain
+readable but do not expose comparison without both snapshots.
 
 Projects can bind themselves to a profile in `boss.json`:
 
@@ -156,18 +164,38 @@ Open-IDE policies:
 
 Open `Boss4D.GUI.exe` and select **Components and IDEs**:
 
-1. create, clone, select, remove, or launch a profile;
-2. choose its default platform and configuration;
-3. select a product from the global build inventory;
-4. inspect **Preview install** before changing the IDE;
-5. choose conflict and open-IDE policies, then install;
-6. use **Repair** to reconcile drift;
-7. use **Undo** or **History** to recover or audit completed operations.
-7. inspect **Preview remove**, then remove the managed product.
+1. open **Dashboard** to review every profile, its live drift state, installed
+   products, compiler/target, and Registry branch;
+2. select two dashboard rows to compare exclusive and shared products, or
+   select one and use **Open IDE** to launch its isolated branch;
+3. create, clone, select, remove, or launch a profile;
+4. choose its default platform and configuration;
+5. select a product from the global build inventory;
+6. use **Preview install** for a quick target inspection, or press
+   **Install** to open the complete guided workflow;
+7. in the guided workflow, explicitly confirm the isolated profile, package,
+   conflict policy, and open-IDE policy. Review the compiler, Registry branch,
+   exact runtime/design targets, transactional snapshot, registration, and
+   inventory changes before pressing **Install**;
+8. use **Repair** to reconcile drift;
+9. use **Undo** for the latest operation, or open **History**, select an
+   eligible install/uninstall, review its before/after comparison, and use
+   **Rollback selected** to recover that state;
+10. inspect **Preview remove**, then remove the managed product.
 
 The package grid distinguishes products available in the build inventory from
-products installed in the selected profile. The target list shows the exact
-identities affected by the next operation.
+products installed in the selected profile. The target list provides a quick
+preview; the guided installation is the authoritative confirmation surface and
+shows the exact request that will be sent to the shared transactional service.
+Changing the profile inside the dialog reloads its available products and
+recalculates the target/change preview.
+
+After confirmation, compilation runs outside the visual thread. The operation
+bar advances with the real completed/total target count and identifies the
+current runtime/design target. Started, built, cache-restored, unchanged, and
+failed states are written immediately to the structured log. Cancellation is
+propagated to the build scheduler, and failed or cancelled component requests
+remain available through **Retry**.
 
 ## Everyday profile patterns
 
@@ -189,6 +217,12 @@ Close the IDE and run `repair`. Boss4D compares the Registry and managed
 artifacts with the profile inventory, restores recoverable entries, and writes
 an operation journal. If repair reports missing source artifacts, rebuild the
 product and repeat the install.
+
+The GUI Health Center also lists every drift identity separately. Selecting
+one enables **Re-register target**, which repairs only that inventory identity,
+leaves healthy registrations untouched, and records a transactional
+`registration-repair` operation. A healthy project/build row enables
+**Full rebuild**, with cancellation and live target progress.
 
 ### Validate in CI without an old IDE
 

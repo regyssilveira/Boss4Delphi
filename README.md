@@ -126,7 +126,8 @@ cd /d d:\Projetos\BossDelphi
   manifest scripts.
 * `boss4d registry add|remove|list|health`, `search`, and `info`
   Manages public/private Registry v1/v2 sources, audits the complete catalog,
-  and provides package discovery.
+  and provides package discovery. The current catalog contains 55 packages:
+  16 signed schema-v2 releases and 39 legacy discovery entries.
 * `boss4d package install <name>@<version>` and `boss4d pack`
   Installs or creates deterministic `.b4dpkg` files with compiler/platform
   selection, SHA-256, OpenPGP, and in-toto provenance.
@@ -139,6 +140,11 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d doctor`, `cache`, `tool`, `plugin`, `getit`, and `license report`
   Covers diagnostics, cache maintenance, global tools, Windows integrations,
   and license reports.
+  The GUI Health Center groups environment checks and exposes remediation,
+  auto-fix, IDE repair/undo, and cache-prune actions. With a selected project
+  it also diagnoses the build matrix, graph, paths, collisions, toolchains,
+  and Registry drift, with direct full-rebuild and exact transactional
+  re-registration actions.
 * `boss4d doc [-o <folder>] [--no-dependencies]`
   Generates a searchable API site from PascalDoc/XML Doc comments in the
   project and installed dependencies. See the
@@ -158,10 +164,22 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d ide unregister <package> --compiler <version> --platform <platform>`
   and `boss4d ide repair`
   Remove one exact registration or reconcile registry drift transactionally.
-* `boss4d ide profile list|create|show|target|clone|remove|export|import|launch`
-  and `preview-install|install|repair|preview-uninstall|uninstall`
+* `boss4d ide profile list|create|show|target|clone|remove|export|import|launch`,
+  `snapshot|diff|restore|history|undo`, and
+  `preview-install|install|repair|preview-uninstall|uninstall`
   Manages isolated RAD Studio Registry branches and performs previewable,
-  transactional product installation. See the
+  transactional product installation. The GUI exposes the immutable operation
+  journal as a structured timeline with recovery evidence, explicit
+  before/after changes, and confirmed rollback of a selected eligible entry.
+  Each rollback captures the current state first for compensating recovery.
+  Older journal entries remain readable, but only entries containing the
+  required snapshots expose comparison and rollback. The GUI also provides a
+  profile dashboard for live drift, installed-product comparison, and direct
+  isolated IDE launch. Component installation uses an explicit guided
+  confirmation for profile, package, policies, exact targets, Registry branch,
+  and transactional changes, followed by determinate target progress and live
+  structured build output. Its structured log console provides severity filters,
+  search, error focus, and JSON diagnostic export. See the
   [IDE profile and component guide](docs/ide-component-management.md).
 * `boss4d config delphi use <path_or_release_version>`
   Sets the global path or the release version (e.g. "23.0", "22.0") of the Delphi installation directory for MSBuild. If not specified, the compiler adapter will automatically detect the latest installed Delphi version.
@@ -202,7 +220,9 @@ cd /d d:\Projetos\BossDelphi
 * **[Dependency Scopes](docs/dependency-scopes.md)**: `devDependencies`, production installs, lock v3, and SBOM scope evidence.
 * **[Vulnerability Audit](docs/audit.md)**: OSV commit queries, offline cache, severity gates, and VEX suppression.
 * **[Git Trust Policy](docs/trust-policy.md)**: Signed commit/tag verification and allowed signer enforcement.
-* **[Package Indexes](docs/package-index.md)**: Public/private registries, search/info, GUI catalog, and IDE discovery.
+* **[Package Indexes](docs/package-index.md)**: Public/private registries,
+  search/info, rich GUI catalog, guided version/platform installation,
+  cancellable progress/retry, and IDE discovery.
 * **[GitHub Dependency Submission](docs/github-dependency-submission.md)**: Publish lock v3 snapshots to the GitHub Dependency Graph.
 * **[Cache Strategy](docs/cache-strategy.md)**: Safe Git object reuse and platform/compiler-isolated executable artifacts.
 * **[Project Templates](docs/templates.md)**: Delphi, VCL, FMX, Horse+Dext API, DUnitX, Lazarus, and workspace presets.

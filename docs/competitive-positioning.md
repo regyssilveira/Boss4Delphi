@@ -8,7 +8,7 @@ scale are kept separate from CLI feature count.
 | Delphi dependency workflow | Full CLI, GUI and IDE | Full CLI and IDE complement | Full package workflow and IDE | Catalog installation | Not Delphi-specific |
 | Lazarus/FPC/POSIX | Native FPC 3.2.2 CLI and releases for Linux x86_64 and macOS arm64 | Established Delphi/Lazarus workflow | Delphi-focused; Windows | No | Native per ecosystem |
 | Daily CLI | Install, update, tree, why, outdated, run, global tools | Install, update, dependencies, run, global install | NuGet-style create/push/install/restore | IDE-driven | Broad and mature |
-| Public discovery | Git Registry v2 with 55 legacy entries; `.b4dpkg` catalog still needs population | Repository/name shortcuts and historical adoption | Operational hosted `delphi.dev` source | Vendor catalog | Large hosted registries |
+| Public discovery | Git Registry v2 with 55 packages: 16 signed schema-v2 releases and 39 legacy entries | Repository/name shortcuts and historical adoption | Operational hosted `delphi.dev` source | Vendor catalog | Large hosted registries |
 | Registry protocol | v1/v2 composition, sparse metadata, HTTP validators, mirrors, revocation | Git-oriented resolution | Multiple hosted/local sources | Vendor-controlled | Sparse/index APIs and CDNs |
 | Reproducibility | Lock v3, frozen/locked/offline CI | SemVer and cache | Package/version restore | IDE installation state | Mature locks and offline/vendor modes |
 | Immutable distribution | `.b4dpkg`, SHA-256, OpenPGP, in-toto, transactional install | Primarily Git checkout | Signed hosted packages | Hosted packages | Immutable archives and checksums |
@@ -42,10 +42,11 @@ tooling, and operational registry infrastructure.
 
 ## Evidence in this repository
 
-- Delphi 13 DUnitX: 143 tests on Win32 and 143 on Win64.
+- Delphi 13 DUnitX: 295 tests on Win32 and 295 on Win64.
 - FPC 3.2.2/Linux x86_64: 61 FPCUnit tests plus real CLI smoke tests.
 - Real IDE plugin builds: Delphi 10, 10.1, 11, 12 and 13.
-- Release archives: Windows and Linux with SHA-256 and GitHub OIDC provenance.
+- Release archives: Windows, Linux, and macOS with SHA-256 and GitHub OIDC
+  provenance.
 - Registry submission checks: publisher scope, OpenPGP fingerprint, immutable
   versions, signature and provenance.
 - Sonar quality gate is required with zero open issues.
@@ -55,7 +56,8 @@ tooling, and operational registry infrastructure.
 These are scale and reach improvements, not missing implementation from the
 targeted parity criteria:
 
-1. Populate the sparse Registry with signed `.b4dpkg` releases from maintainers.
+1. Migrate the remaining 39 legacy entries with signed `.b4dpkg` releases
+   supplied by their maintainers.
 2. Add a hosted read/search frontend and CDN while keeping reviewed Git metadata
    authoritative.
 3. Broaden maintained package variants and add Linux ARM64.

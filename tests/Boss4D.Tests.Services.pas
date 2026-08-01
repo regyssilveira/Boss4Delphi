@@ -129,6 +129,8 @@ type
     [Test]
     procedure TestBuildExecutorCompilesExpandedTargets;
     [Test]
+    procedure TestBuildExecutorReportsDeterminateTargetProgress;
+    [Test]
     procedure TestBuildExecutorInstallsBinaryTargetWithoutCompiler;
     [Test]
     procedure TestIncrementalBuildStateExplainsRebuildReasons;
@@ -160,6 +162,8 @@ type
     procedure TestIDERegistrationPreviewReportsBlockedConflict;
     [Test]
     procedure TestIDERegistrationRepairRestoresDrift;
+    [Test]
+    procedure TestIDERegistrationRepairsOnlySelectedIdentity;
     [Test]
     procedure TestIDERepairRebuildsMissingManagedArtifacts;
     [Test]
@@ -1200,6 +1204,9 @@ begin
     '"artifact":"https://packages.example/modern.b4dpkg",' +
     '"sha256":"def456","signature":"https://packages.example/modern.asc",' +
     '"provenance":"https://packages.example/modern.intoto.json",' +
+    '"changelog":"https://packages.example/modern/changelog",' +
+    '"sbom":"https://packages.example/modern/sbom.cdx.json",' +
+    '"dependencies":["RuntimeCore","JsonCore"],' +
     '"variants":[{"platform":"Win64","compiler":"37.0",' +
     '"artifact":"https://packages.example/modern-win64.b4dpkg",' +
     '"sha256":"win64"},{"platform":"Win64",' +
@@ -1231,6 +1238,12 @@ begin
         LModern.SignatureUrl);
       Assert.AreEqual('https://packages.example/modern.intoto.json',
         LModern.ProvenanceUrl);
+      Assert.AreEqual('https://packages.example/modern/changelog',
+        LModern.ChangelogUrl);
+      Assert.AreEqual('https://packages.example/modern/sbom.cdx.json',
+        LModern.SbomUrl);
+      Assert.AreEqual<Integer>(2, LModern.Dependencies.Count);
+      Assert.AreEqual('RuntimeCore', LModern.Dependencies[0]);
       Assert.AreEqual<Integer>(3, LModern.Variants.Count);
       Assert.AreEqual('https://packages.example/modern-win64.b4dpkg',
         LModern.SelectVariant('Win64', '37.0').ArtifactUrl);
@@ -2377,6 +2390,70 @@ begin
   end;
 end;
 
+procedure TTestsServices.TestBuildExecutorReportsDeterminateTargetProgress;
+var
+  LPackage: TBoss4DPackage;
+  LProject: TBoss4DBuildProject;
+  LDep: TBoss4DDependency;
+  LLock: TBoss4DLock;
+  LCompiler: TCompilerMock;
+  LExecutor: TBoss4DBuildExecutor;
+  LProjectPath: string;
+  LOptions: TBoss4DBuildExecutionOptions;
+  LEvents: TList<TBoss4DBuildTargetProgressEvent>;
+begin
+  LPackage := TBoss4DPackage.Create;
+  LDep := TBoss4DDependency.Create(
+    'github.com/example/progress-component', '1.0.0');
+  LLock := TBoss4DLock.Create;
+  LCompiler := TCompilerMock.Create;
+  LExecutor := TBoss4DBuildExecutor.Create(LCompiler);
+  LEvents := TList<TBoss4DBuildTargetProgressEvent>.Create;
+  try
+    LPackage.Name := 'progress-component';
+    LPackage.BuildMatrix.Compilers.Add('37.0');
+    LPackage.BuildMatrix.Platforms.Add('Win32');
+    LPackage.BuildMatrix.Platforms.Add('Win64');
+    LPackage.BuildMatrix.Configurations.Add('Release');
+    LProject := TBoss4DBuildProject.Create;
+    LProject.Path := 'packages\ProgressComponent.dproj';
+    LPackage.BuildMatrix.Projects.Add(LProject);
+    LProjectPath := TPath.Combine(FTempDir, LProject.Path);
+    TDirectory.CreateDirectory(TPath.GetDirectoryName(LProjectPath));
+    TFile.WriteAllText(LProjectPath, '<Project/>');
+
+    LOptions := TBoss4DBuildExecutionOptions.Create(
+      TBoss4DBuildSelection.All, 'progress-source-checksum');
+    LOptions.Jobs := 1;
+    LOptions.TargetProgress :=
+      procedure(const AEvent: TBoss4DBuildTargetProgressEvent)
+      begin
+        LEvents.Add(AEvent);
+      end;
+
+    LExecutor.Execute(LPackage, LDep, LLock, FTempDir, LOptions);
+
+    Assert.AreEqual<Integer>(4, LEvents.Count);
+    Assert.AreEqual(TargetStarted, LEvents[0].State);
+    Assert.AreEqual<Integer>(0, LEvents[0].Current);
+    Assert.AreEqual<Integer>(2, LEvents[0].Total);
+    Assert.AreEqual(TargetBuilt, LEvents[1].State);
+    Assert.AreEqual<Integer>(1, LEvents[1].Current);
+    Assert.AreEqual(TargetStarted, LEvents[2].State);
+    Assert.AreEqual<Integer>(1, LEvents[2].Current);
+    Assert.AreEqual(TargetBuilt, LEvents[3].State);
+    Assert.AreEqual<Integer>(2, LEvents[3].Current);
+    Assert.AreEqual<Integer>(2, LEvents[3].Total);
+    Assert.IsTrue(LEvents[3].TargetIdentity.Contains('Win64'));
+  finally
+    LEvents.Free;
+    LExecutor.Free;
+    LLock.Free;
+    LDep.Free;
+    LPackage.Free;
+  end;
+end;
+
 procedure TTestsServices.TestIncrementalBuildStateExplainsRebuildReasons;
 var
   LService: TBoss4DBuildStateService;
@@ -2507,6 +2584,52 @@ begin
         'SampleProduct:Sample.chm'));
   finally
     LRegistration.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDERegistrationRepairsOnlySelectedIdentity;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LFirst: TBoss4DIDERegistration;
+  LSecond: TBoss4DIDERegistration;
+  LPackageKey: string;
+  LDrift: TArray<string>;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'exact-repair-inventory.json'));
+  LFirst := TBoss4DIDERegistration.Create;
+  LSecond := TBoss4DIDERegistration.Create;
+  try
+    LFirst.PackageName := 'FirstDesign';
+    LFirst.OwnerPackage := 'First';
+    LFirst.Compiler := '37.0';
+    LFirst.Platform := 'Win32';
+    LFirst.BplPath := 'C:\artifacts\FirstDesign.bpl';
+    LFirst.Description := 'First';
+    LSecond.PackageName := 'SecondDesign';
+    LSecond.OwnerPackage := 'Second';
+    LSecond.Compiler := '37.0';
+    LSecond.Platform := 'Win32';
+    LSecond.BplPath := 'C:\artifacts\SecondDesign.bpl';
+    LSecond.Description := 'Second';
+    LService.RegisterTarget(LFirst);
+    LService.RegisterTarget(LSecond);
+    LPackageKey := 'Software\Embarcadero\BDS\37.0\Known Packages';
+    LStore.DeleteValue(LPackageKey, LFirst.BplPath);
+    LStore.DeleteValue(LPackageKey, LSecond.BplPath);
+
+    Assert.AreEqual<Integer>(1, LService.Repair(LFirst.Identity));
+    LDrift := LService.FindDrift;
+    Assert.AreEqual<Integer>(1, Length(LDrift));
+    Assert.AreEqual(LSecond.Identity, LDrift[0]);
+    Assert.AreEqual('First',
+      LStore.GetValue(LPackageKey, LFirst.BplPath));
+  finally
+    LSecond.Free;
+    LFirst.Free;
     LService.Free;
   end;
 end;
@@ -3876,14 +3999,27 @@ procedure TTestsServices.TestDoctorService;
 var
   LRegistryMock: TRegistryMock;
   LDoctorService: TBoss4DDoctorService;
+  LReport: TBoss4DDoctorReport;
 begin
   LRegistryMock := TRegistryMock.Create;
   LDoctorService := TBoss4DDoctorService.Create(LRegistryMock, TTestLogger.Create);
   try
-    // Roda a verificaÃ§Ã£o de auto-diagnÃ³stico sem fix (deve completar com ou sem avisos)
-    LDoctorService.Check(False);
-
-    // Roda a verificaÃ§Ã£o aplicando fix
+    LReport := LDoctorService.Diagnose(False);
+    try
+      Assert.IsTrue(LReport.HasCode('GIT_CLI'));
+      Assert.IsTrue(LReport.HasCode('DELPHI_REGISTRY'));
+      Assert.IsTrue(LReport.HasCode('DCC32_PATH'));
+      Assert.IsTrue(LReport.HasCode('MSBUILD_PATH'));
+      Assert.IsTrue(LReport.Items.Count >= 4);
+      for var LItem in LReport.Items do
+      begin
+        Assert.IsNotEmpty(LItem.Code);
+        Assert.IsNotEmpty(LItem.Group);
+        Assert.IsNotEmpty(LItem.Message);
+      end;
+    finally
+      LReport.Free;
+    end;
     LDoctorService.Check(True);
   finally
     LDoctorService.Free;
@@ -4957,7 +5093,7 @@ begin
       Assert.IsTrue(LPackage.Dependencies.ContainsKey(
         'github.com/hashload/horse'));
       Assert.IsTrue(LPackage.Dependencies.ContainsKey(
-        'github.com/regyssilveira/dext'),
+        'github.com/cesarliws/dext'),
         'O template de API deve incluir Dext.');
     finally
       LPackage.Free;

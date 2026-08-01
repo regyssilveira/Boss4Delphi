@@ -12,6 +12,7 @@ object FormMain: TFormMain
   Font.Style = []
   Position = poScreenCenter
   OnCreate = FormCreate
+  OnCloseQuery = FormCloseQuery
   OnDestroy = FormDestroy
   TextHeight = 15
   object Splitter1: TSplitter
@@ -238,7 +239,7 @@ object FormMain: TFormMain
           Left = 0
           Top = 50
           Width = 689
-          Height = 360
+          Height = 235
           Align = alClient
           Columns = <
             item
@@ -262,6 +263,66 @@ object FormMain: TFormMain
           RowSelect = True
           ViewStyle = vsReport
           TabOrder = 1
+          OnSelectItem = ListCatalogSelectItem
+        end
+        object PanelCatalogDetails: TPanel
+          Left = 0
+          Top = 245
+          Width = 689
+          Height = 165
+          Align = alBottom
+          BevelOuter = bvNone
+          Caption = ''
+          TabOrder = 2
+          object MemoCatalogDetails: TMemo
+            Left = 0
+            Top = 0
+            Width = 689
+            Height = 129
+            Align = alClient
+            ReadOnly = True
+            ScrollBars = ssVertical
+            TabOrder = 0
+          end
+          object PanelCatalogLinks: TPanel
+            Left = 0
+            Top = 129
+            Width = 689
+            Height = 36
+            Align = alBottom
+            BevelOuter = bvNone
+            TabOrder = 1
+            object BtnCatalogRepository: TButton
+              Left = 8
+              Top = 5
+              Width = 105
+              Height = 26
+              Caption = 'Repositorio'
+              Enabled = False
+              TabOrder = 0
+              OnClick = BtnCatalogRepositoryClick
+            end
+            object BtnCatalogChangelog: TButton
+              Left = 119
+              Top = 5
+              Width = 105
+              Height = 26
+              Caption = 'Changelog'
+              Enabled = False
+              TabOrder = 1
+              OnClick = BtnCatalogChangelogClick
+            end
+            object BtnCatalogSbom: TButton
+              Left = 230
+              Top = 5
+              Width = 105
+              Height = 26
+              Caption = 'Abrir SBOM'
+              Enabled = False
+              TabOrder = 2
+              OnClick = BtnCatalogSbomClick
+            end
+          end
         end
       end
       object TabDoctor: TTabSheet
@@ -271,38 +332,120 @@ object FormMain: TFormMain
           Left = 0
           Top = 0
           Width = 689
-          Height = 60
+          Height = 124
           Align = alTop
           BevelOuter = bvNone
           TabOrder = 0
           object BtnDocCheck: TButton
             Left = 10
-            Top = 15
-            Width = 150
+            Top = 10
+            Width = 125
             Height = 30
             Caption = 'Rodar Diagnostico'
             TabOrder = 0
             OnClick = BtnDocCheckClick
           end
           object BtnDocFix: TButton
-            Left = 170
-            Top = 15
-            Width = 150
+            Left = 142
+            Top = 10
+            Width = 125
             Height = 30
             Caption = 'Corrigir Ambiente'
             TabOrder = 1
             OnClick = BtnDocFixClick
           end
+          object BtnDocRepairIDE: TButton
+            Left = 274
+            Top = 10
+            Width = 125
+            Height = 30
+            Caption = 'Reparar IDE'
+            TabOrder = 2
+            OnClick = BtnDocRepairIDEClick
+          end
+          object BtnDocUndoIDE: TButton
+            Left = 406
+            Top = 10
+            Width = 125
+            Height = 30
+            Caption = 'Desfazer IDE'
+            TabOrder = 3
+            OnClick = BtnDocUndoIDEClick
+          end
+          object BtnDocOptimizeCache: TButton
+            Left = 538
+            Top = 10
+            Width = 125
+            Height = 30
+            Caption = 'Otimizar Cache'
+            TabOrder = 4
+            OnClick = BtnDocOptimizeCacheClick
+          end
+          object LblDocSummary: TLabel
+            Left = 10
+            Top = 96
+            Width = 167
+            Height = 15
+            Caption = 'Diagnostico ainda nao executado'
+          end
+          object BtnDocRebuild: TButton
+            Left = 10
+            Top = 50
+            Width = 160
+            Height = 30
+            Caption = 'Rebuild completo'
+            Enabled = False
+            TabOrder = 5
+            OnClick = BtnDocRebuildClick
+          end
+          object BtnDocReregister: TButton
+            Left = 178
+            Top = 50
+            Width = 190
+            Height = 30
+            Caption = 'Registrar target novamente'
+            Enabled = False
+            TabOrder = 6
+            OnClick = BtnDocReregisterClick
+          end
         end
-        object MemoDoctor: TMemo
+        object ListDoctorHealth: TListView
           Left = 0
-          Top = 60
+          Top = 124
           Width = 689
-          Height = 350
+          Height = 286
           Align = alClient
+          Columns = <
+            item
+              Caption = 'Grupo'
+              Width = 90
+            end
+            item
+              Caption = 'Estado'
+              Width = 75
+            end
+            item
+              Caption = 'Codigo'
+              Width = 115
+            end
+            item
+              Caption = 'Diagnostico'
+              Width = 260
+            end
+            item
+              Caption = 'Acao recomendada'
+              Width = 300
+            end
+            item
+              Caption = 'Acao direta'
+              Width = 145
+            end>
+          GridLines = True
           ReadOnly = True
-          ScrollBars = ssVertical
+          RowSelect = True
           TabOrder = 1
+          ViewStyle = vsReport
+          OnSelectItem = ListDoctorHealthSelectItem
         end
       end
       object TabCache: TTabSheet
@@ -410,6 +553,15 @@ object FormMain: TFormMain
             Caption = 'Abrir IDE'
             TabOrder = 5
             OnClick = BtnIDELaunchClick
+          end
+          object BtnIDEDashboard: TButton
+            Left = 400
+            Top = 39
+            Width = 120
+            Height = 25
+            Caption = 'Dashboard'
+            TabOrder = 12
+            OnClick = BtnIDEDashboardClick
           end
           object LblIDEStatus: TLabel
             Left = 400
@@ -645,21 +797,155 @@ object FormMain: TFormMain
   end
   object PanelLogs: TPanel
     Left = 0
-    Top = 453
+    Top = 400
     Width = 900
-    Height = 147
+    Height = 200
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 2
-    object MemoLogs: TMemo
+    object PanelOperation: TPanel
       Left = 0
       Top = 0
       Width = 900
-      Height = 147
-      Align = alClient
-      ReadOnly = True
-      ScrollBars = ssVertical
+      Height = 34
+      Align = alTop
+      BevelOuter = bvNone
       TabOrder = 0
+      object LblOperation: TLabel
+        Left = 10
+        Top = 10
+        Width = 89
+        Height = 15
+        Caption = 'Nenhuma operacao'
+      end
+      object ProgressOperation: TProgressBar
+        Left = 260
+        Top = 8
+        Width = 430
+        Height = 18
+        MarqueeInterval = 40
+        Style = pbstMarquee
+        TabOrder = 0
+        Visible = False
+      end
+      object BtnCancelOperation: TButton
+        Left = 700
+        Top = 5
+        Width = 90
+        Height = 25
+        Caption = 'Cancelar'
+        Enabled = False
+        TabOrder = 1
+        OnClick = BtnCancelOperationClick
+      end
+      object BtnRetryOperation: TButton
+        Left = 800
+        Top = 5
+        Width = 90
+        Height = 25
+        Caption = 'Tentar novamente'
+        Enabled = False
+        TabOrder = 2
+        OnClick = BtnRetryOperationClick
+      end
     end
+    object PanelLogFilters: TPanel
+      Left = 0
+      Top = 34
+      Width = 900
+      Height = 34
+      Align = alTop
+      BevelOuter = bvNone
+      TabOrder = 1
+      object ComboLogLevel: TComboBox
+        Left = 8
+        Top = 5
+        Width = 105
+        Height = 23
+        Style = csDropDownList
+        ItemIndex = 0
+        TabOrder = 0
+        Text = 'Todos'
+        OnChange = ComboLogLevelChange
+        Items.Strings = (
+          'Todos'
+          'Debug'
+          'Info'
+          'Avisos'
+          'Erros')
+      end
+      object EditLogSearch: TEdit
+        Left = 120
+        Top = 5
+        Width = 270
+        Height = 23
+        TextHint = 'Pesquisar nos logs'
+        TabOrder = 1
+        OnChange = EditLogSearchChange
+      end
+      object BtnLogErrors: TButton
+        Left = 400
+        Top = 4
+        Width = 100
+        Height = 25
+        Caption = 'Ir para erros'
+        TabOrder = 2
+        OnClick = BtnLogErrorsClick
+      end
+      object BtnLogExport: TButton
+        Left = 506
+        Top = 4
+        Width = 110
+        Height = 25
+        Caption = 'Exportar JSON'
+        TabOrder = 3
+        OnClick = BtnLogExportClick
+      end
+      object BtnLogClear: TButton
+        Left = 622
+        Top = 4
+        Width = 82
+        Height = 25
+        Caption = 'Limpar'
+        TabOrder = 4
+        OnClick = BtnLogClearClick
+      end
+    end
+    object ListLogs: TListView
+      Left = 0
+      Top = 68
+      Width = 900
+      Height = 132
+      Align = alClient
+      Columns = <
+        item
+          Caption = 'Horario'
+          Width = 155
+        end
+        item
+          Caption = 'Nivel'
+          Width = 65
+        end
+        item
+          Caption = 'Origem'
+          Width = 85
+        end
+        item
+          Caption = 'Mensagem'
+          Width = 570
+        end>
+      GridLines = True
+      ReadOnly = True
+      RowSelect = True
+      TabOrder = 2
+      ViewStyle = vsReport
+    end
+  end
+  object TimerOperation: TTimer
+    Enabled = False
+    Interval = 500
+    OnTimer = TimerOperationTimer
+    Left = 824
+    Top = 16
   end
 end

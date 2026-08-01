@@ -9,6 +9,8 @@ uses
   Boss4D.Core.Services.IDEProfileApplication,
   Boss4D.Core.Services.IDERegistration,
   Boss4D.Core.Services.IDEProcessPolicy,
+  Boss4D.GUI.IDE.Timeline,
+  Boss4D.GUI.IDE.Dashboard,
   Boss4D.GUI.IDE.Presenter;
 
 type
@@ -34,8 +36,11 @@ type
       const AIDEOpenPolicy: TBoss4DIDEOpenPolicy): Integer;
     function Uninstall(const AProfileId, APackage: string): Integer;
     function Repair(const AProfileId: string): Integer;
+    function RepairTarget(const AProfileId, AIdentity: string): Integer;
     function Undo: Integer;
-    function History: TList<string>;
+    function Rollback(const AOperationId: string): Integer;
+    function History: TArray<TBoss4DGUITimelineRow>;
+    function Dashboard: TArray<TBoss4DGUIProfileDashboardRow>;
     procedure Snapshot(const AProfileId, APath: string);
     function Diff(const AProfileId, APath: string): TList<string>;
     procedure RestoreSnapshot(const APath: string);
@@ -118,22 +123,69 @@ begin
   Result := FOperations.Repair(AProfileId).Affected;
 end;
 
+function TBoss4DGUIIDEManagementBackend.RepairTarget(
+  const AProfileId, AIdentity: string): Integer;
+begin
+  Result := FOperations.RepairTarget(
+    AProfileId, AIdentity).Affected;
+end;
+
 function TBoss4DGUIIDEManagementBackend.Undo: Integer;
 begin
   Result := FOperations.UndoLatest.Affected;
 end;
 
-function TBoss4DGUIIDEManagementBackend.History: TList<string>;
+function TBoss4DGUIIDEManagementBackend.Rollback(
+  const AOperationId: string): Integer;
 begin
-  Result := TList<string>.Create;
+  Result := FOperations.Rollback(AOperationId).Affected;
+end;
+
+function TBoss4DGUIIDEManagementBackend.History:
+  TArray<TBoss4DGUITimelineRow>;
+begin
   var LHistory := FOperations.History;
   try
-    for var LItem in LHistory do
-      Result.Add(LItem.StartedAt + ' | ' +
-        TBoss4DIDEOperationStatuses.NameOf(LItem.Status) + ' | ' +
-        LItem.Kind + ' | ' + LItem.Profile + ' | ' + LItem.Target);
+    SetLength(Result, LHistory.Count);
+    for var I := 0 to LHistory.Count - 1 do
+    begin
+      var LRow := TBoss4DGUITimeline.FromOperation(LHistory[I]);
+      if LRow.CanCompare then
+      begin
+        var LChanges := FProfiles.CompareSnapshots(
+          LRow.UndoSnapshot, LRow.AfterSnapshot);
+        try
+          LRow.ChangedFields := string.Join(', ', LChanges.ToArray);
+        finally
+          LChanges.Free;
+        end;
+      end;
+      Result[LHistory.Count - I - 1] := LRow;
+    end;
   finally
     LHistory.Free;
+  end;
+end;
+
+function TBoss4DGUIIDEManagementBackend.Dashboard:
+  TArray<TBoss4DGUIProfileDashboardRow>;
+begin
+  var LProfiles := FQuery.Profiles;
+  try
+    SetLength(Result, LProfiles.Count);
+    for var I := 0 to LProfiles.Count - 1 do
+    begin
+      var LPackages := FQuery.Packages(LProfiles[I].Id);
+      try
+        Result[I] := TBoss4DGUIProfileDashboard.BuildRow(
+          LProfiles[I], LPackages,
+          FOperations.FindDrift(LProfiles[I].Id));
+      finally
+        LPackages.Free;
+      end;
+    end;
+  finally
+    LProfiles.Free;
   end;
 end;
 

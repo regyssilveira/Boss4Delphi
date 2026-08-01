@@ -13,6 +13,12 @@ type
     procedure TestRefreshSelectionAndPreviewsDriveView;
     [Test]
     procedure TestBackendFailureIsReportedByView;
+    [Test]
+    procedure TestTimelineMapsOperationAndRecovery;
+    [Test]
+    procedure TestTimelineRejectsNilOperation;
+    [Test]
+    procedure TestProfileDashboardMapsHealthAndComparesPackages;
   end;
 
 implementation
@@ -23,6 +29,9 @@ uses
   Boss4D.Core.Services.IDEManagementQuery,
   Boss4D.Core.Services.IDERegistration,
   Boss4D.Core.Services.IDEProcessPolicy,
+  Boss4D.Core.Services.IDEOperationResult,
+  Boss4D.GUI.IDE.Timeline,
+  Boss4D.GUI.IDE.Dashboard,
   Boss4D.GUI.IDE.Presenter;
 
 type
@@ -44,8 +53,11 @@ type
       const AIDEOpenPolicy: TBoss4DIDEOpenPolicy): Integer;
     function Uninstall(const AProfileId, APackage: string): Integer;
     function Repair(const AProfileId: string): Integer;
+    function RepairTarget(const AProfileId, AIdentity: string): Integer;
     function Undo: Integer;
-    function History: TList<string>;
+    function Rollback(const AOperationId: string): Integer;
+    function History: TArray<TBoss4DGUITimelineRow>;
+    function Dashboard: TArray<TBoss4DGUIProfileDashboardRow>;
     procedure Snapshot(const AProfileId, APath: string);
     function Diff(const AProfileId, APath: string): TList<string>;
     procedure RestoreSnapshot(const APath: string);
@@ -63,6 +75,8 @@ type
     Profiles: TList<string>;
     Packages: TList<string>;
     Targets: TList<string>;
+    Timeline: TArray<TBoss4DGUITimelineRow>;
+    DashboardRows: TArray<TBoss4DGUIProfileDashboardRow>;
     Selected: string;
     Status: string;
     Error: string;
@@ -80,6 +94,10 @@ type
       const AInstalled: Boolean);
     procedure ClearTargets;
     procedure AddTarget(const AIdentity: string);
+    procedure ShowHistory(
+      const ARows: TArray<TBoss4DGUITimelineRow>);
+    procedure ShowDashboard(
+      const ARows: TArray<TBoss4DGUIProfileDashboardRow>);
     procedure ShowIDEStatus(const AMessage: string);
     procedure ShowIDEError(const AMessage: string);
   end;
@@ -158,11 +176,14 @@ begin
   Result := 3;
 end;
 
-function TBackendMock.History: TList<string>;
+function TBackendMock.History: TArray<TBoss4DGUITimelineRow>;
 begin
   LastAction := 'history';
-  Result := TList<string>.Create;
-  Result.Add('2026-07-31 | succeeded | profile-install | daily | horse');
+  SetLength(Result, 1);
+  Result[0].Status := 'succeeded';
+  Result[0].Kind := 'profile-install';
+  Result[0].Profile := 'daily';
+  Result[0].Target := 'horse';
 end;
 
 procedure TBackendMock.Snapshot(const AProfileId, APath: string);
@@ -271,6 +292,42 @@ begin
   Targets.Add(AIdentity);
 end;
 
+function TBackendMock.Rollback(const AOperationId: string): Integer;
+begin
+  LastAction := 'rollback:' + AOperationId;
+  Result := 4;
+end;
+
+function TBackendMock.RepairTarget(const AProfileId,
+  AIdentity: string): Integer;
+begin
+  LastAction := 'repair-target:' + AProfileId + ':' + AIdentity;
+  Result := 1;
+end;
+
+function TBackendMock.Dashboard:
+  TArray<TBoss4DGUIProfileDashboardRow>;
+begin
+  LastAction := 'dashboard';
+  SetLength(Result, 1);
+  Result[0].Id := 'daily';
+  Result[0].Name := 'Daily';
+  Result[0].Compiler := '37.0';
+  Result[0].Packages := TArray<string>.Create('horse');
+end;
+
+procedure TViewMock.ShowHistory(
+  const ARows: TArray<TBoss4DGUITimelineRow>);
+begin
+  Timeline := Copy(ARows);
+end;
+
+procedure TViewMock.ShowDashboard(
+  const ARows: TArray<TBoss4DGUIProfileDashboardRow>);
+begin
+  DashboardRows := Copy(ARows);
+end;
+
 procedure TViewMock.ShowIDEStatus(const AMessage: string);
 begin
   Status := AMessage;
@@ -318,8 +375,12 @@ begin
     Assert.IsTrue(LViewObject.Status.Contains('3'));
     LPresenter.History;
     Assert.AreEqual('history', LBackendObject.LastAction);
-    Assert.AreEqual<Integer>(1, LViewObject.Targets.Count);
-    Assert.IsTrue(LViewObject.Targets[0].Contains('profile-install'));
+    Assert.AreEqual<Integer>(1, Length(LViewObject.Timeline));
+    Assert.AreEqual('profile-install', LViewObject.Timeline[0].Kind);
+    LPresenter.Dashboard;
+    Assert.AreEqual('dashboard', LBackendObject.LastAction);
+    Assert.AreEqual<Integer>(1, Length(LViewObject.DashboardRows));
+    Assert.AreEqual('Daily', LViewObject.DashboardRows[0].Name);
     LPresenter.Snapshot('daily.json');
     Assert.AreEqual('snapshot:daily:daily.json',
       LBackendObject.LastAction);
@@ -358,6 +419,84 @@ begin
     Assert.AreEqual('backend unavailable', LViewObject.Error);
   finally
     LPresenter.Free;
+  end;
+end;
+
+procedure TTestsGUIIDEPresenter.TestTimelineMapsOperationAndRecovery;
+begin
+  var LOperation := TBoss4DIDEOperationResult.New(
+    'profile-install', 'daily', 'horse');
+  try
+    LOperation.Status := TBoss4DIDEOperationStatus.Succeeded;
+    LOperation.CompletedAt := '2026-07-31T12:01:00';
+    LOperation.UndoSnapshot := 'before.json';
+    LOperation.AfterSnapshot := 'after.json';
+    LOperation.CompletedActions.Add('package registered');
+    LOperation.CompletedActions.Add('library path updated');
+    var LRow := TBoss4DGUITimeline.FromOperation(LOperation);
+    Assert.AreEqual('succeeded', LRow.Status);
+    Assert.AreEqual('profile-install', LRow.Kind);
+    Assert.AreEqual('daily', LRow.Profile);
+    Assert.AreEqual('horse', LRow.Target);
+    Assert.AreEqual('package registered, library path updated',
+      LRow.Actions);
+    Assert.IsTrue(LRow.CanUndo);
+    Assert.IsTrue(LRow.CanCompare);
+    Assert.IsTrue(LRow.Detail.Contains('Desfazer: disponivel'));
+    LRow.Kind := 'profile-repair';
+    Assert.IsFalse(LRow.CanUndo);
+  finally
+    LOperation.Free;
+  end;
+end;
+
+procedure TTestsGUIIDEPresenter.TestTimelineRejectsNilOperation;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      TBoss4DGUITimeline.FromOperation(nil);
+    end,
+    EArgumentNilException);
+end;
+
+procedure TTestsGUIIDEPresenter.TestProfileDashboardMapsHealthAndComparesPackages;
+begin
+  var LProfile := TBoss4DIDEProfileView.Create;
+  var LPackages := TObjectList<TBoss4DIDEPackageView>.Create(True);
+  try
+    LProfile.Id := 'daily';
+    LProfile.Name := 'Daily';
+    LProfile.Compiler := '37.0';
+    LProfile.RegistryBranch := 'Boss4D-daily';
+    LProfile.DefaultPlatform := 'Win64';
+    LProfile.DefaultConfiguration := 'Release';
+    for var LName in TArray<string>.Create('horse', 'dext') do
+    begin
+      var LPackage := TBoss4DIDEPackageView.Create;
+      LPackage.Name := LName;
+      LPackage.Installed := True;
+      LPackages.Add(LPackage);
+    end;
+    var LDaily := TBoss4DGUIProfileDashboard.BuildRow(
+      LProfile, LPackages, TArray<string>.Create('Known Packages'));
+    Assert.AreEqual('Com drift', LDaily.State);
+    Assert.AreEqual<Integer>(2, Length(LDaily.Packages));
+
+    var LReview := LDaily;
+    LReview.Name := 'Review';
+    LReview.Packages := TArray<string>.Create('horse', 'jwt');
+    LReview.Drift := nil;
+    Assert.AreEqual('Saudavel', LReview.State);
+    var LComparison := TBoss4DGUIProfileDashboard.Compare(
+      LDaily, LReview);
+    Assert.AreEqual('dext', LComparison.OnlyLeft[0]);
+    Assert.AreEqual('horse', LComparison.Shared[0]);
+    Assert.AreEqual('jwt', LComparison.OnlyRight[0]);
+    Assert.IsTrue(LComparison.Summary.Contains('Compartilhados'));
+  finally
+    LPackages.Free;
+    LProfile.Free;
   end;
 end;
 

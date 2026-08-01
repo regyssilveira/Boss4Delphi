@@ -1,5 +1,9 @@
 # Auditoria final de paridade do Boss4D — 30 de julho de 2026
 
+> Atualização pós-1.6 (31 de julho de 2026): os critérios originais continuam
+> completos. A distribuição macOS nativa, pull requests revisados no Registry
+> oficial e os primeiros 16 pacotes schema v2 assinados foram entregues.
+
 Esta auditoria relaciona cada critério trabalhado à evidência autoritativa no
 repositório. “Completo” significa implementado e coberto por teste unitário, de
 contrato, integração ou compilador real; não significa possuir escala de npm.
@@ -21,8 +25,8 @@ contrato, integração ou compilador real; não significa possuir escala de npm.
 | Progresso no terminal | Completo | plain/interativo/JSON/quiet, cancelamento e exit codes |
 | Autoatualização | Completo | seleção da release, SHA-256, extração, promoção e rollback |
 | Conformidade/auditoria | Completo | CycloneDX, SPDX, VEX, OSV, lock estrito e validadores externos |
-| Distribuição da release | Completo | workflow de tag, arquivos Windows/Linux, checksums, OIDC e execução do tarball |
-| Qualidade | Completo | builds do plugin Delphi 10/11/12/13, testes Delphi 13 Win32/Win64, FPC/Linux e Sonar Quality Gate validados |
+| Distribuição da release | Completo | workflow de tag, arquivos Windows/Linux/macOS, checksums, OIDC e execução dos arquivos |
+| Qualidade | Completo | builds do plugin Delphi 10/11/12/13, 295 testes Delphi 13 em Win32 e Win64, CI FPC em Linux/macOS e Sonar Quality Gate validados |
 
 ## Invariantes obrigatórios
 
@@ -57,6 +61,6 @@ neste documento.
 ## Fora dos critérios concluídos
 
 Os próximos investimentos legítimos dependem de crescimento do ecossistema ou
-de um novo objetivo de plataforma: pacotes assinados fornecidos pelos
-publishers, operação de busca/CDN hospedada, distribuição macOS e identidade
-opcional em log de transparência.
+de um novo objetivo de plataforma: migração das 39 entradas legadas restantes
+pelos publishers, operação hospedada de busca/CDN, Linux ARM64, experiência de
+produto mais rica na GUI e identidade opcional em log de transparência.

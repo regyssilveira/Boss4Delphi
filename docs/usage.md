@@ -657,14 +657,50 @@ The **Boss4D** graphical user interface (**`Boss4D.GUI.exe`**) provides a modern
 ### Key Features
 1. **Lateral Navigation (SPA Sidebar)**:
    * **Project Local**: Open any local project directory. Boss4D reads the `boss.json` and lists the package dependencies, declared version, and installed lock version in real-time. Features quick buttons for `Init`, `Install`, `Check Updates` (outdated), and `Dependency Tree`.
-   * **Search Packages**: A visual catalogue showing the most popular libraries in the Delphi community (Horse, RESTRequest4Delphi, mORMot, Skia, etc.) allowing for filtered search and single-click silent in-process installation.
-   * **Boss4D Doctor**: Run environmental diagnostics and auto-fixes for Delphi compiler installations without writing command lines.
+   * **Search Packages**: A filterable visual catalog with one-click
+     installation. Selecting a package opens its details with description,
+     license, version/revocation history, compiler/platform variants, and the
+     available digest, signature, and provenance evidence. Rich details also
+     show the declared dependency graph and compatibility mode, with validated
+     buttons for repository, changelog, and SBOM metadata.
+     The **Install** action opens a guided flow for exact version, compiler,
+     platform, and source-fallback policy, shows the equivalent
+     `boss4d package install` command, and requires explicit confirmation.
+     While it runs, the operation bar shows elapsed time and offers
+     cancellation. A failed or cancelled request remains available through
+     **Retry**, with success, failure, and cancellation reported separately.
+   * **Health Center**: Presents typed checks grouped by tools, Delphi,
+     compiler, and configuration, with healthy/warning/error summaries and
+     remediation guidance. It exposes direct environment auto-fix, IDE repair,
+     IDE undo, and cache-prune actions. When a project is selected, the same
+     view adds build-matrix, graph, toolchain, project-path, output/unit
+     collision, and live Registry-drift checks. A healthy build row offers a
+     cancellable full rebuild with live target progress; a drift row offers
+     transactional re-registration of only the selected identity.
    * **Manage Cache**: Displays global cache disk usage and provides options to clean (`Clean`) or prune (`Otimizar Cache`) stale downloaded versions.
    * **Components and IDEs**: Manage isolated IDE profiles, their default
      compiler targets, available/installed component products, install/remove
      previews, conflict and open-IDE policies, transactional installation,
-     repair, removal, and launch through an alternate Registry branch.
-2. **Integrated Log Console**: The bottom area prints real-time logs, compilation outputs, and concurrent download tasks running in background threads (via PPL) in a thread-safe UI component.
+     repair, removal, and launch through an alternate Registry branch. The
+     **Install** action opens a guided confirmation that can switch the isolated
+     profile and package, recalculates compatible runtime/design targets, and
+     shows the compiler, Registry branch, policies, transactional snapshot,
+     registration, and inventory changes before execution. Project builds and
+     component installation then report determinate per-target progress and
+     stream each phase/result to the structured log. The
+     **Dashboard** consolidates live Registry drift, installed products,
+     compiler/target/branch details, side-by-side profile comparison, and
+     direct isolated IDE launch. The
+     **History** action opens a newest-first operation timeline with status,
+     profile, target, undo availability, before/after snapshot comparison,
+     completed actions, and error/recovery details. Eligible installs and
+     uninstalls can be rolled back from the selected row after confirmation
+     and creation of a safety snapshot.
+2. **Structured Log Console**: The bottom area presents thread-safe real-time
+   events with timestamp, level, source, and message columns. Operators can
+   filter by severity, search immediately, jump to the latest errors, clear
+   the view, and export the complete diagnostic history as schema-versioned
+   JSON.
 
 The GUI component screen and `boss4d ide profile` commands share the same
 application services and inventories. See the
@@ -703,6 +739,18 @@ Submit it with a bearer token read from `BOSS4D_PUBLISH_TOKEN`:
 ```console
 boss4d publish --registry https://registry.example/api
 ```
+
+Prepare or open a reviewed official Registry pull request:
+
+```console
+boss4d publish --official --dry-run
+boss4d publish --official --registry-checkout C:\src\Boss4Delphi
+boss4d publish --official --registry-checkout C:\src\Boss4Delphi --open-pr
+```
+
+Official publication verifies publisher scope, signer authorization, immutable
+release assets, OpenPGP signature, provenance, and the clean Registry checkout
+before it creates an isolated branch and exact-file commit.
 
 See the [package publishing guide](publish.md) for all gates, options, and the
 registry endpoint contract.
@@ -761,6 +809,20 @@ boss4d ide uninstall Component
 boss4d ide uninstall Component --cascade
 ```
 
+Create, inspect, reproduce, and operate isolated IDE profiles:
+
+```console
+boss4d ide profile create Team-A --compiler 37.0
+boss4d ide profile target Team-A --platform Win64 --configuration Release
+boss4d ide profile preview-install Team-A Component
+boss4d ide profile install Team-A Component
+boss4d ide profile snapshot Team-A --output team-a.snapshot.json
+boss4d ide profile diff Team-A team-a.snapshot.json
+boss4d ide profile history
+boss4d ide profile undo
+boss4d ide profile launch Team-A
+```
+
 `doctor` now also checks matrix/graph validity, installed toolchains, project
 paths, output/unit collisions, and IDE registry drift. See the
 [complete build matrix guide](build-matrix-contract.md) and the
@@ -805,3 +867,18 @@ boss4d rollback
 
 See [Version Management](version-management.md) for revocation, mirror,
 receipt, and recovery details.
+
+## Registry maintenance and public portal
+
+Audit the composed catalog and regenerate deterministic publication artifacts:
+
+```console
+boss4d registry health .
+boss4d registry portal registry/index-v2.json registry/index.html
+boss4d registry search-index registry/index-v2.json registry/search-index.json
+```
+
+The current public catalog contains 55 packages: 16 signed schema-v2 releases
+and 39 legacy discovery entries. See [Package Indexes](package-index.md),
+[Publisher Onboarding](publisher-onboarding.md), and the
+[Registry Migration Plan](registry-migration-plan.md).

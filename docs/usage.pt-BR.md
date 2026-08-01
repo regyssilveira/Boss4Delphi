@@ -661,14 +661,51 @@ A interface gráfica do **Boss4D** (**`Boss4D.GUI.exe`**) fornece uma aplicaçã
 ### Funcionalidades
 1. **Navegação Lateral (Sidebar SPA)**:
    * **Projeto Local**: Selecione um diretório de projeto no disco. O Boss4D lerá o arquivo `boss.json` e listará as dependências, a versão declarada e a versão instalada em tempo real. Oferece botões rápidos para `Init`, `Install`, `Verificar Updates` (outdated) e `Árvore de Módulos`.
-   * **Buscar Pacotes**: Catálogo visual contendo as bibliotecas mais populares do ecossistema Delphi (Horse, RESTRequest4Delphi, mORMot, Skia, etc.) permitindo a busca filtrada e instalação silenciosa in-process com um clique.
-   * **Boss4D Doctor**: Executa verificações estruturadas e auto-correções no ambiente do Delphi sem precisar da linha de comando.
+   * **Buscar Pacotes**: Catálogo visual filtrável com instalação em um clique.
+     Ao selecionar um pacote, a GUI exibe descrição, licença, histórico de
+     versões/revogações, variantes por compilador/plataforma e as evidências
+     disponíveis de digest, assinatura e proveniência. Os detalhes ricos
+     também mostram o grafo declarado e o modo de compatibilidade, com botões
+     validados para repositório, changelog e SBOM.
+     A ação **Instalar** abre um fluxo guiado para versão exata, compilador,
+     plataforma e política de fallback para fontes, mostra o comando
+     `boss4d package install` equivalente e exige confirmação explícita.
+     Durante a execução, a barra da operação mostra o tempo decorrido e oferece
+     cancelamento. Uma solicitação que falhou ou foi cancelada permanece
+     disponível em **Tentar novamente**, com estados separados para sucesso,
+     falha e cancelamento.
+   * **Central de Saúde**: Exibe verificações tipadas agrupadas por ferramentas,
+     Delphi, compilador e configuração, com resumo de saudável/aviso/erro e
+     orientação de remediação. Disponibiliza ações diretas de auto-correção do
+     ambiente, reparo da IDE, undo da IDE e otimização do cache. Com um projeto
+     selecionado, a mesma tela acrescenta checks de matriz, grafo, toolchain,
+     paths de projetos, colisões de outputs/units e drift real do Registry. Uma
+     linha de build saudável oferece rebuild completo cancelável com progresso
+     por target; uma linha de drift oferece novo registro transacional somente
+     da identidade selecionada.
    * **Gerenciar Cache**: Exibe o uso de disco do cache global e fornece opções para limpar (`Clean`) ou realizar o prune (`Otimizar Cache`) de versões antigas.
    * **Componentes e IDEs**: Gerencia perfis isolados, targets padrão,
      componentes disponíveis/instalados, previews, políticas de conflito e IDE
      aberta, instalação transacional, reparo, remoção e abertura da IDE pelo
-     Registry branch alternativo.
-2. **Terminal de Logs Integrado**: A área inferior exibe os logs, avisos e andamento de downloads concorrentes e compilação de pacotes gerados em segundo plano (via PPL) de forma thread-safe.
+     Registry branch alternativo. A ação **Instalar** abre uma confirmação
+     guiada que permite trocar perfil isolado e package, recalcula os targets
+     runtime/design compatíveis e apresenta compilador, Registry branch,
+     políticas, snapshot transacional, registro e mudança no inventário antes
+     da execução. Builds do projeto e instalação de componentes passam então a
+     apresentar progresso determinado por target e transmitir cada
+     fase/resultado ao log estruturado. O **Dashboard** consolida drift real do
+     Registry, produtos instalados, compilador/target/branch, comparação entre
+     perfis e abertura direta da IDE isolada. A ação **Histórico** abre uma linha do tempo
+     das operações mais recentes, com estado, perfil, target, disponibilidade
+     de desfazer, comparação dos snapshots antes/depois, ações concluídas e
+     detalhes de erro/recuperação. Installs e uninstalls elegíveis podem ser
+     revertidos pela linha selecionada, após confirmação e criação de um
+     snapshot de segurança.
+2. **Console de Logs Estruturados**: A área inferior apresenta eventos em
+   tempo real e thread-safe com colunas de horário, nível, origem e mensagem.
+   É possível filtrar por severidade, pesquisar instantaneamente, ir aos erros
+   mais recentes, limpar a visualização e exportar todo o diagnóstico como
+   JSON versionado.
 
 A tela de componentes e os comandos `boss4d ide profile` compartilham os mesmos
 serviços e inventários. Consulte o
@@ -707,6 +744,18 @@ Envie-o com o token bearer lido de `BOSS4D_PUBLISH_TOKEN`:
 ```console
 boss4d publish --registry https://registry.example/api
 ```
+
+Prepare ou abra um pull request revisado no Registry oficial:
+
+```console
+boss4d publish --official --dry-run
+boss4d publish --official --registry-checkout C:\src\Boss4Delphi
+boss4d publish --official --registry-checkout C:\src\Boss4Delphi --open-pr
+```
+
+A publicação oficial verifica escopo do publisher, autorização do signatário,
+assets imutáveis, assinatura OpenPGP, proveniência e checkout limpo do Registry
+antes de criar branch isolado e commit somente dos arquivos exatos.
 
 Consulte o [guia de publicação](publish.pt-BR.md) para todos os bloqueios,
 opções e o contrato do endpoint do registro.
@@ -765,6 +814,20 @@ boss4d ide uninstall Component
 boss4d ide uninstall Component --cascade
 ```
 
+Crie, inspecione, reproduza e opere perfis isolados da IDE:
+
+```console
+boss4d ide profile create Team-A --compiler 37.0
+boss4d ide profile target Team-A --platform Win64 --configuration Release
+boss4d ide profile preview-install Team-A Component
+boss4d ide profile install Team-A Component
+boss4d ide profile snapshot Team-A --output team-a.snapshot.json
+boss4d ide profile diff Team-A team-a.snapshot.json
+boss4d ide profile history
+boss4d ide profile undo
+boss4d ide profile launch Team-A
+```
+
 O `doctor` também verifica matriz/grafo, toolchains instaladas, paths de
 projeto, colisões de outputs/units e divergência do Registro. Consulte o
 [guia completo da matriz](build-matrix-contract.pt-BR.md) e o
@@ -809,3 +872,18 @@ boss4d rollback
 
 Consulte [Gerenciamento de versões](version-management.pt-BR.md) para detalhes
 sobre revogação, mirrors, recibos e recuperação.
+
+## Manutenção do Registry e portal público
+
+Audite o catálogo composto e regenere os artefatos determinísticos:
+
+```console
+boss4d registry health .
+boss4d registry portal registry/index-v2.json registry/index.html
+boss4d registry search-index registry/index-v2.json registry/search-index.json
+```
+
+O catálogo público atual possui 55 pacotes: 16 releases schema v2 assinadas e
+39 entradas legadas de descoberta. Consulte [Índices de Pacotes](package-index.pt-BR.md),
+[Onboarding de Publishers](publisher-onboarding.pt-BR.md) e o
+[Plano de Migração do Registry](registry-migration-plan.pt-BR.md).

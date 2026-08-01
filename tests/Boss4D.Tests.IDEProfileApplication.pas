@@ -25,6 +25,7 @@ implementation
 uses
   System.SysUtils,
   System.IOUtils,
+  System.Generics.Collections,
   Boss4D.Core.Ports,
   Boss4D.Core.Domain.Package,
   Boss4D.Core.Domain.BuildMatrix,
@@ -32,6 +33,7 @@ uses
   Boss4D.Adapters.Json,
   Boss4D.Core.Services.BuildInventory,
   Boss4D.Core.Services.BuildCommand,
+  Boss4D.Core.Services.BuildExecutor,
   Boss4D.Core.Services.IDERegistration,
   Boss4D.Core.Services.IDEProfiles,
   Boss4D.Core.Services.IDEProfileApplication,
@@ -41,6 +43,59 @@ uses
   Boss4D.Tests.BuildCommand,
   Boss4D.Tests.IDEProcessPolicy,
   Boss4D.Tests.Mocks;
+
+function IntroduceAndAssertProfileDrift(
+  const AApplication: TBoss4DIDEProfileApplication;
+  const ARegistry: TIDERegistryStoreMock): string;
+begin
+  Assert.AreEqual<Integer>(0,
+    Length(AApplication.FindDrift('isolated')));
+  const LKnownPackageKey =
+    'Software\Embarcadero\Boss4D-isolated\37.0\Known Packages';
+  var LKnownPackageNames := ARegistry.ListValueNames(
+    LKnownPackageKey);
+  ARegistry.DeleteValue(LKnownPackageKey, LKnownPackageNames[0]);
+  var LDrift := AApplication.FindDrift('isolated');
+  Assert.AreEqual<Integer>(1, Length(LDrift));
+  Result := LDrift[0];
+end;
+
+procedure AssertInstallResultAndProgress(
+  const ASummary: TBoss4DIDEProfileOperationSummary;
+  const AProgress: TList<TBoss4DBuildTargetProgressEvent>;
+  const ARegistry: TIDERegistryStoreMock);
+begin
+  Assert.AreEqual<Integer>(1, ASummary.Built + ASummary.Restored,
+    'built or restored');
+  Assert.AreEqual<Integer>(1, ASummary.Affected, 'registered');
+  Assert.AreEqual<Integer>(2, AProgress.Count);
+  Assert.AreEqual(TargetStarted, AProgress[0].State);
+  Assert.IsTrue(AProgress[1].State in [TargetBuilt, TargetRestored]);
+  Assert.AreEqual<Integer>(1, AProgress[1].Current);
+  Assert.AreEqual<Integer>(1, AProgress[1].Total);
+  Assert.IsTrue(Length(ARegistry.ListValueNames(
+    'Software\Embarcadero\Boss4D-isolated\37.0\Known Packages')) > 0);
+end;
+
+function AssertUninstallOperation(
+  const AProfiles: TBoss4DIDEProfileService;
+  const AOperation: TBoss4DIDEOperationResult): string;
+begin
+  Assert.AreEqual(TBoss4DIDEOperationStatus.Succeeded,
+    AOperation.Status);
+  Assert.AreEqual('profile-uninstall', AOperation.Kind);
+  Result := AOperation.OperationId;
+  Assert.IsTrue(TFile.Exists(AOperation.UndoSnapshot));
+  Assert.IsTrue(TFile.Exists(AOperation.AfterSnapshot));
+  var LChanges := AProfiles.CompareSnapshots(
+    AOperation.UndoSnapshot, AOperation.AfterSnapshot);
+  try
+    Assert.IsTrue(LChanges.Contains('packages'));
+    Assert.IsTrue(LChanges.Contains('inventory'));
+  finally
+    LChanges.Free;
+  end;
+end;
 
 procedure TTestsIDEProfileApplication.Setup;
 begin
@@ -76,6 +131,9 @@ var
   LPlan: TBoss4DBuildCommandPlan;
   LRemovalPlan: TBoss4DIDERemovalPlan;
   LSummary: TBoss4DIDEProfileOperationSummary;
+  LProgress: TList<TBoss4DBuildTargetProgressEvent>;
+  LDriftIdentity: string;
+  LUninstallOperationId: string;
 begin
   TFile.WriteAllText(TPath.Combine(FDirectory, 'Design.dproj'),
     '<Project/>', TEncoding.UTF8);
@@ -109,6 +167,7 @@ begin
   LResultStoreObject := TBoss4DJsonIDEOperationResultStore.Create(
     TPath.Combine(FDirectory, 'operation-results'));
   LResultStore := LResultStoreObject;
+  LProgress := TList<TBoss4DBuildTargetProgressEvent>.Create;
   try
     LProfile := LProfiles.CreateProfile('Isolated', '', 'd13',
       'C:\Delphi13\bin\bds.exe');
@@ -129,6 +188,11 @@ begin
       end,
       LResultStore);
     try
+      LApplication.TargetProgress :=
+        procedure(const AEvent: TBoss4DBuildTargetProgressEvent)
+        begin
+          LProgress.Add(AEvent);
+        end;
       var LQuery := TBoss4DIDEManagementQuery.Create(
         LProfiles, LBuildInventory, LApplication);
       try
@@ -153,11 +217,10 @@ begin
       LSummary := LApplication.Install('isolated',
         'profile-component', TBoss4DIDEConflictPolicy.Fail,
         TBoss4DIDEOpenPolicy.Fail);
-      Assert.AreEqual<Integer>(1, LSummary.Built + LSummary.Restored,
-        'built or restored');
-      Assert.AreEqual<Integer>(1, LSummary.Affected, 'registered');
-      Assert.IsTrue(Length(LRegistryMock.ListValueNames(
-        'Software\Embarcadero\Boss4D-isolated\37.0\Known Packages')) > 0);
+      AssertInstallResultAndProgress(
+        LSummary, LProgress, LRegistryMock);
+      LDriftIdentity := IntroduceAndAssertProfileDrift(
+        LApplication, LRegistryMock);
       LProfile := LProfiles.Get('isolated');
       try
         Assert.AreEqual<Integer>(1, LProfile.Packages.Count,
@@ -167,8 +230,11 @@ begin
         LProfile.Free;
       end;
 
-      LSummary := LApplication.Repair('isolated');
-      Assert.AreEqual<Integer>(0, LSummary.Affected);
+      LSummary := LApplication.RepairTarget(
+        'isolated', LDriftIdentity);
+      Assert.IsTrue(LSummary.Affected > 0);
+      Assert.AreEqual<Integer>(0,
+        Length(LApplication.FindDrift('isolated')));
       LQuery := TBoss4DIDEManagementQuery.Create(
         LProfiles, LBuildInventory, LApplication);
       try
@@ -201,14 +267,12 @@ begin
       end;
       var LOperation := LResultStoreObject.LoadLatest;
       try
-        Assert.AreEqual(TBoss4DIDEOperationStatus.Succeeded,
-          LOperation.Status);
-        Assert.AreEqual('profile-uninstall', LOperation.Kind);
-        Assert.IsTrue(TFile.Exists(LOperation.UndoSnapshot));
+        LUninstallOperationId := AssertUninstallOperation(
+          LProfiles, LOperation);
       finally
         LOperation.Free;
       end;
-      LSummary := LApplication.UndoLatest;
+      LSummary := LApplication.Rollback(LUninstallOperationId);
       Assert.IsTrue(LSummary.Affected > 0, 'undo restored registrations');
       LProfile := LProfiles.Get('isolated');
       try
@@ -231,6 +295,7 @@ begin
       LApplication.Free;
     end;
   finally
+    LProgress.Free;
     LResultStore := nil;
     LRegistryStore := nil;
     LBuildInventory.Free;
