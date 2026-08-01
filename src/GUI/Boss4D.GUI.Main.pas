@@ -1807,7 +1807,13 @@ end;
 procedure TFormMain.ShowHistory(
   const ARows: TArray<TBoss4DGUITimelineRow>);
 begin
-  TBoss4DGUITimelineDialog.Execute(Self, ARows);
+  var LOperationId := TBoss4DGUITimelineDialog.Execute(Self, ARows);
+  if not LOperationId.IsEmpty and
+     (MessageDlg(
+       'Restaurar o estado anterior a esta operacao? ' +
+       'Um snapshot de seguranca sera criado antes do rollback.',
+       mtConfirmation, [mbYes, mbNo], 0) = mrYes) then
+    FIDEPresenter.Rollback(LOperationId);
 end;
 
 procedure TFormMain.ShowDashboard(

@@ -27,6 +27,7 @@ type
     function Repair(const AProfileId: string): Integer;
     function RepairTarget(const AProfileId, AIdentity: string): Integer;
     function Undo: Integer;
+    function Rollback(const AOperationId: string): Integer;
     function History: TArray<TBoss4DGUITimelineRow>;
     function Dashboard: TArray<TBoss4DGUIProfileDashboardRow>;
     procedure Snapshot(const AProfileId, APath: string);
@@ -80,6 +81,7 @@ type
     procedure Uninstall(const APackage: string);
     procedure Repair;
     procedure Undo;
+    procedure Rollback(const AOperationId: string);
     procedure History;
     procedure Dashboard;
     procedure Snapshot(const APath: string);
@@ -318,6 +320,20 @@ begin
     FView.ShowHistory(LHistory);
     FView.ShowIDEStatus(Format(
       '%d operacao(oes) no historico.', [Length(LHistory)]));
+  except
+    on E: Exception do
+      FView.ShowIDEError(E.Message);
+  end;
+end;
+
+procedure TBoss4DIDEManagementPresenter.Rollback(
+  const AOperationId: string);
+begin
+  try
+    var LAffected := FBackend.Rollback(AOperationId);
+    LoadPackages;
+    FView.ShowIDEStatus(Format(
+      'Rollback concluido: %d alteracao(oes).', [LAffected]));
   except
     on E: Exception do
       FView.ShowIDEError(E.Message);

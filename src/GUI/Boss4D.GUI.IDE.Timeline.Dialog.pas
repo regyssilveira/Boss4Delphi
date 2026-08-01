@@ -15,14 +15,17 @@ type
     FRows: TArray<TBoss4DGUITimelineRow>;
     FList: TListView;
     FDetail: TMemo;
+    FRollback: TButton;
+    FRollbackOperationId: string;
     procedure SelectRow(Sender: TObject; Item: TListItem;
       Selected: Boolean);
+    procedure RollbackClick(Sender: TObject);
     procedure Populate;
   public
     constructor CreateTimeline(AOwner: TComponent;
       const ARows: TArray<TBoss4DGUITimelineRow>);
-    class procedure Execute(AOwner: TComponent;
-      const ARows: TArray<TBoss4DGUITimelineRow>); static;
+    class function Execute(AOwner: TComponent;
+      const ARows: TArray<TBoss4DGUITimelineRow>): string; static;
   end;
 
 implementation
@@ -83,19 +86,40 @@ begin
   LClose.Cancel := True;
   LClose.Align := alRight;
   LClose.Width := 90;
+  FRollback := TButton.Create(Self);
+  FRollback.Parent := LButtons;
+  FRollback.Caption := 'Rollback selecionado';
+  FRollback.Align := alRight;
+  FRollback.Width := 160;
+  FRollback.Enabled := False;
+  FRollback.OnClick := RollbackClick;
 
   Populate;
 end;
 
-class procedure TBoss4DGUITimelineDialog.Execute(AOwner: TComponent;
-  const ARows: TArray<TBoss4DGUITimelineRow>);
+class function TBoss4DGUITimelineDialog.Execute(AOwner: TComponent;
+  const ARows: TArray<TBoss4DGUITimelineRow>): string;
 begin
+  Result := '';
   var LDialog := TBoss4DGUITimelineDialog.CreateTimeline(AOwner, ARows);
   try
-    LDialog.ShowModal;
+    if LDialog.ShowModal = mrOk then
+      Result := LDialog.FRollbackOperationId;
   finally
     LDialog.Free;
   end;
+end;
+
+procedure TBoss4DGUITimelineDialog.RollbackClick(Sender: TObject);
+begin
+  if not Assigned(FList.Selected) then
+    Exit;
+  var LIndex := FList.Selected.Index;
+  if (LIndex < 0) or (LIndex > High(FRows)) or
+     not FRows[LIndex].CanUndo then
+    Exit;
+  FRollbackOperationId := FRows[LIndex].OperationId;
+  ModalResult := mrOk;
 end;
 
 procedure TBoss4DGUITimelineDialog.Populate;
@@ -130,6 +154,7 @@ begin
   if (LIndex < 0) or (LIndex > High(FRows)) then
     Exit;
   FDetail.Text := FRows[LIndex].Detail;
+  FRollback.Enabled := FRows[LIndex].CanUndo;
 end;
 
 end.

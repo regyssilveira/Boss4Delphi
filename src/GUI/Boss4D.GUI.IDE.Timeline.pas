@@ -18,7 +18,10 @@ type
     ErrorMessage: string;
     RecoveryInstruction: string;
     UndoSnapshot: string;
+    AfterSnapshot: string;
+    ChangedFields: string;
     function CanUndo: Boolean;
+    function CanCompare: Boolean;
     function Detail: string;
   end;
 
@@ -39,7 +42,16 @@ uses
 
 function TBoss4DGUITimelineRow.CanUndo: Boolean;
 begin
-  Result := (Status = 'succeeded') and not UndoSnapshot.Trim.IsEmpty;
+  Result := (Status = 'succeeded') and
+    (SameText(Kind, 'profile-install') or
+     SameText(Kind, 'profile-uninstall')) and
+    not UndoSnapshot.Trim.IsEmpty;
+end;
+
+function TBoss4DGUITimelineRow.CanCompare: Boolean;
+begin
+  Result := not UndoSnapshot.Trim.IsEmpty and
+    not AfterSnapshot.Trim.IsEmpty;
 end;
 
 function TBoss4DGUITimelineRow.Detail: string;
@@ -57,6 +69,14 @@ begin
       RecoveryInstruction;
   if CanUndo then
     Result := Result + sLineBreak + 'Desfazer: disponivel';
+  if CanCompare then
+  begin
+    if ChangedFields.Trim.IsEmpty then
+      Result := Result + sLineBreak + 'Antes/depois: sem alteracoes'
+    else
+      Result := Result + sLineBreak + 'Antes/depois: ' +
+        ChangedFields;
+  end;
 end;
 
 class function TBoss4DGUITimeline.FromOperation(
@@ -77,6 +97,7 @@ begin
   Result.ErrorMessage := AOperation.ErrorMessage;
   Result.RecoveryInstruction := AOperation.RecoveryInstruction;
   Result.UndoSnapshot := AOperation.UndoSnapshot;
+  Result.AfterSnapshot := AOperation.AfterSnapshot;
 end;
 
 class function TBoss4DGUITimeline.Build(

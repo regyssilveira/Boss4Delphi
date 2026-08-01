@@ -38,6 +38,7 @@ type
     function Repair(const AProfileId: string): Integer;
     function RepairTarget(const AProfileId, AIdentity: string): Integer;
     function Undo: Integer;
+    function Rollback(const AOperationId: string): Integer;
     function History: TArray<TBoss4DGUITimelineRow>;
     function Dashboard: TArray<TBoss4DGUIProfileDashboardRow>;
     procedure Snapshot(const AProfileId, APath: string);
@@ -134,6 +135,12 @@ begin
   Result := FOperations.UndoLatest.Affected;
 end;
 
+function TBoss4DGUIIDEManagementBackend.Rollback(
+  const AOperationId: string): Integer;
+begin
+  Result := FOperations.Rollback(AOperationId).Affected;
+end;
+
 function TBoss4DGUIIDEManagementBackend.History:
   TArray<TBoss4DGUITimelineRow>;
 begin
@@ -141,8 +148,20 @@ begin
   try
     SetLength(Result, LHistory.Count);
     for var I := 0 to LHistory.Count - 1 do
-      Result[LHistory.Count - I - 1] :=
-        TBoss4DGUITimeline.FromOperation(LHistory[I]);
+    begin
+      var LRow := TBoss4DGUITimeline.FromOperation(LHistory[I]);
+      if LRow.CanCompare then
+      begin
+        var LChanges := FProfiles.CompareSnapshots(
+          LRow.UndoSnapshot, LRow.AfterSnapshot);
+        try
+          LRow.ChangedFields := string.Join(', ', LChanges.ToArray);
+        finally
+          LChanges.Free;
+        end;
+      end;
+      Result[LHistory.Count - I - 1] := LRow;
+    end;
   finally
     LHistory.Free;
   end;

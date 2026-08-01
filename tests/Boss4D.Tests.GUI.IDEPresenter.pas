@@ -55,6 +55,7 @@ type
     function Repair(const AProfileId: string): Integer;
     function RepairTarget(const AProfileId, AIdentity: string): Integer;
     function Undo: Integer;
+    function Rollback(const AOperationId: string): Integer;
     function History: TArray<TBoss4DGUITimelineRow>;
     function Dashboard: TArray<TBoss4DGUIProfileDashboardRow>;
     procedure Snapshot(const AProfileId, APath: string);
@@ -291,6 +292,12 @@ begin
   Targets.Add(AIdentity);
 end;
 
+function TBackendMock.Rollback(const AOperationId: string): Integer;
+begin
+  LastAction := 'rollback:' + AOperationId;
+  Result := 4;
+end;
+
 function TBackendMock.RepairTarget(const AProfileId,
   AIdentity: string): Integer;
 begin
@@ -423,6 +430,7 @@ begin
     LOperation.Status := TBoss4DIDEOperationStatus.Succeeded;
     LOperation.CompletedAt := '2026-07-31T12:01:00';
     LOperation.UndoSnapshot := 'before.json';
+    LOperation.AfterSnapshot := 'after.json';
     LOperation.CompletedActions.Add('package registered');
     LOperation.CompletedActions.Add('library path updated');
     var LRow := TBoss4DGUITimeline.FromOperation(LOperation);
@@ -433,7 +441,10 @@ begin
     Assert.AreEqual('package registered, library path updated',
       LRow.Actions);
     Assert.IsTrue(LRow.CanUndo);
+    Assert.IsTrue(LRow.CanCompare);
     Assert.IsTrue(LRow.Detail.Contains('Desfazer: disponivel'));
+    LRow.Kind := 'profile-repair';
+    Assert.IsFalse(LRow.CanUndo);
   finally
     LOperation.Free;
   end;
