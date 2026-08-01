@@ -250,6 +250,15 @@ begin
           LOperation.Status);
         Assert.AreEqual('profile-uninstall', LOperation.Kind);
         Assert.IsTrue(TFile.Exists(LOperation.UndoSnapshot));
+        Assert.IsTrue(TFile.Exists(LOperation.AfterSnapshot));
+        var LChanges := LProfiles.CompareSnapshots(
+          LOperation.UndoSnapshot, LOperation.AfterSnapshot);
+        try
+          Assert.IsTrue(LChanges.Contains('packages'));
+          Assert.IsTrue(LChanges.Contains('inventory'));
+        finally
+          LChanges.Free;
+        end;
       finally
         LOperation.Free;
       end;

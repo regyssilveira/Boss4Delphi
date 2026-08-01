@@ -55,6 +55,8 @@ type
       const APackage: TBoss4DPackage): TBoss4DIDEProfile;
     procedure CreateSnapshot(const AIdOrName, APath: string);
     function CompareSnapshot(const AIdOrName, APath: string): TList<string>;
+    function CompareSnapshots(const ABeforePath, AAfterPath: string):
+      TList<string>;
     function RestoreSnapshot(const APath: string): TBoss4DIDEProfile;
     procedure Launch(const AIdOrName: string);
   end;
@@ -616,6 +618,50 @@ begin
     finally
       LCurrent.Free;
       LSnapshot.Free;
+    end;
+  except
+    Result.Free;
+    raise;
+  end;
+end;
+
+function TBoss4DIDEProfileService.CompareSnapshots(
+  const ABeforePath, AAfterPath: string): TList<string>;
+begin
+  Result := TList<string>.Create;
+  var LBeforeInventory := '';
+  var LAfterInventory := '';
+  var LBefore: TBoss4DIDEProfile := nil;
+  var LAfter: TBoss4DIDEProfile := nil;
+  try
+    try
+      LBefore := ReadSnapshot(ABeforePath, LBeforeInventory);
+      LAfter := ReadSnapshot(AAfterPath, LAfterInventory);
+      if not SameText(LBefore.Id, LAfter.Id) then
+        Result.Add('profile');
+      if not SameText(LBefore.Compiler, LAfter.Compiler) then
+        Result.Add('compiler');
+      if not SameText(LBefore.RegistryBranch, LAfter.RegistryBranch) then
+        Result.Add('registryBranch');
+      if not SameText(LBefore.DefaultPlatform,
+        LAfter.DefaultPlatform) then
+        Result.Add('defaultPlatform');
+      if not SameText(LBefore.DefaultConfiguration,
+        LAfter.DefaultConfiguration) then
+        Result.Add('defaultConfiguration');
+      var LBeforePackages := LBefore.Packages.ToArray;
+      var LAfterPackages := LAfter.Packages.ToArray;
+      TArray.Sort<string>(LBeforePackages);
+      TArray.Sort<string>(LAfterPackages);
+      if not SameText(string.Join(#10, LBeforePackages),
+        string.Join(#10, LAfterPackages)) then
+        Result.Add('packages');
+      if not SameText(ContentHash(LBeforeInventory),
+        ContentHash(LAfterInventory)) then
+        Result.Add('inventory');
+    finally
+      LAfter.Free;
+      LBefore.Free;
     end;
   except
     Result.Free;

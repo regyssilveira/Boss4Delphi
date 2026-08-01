@@ -222,6 +222,10 @@ begin
         LPackage.Free;
       end;
       FProfiles.AddPackage(LProfile.Id, AOwnerPackage);
+      LOperation.AfterSnapshot := TPath.Combine(
+        TPath.GetDirectoryName(LOperation.UndoSnapshot),
+        LOperation.OperationId + '-after.json');
+      FProfiles.CreateSnapshot(LProfile.Id, LOperation.AfterSnapshot);
       LOperation.CompletedActions.Add('build ' + AOwnerPackage);
       LOperation.CompletedActions.Add('register ' + AOwnerPackage);
       LOperation.Complete;
@@ -281,6 +285,10 @@ begin
         LRegistrationService.Free;
       end;
       FProfiles.RemovePackage(LProfile.Id, AOwnerPackage);
+      LOperation.AfterSnapshot := TPath.Combine(
+        TPath.GetDirectoryName(LOperation.UndoSnapshot),
+        LOperation.OperationId + '-after.json');
+      FProfiles.CreateSnapshot(LProfile.Id, LOperation.AfterSnapshot);
       LOperation.CompletedActions.Add('unregister ' + AOwnerPackage);
       LOperation.Complete;
       if Assigned(FResultStore) then
