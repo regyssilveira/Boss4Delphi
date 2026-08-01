@@ -94,4 +94,16 @@ foreach ($entry in $versionContracts.GetEnumerator()) {
   }
 }
 
+$installer = Get-Content -LiteralPath (Join-Path $root 'installer\Boss4D.iss')
+$pluginSources = @($installer | Where-Object {
+  $_ -match '^Source: ".+dist\\plugins\\'
+})
+$optionalPluginSources = @($pluginSources | Where-Object {
+  $_ -match 'Flags: [^;]*skipifsourcedoesntexist'
+})
+if ($pluginSources.Count -ne 5 -or
+    $optionalPluginSources.Count -ne $pluginSources.Count) {
+  throw 'Every IDE plugin source must tolerate an unavailable optional compiler.'
+}
+
 Write-Output 'Release workflow contract: OK'
