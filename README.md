@@ -213,6 +213,7 @@ cd /d d:\Projetos\BossDelphi
 ## 📖 Additional Documentation
 * **[Boss4D 1.7.1 Release](docs/releases/1.7.1.md)**: Fix release for Delphi Library Path integration, plus validation evidence.
 * **[Boss4D 1.7.0 Release](docs/releases/1.7.0.md)**: Downloads, delivered capabilities, certified compiler/test evidence, supply-chain assets, and current Registry status.
+* **[GitHub Release Pre-flight](docs/release-preflight.pt-BR.md)**: Checklist to confirm tag, runner, workflow, and visible-release fallback before publishing.
 * **[Start with Your Use Case](docs/use-cases.md)**: Everyday, risk-aware workflows for dependencies, Registry credentials, publication, compliance, Multi-Delphi builds, IDE recovery, Linux, CI, releases, and self-update.
 * **[SBOM Feature Guide](docs/sbom.md)**: Motivation, evidence model, coverage, VEX, attestations, limitations, and recommended release workflow.
 * **[Deterministic Build Improvements](docs/build-improvements.md)**: Collision-free paths, toolchains, declared projects, Lazarus, scaffolding, and normalization.
