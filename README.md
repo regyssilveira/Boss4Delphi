@@ -170,7 +170,8 @@ cd /d d:\Projetos\BossDelphi
   profile dashboard for live drift, installed-product comparison, and direct
   isolated IDE launch. Component installation uses an explicit guided
   confirmation for profile, package, policies, exact targets, Registry branch,
-  and transactional changes. Its structured log console provides severity filters,
+  and transactional changes, followed by determinate target progress and live
+  structured build output. Its structured log console provides severity filters,
   search, error focus, and JSON diagnostic export. See the
   [IDE profile and component guide](docs/ide-component-management.md).
 * `boss4d config delphi use <path_or_release_version>`

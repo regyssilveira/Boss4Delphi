@@ -40,7 +40,7 @@ See the [authoritative delivery plan](ide-packages-profiles-gui-plan.md).
   a complete target/change preview before installation.
 - [x] Guided-install operation progress, elapsed time, cancellable Windows
   process execution, explicit cancelled state, retry, and CLI command preview.
-- [ ] Add determinate per-target progress and live structured output across
+- [x] Add determinate per-target progress and live structured output across
   build and component-management workflows.
 - [x] Structured Health Center with grouped environment diagnostics, summary,
   remediation, auto-fix, IDE repair/undo, and cache-prune actions.

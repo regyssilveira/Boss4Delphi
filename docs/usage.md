@@ -681,7 +681,9 @@ The **Boss4D** graphical user interface (**`Boss4D.GUI.exe`**) provides a modern
      **Install** action opens a guided confirmation that can switch the isolated
      profile and package, recalculates compatible runtime/design targets, and
      shows the compiler, Registry branch, policies, transactional snapshot,
-     registration, and inventory changes before execution. The
+     registration, and inventory changes before execution. Project builds and
+     component installation then report determinate per-target progress and
+     stream each phase/result to the structured log. The
      **Dashboard** consolidates live Registry drift, installed products,
      compiler/target/branch details, side-by-side profile comparison, and
      direct isolated IDE launch. The

@@ -42,7 +42,7 @@ Veja o [plano oficial da entrega](ide-packages-profiles-gui-plan.pt-BR.md).
   preview completo de targets/alterações antes da instalação.
 - [x] Progresso da instalação guiada, tempo decorrido, processo Windows
   cancelável, estado explícito de cancelamento, retry e preview do comando CLI.
-- [ ] Adicionar progresso determinado por target e saída estruturada ao vivo
+- [x] Adicionar progresso determinado por target e saída estruturada ao vivo
   aos fluxos de build e gerenciamento de componentes.
 - [x] Central de Saúde estruturada com diagnósticos de ambiente agrupados,
   resumo, remediação, auto-correção, reparo/undo da IDE e otimização de cache.

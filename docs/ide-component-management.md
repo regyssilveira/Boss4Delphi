@@ -184,6 +184,13 @@ shows the exact request that will be sent to the shared transactional service.
 Changing the profile inside the dialog reloads its available products and
 recalculates the target/change preview.
 
+After confirmation, compilation runs outside the visual thread. The operation
+bar advances with the real completed/total target count and identifies the
+current runtime/design target. Started, built, cache-restored, unchanged, and
+failed states are written immediately to the structured log. Cancellation is
+propagated to the build scheduler, and failed or cancelled component requests
+remain available through **Retry**.
+
 ## Everyday profile patterns
 
 ### Keep the daily IDE stable

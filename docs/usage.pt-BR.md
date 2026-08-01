@@ -686,7 +686,9 @@ A interface gráfica do **Boss4D** (**`Boss4D.GUI.exe`**) fornece uma aplicaçã
      guiada que permite trocar perfil isolado e package, recalcula os targets
      runtime/design compatíveis e apresenta compilador, Registry branch,
      políticas, snapshot transacional, registro e mudança no inventário antes
-     da execução. O **Dashboard** consolida drift real do
+     da execução. Builds do projeto e instalação de componentes passam então a
+     apresentar progresso determinado por target e transmitir cada
+     fase/resultado ao log estruturado. O **Dashboard** consolida drift real do
      Registry, produtos instalados, compilador/target/branch, comparação entre
      perfis e abertura direta da IDE isolada. A ação **Histórico** abre uma linha do tempo
      das operações mais recentes, com estado, perfil, target, disponibilidade

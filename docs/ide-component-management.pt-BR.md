@@ -184,6 +184,14 @@ exata enviada ao serviço transacional compartilhado. Trocar o perfil dentro do
 diálogo recarrega os produtos disponíveis e recalcula o preview de
 targets/alterações.
 
+Após a confirmação, a compilação roda fora da thread visual. A barra da
+operação avança com a contagem real de targets concluídos/total e identifica o
+target runtime/design atual. Estados iniciado, compilado, restaurado do cache,
+inalterado e falhou são gravados imediatamente no log estruturado. O
+cancelamento é propagado ao scheduler de build, e solicitações de componente
+que falharam ou foram canceladas permanecem disponíveis em **Tentar
+novamente**.
+
 ## Situações cotidianas
 
 ### Manter a IDE diária estável
