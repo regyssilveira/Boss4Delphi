@@ -114,7 +114,13 @@ operacao, perfil e alvo. A GUI apresenta a mesma lista em **Historico** e
 mantem `latest.json` apenas como um ponteiro de conveniencia. A linha do tempo
 visual exibe primeiro as entradas mais recentes, indica quando ha dados para
 desfazer e apresenta acoes concluidas, erros e instrucoes de recuperacao no
-painel de detalhes.
+painel de detalhes. Operacoes novas persistem snapshots de antes e depois; o
+painel lista os campos alterados (`packages`, `inventory`, compilador, branch e
+target) e permite rollback da entrada de install/uninstall selecionada. Antes
+do rollback, a GUI pede confirmacao e o servico cria outro snapshot do estado
+corrente para restauracao compensatoria se alguma etapa falhar. Entradas
+historicas antigas continuam legiveis, mas nao oferecem comparacao sem o par
+de snapshots.
 
 Projetos podem se vincular a um perfil no `boss.json`:
 
@@ -173,8 +179,9 @@ Abra `Boss4D.GUI.exe` e selecione **Componentes e IDEs**:
    targets runtime/design exatos, snapshot transacional, registro e mudança no
    inventário antes de pressionar **Instalar**;
 8. use **Reparar** para reconciliar drift;
-9. use **Desfazer** ou abra a linha do tempo estruturada em **Historico** para
-   recuperar ou auditar operacoes;
+9. use **Desfazer** para a ultima operacao ou abra **Historico**, selecione um
+   install/uninstall elegivel, revise a comparacao antes/depois e use
+   **Rollback selecionado** para recuperar aquele estado;
 10. consulte **Preview remover** e remova o produto gerenciado.
 
 A grade diferencia produtos disponíveis no inventário de builds dos instalados

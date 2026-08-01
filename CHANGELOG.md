@@ -69,6 +69,8 @@
 - Structured environment health reports and a GUI Health Center grouped by
   tools, Delphi, compiler, and configuration, with summary counts,
   remediation guidance, environment auto-fix, IDE repair/undo, and cache prune.
+- IDE operation timeline before/after comparison and confirmed rollback of a
+  selected install/uninstall entry, with a compensating safety snapshot.
 
 ### Changed
 

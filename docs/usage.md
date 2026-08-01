@@ -692,8 +692,10 @@ The **Boss4D** graphical user interface (**`Boss4D.GUI.exe`**) provides a modern
      compiler/target/branch details, side-by-side profile comparison, and
      direct isolated IDE launch. The
      **History** action opens a newest-first operation timeline with status,
-     profile, target, undo availability, completed actions, and
-     error/recovery details.
+     profile, target, undo availability, before/after snapshot comparison,
+     completed actions, and error/recovery details. Eligible installs and
+     uninstalls can be rolled back from the selected row after confirmation
+     and creation of a safety snapshot.
 2. **Structured Log Console**: The bottom area presents thread-safe real-time
    events with timestamp, level, source, and message columns. Operators can
    filter by severity, search immediately, jump to the latest errors, clear

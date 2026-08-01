@@ -49,7 +49,7 @@ See the [authoritative delivery plan](ide-packages-profiles-gui-plan.md).
 - [x] Typed visual operation timeline with newest-first status, operation,
   profile, target, completed actions, error/recovery details, and undo
   availability.
-- [ ] Extend the operation timeline with explicit before/after comparison and
+- [x] Extend the operation timeline with explicit before/after comparison and
   transactional rollback of a selected historical entry.
 - [x] Profile dashboard with live Registry drift, side-by-side installed-product
   comparison, compiler/target/branch details, and direct isolated IDE launch.

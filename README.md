@@ -169,7 +169,11 @@ cd /d d:\Projetos\BossDelphi
   `preview-install|install|repair|preview-uninstall|uninstall`
   Manages isolated RAD Studio Registry branches and performs previewable,
   transactional product installation. The GUI exposes the immutable operation
-  journal as a structured timeline with recovery and undo evidence, plus a
+  journal as a structured timeline with recovery evidence, explicit
+  before/after changes, and confirmed rollback of a selected eligible entry.
+  Each rollback captures the current state first for compensating recovery.
+  Older journal entries remain readable, but only entries containing the
+  required snapshots expose comparison and rollback. The GUI also provides a
   profile dashboard for live drift, installed-product comparison, and direct
   isolated IDE launch. Component installation uses an explicit guided
   confirmation for profile, package, policies, exact targets, Registry branch,

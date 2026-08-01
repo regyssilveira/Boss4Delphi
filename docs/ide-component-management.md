@@ -114,7 +114,12 @@ operation, profile, and target. The GUI exposes the same list through
 **History** and keeps `latest.json` only as a convenience pointer. The visual
 timeline shows newest entries first, indicates whether undo data is available,
 and exposes completed actions, errors, and recovery instructions in a detail
-panel.
+panel. New operations persist before and after snapshots; the detail panel
+lists changed fields (`packages`, `inventory`, compiler, branch, and target)
+and allows rollback of the selected eligible install/uninstall entry. The GUI
+asks for confirmation and the service captures the current state before
+rollback so it can compensate if any step fails. Legacy entries remain
+readable but do not expose comparison without both snapshots.
 
 Projects can bind themselves to a profile in `boss.json`:
 
@@ -173,8 +178,9 @@ Open `Boss4D.GUI.exe` and select **Components and IDEs**:
    exact runtime/design targets, transactional snapshot, registration, and
    inventory changes before pressing **Install**;
 8. use **Repair** to reconcile drift;
-9. use **Undo** or open the structured **History** timeline to recover or audit
-   completed operations;
+9. use **Undo** for the latest operation, or open **History**, select an
+   eligible install/uninstall, review its before/after comparison, and use
+   **Rollback selected** to recover that state;
 10. inspect **Preview remove**, then remove the managed product.
 
 The package grid distinguishes products available in the build inventory from

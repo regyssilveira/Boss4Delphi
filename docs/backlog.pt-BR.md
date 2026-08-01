@@ -51,7 +51,7 @@ Veja o [plano oficial da entrega](ide-packages-profiles-gui-plan.pt-BR.md).
 - [x] Linha do tempo visual tipada, da operação mais recente para a mais
   antiga, com estado, operação, perfil, target, ações concluídas, detalhes de
   erro/recuperação e disponibilidade de desfazer.
-- [ ] Estender a linha do tempo com comparação explícita antes/depois e
+- [x] Estender a linha do tempo com comparação explícita antes/depois e
   rollback transacional de uma entrada histórica selecionada.
 - [x] Dashboard de perfis com drift real do Registry, comparação lado a lado
   dos produtos instalados, compilador/target/branch e abertura direta da IDE

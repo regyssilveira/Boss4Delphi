@@ -697,7 +697,10 @@ A interface gráfica do **Boss4D** (**`Boss4D.GUI.exe`**) fornece uma aplicaçã
      Registry, produtos instalados, compilador/target/branch, comparação entre
      perfis e abertura direta da IDE isolada. A ação **Histórico** abre uma linha do tempo
      das operações mais recentes, com estado, perfil, target, disponibilidade
-     de desfazer, ações concluídas e detalhes de erro/recuperação.
+     de desfazer, comparação dos snapshots antes/depois, ações concluídas e
+     detalhes de erro/recuperação. Installs e uninstalls elegíveis podem ser
+     revertidos pela linha selecionada, após confirmação e criação de um
+     snapshot de segurança.
 2. **Console de Logs Estruturados**: A área inferior apresenta eventos em
    tempo real e thread-safe com colunas de horário, nível, origem e mensagem.
    É possível filtrar por severidade, pesquisar instantaneamente, ir aos erros
