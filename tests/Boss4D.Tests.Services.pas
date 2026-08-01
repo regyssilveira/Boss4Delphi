@@ -163,6 +163,8 @@ type
     [Test]
     procedure TestIDERegistrationRepairRestoresDrift;
     [Test]
+    procedure TestIDERegistrationRepairsOnlySelectedIdentity;
+    [Test]
     procedure TestIDERepairRebuildsMissingManagedArtifacts;
     [Test]
     procedure TestIDERegistrationManagesRestrictedRegistryValues;
@@ -2582,6 +2584,52 @@ begin
         'SampleProduct:Sample.chm'));
   finally
     LRegistration.Free;
+    LService.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDERegistrationRepairsOnlySelectedIdentity;
+var
+  LStore: TIDERegistryStoreMock;
+  LService: TBoss4DIDERegistrationService;
+  LFirst: TBoss4DIDERegistration;
+  LSecond: TBoss4DIDERegistration;
+  LPackageKey: string;
+  LDrift: TArray<string>;
+begin
+  LStore := TIDERegistryStoreMock.Create;
+  LService := TBoss4DIDERegistrationService.Create(LStore,
+    TPath.Combine(FTempDir, 'exact-repair-inventory.json'));
+  LFirst := TBoss4DIDERegistration.Create;
+  LSecond := TBoss4DIDERegistration.Create;
+  try
+    LFirst.PackageName := 'FirstDesign';
+    LFirst.OwnerPackage := 'First';
+    LFirst.Compiler := '37.0';
+    LFirst.Platform := 'Win32';
+    LFirst.BplPath := 'C:\artifacts\FirstDesign.bpl';
+    LFirst.Description := 'First';
+    LSecond.PackageName := 'SecondDesign';
+    LSecond.OwnerPackage := 'Second';
+    LSecond.Compiler := '37.0';
+    LSecond.Platform := 'Win32';
+    LSecond.BplPath := 'C:\artifacts\SecondDesign.bpl';
+    LSecond.Description := 'Second';
+    LService.RegisterTarget(LFirst);
+    LService.RegisterTarget(LSecond);
+    LPackageKey := 'Software\Embarcadero\BDS\37.0\Known Packages';
+    LStore.DeleteValue(LPackageKey, LFirst.BplPath);
+    LStore.DeleteValue(LPackageKey, LSecond.BplPath);
+
+    Assert.AreEqual<Integer>(1, LService.Repair(LFirst.Identity));
+    LDrift := LService.FindDrift;
+    Assert.AreEqual<Integer>(1, Length(LDrift));
+    Assert.AreEqual(LSecond.Identity, LDrift[0]);
+    Assert.AreEqual('First',
+      LStore.GetValue(LPackageKey, LFirst.BplPath));
+  finally
+    LSecond.Free;
+    LFirst.Free;
     LService.Free;
   end;
 end;

@@ -215,7 +215,8 @@ type
       APlatform: string): TBoss4DIDERemovalPlan;
     function PlanUninstall(
       const AOwnerPackage: string): TBoss4DIDERemovalPlan;
-    function Repair: Integer;
+    function Repair: Integer; overload;
+    function Repair(const AIdentity: string): Integer; overload;
     function FindDrift: TArray<string>;
   end;
 
@@ -1746,18 +1747,30 @@ begin
 end;
 
 function TBoss4DIDERegistrationService.Repair: Integer;
+begin
+  Result := Repair('');
+end;
+
+function TBoss4DIDERegistrationService.Repair(
+  const AIdentity: string): Integer;
 var
   LInventory: TObjectList<TBoss4DIDERegistration>;
   LSnapshots: TObjectList<TBoss4DRegistrySnapshot>;
+  LFound: Boolean;
 begin
   Result := 0;
+  LFound := AIdentity.Trim.IsEmpty;
   LInventory := LoadInventory;
   LSnapshots := TObjectList<TBoss4DRegistrySnapshot>.Create(True);
   try
     try
       for var LRegistration in LInventory do
-        if not IsHealthy(LRegistration) then
+        if AIdentity.Trim.IsEmpty or
+           SameText(LRegistration.Identity, AIdentity.Trim) then
         begin
+          LFound := True;
+          if IsHealthy(LRegistration) then
+            Continue;
           if not ArtifactsHealthy(LRegistration) then
           begin
             if not Assigned(FArtifactRepairHandler) then
@@ -1773,6 +1786,9 @@ begin
           ApplyRegistration(FStore, LRegistration, LSnapshots);
           Inc(Result);
         end;
+      if not LFound then
+        raise EBoss4DIDERegistrationError.Create(
+          'Registro IDE nao encontrado no inventario: ' + AIdentity);
     except
       on E: Exception do
       begin
