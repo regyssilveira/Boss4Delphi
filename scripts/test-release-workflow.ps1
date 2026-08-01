@@ -50,6 +50,14 @@ if ($hiddenArtifactUploads -ne 3) {
   throw 'Every release artifact upload must include the hidden staging directory.'
 }
 
+$windowsPowerShellSteps = [regex]::Matches(
+  $content,
+  '(?m)^\s+shell:\s+powershell\s*$'
+).Count
+if ($windowsPowerShellSteps -ne 4 -or $content.Contains('shell: pwsh')) {
+  throw 'Windows release steps must use the PowerShell available on the runner.'
+}
+
 if ($content -match 'pull_request:\s*[\r\n]') {
   throw 'Release publishing must not run for pull requests.'
 }
