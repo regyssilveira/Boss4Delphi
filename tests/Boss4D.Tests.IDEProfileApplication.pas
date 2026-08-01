@@ -58,6 +58,23 @@ begin
   Assert.IsTrue(Length(AApplication.FindDrift('isolated')) > 0);
 end;
 
+procedure AssertInstallResultAndProgress(
+  const ASummary: TBoss4DIDEProfileOperationSummary;
+  const AProgress: TList<TBoss4DBuildTargetProgressEvent>;
+  const ARegistry: TIDERegistryStoreMock);
+begin
+  Assert.AreEqual<Integer>(1, ASummary.Built + ASummary.Restored,
+    'built or restored');
+  Assert.AreEqual<Integer>(1, ASummary.Affected, 'registered');
+  Assert.AreEqual<Integer>(2, AProgress.Count);
+  Assert.AreEqual(TargetStarted, AProgress[0].State);
+  Assert.IsTrue(AProgress[1].State in [TargetBuilt, TargetRestored]);
+  Assert.AreEqual<Integer>(1, AProgress[1].Current);
+  Assert.AreEqual<Integer>(1, AProgress[1].Total);
+  Assert.IsTrue(Length(ARegistry.ListValueNames(
+    'Software\Embarcadero\Boss4D-isolated\37.0\Known Packages')) > 0);
+end;
+
 procedure TTestsIDEProfileApplication.Setup;
 begin
   FPreviousDirectory := TDirectory.GetCurrentDirectory;
@@ -176,16 +193,8 @@ begin
       LSummary := LApplication.Install('isolated',
         'profile-component', TBoss4DIDEConflictPolicy.Fail,
         TBoss4DIDEOpenPolicy.Fail);
-      Assert.AreEqual<Integer>(1, LSummary.Built + LSummary.Restored,
-        'built or restored');
-      Assert.AreEqual<Integer>(1, LSummary.Affected, 'registered');
-      Assert.AreEqual<Integer>(2, LProgress.Count);
-      Assert.AreEqual(TargetStarted, LProgress[0].State);
-      Assert.IsTrue(LProgress[1].State in [TargetBuilt, TargetRestored]);
-      Assert.AreEqual<Integer>(1, LProgress[1].Current);
-      Assert.AreEqual<Integer>(1, LProgress[1].Total);
-      Assert.IsTrue(Length(LRegistryMock.ListValueNames(
-        'Software\Embarcadero\Boss4D-isolated\37.0\Known Packages')) > 0);
+      AssertInstallResultAndProgress(
+        LSummary, LProgress, LRegistryMock);
       IntroduceAndAssertProfileDrift(LApplication, LRegistryMock);
       LProfile := LProfiles.Get('isolated');
       try
