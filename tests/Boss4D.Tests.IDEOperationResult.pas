@@ -72,6 +72,7 @@ begin
   try
     LResult.CompletedActions.Add('register ComponentDesign');
     LResult.UndoSnapshot := 'snapshots\before-install.json';
+    LResult.AfterSnapshot := 'snapshots\after-install.json';
     LResult.Complete;
     LStore.Save(LResult);
     LLoaded := LStore.LoadLatest;
@@ -83,6 +84,8 @@ begin
         LLoaded.CompletedActions[0]);
       Assert.AreEqual('snapshots\before-install.json',
         LLoaded.UndoSnapshot);
+      Assert.AreEqual('snapshots\after-install.json',
+        LLoaded.AfterSnapshot);
       var LHistory := LStore.History;
       try
         Assert.AreEqual<Integer>(1, LHistory.Count);

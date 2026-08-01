@@ -21,6 +21,7 @@ type
     FErrorMessage: string;
     FRecoveryInstruction: string;
     FUndoSnapshot: string;
+    FAfterSnapshot: string;
     FCompletedActions: TList<string>;
   public
     constructor Create;
@@ -41,6 +42,7 @@ type
     property RecoveryInstruction: string read FRecoveryInstruction
       write FRecoveryInstruction;
     property UndoSnapshot: string read FUndoSnapshot write FUndoSnapshot;
+    property AfterSnapshot: string read FAfterSnapshot write FAfterSnapshot;
     property CompletedActions: TList<string> read FCompletedActions;
   end;
 
@@ -213,6 +215,7 @@ begin
     LObject.AddPair('error', AResult.ErrorMessage);
     LObject.AddPair('recovery', AResult.RecoveryInstruction);
     LObject.AddPair('undoSnapshot', AResult.UndoSnapshot);
+    LObject.AddPair('afterSnapshot', AResult.AfterSnapshot);
     LActions := TJSONArray.Create;
     for var LAction in AResult.CompletedActions do
       LActions.Add(LAction);
@@ -282,6 +285,8 @@ begin
         'recovery', '');
       Result.UndoSnapshot := LObject.GetValue<string>(
         'undoSnapshot', '');
+      Result.AfterSnapshot := LObject.GetValue<string>(
+        'afterSnapshot', '');
       LActions := LObject.GetValue<TJSONArray>('completedActions');
       if Assigned(LActions) then
         for var I := 0 to LActions.Count - 1 do
