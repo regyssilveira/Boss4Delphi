@@ -14,7 +14,7 @@ fpc -B -Fu./src/Posix -Fu./tests/posix -FE./.fpc-build -FU./.fpc-build ./tests/p
 ./.fpc-build/boss4d platform | grep -qx linux
 ./.fpc-build/boss4d search Dext --registry=./registry/index-v2.json | grep -q Dext
 ./.fpc-build/boss4d info Horse --registry=./registry/index-v2.json | grep -q 'name: Horse'
-./.fpc-build/boss4d registry health . | grep -q 'packages=55; legacy=55; trusted=0; warnings=109; errors=0'
+./.fpc-build/boss4d registry health . | grep -q 'packages=55; legacy=39; trusted=16; warnings=78; errors=0'
 rm -rf .fpc-build/package-smoke
 mkdir -p .fpc-build/package-smoke/project
 (cd .fpc-build/package-smoke/project && /work/.fpc-build/boss4d init && /work/.fpc-build/boss4d package install Demo --registry /work/tests/fixtures/package-posix/index.json --platform linux --no-source-fallback)
