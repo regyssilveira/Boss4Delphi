@@ -151,6 +151,15 @@ jobs:
           pattern: release-*
           merge-multiple: true
           path: release
+      - name: Normalize cross-platform artifact layout
+        working-directory: release
+        run: |
+          if [ -d .release ]; then
+            mv .release/* .
+          fi
+          if [ -d dist/sbom ]; then
+            mv dist/sbom/* .
+          fi
       - name: Create combined checksums
         working-directory: release
         run: |

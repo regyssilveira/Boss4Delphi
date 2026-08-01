@@ -32,6 +32,9 @@ $required = @(
   'SHA256SUMS.txt',
   'artifact-matrix.json',
   'actions/attest-build-provenance@v2',
+  'Normalize cross-platform artifact layout',
+  'mv .release/* .',
+  'mv dist/sbom/* .',
   'id-token: write',
   'needs: [linux, macos, windows]',
   "startsWith(github.ref, 'refs/tags/v')"
