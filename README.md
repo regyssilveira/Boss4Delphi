@@ -141,7 +141,10 @@ cd /d d:\Projetos\BossDelphi
   Covers diagnostics, cache maintenance, global tools, Windows integrations,
   and license reports.
   The GUI Health Center groups environment checks and exposes remediation,
-  auto-fix, IDE repair/undo, and cache-prune actions.
+  auto-fix, IDE repair/undo, and cache-prune actions. With a selected project
+  it also diagnoses the build matrix, graph, paths, collisions, toolchains,
+  and Registry drift, with direct full-rebuild and exact transactional
+  re-registration actions.
 * `boss4d doc [-o <folder>] [--no-dependencies]`
   Generates a searchable API site from PascalDoc/XML Doc comments in the
   project and installed dependencies. See the

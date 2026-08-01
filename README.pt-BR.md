@@ -129,7 +129,10 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d doctor`, `cache`, `tool`, `plugin`, `getit` e `license report`
   Cobre diagnóstico, cache, ferramentas globais, integrações Windows e licenças.
   A Central de Saúde da GUI agrupa as verificações de ambiente e oferece
-  remediação, auto-correção, reparo/undo da IDE e otimização de cache.
+  remediação, auto-correção, reparo/undo da IDE e otimização de cache. Com um
+  projeto selecionado, também diagnostica matriz, grafo, paths, colisões,
+  toolchains e drift do Registry, com ações diretas de rebuild completo e novo
+  registro transacional exato.
 * `boss4d doc [-o <diretório>] [--no-dependencies]`
   Gera um site pesquisável usando comentários PascalDoc/XML Doc do projeto e
   das dependências instaladas. Consulte o

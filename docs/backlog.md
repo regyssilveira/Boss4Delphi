@@ -44,7 +44,7 @@ See the [authoritative delivery plan](ide-packages-profiles-gui-plan.md).
   build and component-management workflows.
 - [x] Structured Health Center with grouped environment diagnostics, summary,
   remediation, auto-fix, IDE repair/undo, and cache-prune actions.
-- [ ] Add project/build health groups with direct rebuild and exact
+- [x] Add project/build health groups with direct rebuild and exact
   re-registration actions.
 - [x] Typed visual operation timeline with newest-first status, operation,
   profile, target, completed actions, error/recovery details, and undo

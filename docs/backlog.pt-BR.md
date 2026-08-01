@@ -46,7 +46,7 @@ Veja o [plano oficial da entrega](ide-packages-profiles-gui-plan.pt-BR.md).
   aos fluxos de build e gerenciamento de componentes.
 - [x] Central de Saúde estruturada com diagnósticos de ambiente agrupados,
   resumo, remediação, auto-correção, reparo/undo da IDE e otimização de cache.
-- [ ] Adicionar grupos de saúde de projeto/build com ações diretas de rebuild e
+- [x] Adicionar grupos de saúde de projeto/build com ações diretas de rebuild e
   novo registro exato.
 - [x] Linha do tempo visual tipada, da operação mais recente para a mais
   antiga, com estado, operação, perfil, target, ações concluídas, detalhes de

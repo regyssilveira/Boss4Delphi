@@ -672,7 +672,11 @@ The **Boss4D** graphical user interface (**`Boss4D.GUI.exe`**) provides a modern
    * **Health Center**: Presents typed checks grouped by tools, Delphi,
      compiler, and configuration, with healthy/warning/error summaries and
      remediation guidance. It exposes direct environment auto-fix, IDE repair,
-     IDE undo, and cache-prune actions.
+     IDE undo, and cache-prune actions. When a project is selected, the same
+     view adds build-matrix, graph, toolchain, project-path, output/unit
+     collision, and live Registry-drift checks. A healthy build row offers a
+     cancellable full rebuild with live target progress; a drift row offers
+     transactional re-registration of only the selected identity.
    * **Manage Cache**: Displays global cache disk usage and provides options to clean (`Clean`) or prune (`Otimizar Cache`) stale downloaded versions.
    * **Components and IDEs**: Manage isolated IDE profiles, their default
      compiler targets, available/installed component products, install/remove

@@ -677,7 +677,12 @@ A interface gráfica do **Boss4D** (**`Boss4D.GUI.exe`**) fornece uma aplicaçã
    * **Central de Saúde**: Exibe verificações tipadas agrupadas por ferramentas,
      Delphi, compilador e configuração, com resumo de saudável/aviso/erro e
      orientação de remediação. Disponibiliza ações diretas de auto-correção do
-     ambiente, reparo da IDE, undo da IDE e otimização do cache.
+     ambiente, reparo da IDE, undo da IDE e otimização do cache. Com um projeto
+     selecionado, a mesma tela acrescenta checks de matriz, grafo, toolchain,
+     paths de projetos, colisões de outputs/units e drift real do Registry. Uma
+     linha de build saudável oferece rebuild completo cancelável com progresso
+     por target; uma linha de drift oferece novo registro transacional somente
+     da identidade selecionada.
    * **Gerenciar Cache**: Exibe o uso de disco do cache global e fornece opções para limpar (`Clean`) ou realizar o prune (`Otimizar Cache`) de versões antigas.
    * **Componentes e IDEs**: Gerencia perfis isolados, targets padrão,
      componentes disponíveis/instalados, previews, políticas de conflito e IDE

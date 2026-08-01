@@ -212,6 +212,12 @@ artifacts with the profile inventory, restores recoverable entries, and writes
 an operation journal. If repair reports missing source artifacts, rebuild the
 product and repeat the install.
 
+The GUI Health Center also lists every drift identity separately. Selecting
+one enables **Re-register target**, which repairs only that inventory identity,
+leaves healthy registrations untouched, and records a transactional
+`registration-repair` operation. A healthy project/build row enables
+**Full rebuild**, with cancellation and live target progress.
+
 ### Validate in CI without an old IDE
 
 Use support/matrix tests and compiler mocks for toolchains that are not

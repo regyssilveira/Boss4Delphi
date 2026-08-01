@@ -212,6 +212,13 @@ Feche a IDE e execute `repair`. O Boss4D compara Registro e artefatos com o
 inventário do perfil, restaura entradas recuperáveis e grava um journal. Se
 faltarem artefatos de origem, recompile o produto e repita a instalação.
 
+A Central de Saúde da GUI também lista cada identidade com drift
+separadamente. Selecionar uma delas habilita **Registrar target novamente**,
+que repara somente essa identidade do inventário, preserva registros saudáveis
+e grava uma operação transacional `registration-repair`. Uma linha de
+projeto/build saudável habilita **Rebuild completo**, com cancelamento e
+progresso ao vivo por target.
+
 ### Validar em CI sem uma IDE antiga
 
 Use testes de suporte/matriz e mocks de compilador para toolchains não
