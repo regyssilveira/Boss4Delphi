@@ -42,6 +42,14 @@ foreach ($value in $required) {
   }
 }
 
+$hiddenArtifactUploads = [regex]::Matches(
+  $content,
+  '(?m)^\s+include-hidden-files:\s+true\s*$'
+).Count
+if ($hiddenArtifactUploads -ne 3) {
+  throw 'Every release artifact upload must include the hidden staging directory.'
+}
+
 if ($content -match 'pull_request:\s*[\r\n]') {
   throw 'Release publishing must not run for pull requests.'
 }

@@ -41,6 +41,7 @@ jobs:
             .release/SHA256SUMS-linux.txt
             .release/artifact-matrix.json
           if-no-files-found: error
+          include-hidden-files: true
 
   macos:
     name: macOS arm64 / FPC
@@ -72,6 +73,7 @@ jobs:
             .release/boss4d-macos-*.tar.gz
             .release/SHA256SUMS-macos.txt
           if-no-files-found: error
+          include-hidden-files: true
 
   windows:
     name: Delphi 13 / Win32 + Win64
@@ -132,6 +134,7 @@ jobs:
             .release/*.b4dpkg.intoto.json
             dist/sbom/*
           if-no-files-found: error
+          include-hidden-files: true
 
   publish:
     name: Publish immutable release
