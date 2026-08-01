@@ -15,11 +15,11 @@ Source: "..\dist\bin\boss4d.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "..\dist\bin\boss4d_x64.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "..\dist\bin\Boss4D.GUI.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "..\dist\bin\Boss4D.GUI_x64.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
-Source: "..\dist\plugins\10\Boss4D.IDE.Plugin.bpl"; DestDir: "{commondocs}\Embarcadero\Studio\17.0\Bpl"; Flags: ignoreversion; Check: IsDelphi10Installed
-Source: "..\dist\plugins\10.1\Boss4D.IDE.Plugin.bpl"; DestDir: "{commondocs}\Embarcadero\Studio\18.0\Bpl"; Flags: ignoreversion; Check: IsDelphi101Installed
-Source: "..\dist\plugins\11\Boss4D.IDE.Plugin.bpl"; DestDir: "{commondocs}\Embarcadero\Studio\22.0\Bpl"; Flags: ignoreversion; Check: IsDelphi11Installed
-Source: "..\dist\plugins\12\Boss4D.IDE.Plugin.bpl"; DestDir: "{commondocs}\Embarcadero\Studio\23.0\Bpl"; Flags: ignoreversion; Check: IsDelphi12Installed
-Source: "..\dist\plugins\13\Boss4D.IDE.Plugin.bpl"; DestDir: "{commondocs}\Embarcadero\Studio\37.0\Bpl"; Flags: ignoreversion; Check: IsDelphi13Installed
+Source: "..\dist\plugins\10\Boss4D.IDE.Plugin.bpl"; DestDir: "{commondocs}\Embarcadero\Studio\17.0\Bpl"; Flags: ignoreversion skipifsourcedoesntexist; Check: IsDelphi10Installed
+Source: "..\dist\plugins\10.1\Boss4D.IDE.Plugin.bpl"; DestDir: "{commondocs}\Embarcadero\Studio\18.0\Bpl"; Flags: ignoreversion skipifsourcedoesntexist; Check: IsDelphi101Installed
+Source: "..\dist\plugins\11\Boss4D.IDE.Plugin.bpl"; DestDir: "{commondocs}\Embarcadero\Studio\22.0\Bpl"; Flags: ignoreversion skipifsourcedoesntexist; Check: IsDelphi11Installed
+Source: "..\dist\plugins\12\Boss4D.IDE.Plugin.bpl"; DestDir: "{commondocs}\Embarcadero\Studio\23.0\Bpl"; Flags: ignoreversion skipifsourcedoesntexist; Check: IsDelphi12Installed
+Source: "..\dist\plugins\13\Boss4D.IDE.Plugin.bpl"; DestDir: "{commondocs}\Embarcadero\Studio\37.0\Bpl"; Flags: ignoreversion skipifsourcedoesntexist; Check: IsDelphi13Installed
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
