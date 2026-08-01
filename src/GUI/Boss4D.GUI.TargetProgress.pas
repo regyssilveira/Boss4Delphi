@@ -3,9 +3,22 @@ unit Boss4D.GUI.TargetProgress;
 interface
 
 uses
+  Boss4D.Core.Domain.Progress,
   Boss4D.Core.Services.BuildExecutor;
 
 type
+  TBoss4DGUIProgressEventHandler = reference to procedure(
+    const AEvent: TBoss4DProgressEvent);
+
+  TBoss4DGUIProgressReporter = class(TInterfacedObject,
+    IBoss4DProgressReporter)
+  private
+    FHandler: TBoss4DGUIProgressEventHandler;
+  public
+    constructor Create(const AHandler: TBoss4DGUIProgressEventHandler);
+    procedure Report(const AEvent: TBoss4DProgressEvent);
+  end;
+
   TBoss4DGUITargetProgressRow = record
     TargetIdentity: string;
     State: string;
@@ -28,6 +41,21 @@ implementation
 uses
   System.SysUtils,
   System.Math;
+
+constructor TBoss4DGUIProgressReporter.Create(
+  const AHandler: TBoss4DGUIProgressEventHandler);
+begin
+  inherited Create;
+  if not Assigned(AHandler) then
+    raise EArgumentNilException.Create('AHandler');
+  FHandler := AHandler;
+end;
+
+procedure TBoss4DGUIProgressReporter.Report(
+  const AEvent: TBoss4DProgressEvent);
+begin
+  FHandler(AEvent);
+end;
 
 class function TBoss4DGUITargetProgress.FromBuildEvent(
   const AEvent: TBoss4DBuildTargetProgressEvent):

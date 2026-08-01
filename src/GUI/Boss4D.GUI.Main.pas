@@ -6,6 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.ComCtrls,
   Boss4D.Core.Ports, Boss4D.Core.Domain.Dependency, Boss4D.Core.Domain.Package,
+  Boss4D.Core.Domain.Progress,
   Boss4D.Core.Services.BuildInventory, Boss4D.Core.Services.IDEProfiles,
   Boss4D.Core.Services.IDEProfileApplication,
   Boss4D.Core.Services.BuildExecutor,
@@ -23,7 +24,7 @@ uses
 
 type
   TBoss4DGUIOperationKind = (OperationNone, OperationRegistryInstall,
-    OperationIDEInstall);
+    OperationProjectInstall, OperationIDEInstall);
 
   TFormMain = class(TForm, IBoss4DIDEManagementView)
     PanelSidebar: TPanel;
@@ -207,6 +208,10 @@ type
       const ARequest: TBoss4DGUIInstallRequest);
     procedure FinishGuidedInstall(const ACancelled: Boolean;
       const AOutput, AError, AProjectDirectory: string);
+    procedure QueueProjectProgress(const AEvent: TBoss4DProgressEvent);
+    procedure HandleProjectProgress(const AEvent: TBoss4DProgressEvent);
+    procedure FinishProjectInstall(const AError,
+      AProjectDirectory: string);
     procedure RunAsyncIDEInstall(
       const ARequest: TBoss4DGUIIDEInstallRequest);
     procedure QueueIDETargetProgress(
@@ -752,6 +757,65 @@ begin
   RefreshLogs;
 end;
 
+procedure TFormMain.QueueProjectProgress(
+  const AEvent: TBoss4DProgressEvent);
+var
+  LEvent: TBoss4DProgressEvent;
+begin
+  LEvent := AEvent;
+  TThread.Queue(nil,
+    procedure
+    begin
+      HandleProjectProgress(LEvent);
+    end);
+end;
+
+procedure TFormMain.HandleProjectProgress(
+  const AEvent: TBoss4DProgressEvent);
+begin
+  var LPhase := Boss4DProgressPhaseName(AEvent.Phase);
+  if AEvent.Total > 0 then
+  begin
+    ProgressOperation.Style := pbstNormal;
+    ProgressOperation.Min := 0;
+    ProgressOperation.Max := AEvent.Total;
+    ProgressOperation.Position := AEvent.Current;
+    LblOperation.Caption := Format('%s - %s %d/%d - %s',
+      [FOperationTitle, AEvent.PackageName, AEvent.Current,
+       AEvent.Total, AEvent.Message]);
+  end
+  else
+  begin
+    ProgressOperation.Style := pbstMarquee;
+    LblOperation.Caption := FOperationTitle + ' - ' +
+      AEvent.PackageName + ' - ' + AEvent.Message;
+  end;
+  if AEvent.Phase = TBoss4DProgressPhase.Failed then
+    LogStructured(TBoss4DLogLevel.Error, 'Project Build',
+      '[' + LPhase + '] ' + AEvent.PackageName + ': ' + AEvent.Message)
+  else
+    LogStructured(TBoss4DLogLevel.Info, 'Project Build',
+      '[' + LPhase + '] ' + AEvent.PackageName + ': ' + AEvent.Message);
+end;
+
+procedure TFormMain.FinishProjectInstall(const AError,
+  AProjectDirectory: string);
+begin
+  if not AError.IsEmpty then
+  begin
+    FOperationPresenter.Fail(AError, GetTickCount64);
+    LogStructured(TBoss4DLogLevel.Error, 'Project Build', AError);
+  end
+  else
+  begin
+    FOperationPresenter.Complete(GetTickCount64);
+    LoadProjectDependencies(AProjectDirectory);
+    LogStructured(TBoss4DLogLevel.Info, 'Project Build',
+      'Instalacao e build do projeto concluidos.');
+  end;
+  UpdateOperationUI;
+end;
+
 procedure TFormMain.RunAsyncCommand(const ATitle, ACommand: string; const AArgs: string);
 begin
   if FCurrentProjectDir = '' then
@@ -760,6 +824,20 @@ begin
     Exit;
   end;
 
+  if SameText(ACommand, 'install') then
+  begin
+    if FOperationPresenter.State = GUIRunning then
+    begin
+      ShowMessage('Aguarde ou cancele a operacao atual.');
+      Exit;
+    end;
+    FOperationKind := OperationProjectInstall;
+    FOperationTitle := ATitle;
+    FOperationPresenter.Start(GetTickCount64);
+    ProgressOperation.Style := pbstMarquee;
+    ProgressOperation.Position := 0;
+    UpdateOperationUI;
+  end;
   LogMessage('Iniciando: ' + ATitle);
 
   TTask.Run(
@@ -776,7 +854,9 @@ begin
       LGitClient: IBoss4DGitClient;
       LInstallService: TBoss4DInstallService;
       LInitService: TBoss4DInitService;
+      LError: string;
     begin
+      LError := '';
       try
         LLogger := TGUILogger.Create(Self);
         LPackageRepo := TBoss4DPackageJsonRepository.Create;
@@ -799,6 +879,12 @@ begin
           LInstallService := TBoss4DInstallService.Create(
             LPackageRepo, LLockRepo, LGitClient, LHttpClient, LCompiler, LLogger);
           try
+            LInstallService.SetProgressReporter(
+              TBoss4DGUIProgressReporter.Create(
+                procedure(const AEvent: TBoss4DProgressEvent)
+                begin
+                  QueueProjectProgress(AEvent);
+                end));
             TDirectory.SetCurrentDirectory(FCurrentProjectDir);
             LInstallService.Execute(AArgs);
             LogMessage('Comando finalizado com sucesso: ' + ATitle);
@@ -806,7 +892,7 @@ begin
               TThreadProcedure(
                 procedure
                 begin
-                  LoadProjectDependencies(FCurrentProjectDir);
+                  FinishProjectInstall('', FCurrentProjectDir);
                 end
               )
             );
@@ -835,7 +921,16 @@ begin
         end;
       except
         on E: Exception do
+        begin
+          LError := E.Message;
           LogMessage('[FALHA] Erro ao executar ' + ATitle + ': ' + E.Message);
+          if SameText(ACommand, 'install') then
+            TThread.Queue(nil,
+              procedure
+              begin
+                FinishProjectInstall(LError, FCurrentProjectDir);
+              end);
+        end;
       end;
     end
   );
@@ -1118,7 +1213,8 @@ begin
   end;
   LblOperation.Caption := LState;
   ProgressOperation.Visible := FOperationPresenter.State = GUIRunning;
-  BtnCancelOperation.Enabled := FOperationPresenter.CanCancel;
+  BtnCancelOperation.Enabled := FOperationPresenter.CanCancel and
+    (FOperationKind <> OperationProjectInstall);
   BtnRetryOperation.Enabled := FOperationPresenter.CanRetry and
     (((FOperationKind = OperationRegistryInstall) and
       FHasLastInstallRequest) or

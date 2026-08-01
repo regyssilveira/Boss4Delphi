@@ -15,12 +15,15 @@ type
     procedure MapsFailureForStructuredLogging;
     [Test]
     procedure RejectsInvalidProgressRange;
+    [Test]
+    procedure ReporterForwardsCoreProgressEvent;
   end;
 
 implementation
 
 uses
   System.SysUtils,
+  Boss4D.Core.Domain.Progress,
   Boss4D.Core.Services.BuildExecutor,
   Boss4D.GUI.TargetProgress;
 
@@ -61,6 +64,27 @@ begin
       TBoss4DGUITargetProgress.FromBuildEvent(LEvent);
     end,
     EArgumentOutOfRangeException);
+end;
+
+procedure TBoss4DGUITargetProgressTests.ReporterForwardsCoreProgressEvent;
+var
+  LReceived: TBoss4DProgressEvent;
+  LReporter: IBoss4DProgressReporter;
+begin
+  LReceived := Default(TBoss4DProgressEvent);
+  LReporter := TBoss4DGUIProgressReporter.Create(
+    procedure(const AEvent: TBoss4DProgressEvent)
+    begin
+      LReceived := AEvent;
+    end);
+  LReporter.Report(TBoss4DProgressEvent.Create(
+    'install-1', 'horse', TBoss4DProgressPhase.Compiling,
+    3, 5, 'HorseDesign.dproj'));
+  Assert.AreEqual('horse', LReceived.PackageName);
+  Assert.AreEqual(TBoss4DProgressPhase.Compiling, LReceived.Phase);
+  Assert.AreEqual<Integer>(3, LReceived.Current);
+  Assert.AreEqual<Integer>(5, LReceived.Total);
+  Assert.AreEqual('HorseDesign.dproj', LReceived.Message);
 end;
 
 initialization
