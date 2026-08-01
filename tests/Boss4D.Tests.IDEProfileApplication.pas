@@ -77,10 +77,14 @@ begin
     'Software\Embarcadero\Boss4D-isolated\37.0\Known Packages')) > 0);
 end;
 
-procedure AssertUninstallOperationSnapshots(
+function AssertUninstallOperation(
   const AProfiles: TBoss4DIDEProfileService;
-  const AOperation: TBoss4DIDEOperationResult);
+  const AOperation: TBoss4DIDEOperationResult): string;
 begin
+  Assert.AreEqual(TBoss4DIDEOperationStatus.Succeeded,
+    AOperation.Status);
+  Assert.AreEqual('profile-uninstall', AOperation.Kind);
+  Result := AOperation.OperationId;
   Assert.IsTrue(TFile.Exists(AOperation.UndoSnapshot));
   Assert.IsTrue(TFile.Exists(AOperation.AfterSnapshot));
   var LChanges := AProfiles.CompareSnapshots(
@@ -263,11 +267,8 @@ begin
       end;
       var LOperation := LResultStoreObject.LoadLatest;
       try
-        Assert.AreEqual(TBoss4DIDEOperationStatus.Succeeded,
-          LOperation.Status);
-        Assert.AreEqual('profile-uninstall', LOperation.Kind);
-        LUninstallOperationId := LOperation.OperationId;
-        AssertUninstallOperationSnapshots(LProfiles, LOperation);
+        LUninstallOperationId := AssertUninstallOperation(
+          LProfiles, LOperation);
       finally
         LOperation.Free;
       end;
