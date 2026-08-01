@@ -113,6 +113,7 @@ var
   LSummary: TBoss4DIDEProfileOperationSummary;
   LProgress: TList<TBoss4DBuildTargetProgressEvent>;
   LDriftIdentity: string;
+  LUninstallOperationId: string;
 begin
   TFile.WriteAllText(TPath.Combine(FDirectory, 'Design.dproj'),
     '<Project/>', TEncoding.UTF8);
@@ -249,6 +250,7 @@ begin
         Assert.AreEqual(TBoss4DIDEOperationStatus.Succeeded,
           LOperation.Status);
         Assert.AreEqual('profile-uninstall', LOperation.Kind);
+        LUninstallOperationId := LOperation.OperationId;
         Assert.IsTrue(TFile.Exists(LOperation.UndoSnapshot));
         Assert.IsTrue(TFile.Exists(LOperation.AfterSnapshot));
         var LChanges := LProfiles.CompareSnapshots(
@@ -262,7 +264,7 @@ begin
       finally
         LOperation.Free;
       end;
-      LSummary := LApplication.UndoLatest;
+      LSummary := LApplication.Rollback(LUninstallOperationId);
       Assert.IsTrue(LSummary.Affected > 0, 'undo restored registrations');
       LProfile := LProfiles.Get('isolated');
       try
