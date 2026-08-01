@@ -71,8 +71,9 @@ See the [authoritative delivery plan](ide-packages-profiles-gui-plan.md).
   - Verify official release assets and checksums, then use staging, atomic
     promotion, backup, and rollback on Windows and Linux.
 - [x] **[Story] Compiler compatibility matrix**
-  - Require real plugin builds for Delphi 10, 10.1, 11, 12 and 13 in the release
-    workflow.
+  - Require real plugin builds for Delphi 10 Seattle and Delphi 13; compile
+    Delphi 10.1, 11 and 12 when installed. The certified v1.7.0 runner built
+    Seattle, 11, 12 and 13.
 - [x] **[Story] Native Linux CLI**
   - Provide dependency, Registry, compliance, publishing, update, workspace,
     cache, credential, and global-tool workflows on Linux x86_64/FPC.

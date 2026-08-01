@@ -263,6 +263,7 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --locked, --frozen-lockfile, --offline, --production, --jobs n, --no-register, --progress plain|interactive, --json, --quiet.');
   FLogger.Log(TBoss4DLogLevel.Info, '  install <dep>        Instala uma dependencia especifica.');
   FLogger.Log(TBoss4DLogLevel.Info, '                       Exemplo: boss4d install github.com/hashload/horse@^3.0.0');
+  FLogger.Log(TBoss4DLogLevel.Info, '  restore --ci         Alias de CI para restauracao limpa e bloqueada.');
   FLogger.Log(TBoss4DLogLevel.Info, '  add <dep> [--dev]    Adiciona dependencia de runtime ou desenvolvimento.');
   FLogger.Log(TBoss4DLogLevel.Info, '  remove <dep>         Remove uma dependencia e locks orfaos.');
   FLogger.Log(TBoss4DLogLevel.Info, '  update [dep]         Atualiza uma ou todas as dependencias.');
@@ -297,6 +298,8 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  tree                 Exibe a arvore de dependencias do projeto.');
   FLogger.Log(TBoss4DLogLevel.Info, '  outdated             Verifica se ha atualizacoes disponiveis dos pacotes.');
   FLogger.Log(TBoss4DLogLevel.Info, '  tool install -g <repo> Compila e instala um utilitario Delphi globalmente.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  plugin install <repo> Compila e registra uma extensao da IDE.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  getit install|mode-online|mode-offline Integra com o GetIt.');
   FLogger.Log(TBoss4DLogLevel.Info, '  clean                Apaga a pasta modules e o arquivo boss-lock.json.');
   FLogger.Log(TBoss4DLogLevel.Info, '  new <template> <nome> [--path <dir>] Cria app/package/VCL/FMX/API/DUnitX/Lazarus/workspace.');
   FLogger.Log(TBoss4DLogLevel.Info, '  version, -v, --version Exibe a versao atual do Boss4D.');
@@ -305,11 +308,13 @@ begin
   FLogger.Log(TBoss4DLogLevel.Info, '  conformance registry|package <arq> Valida o protocolo publico.');
   FLogger.Log(TBoss4DLogLevel.Info, '  spec --detect [--compiler <versao>] Detecta projetos e gera buildMatrix.');
   FLogger.Log(TBoss4DLogLevel.Info, '  build                Compila a matriz declarada.');
+  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --compiler, --platform, --configuration, --jobs, --force, --full, --explain, --register, --all-installed, --affected, --with-dependents, --conflict, --remote-cache.');
   FLogger.Log(TBoss4DLogLevel.Info, '  support              Consulta suporte por compilador, plataforma e tipo.');
-  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --compiler, --platform, --configuration, --jobs, --force, --full, --explain, --register, --all-installed, --affected, --with-dependents.');
+  FLogger.Log(TBoss4DLogLevel.Info, '                       Flags: --compiler, --platform, --kind, --project.');
   FLogger.Log(TBoss4DLogLevel.Info, '  ide unregister <bpl> --compiler <versao> --platform <Win32|Win64>');
   FLogger.Log(TBoss4DLogLevel.Info, '  ide uninstall <pacote> Remove todos os targets gerenciados do pacote.');
   FLogger.Log(TBoss4DLogLevel.Info, '  ide repair           Repara registros da IDE a partir do inventario.');
+  FLogger.Log(TBoss4DLogLevel.Info, '  ide profile <acao>   Gerencia perfis isolados, snapshots, historico e rollback.');
   FLogger.Log(TBoss4DLogLevel.Info, '  help, -h, --help     Exibe este menu de ajuda.');
   FLogger.Log(TBoss4DLogLevel.Info, '');
 end;

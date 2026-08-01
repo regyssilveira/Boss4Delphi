@@ -17,8 +17,8 @@ evidências atuais incluem:
 - serviços compartilhados e presenters testáveis para CLI e GUI;
 - fluxos GUI para packages, targets, perfis, preview, políticas, instalação,
   reparo, remoção, snapshots e histórico;
-- 295 testes Delphi 13 aprovados em Win32 e Win64, artefatos do Registry
-  validados, CI FPC em Linux/macOS e Quality Gate Sonar limpo.
+- 332 testes Delphi 13 aprovados em Win32 e Win64, 74 testes FPC, artefatos do
+  Registry validados, CI FPC em Linux/macOS e Quality Gate Sonar limpo.
 
 As melhorias de experiência visual posteriores à entrega são acompanhadas
 separadamente no [Épico 24 do backlog](backlog.pt-BR.md).

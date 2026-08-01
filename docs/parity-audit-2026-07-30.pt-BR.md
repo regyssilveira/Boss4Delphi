@@ -26,7 +26,7 @@ contrato, integração ou compilador real; não significa possuir escala de npm.
 | Autoatualização | Completo | seleção da release, SHA-256, extração, promoção e rollback |
 | Conformidade/auditoria | Completo | CycloneDX, SPDX, VEX, OSV, lock estrito e validadores externos |
 | Distribuição da release | Completo | workflow de tag, arquivos Windows/Linux/macOS, checksums, OIDC e execução dos arquivos |
-| Qualidade | Completo | builds do plugin Delphi 10/11/12/13, 295 testes Delphi 13 em Win32 e Win64, CI FPC em Linux/macOS e Sonar Quality Gate validados |
+| Qualidade | Completo | builds do plugin Delphi 10/11/12/13, 332 testes Delphi 13 em Win32 e Win64, 74 testes FPC em Linux/macOS e Sonar Quality Gate limpo |
 
 ## Invariantes obrigatórios
 

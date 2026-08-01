@@ -18,6 +18,7 @@ type
   end;
 
 function Boss4DVersion: string;
+function Boss4DHelpText: string;
 function PlatformName: string;
 function DefaultManifest: string;
 function LoadJsonObject(const AFileName: string): TJSONObject;
@@ -62,6 +63,51 @@ const
 function Boss4DVersion: string;
 begin
   Result := '1.7.0';
+end;
+
+function Boss4DHelpText: string;
+begin
+  Result :=
+    'Boss4D portable CLI (v' + Boss4DVersion + '-fpc)' + LineEnding +
+    'Usage: boss4d <command> [arguments] [options]' + LineEnding +
+    'Commands: version, platform, init, install, ci, add, remove, list,' +
+      LineEnding +
+    '          search, info, registry, package, doctor, sbom, audit,' +
+      LineEnding +
+    '          config, cache, self-update, tool, publish, update,' +
+      LineEnding +
+    '          dependencies, tree, why, run, outdated, doc, help' +
+      LineEnding +
+    'Install: boss4d install [--locked] [--frozen-lockfile] [--offline]' +
+      LineEnding +
+    '         [--production] [--resolution highest|minimal]' + LineEnding +
+    '         [--registry <path-or-url>] [--progress plain|interactive]' +
+      LineEnding +
+    '         [--json] [--quiet]' + LineEnding +
+    'Add: boss4d add <repository> [version] [--dev]' + LineEnding +
+    'Registry: boss4d registry add|remove|list|health [source]' + LineEnding +
+    'Package: boss4d package install <name> [--platform <name>]' +
+      LineEnding +
+    '         [--compiler <version>] [--no-source-fallback]' + LineEnding +
+    'SBOM: boss4d sbom --format cyclonedx|spdx --lock-only' + LineEnding +
+    '      [--output <file>] [--strict] [--validate] [--reproducible]' +
+      LineEnding +
+    '      [--vex <file>]' + LineEnding +
+    'Audit: boss4d audit [--fail-on low|medium|high|critical]' + LineEnding +
+    '       [--offline] [--cache-hours <hours>] [--vex <file>]' +
+      LineEnding +
+    'Credentials: boss4d config auth <provider> <token>' + LineEnding +
+    '             boss4d config auth remove <provider>' + LineEnding +
+    'Cache: boss4d cache size|clean|prune' + LineEnding +
+    'Update: boss4d self-update' + LineEnding +
+    'Tools: boss4d tool install -g <source> [--name <name>]' + LineEnding +
+    '       boss4d tool update <name> <source>|uninstall <name>|list' +
+      LineEnding +
+    'Publish: boss4d publish --dry-run [--output <file>]' + LineEnding +
+    '         boss4d publish --registry <url> [--allow-dirty]' + LineEnding +
+    '         boss4d publish --official --publisher <id> ...' + LineEnding +
+    'Docs: boss4d doc [-o <folder>] [--no-dependencies]' + LineEnding +
+    'Help: boss4d help|-h|--help' + LineEnding;
 end;
 
 function PlatformName: string;

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Changed
+
+- Delphi and FPC help contracts now expose the current `1.7.0` version,
+  implemented commands, command-specific flag ownership, IDE profiles, GetIt,
+  plugins, CI restore, and all supported help aliases.
+- Release, compatibility, competitive-positioning, Registry, and validation
+  documentation now reflects the final v1.7.0 evidence.
+
 ## 1.7.0 - 2026-07-31
 
 ### Added
@@ -91,6 +99,13 @@
 
 ### Fixed
 
+- Portable macOS artifact creation and hidden staging uploads across all
+  release runners.
+- Windows release execution with native Windows PowerShell, an ephemeral
+  Delphi 13 runner, and optional compiler installations.
+- Installer compilation when an optional IDE plugin is unavailable.
+- Cross-platform artifact layout normalization before combined checksums,
+  GitHub attestations, and release publication.
 - Deterministic packages exclude Git worktree pointer files.
 - Verified release installation reliably honors artifact mirrors and
   `--no-source-fallback`.

@@ -3787,6 +3787,14 @@ begin
       'package install <pacote>'));
     Assert.IsTrue(LLogger.LastLogMessage.Contains('publish --official'));
     Assert.IsTrue(LLogger.LastLogMessage.Contains('support'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('restore --ci'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('plugin install <repo>'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains(
+      'getit install|mode-online|mode-offline'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('ide profile <acao>'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains(
+      'Flags: --compiler, --platform, --kind, --project'));
+    Assert.IsTrue(LLogger.LastLogMessage.Contains('--remote-cache'));
 
     LLogger.LastLogMessage := '';
     LParser.ParseAndExecute(TArray<string>.Create('support',

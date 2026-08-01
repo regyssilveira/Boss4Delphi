@@ -17,8 +17,9 @@ starting baseline, not the current product state. Current evidence includes:
 - shared application services and testable CLI/GUI presenters;
 - GUI workflows for packages, targets, profiles, preview, policies,
   installation, repair, removal, snapshots, and history;
-- 295 passing Delphi 13 tests on both Win32 and Win64, validated Registry
-  artifacts, Linux/macOS FPC CI, and a clean Sonar Quality Gate.
+- 332 passing Delphi 13 tests on both Win32 and Win64, 74 FPC tests,
+  validated Registry artifacts, Linux/macOS FPC CI, and a clean Sonar Quality
+  Gate.
 
 Post-delivery GUI experience work is tracked separately in
 [Backlog Epic 24](backlog.md#epic-24-gui-product-experience).
