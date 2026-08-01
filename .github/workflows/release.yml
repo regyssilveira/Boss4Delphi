@@ -61,7 +61,8 @@ jobs:
         run: |
           chmod 755 .release/macos/boss4d
           archive="boss4d-macos-$(uname -m).tar.gz"
-          tar -C .release/macos -czf ".release/$archive" boss4d
+          archive_path="$PWD/.release/$archive"
+          tar -C "$PWD/.release/macos" -czf "$archive_path" boss4d
           cd .release
           shasum -a 256 "$archive" > SHA256SUMS-macos.txt
       - uses: actions/upload-artifact@v4

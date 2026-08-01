@@ -19,6 +19,8 @@ $required = @(
   'macos-15',
   'brew install fpc',
   'boss4d-macos-*.tar.gz',
+  'archive_path="$PWD/.release/$archive"',
+  'tar -C "$PWD/.release/macos" -czf "$archive_path" boss4d',
   'shasum -a 256',
   'boss4d-windows.zip',
   'Boss4D_Setup.exe',
