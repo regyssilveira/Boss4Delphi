@@ -1140,7 +1140,7 @@ end;
 
 procedure TPosixCoreTests.TestVersion;
 begin
-  AssertEquals('1.6.0', Boss4DVersion);
+  AssertEquals('1.7.0', Boss4DVersion);
 end;
 
 procedure TPosixCoreTests.TestManifest;

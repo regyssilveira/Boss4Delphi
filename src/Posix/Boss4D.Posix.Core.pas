@@ -61,7 +61,7 @@ const
 
 function Boss4DVersion: string;
 begin
-  Result := '1.6.0';
+  Result := '1.7.0';
 end;
 
 function PlatformName: string;

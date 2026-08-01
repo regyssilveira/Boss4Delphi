@@ -171,7 +171,7 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d config git shallow <true/false>`
   Habilita ou desabilita o uso de clones rasos (shallow clone) para downloads mais velozes.
 * `boss4d version`
-  Exibe a versão atual do Boss4D (`v1.6.0-delphi-native`).
+  Exibe a versão atual do Boss4D (`v1.7.0-delphi-native`).
 * `boss4d self-update`
   Atualiza Windows ou Linux com os arquivos oficiais, verificação por
   `SHA256SUMS.txt`, staging transacional e rollback.
