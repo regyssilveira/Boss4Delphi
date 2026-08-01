@@ -9,6 +9,11 @@ O workflow opcional `.github/workflows/sbom-ci.yml` pode ser iniciado manualment
 pela ação `workflow_dispatch` e executa a mesma matriz quando
 houver um runner self-hosted com os rótulos `windows` e `delphi-13`, Delphi 13,
 Docker, Java e GitHub CLI. A ausência desse runner não bloqueia a release local.
+O workflow de tag, porém, exige um runner Windows com os rótulos
+`self-hosted`, `windows` e `delphi-13`. Ele pode ser registrado como efêmero:
+atende somente um job e é removido automaticamente ao terminar. O runner deve
+disponibilizar Windows PowerShell, Delphi 10 Seattle, Delphi 13 e Inno Setup 6.
+Delphi 10.1, 11 e 12 são opcionais e compilados quando instalados.
 Antes de promover o PR ou publicar uma tag, preencha
 [`docs/sbom-release-checklist.pt-BR.md`](docs/sbom-release-checklist.pt-BR.md).
 
@@ -33,9 +38,10 @@ Antes de qualquer release, compile todos os executáveis oficiais e os plugins d
    * `dist/bin/boss4d_x64.exe` (CLI Win64)
    * `dist/bin/Boss4D.GUI.exe` (GUI Win32)
    * `dist/bin/Boss4D.GUI_x64.exe` (GUI Win64)
-   * `dist/plugins/10.1/Boss4D.IDE.Plugin.bpl` (Delphi 10.1 Berlin)
-   * `dist/plugins/11/Boss4D.IDE.Plugin.bpl` (Delphi 11)
-   * `dist/plugins/12/Boss4D.IDE.Plugin.bpl` (Delphi 12)
+   * `dist/plugins/10/Boss4D.IDE.Plugin.bpl` (Delphi 10 Seattle, obrigatório)
+   * `dist/plugins/10.1/Boss4D.IDE.Plugin.bpl` (Delphi 10.1 Berlin, quando instalado)
+   * `dist/plugins/11/Boss4D.IDE.Plugin.bpl` (Delphi 11, quando instalado)
+   * `dist/plugins/12/Boss4D.IDE.Plugin.bpl` (Delphi 12, quando instalado)
    * `dist/plugins/13/Boss4D.IDE.Plugin.bpl` (Delphi 13)
    * `dist/sbom/boss4d.cdx.json` (CycloneDX 1.7)
    * `dist/sbom/boss4d.spdx.json` (SPDX 2.3)
@@ -96,6 +102,10 @@ git tag $releaseVersion
 git push origin $releaseVersion
 ```
 
+Não mova uma tag depois que uma release pública válida existir. Se uma execução
+falhar antes da publicação, corrija o workflow, cancele a execução antiga e
+confirme que nenhum ativo foi publicado antes de recriar a tag.
+
 ---
 
 ## 🚀 5. Publicação de Executáveis na Release do GitHub
@@ -104,7 +114,13 @@ git push origin $releaseVersion
 O sandbox de agentes IA injeta uma variável de ambiente chamada `GITHUB_TOKEN` contendo um token temporário inválido para o repositório físico do usuário. Para que o utilitário do GitHub CLI (`gh`) use a credencial real do desenvolvedor gravada na máquina do Windows, a variável deve ser limpa antes de rodar os comandos:
 
 ### Comando de Criação de Release Oficial
-Execute o seguinte comando no terminal do Windows para criar a release e fazer o upload do instalador de uma vez só:
+A publicação normal é feita por `.github/workflows/release.yml` após o push da
+tag. O workflow compila e testa Linux, macOS e Windows, normaliza os layouts
+baixados, gera o checksum combinado, cria attestations OIDC e publica os ativos.
+
+O comando abaixo é somente um fallback manual. Use os artefatos produzidos
+pelos runners nativos, incluindo o arquivo macOS; não substitua esses arquivos
+por cross-compilações:
 
 ```powershell
 # 1. Limpa o token dummy da IA para ativar as credenciais reais do Windows

@@ -315,11 +315,11 @@ executar parcialmente a instalação.
 
 O branch atual foi validado com:
 
-- 184 testes DUnitX no Delphi 13 Win32 e Win64;
+- 332 testes DUnitX no Delphi 13 Win32 e Win64;
 - builds da CLI de produção no Delphi 13 Win32 e Win64;
 - builds reais do plugin da IDE com Delphi 10/BDS 17.0, Delphi 11/BDS 22.0, Delphi 12/BDS 23.0 e
   Delphi 13/BDS 37.0;
-- 61 testes FPCUnit, smoke tests da CLI e do artefato de release em Linux/FPC
+- 74 testes FPCUnit, smoke tests da CLI e do artefato de release em Linux/FPC
   3.2.2 via Docker;
 - Sonar Quality Gate `OK`, sem novas violações.
 

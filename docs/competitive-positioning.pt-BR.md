@@ -14,7 +14,7 @@ registro são avaliadas separadamente da quantidade de comandos.
 | Distribuição imutável | `.b4dpkg`, SHA-256, OpenPGP, in-toto e instalação transacional | Principalmente checkout Git | Pacotes hospedados e assinados | Pacotes hospedados | Arquivos imutáveis e checksums |
 | Política de publicação | Dry-run, gates, token seguro, versões imutáveis e publishers revisados | Sem fluxo público equivalente documentado | Fonte central e push de pacotes | Submissão ao fornecedor | Publicação autenticada madura |
 | Evidência de supply chain | CycloneDX, SPDX, VEX, OSV, in-toto e OpenPGP | Sem fluxo SBOM/audit documentado | SBOM e assinatura de autor/repositório | Controlado pelo fornecedor | Varia, geralmente maduro |
-| Matriz compilador/plataforma | Plugins Delphi 10/10.1/11/12/13; Win32/Win64; Linux x86_64/FPC | Seleção de compilador/plataforma | Delphi XE2–13 e targets suportados | Releases atuais | Mecanismos ricos de target |
+| Matriz compilador/plataforma | Compatibilidade-fonte Delphi 10/10.1; plugins certificados 10/11/12/13; Win32/Win64; Linux x86_64 e macOS arm64/FPC | Seleção de compilador/plataforma | Delphi XE2–13 e targets suportados | Releases atuais | Mecanismos ricos de target |
 | Autoatualização | Atualização verificada e transacional no Windows/Linux | `upgrade`, inclusive pré-release | Entrega por instalador/pacote | Entrega pelo RAD Studio | Madura por toolchain |
 | Progresso/automação | Plain, interativo, JSON, quiet, cancelamento e exit codes estáveis | Progresso interativo por dependência | Saída CLI convencional | UI da IDE | Automação madura e legível por máquina |
 
@@ -42,9 +42,11 @@ ferramental de terceiros e operação de infraestrutura.
 
 ## Evidências neste repositório
 
-- DUnitX Delphi 13: 295 testes em Win32 e 295 em Win64.
-- FPC 3.2.2/Linux x86_64: 61 testes FPCUnit e smoke tests reais da CLI.
-- Builds reais do plugin: Delphi 10, 10.1, 11, 12 e 13.
+- DUnitX Delphi 13: 332 testes em Win32 e 332 em Win64.
+- FPC 3.2.2/Linux x86_64 e macOS arm64: 74 testes FPCUnit e smoke tests reais da CLI.
+- Builds reais do plugin na v1.7.0: Delphi 10 Seattle, 11, 12 e 13. O Delphi
+  10.1 Berlin usa o perfil de código-fonte legado compartilhado e permanece
+  opcional no runner.
 - Arquivos de release Windows, Linux e macOS com SHA-256 e proveniência OIDC
   do GitHub.
 - Checks de submissão: escopo do publisher, fingerprint OpenPGP, versões

@@ -195,6 +195,7 @@ cd /d d:\Projetos\BossDelphi
 ---
 
 ## 📖 Documentação Adicional
+* **[Release Boss4D 1.7.0](docs/releases/1.7.0.pt-BR.md)**: Downloads, funcionalidades entregues, evidências certificadas de compiladores/testes, ativos de supply chain e estado atual no Registry.
 * **[Comece pelo seu Caso de Uso](docs/use-cases.pt-BR.md)**: Fluxos cotidianos orientados a risco para dependências, credenciais de Registry, publicação, conformidade, builds Multi-Delphi, recuperação da IDE, Linux, CI, releases e autoatualização.
 * **[Guia da Feature SBOM](docs/sbom.pt-BR.md)**: Motivação, modelo de evidências, cobertura, VEX, atestações, limites e fluxo recomendado de release.
 * **[Melhorias de Build Determinístico](docs/build-improvements.pt-BR.md)**: Paths sem colisão, toolchains, projetos declarados, Lazarus, scaffolding e normalização.

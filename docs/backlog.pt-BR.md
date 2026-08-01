@@ -75,8 +75,9 @@ Veja o [plano oficial da entrega](ide-packages-profiles-gui-plan.pt-BR.md).
   - Verificar assets e checksums da release oficial e usar staging, promoção
     atômica, backup e rollback no Windows e Linux.
 - [x] **[Story] Matriz de compatibilidade de compiladores**
-  - Exigir builds reais do plugin para Delphi 10, 10.1, 11, 12 e 13 no workflow de
-    release.
+  - Exigir builds reais do plugin para Delphi 10 Seattle e Delphi 13; compilar
+    Delphi 10.1, 11 e 12 quando instalados. O runner certificado da v1.7.0
+    compilou Seattle, 11, 12 e 13.
 - [x] **[Story] CLI Linux nativa**
   - Oferecer dependências, Registry, conformidade, publicação, atualização,
     workspaces, cache, credenciais e ferramentas globais em Linux x86_64/FPC.

@@ -380,11 +380,11 @@ performing a partial installation.
 
 The current branch is validated with:
 
-- 184 DUnitX tests on Delphi 13 Win32 and Win64;
+- 332 DUnitX tests on Delphi 13 Win32 and Win64;
 - production CLI builds on Delphi 13 Win32 and Win64;
 - real IDE plugin builds with Delphi 10/BDS 17.0, Delphi 11/BDS 22.0, Delphi 12/BDS 23.0, and
   Delphi 13/BDS 37.0;
-- 61 FPCUnit tests plus CLI and release-artifact smoke tests on Linux/FPC
+- 74 FPCUnit tests plus CLI and release-artifact smoke tests on Linux/FPC
   3.2.2 through Docker;
 - Sonar Quality Gate `OK` with zero new violations.
 

@@ -27,7 +27,7 @@ real-compiler test; it does not mean the ecosystem has reached npm-scale.
 | Auto-update | Complete | release selection, SHA-256, extraction, transactional promotion and rollback tests |
 | Compliance/audit | Complete | CycloneDX, SPDX, VEX, OSV, strict lock evidence and external validators |
 | Release distribution | Complete | tag workflow, Windows/Linux/macOS archives, checksums, OIDC provenance and final archive execution |
-| Quality | Complete | Delphi 10/11/12/13 plugin builds, 295 Delphi 13 tests on Win32 and Win64, FPC/Linux/macOS CI, and the Sonar Quality Gate validated |
+| Quality | Complete | Delphi 10/11/12/13 plugin builds, 332 Delphi 13 tests on Win32 and Win64, 74 FPC tests on Linux/macOS, and a clean Sonar Quality Gate |
 
 ## Required invariants
 
