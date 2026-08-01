@@ -5093,7 +5093,7 @@ begin
       Assert.IsTrue(LPackage.Dependencies.ContainsKey(
         'github.com/hashload/horse'));
       Assert.IsTrue(LPackage.Dependencies.ContainsKey(
-        'github.com/regyssilveira/dext'),
+        'github.com/cesarliws/dext'),
         'O template de API deve incluir Dext.');
     finally
       LPackage.Free;

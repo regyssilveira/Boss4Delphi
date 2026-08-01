@@ -372,7 +372,7 @@ const
   REPOS: array[0..6] of string = ('github.com/hashload/horse',
     'github.com/viniciussanchez/RESTRequest4Delphi',
     'github.com/synopse/mORMot2', 'github.com/skia4delphi/skia4delphi',
-    'github.com/regyssilveira/dext', 'github.com/regyssilveira/Boss4Delphi',
+    'github.com/cesarliws/dext', 'github.com/regyssilveira/Boss4Delphi',
     'github.com/viniciussanchez/dataset-serialize');
 begin
   for var I := Low(NAMES) to High(NAMES) do

@@ -786,7 +786,7 @@ begin
   SaveFixture(LRoot, '{"schemaVersion":1,"packages":[' +
     '{"name":"Horse","repository":"github.com/hashload/horse",' +
     '"description":"Web framework"},{"name":"Dext",' +
-    '"repository":"github.com/regyssilveira/dext"}]}');
+    '"repository":"github.com/cesarliws/dext"}]}');
   LService := TBoss4DRegistryService.Create;
   try
     LEntries := LService.Load(LRoot);
@@ -2326,7 +2326,8 @@ begin
   SaveFixture(IncludeTrailingPathDelimiter(LRegistry) +
     'packages/secure.json',
     '{"schemaVersion":2,"packages":[{"name":"Secure",' +
-    '"publisher":"demo","repository":"github.com/demo/secure",' +
+    '"publisher":"demo","repository":"github.com/upstream/secure",' +
+    '"publisherRepository":"github.com/demo/secure",' +
     '"signerFingerprint":"' + StringOfChar('A', 40) +
     '","versions":[{"version":"1.0.0"}]}]}');
   LResult := AuditRegistryHealth(LRoot);
