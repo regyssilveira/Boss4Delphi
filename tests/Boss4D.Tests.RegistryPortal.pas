@@ -15,6 +15,7 @@ type
     [Test] procedure GeneratesVersionedV2CatalogWithTrustEvidence;
     [Test] procedure ReportsVerifiedMigrationProgress;
     [Test] procedure OffersReviewedCommunitySubmission;
+    [Test] procedure UsesCleanAccessibleLayout;
     [Test] procedure ComposesLocalIncludesSparseAndRevocations;
     [Test] procedure RejectsReferenceOutsideRegistryRoot;
     [Test] procedure GeneratesConsolidatedSearchIndex;
@@ -88,7 +89,8 @@ begin
       Assert.IsTrue(LHtml.Contains(
         'registered namespace: Boss4D Project'));
       Assert.AreEqual(1,
-        CountOccurrences(LHtml, '<strong>Horse</strong>'),
+        CountOccurrences(LHtml,
+          '<strong class="package-name">Horse</strong>'),
         'Ciclos de includes devem ser carregados uma unica vez.');
     finally
       LService.Free;
@@ -254,7 +256,7 @@ begin
     Assert.IsTrue(LHtml.Contains('data-platform="Win64"'));
     Assert.IsTrue(LHtml.Contains('data-compiler="37.0"'));
     Assert.IsTrue(LHtml.Contains('id="visible-count"'));
-    Assert.IsTrue(LHtml.Contains('@media(max-width:700px)'));
+    Assert.IsTrue(LHtml.Contains('@media(max-width:640px)'));
   finally
     LService.Free;
   end;
@@ -274,11 +276,11 @@ begin
       '"_publisherTrust":"namespace","version":"1.0.0"},' +
       '{"name":"Legacy","repository":"github.com/other/legacy"}]}');
     Assert.IsTrue(LHtml.Contains(
-      '<strong>1</strong>verified packages'));
+      '<strong>1</strong>verified'));
     Assert.IsTrue(LHtml.Contains(
-      '<strong>2</strong>legacy packages'));
+      '<strong>2</strong>legacy'));
     Assert.IsTrue(LHtml.Contains(
-      '<strong>33%</strong>verified migration'));
+      '<strong>33%</strong>migration'));
     Assert.IsTrue(LHtml.Contains(
       '<option value="verified">verified package</option>'));
     Assert.IsTrue(LHtml.Contains(
@@ -301,9 +303,30 @@ begin
     Assert.IsTrue(LHtml.Contains('id="community-submit"'));
     Assert.IsTrue(LHtml.Contains(
       'issues/new?template=registry-package-submission.yml'));
-    Assert.IsTrue(LHtml.Contains('Submission does not publish a package'));
+    Assert.IsTrue(LHtml.Contains('Nothing is published automatically'));
     Assert.IsTrue(LHtml.Contains(
-      'automated checks and explicit maintainer approval'));
+      'maintainer review'));
+  finally
+    LService.Free;
+  end;
+end;
+
+procedure TBoss4DRegistryPortalTests.UsesCleanAccessibleLayout;
+var
+  LService: TBoss4DRegistryPortalService;
+  LHtml: string;
+begin
+  LService := TBoss4DRegistryPortalService.Create;
+  try
+    LHtml := LService.Generate('{"schemaVersion":2,"packages":[]}');
+    Assert.IsTrue(LHtml.Contains('class="site-header"'));
+    Assert.IsTrue(LHtml.Contains('class="intro"'));
+    Assert.IsTrue(LHtml.Contains('class="catalog-heading"'));
+    Assert.IsTrue(LHtml.Contains('aria-live="polite"'));
+    Assert.IsTrue(LHtml.Contains('No packages match these filters.'));
+    Assert.IsTrue(LHtml.Contains('class="site-footer"'));
+    Assert.IsFalse(LHtml.Contains('linear-gradient'));
+    Assert.IsFalse(LHtml.Contains('color-scheme:light dark'));
   finally
     LService.Free;
   end;
