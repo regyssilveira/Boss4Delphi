@@ -14,38 +14,7 @@ uses
 
 procedure Help;
 begin
-  WriteLn('Boss4D portable CLI');
-  WriteLn('Commands: version, platform, init, install, ci, add, remove, list,');
-  WriteLn('          search, info, registry, package, doctor, sbom, audit,');
-  WriteLn('          config, cache, self-update, tool, publish, update,');
-  WriteLn('          dependencies, tree, why, run, outdated, doc');
-  WriteLn('Install options: --locked --frozen-lockfile --offline --production');
-  WriteLn('                 --resolution=highest|minimal');
-  WriteLn('                 --progress plain|interactive --json --quiet');
-  WriteLn('Add options: boss4d add <repository> [version] [--dev]');
-  WriteLn('Registry options: --registry=<index-v1-or-v2-path-or-url>');
-  WriteLn('Registry health: boss4d registry health [checkout-root]');
-  WriteLn('Package: boss4d package install <name> [--platform <name>]');
-  WriteLn('         [--compiler <version>] [--no-source-fallback]');
-  WriteLn('SBOM: boss4d sbom --format cyclonedx|spdx --lock-only');
-  WriteLn('      [--output <file>] [--reproducible] [--vex <file>]');
-  WriteLn('Audit: boss4d audit [--fail-on low|medium|high|critical]');
-  WriteLn('       [--offline] [--cache-hours <hours>] [--vex <file>]');
-  WriteLn('Credentials: boss4d config auth <provider> <token>');
-  WriteLn('             boss4d config auth remove <provider>');
-  WriteLn('Cache: boss4d cache size|clean|prune');
-  WriteLn('Update: boss4d self-update');
-  WriteLn('Tools: boss4d tool install -g <source> [--name <name>]');
-  WriteLn('       boss4d tool update <name> <source>|uninstall <name>|list');
-  WriteLn('Publish: boss4d publish --dry-run [--output <file>]');
-  WriteLn('         boss4d publish --registry <url> [--allow-dirty]');
-  WriteLn('         boss4d publish --official --publisher <id>');
-  WriteLn('           --repository <host/owner/name> --fingerprint <hex>');
-  WriteLn('           --sign <key> --artifact-url <https-url>');
-  WriteLn('           [--registry-root <checkout>] [--append-version]');
-  WriteLn('           [--open-pr] [--registry-remote <remote>]');
-  WriteLn('           [--registry-pr-repo <owner/name>]');
-  WriteLn('Docs: boss4d doc [-o <folder>] [--no-dependencies]');
+  Write(Boss4DHelpText);
 end;
 
 function OptionValue(const APrefix, ADefault: string): string;
@@ -917,7 +886,8 @@ begin
         LPublishService.Free;
       end;
     end
-    else if (LCommand = 'help') or (LCommand = '--help') then
+    else if (LCommand = 'help') or (LCommand = '-h') or
+      (LCommand = '--help') then
       Help
     else
       raise Exception.Create('unknown command: ' + LCommand);

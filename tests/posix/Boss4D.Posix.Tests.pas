@@ -153,6 +153,7 @@ type
   published
     procedure TestPlatform;
     procedure TestVersion;
+    procedure TestHelpContract;
     procedure TestManifest;
     procedure TestDependencyTarget;
     procedure TestCloneArguments;
@@ -1141,6 +1142,18 @@ end;
 procedure TPosixCoreTests.TestVersion;
 begin
   AssertEquals('1.7.0', Boss4DVersion);
+end;
+
+procedure TPosixCoreTests.TestHelpContract;
+var
+  LHelp: string;
+begin
+  LHelp := Boss4DHelpText;
+  AssertTrue(Pos('v1.7.0-fpc', LHelp) > 0);
+  AssertTrue(Pos('Usage: boss4d <command>', LHelp) > 0);
+  AssertTrue(Pos('registry add|remove|list|health', LHelp) > 0);
+  AssertTrue(Pos('--strict', LHelp) > 0);
+  AssertTrue(Pos('help|-h|--help', LHelp) > 0);
 end;
 
 procedure TPosixCoreTests.TestManifest;
