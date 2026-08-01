@@ -41,6 +41,15 @@ git push origin main
 git push origin $releaseVersion
 ```
 
+Use sempre o mesmo padrao visual das releases historicas:
+
+```text
+Boss4D vX.Y.Z
+```
+
+Ou seja, a tag e o titulo publico devem manter o prefixo `v`. Exemplo:
+tag `v1.7.1`, titulo `Boss4D v1.7.1`.
+
 Depois acompanhe:
 
 ```powershell
