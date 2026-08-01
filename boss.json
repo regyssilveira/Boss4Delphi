@@ -1,7 +1,7 @@
 {
   "name": "boss4d",
   "description": "Native Delphi dependency manager",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "homepage": "https://github.com/regyssilveira/Boss4Delphi",
   "license": "MIT",
   "dependencies": {}

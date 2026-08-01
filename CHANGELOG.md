@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.7.0 - 2026-07-31
+
 ### Added
 
 - Bilingual, risk-aware use-case guides covering 53 everyday workflows across

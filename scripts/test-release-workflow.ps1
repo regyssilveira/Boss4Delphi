@@ -48,17 +48,28 @@ $root = Join-Path $PSScriptRoot '..'
 $manifest = Get-Content -LiteralPath (Join-Path $root 'boss.json') -Raw |
   ConvertFrom-Json
 $version = [string]$manifest.version
+$resourceVersion = $version.Replace('.', ',') + ',0'
 $versionContracts = @{
   'boss-lock.json' = '"version": "' + $version + '"'
   'sonar-project.properties' = 'sonar.projectVersion=' + $version
   'installer\Boss4D.iss' = 'AppVersion=' + $version
   'src\CLI\Boss4D.CLI.Parser.pas' = 'v' + $version + '-delphi-native'
+  'src\Core\Services\Boss4D.Core.Services.DependencySubmission.pas' =
+    "LDetector.AddPair('version', '$version');"
+  'src\Core\Services\Boss4D.Core.Services.Pack.pas' =
+    "'builder', 'boss4d/' + '$version'"
+  'src\Core\Services\Boss4D.Core.Services.Sbom.pas' =
+    "Result.ToolVersion := '$version';"
   'src\Posix\Boss4D.Posix.Core.pas' = "Result := '$version';"
   'src\IDE\Boss4D.IDE.Plugin.rc' = '"' + $version + '.0"'
+  'src\IDE\Boss4D.IDE.Plugin.rc#numeric' =
+    'FILEVERSION ' + $resourceVersion
+  'src\IDE\Boss4D.IDE.Wizard.pas' = "'$version'"
   'CHANGELOG.md' = '## ' + $version + ' -'
 }
 foreach ($entry in $versionContracts.GetEnumerator()) {
-  $contract = Get-Content -LiteralPath (Join-Path $root $entry.Key) -Raw
+  $relativePath = $entry.Key.Split('#')[0]
+  $contract = Get-Content -LiteralPath (Join-Path $root $relativePath) -Raw
   if (-not $contract.Contains($entry.Value)) {
     throw "Release version $version is not synchronized in $($entry.Key)."
   }
