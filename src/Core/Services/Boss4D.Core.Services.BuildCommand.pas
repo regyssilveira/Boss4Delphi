@@ -10,7 +10,8 @@ uses
   Boss4D.Core.Domain.BuildMatrix,
   Boss4D.Core.Services.IDERegistration,
   Boss4D.Core.Services.BuildInventory,
-  Boss4D.Core.Services.BuildExecutor;
+  Boss4D.Core.Services.BuildExecutor,
+  Boss4D.Core.Services.BuildScheduler;
 
 type
   TBoss4DPlannedFile = class
@@ -53,6 +54,7 @@ type
     RemoteCachePath: string;
     Jobs: Integer;
     TargetProgress: TBoss4DBuildTargetProgressHandler;
+    Cancellation: TBoss4DBuildCancellationProbe;
     class function Parse(
       const AArgs: TArray<string>): TBoss4DBuildCommandOptions; static;
   end;
@@ -456,6 +458,7 @@ begin
     LExecutionOptions.Jobs := AOptions.Jobs;
     LExecutionOptions.RemoteCachePath := AOptions.RemoteCachePath;
     LExecutionOptions.TargetProgress := AOptions.TargetProgress;
+    LExecutionOptions.Cancellation := AOptions.Cancellation;
     Result.Scheduled := LExecutor.Execute(APackage, LDependency, ALock,
       ARootDirectory, LExecutionOptions);
     Result.Built := LExecutor.BuiltCount;

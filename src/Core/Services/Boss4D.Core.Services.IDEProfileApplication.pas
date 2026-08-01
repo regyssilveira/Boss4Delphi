@@ -8,6 +8,7 @@ uses
   Boss4D.Core.Domain.IDEProfile,
   Boss4D.Core.Services.BuildCommand,
   Boss4D.Core.Services.BuildExecutor,
+  Boss4D.Core.Services.BuildScheduler,
   Boss4D.Core.Services.BuildInventory,
   Boss4D.Core.Services.IDEProfiles,
   Boss4D.Core.Services.IDERegistration,
@@ -37,6 +38,7 @@ type
     FRegistrationFactory: TBoss4DIDERegistrationServiceFactory;
     FResultStore: IBoss4DIDEOperationResultStore;
     FTargetProgress: TBoss4DBuildTargetProgressHandler;
+    FBuildCancellation: TBoss4DBuildCancellationProbe;
     function BuildOptions(const AProfile: TBoss4DIDEProfile;
       const AConflictPolicy: TBoss4DIDEConflictPolicy):
       TBoss4DBuildCommandOptions;
@@ -66,6 +68,8 @@ type
     function History: TObjectList<TBoss4DIDEOperationResult>;
     property TargetProgress: TBoss4DBuildTargetProgressHandler
       read FTargetProgress write FTargetProgress;
+    property BuildCancellation: TBoss4DBuildCancellationProbe
+      read FBuildCancellation write FBuildCancellation;
   end;
 
 implementation
@@ -123,6 +127,7 @@ begin
   Result.ConflictPolicy := AConflictPolicy;
   Result.Jobs := 1;
   Result.TargetProgress := FTargetProgress;
+  Result.Cancellation := FBuildCancellation;
 end;
 
 function TBoss4DIDEProfileApplication.PreviewInstall(

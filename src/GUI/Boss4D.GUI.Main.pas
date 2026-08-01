@@ -8,6 +8,7 @@ uses
   Boss4D.Core.Ports, Boss4D.Core.Domain.Dependency, Boss4D.Core.Domain.Package,
   Boss4D.Core.Services.BuildInventory, Boss4D.Core.Services.IDEProfiles,
   Boss4D.Core.Services.IDEProfileApplication,
+  Boss4D.Core.Services.BuildExecutor,
   Boss4D.Core.Services.IDEManagementQuery,
   Boss4D.GUI.IDE.Presenter,
   Boss4D.GUI.IDE.Timeline,
@@ -15,10 +16,15 @@ uses
   Boss4D.GUI.Logs,
   Boss4D.GUI.Catalog.Presenter,
   Boss4D.GUI.Install.Presenter,
+  Boss4D.GUI.IDE.Install.Presenter,
   Boss4D.GUI.Operation.Presenter,
+  Boss4D.GUI.TargetProgress,
   Boss4D.GUI.Health.Presenter;
 
 type
+  TBoss4DGUIOperationKind = (OperationNone, OperationRegistryInstall,
+    OperationIDEInstall);
+
   TFormMain = class(TForm, IBoss4DIDEManagementView)
     PanelSidebar: TPanel;
     BtnPageProject: TButton;
@@ -180,6 +186,10 @@ type
     FCancelRequested: Integer;
     FLastInstallRequest: TBoss4DGUIInstallRequest;
     FHasLastInstallRequest: Boolean;
+    FLastIDEInstallRequest: TBoss4DGUIIDEInstallRequest;
+    FHasLastIDEInstallRequest: Boolean;
+    FOperationKind: TBoss4DGUIOperationKind;
+    FOperationTitle: string;
     procedure InitializeIDEManagement;
     function SelectedIDEPackage: string;
     procedure LoadProjectDependencies(const AProjectDir: string);
@@ -197,6 +207,15 @@ type
       const ARequest: TBoss4DGUIInstallRequest);
     procedure FinishGuidedInstall(const ACancelled: Boolean;
       const AOutput, AError, AProjectDirectory: string);
+    procedure RunAsyncIDEInstall(
+      const ARequest: TBoss4DGUIIDEInstallRequest);
+    procedure QueueIDETargetProgress(
+      const AEvent: TBoss4DBuildTargetProgressEvent);
+    procedure HandleIDETargetProgress(
+      const AEvent: TBoss4DBuildTargetProgressEvent);
+    procedure FinishIDEInstall(const ARequest: TBoss4DGUIIDEInstallRequest;
+      const AAffected: Integer; const AError: string;
+      const ACancelled: Boolean);
     procedure UpdateOperationUI;
     procedure RunHealthCheck(const AFix: Boolean);
     procedure PopulateHealth(const ARows: TArray<TBoss4DGUIHealthRow>;
@@ -254,8 +273,7 @@ uses
   Boss4D.GUI.IDE.Backend,
   Boss4D.GUI.IDE.Timeline.Dialog,
   Boss4D.GUI.IDE.Dashboard.Dialog,
-  Boss4D.GUI.IDE.Install.Dialog,
-  Boss4D.GUI.IDE.Install.Presenter;
+  Boss4D.GUI.IDE.Install.Dialog;
 
 type
   TGUILogger = class(TInterfacedObject, IBoss4DLogger)
@@ -868,8 +886,12 @@ begin
   LRequest := ARequest;
   FLastInstallRequest := ARequest;
   FHasLastInstallRequest := True;
+  FOperationKind := OperationRegistryInstall;
+  FOperationTitle := 'Instalando pacote';
   TInterlocked.Exchange(FCancelRequested, 0);
   FOperationPresenter.Start(GetTickCount64);
+  ProgressOperation.Style := pbstMarquee;
+  ProgressOperation.Position := 0;
   UpdateOperationUI;
   LogMessage('Iniciando: ' +
     TBoss4DGUIInstallPresenter.BuildEquivalentCommand(LRequest));
@@ -915,6 +937,143 @@ begin
   );
 end;
 
+procedure TFormMain.QueueIDETargetProgress(
+  const AEvent: TBoss4DBuildTargetProgressEvent);
+var
+  LEvent: TBoss4DBuildTargetProgressEvent;
+begin
+  LEvent := AEvent;
+  TThread.Queue(nil,
+    procedure
+    begin
+      HandleIDETargetProgress(LEvent);
+    end);
+end;
+
+procedure TFormMain.HandleIDETargetProgress(
+  const AEvent: TBoss4DBuildTargetProgressEvent);
+begin
+  var LRow := TBoss4DGUITargetProgress.FromBuildEvent(AEvent);
+  ProgressOperation.Style := pbstNormal;
+  ProgressOperation.Min := 0;
+  ProgressOperation.Max := LRow.Total;
+  ProgressOperation.Position := LRow.Current;
+  LblOperation.Caption := Format('%s - %d/%d (%d%%) - %s',
+    [FOperationTitle, LRow.Current, LRow.Total, LRow.Percentage,
+     LRow.TargetIdentity]);
+  if LRow.IsFailure then
+    LogStructured(TBoss4DLogLevel.Error, 'IDE Build',
+      LRow.TargetIdentity + ' [' + LRow.State + '] ' + LRow.Message)
+  else
+    LogStructured(TBoss4DLogLevel.Info, 'IDE Build',
+      LRow.TargetIdentity + ' [' + LRow.State + '] ' + LRow.Message);
+end;
+
+procedure TFormMain.RunAsyncIDEInstall(
+  const ARequest: TBoss4DGUIIDEInstallRequest);
+var
+  LRequest: TBoss4DGUIIDEInstallRequest;
+begin
+  if FOperationPresenter.State = GUIRunning then
+  begin
+    ShowMessage('Aguarde ou cancele a operacao atual.');
+    Exit;
+  end;
+  LRequest := ARequest;
+  FLastIDEInstallRequest := ARequest;
+  FHasLastIDEInstallRequest := True;
+  FOperationKind := OperationIDEInstall;
+  FOperationTitle := 'Instalando ' + ARequest.PackageName;
+  TInterlocked.Exchange(FCancelRequested, 0);
+  FOperationPresenter.Start(GetTickCount64);
+  ProgressOperation.Style := pbstNormal;
+  ProgressOperation.Min := 0;
+  ProgressOperation.Max := Length(ARequest.Targets);
+  ProgressOperation.Position := 0;
+  PanelIDEActions.Enabled := False;
+  FIDEOperations.TargetProgress :=
+    procedure(const AEvent: TBoss4DBuildTargetProgressEvent)
+    begin
+      QueueIDETargetProgress(AEvent);
+    end;
+  FIDEOperations.BuildCancellation :=
+    function: Boolean
+    begin
+      Result := TInterlocked.CompareExchange(
+        FCancelRequested, 0, 0) <> 0;
+    end;
+  UpdateOperationUI;
+  LogStructured(TBoss4DLogLevel.Info, 'IDE Build',
+    'Iniciando ' + ARequest.PackageName + ' em ' +
+    ARequest.ProfileName + ' com ' +
+    Length(ARequest.Targets).ToString + ' target(s).');
+  TTask.Run(
+    procedure
+    var
+      LAffected: Integer;
+      LError: string;
+      LCancelled: Boolean;
+    begin
+      LAffected := 0;
+      LError := '';
+      LCancelled := False;
+      try
+        LAffected := FIDEBackend.Install(LRequest.ProfileId,
+          LRequest.PackageName, LRequest.ConflictPolicy,
+          LRequest.OpenPolicy);
+      except
+        on E: Exception do
+        begin
+          LCancelled := TInterlocked.CompareExchange(
+            FCancelRequested, 0, 0) <> 0;
+          if not LCancelled then
+            LError := E.Message;
+        end;
+      end;
+      TThread.Queue(nil,
+        procedure
+        begin
+          FinishIDEInstall(LRequest, LAffected, LError, LCancelled);
+        end);
+    end);
+end;
+
+procedure TFormMain.FinishIDEInstall(
+  const ARequest: TBoss4DGUIIDEInstallRequest;
+  const AAffected: Integer; const AError: string;
+  const ACancelled: Boolean);
+begin
+  FIDEOperations.TargetProgress := nil;
+  FIDEOperations.BuildCancellation := nil;
+  PanelIDEActions.Enabled := True;
+  if ACancelled then
+  begin
+    FOperationPresenter.Cancel(GetTickCount64);
+    LogStructured(TBoss4DLogLevel.Warning, 'IDE Build',
+      'Instalacao cancelada pelo usuario.');
+    ShowIDEStatus('Instalacao de componente cancelada.');
+  end
+  else if not AError.IsEmpty then
+  begin
+    FOperationPresenter.Fail(AError, GetTickCount64);
+    LogStructured(TBoss4DLogLevel.Error, 'IDE Build', AError);
+    ShowIDEError(AError);
+  end
+  else
+  begin
+    FOperationPresenter.Complete(GetTickCount64);
+    ProgressOperation.Position := ProgressOperation.Max;
+    LogStructured(TBoss4DLogLevel.Info, 'IDE Build',
+      Format('Instalacao concluida: %d registro(s) afetado(s).',
+        [AAffected]));
+    FIDEPresenter.ChooseProfile(ARequest.ProfileId);
+    ShowIDEStatus(Format(
+      'Instalacao concluida: %d registro(s) afetado(s).',
+      [AAffected]));
+  end;
+  UpdateOperationUI;
+end;
+
 procedure TFormMain.FinishGuidedInstall(const ACancelled: Boolean;
   const AOutput, AError, AProjectDirectory: string);
 begin
@@ -945,8 +1104,8 @@ var
 begin
   case FOperationPresenter.State of
     GUIIdle: LState := 'Nenhuma operacao';
-    GUIRunning: LState := Format('Instalando (tentativa %d) - %s',
-      [FOperationPresenter.Attempt,
+    GUIRunning: LState := Format('%s (tentativa %d) - %s',
+      [FOperationTitle, FOperationPresenter.Attempt,
        FOperationPresenter.ElapsedText(GetTickCount64)]);
     GUISucceeded: LState := 'Instalacao concluida - ' +
       FOperationPresenter.ElapsedText(GetTickCount64);
@@ -961,7 +1120,10 @@ begin
   ProgressOperation.Visible := FOperationPresenter.State = GUIRunning;
   BtnCancelOperation.Enabled := FOperationPresenter.CanCancel;
   BtnRetryOperation.Enabled := FOperationPresenter.CanRetry and
-    FHasLastInstallRequest;
+    (((FOperationKind = OperationRegistryInstall) and
+      FHasLastInstallRequest) or
+     ((FOperationKind = OperationIDEInstall) and
+      FHasLastIDEInstallRequest));
   TimerOperation.Enabled := FOperationPresenter.State = GUIRunning;
 end;
 
@@ -977,8 +1139,16 @@ end;
 
 procedure TFormMain.BtnRetryOperationClick(Sender: TObject);
 begin
-  if FOperationPresenter.CanRetry and FHasLastInstallRequest then
-    RunAsyncGuidedInstall(FLastInstallRequest);
+  if not FOperationPresenter.CanRetry then
+    Exit;
+  case FOperationKind of
+    OperationRegistryInstall:
+      if FHasLastInstallRequest then
+        RunAsyncGuidedInstall(FLastInstallRequest);
+    OperationIDEInstall:
+      if FHasLastIDEInstallRequest then
+        RunAsyncIDEInstall(FLastIDEInstallRequest);
+  end;
 end;
 
 procedure TFormMain.TimerOperationTimer(Sender: TObject);
@@ -1449,22 +1619,7 @@ begin
   if TBoss4DGUIIDEInstallDialog.Execute(Self, FIDEBackend,
     FIDEPresenter.SelectedProfile, SelectedIDEPackage,
     LConflictPolicy, LOpenPolicy, LRequest) then
-  begin
-    Screen.Cursor := crHourGlass;
-    PanelIDEActions.Enabled := False;
-    try
-      FIDEPresenter.ChooseProfile(LRequest.ProfileId);
-      ShowIDEStatus(Format(
-        'Compilando e registrando %s no perfil %s...',
-        [LRequest.PackageName, LRequest.ProfileName]));
-      Vcl.Forms.Application.ProcessMessages;
-      FIDEPresenter.Install(LRequest.PackageName,
-        LRequest.ConflictPolicy, LRequest.OpenPolicy);
-    finally
-      PanelIDEActions.Enabled := True;
-      Screen.Cursor := crDefault;
-    end;
-  end;
+    RunAsyncIDEInstall(LRequest);
 end;
 
 procedure TFormMain.BtnIDERepairClick(Sender: TObject);
