@@ -37,6 +37,35 @@ uses
   System.SysUtils, System.IOUtils, Boss4D.Core.Domain.Consts,
   Boss4D.Core.Domain.Env;
 
+function SearchPathContains(const ASearchPath, APath: string): Boolean;
+var
+  LEntry: string;
+  LExpected: string;
+  LNormalizedEntry: string;
+  LRawEntry: string;
+begin
+  Result := False;
+  LExpected := TPath.GetFullPath(APath);
+
+  for LRawEntry in ASearchPath.Split([';']) do
+  begin
+    LEntry := LRawEntry.Trim;
+    if LEntry.IsEmpty then
+      Continue;
+
+    if SameText(LEntry, APath) then
+      Exit(True);
+
+    try
+      LNormalizedEntry := TPath.GetFullPath(LEntry);
+      if SameText(LNormalizedEntry, LExpected) then
+        Exit(True);
+    except
+      // Entradas com macros como $(BDSLIB) nao sao caminhos fisicos normalizaveis.
+    end;
+  end;
+end;
+
 { TBoss4DIDEIntegrationService }
 
 constructor TBoss4DIDEIntegrationService.Create(const ARegistry: IBoss4DRegistryService; const ALogger: IBoss4DLogger);
@@ -63,7 +92,17 @@ var
   LSubKey: string;
   LCurrentPath: string;
   LNewPath: string;
+  LPathToInject: string;
 begin
+  LPathToInject := TPath.GetFullPath(APathToInject);
+  if not TDirectory.Exists(LPathToInject) then
+  begin
+    FLogger.Log(TBoss4DLogLevel.Warning,
+      '  [SKIP] Library Path ignorado para Delphi %s (%s): diretorio inexistente: %s',
+      [AVersion, APlatform, LPathToInject]);
+    Exit;
+  end;
+
   LReg := TRegistry.Create(KEY_READ or KEY_WRITE);
   try
     LReg.RootKey := FRegistryRoot;
@@ -74,14 +113,14 @@ begin
       LCurrentPath := LReg.ReadString('Search Path');
 
       // Se ja contiver o caminho, nao faz nada
-      if LCurrentPath.Contains(APathToInject) then
+      if SearchPathContains(LCurrentPath, LPathToInject) then
         Exit;
 
       LNewPath := LCurrentPath;
       if not LNewPath.IsEmpty and not LNewPath.EndsWith(';') then
         LNewPath := LNewPath + ';';
 
-      LNewPath := LNewPath + APathToInject;
+      LNewPath := LNewPath + LPathToInject;
       LReg.WriteString('Search Path', LNewPath);
       FLogger.Log(TBoss4DLogLevel.Info, '  [OK] Library Path atualizado para Delphi %s (%s).', [AVersion, APlatform]);
     end;

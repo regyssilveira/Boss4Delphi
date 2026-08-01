@@ -188,7 +188,7 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d config git shallow <true/false>`
   Enables or disables shallow clones for faster Git download processes.
 * `boss4d version`
-  Prints the CLI version (`v1.7.0-delphi-native`).
+  Prints the CLI version (`v1.7.1-delphi-native`).
 * `boss4d self-update`
   Downloads the official installer, verifies it against `SHA256SUMS.txt`, and
   starts the update only after a successful SHA-256 check.
@@ -211,6 +211,7 @@ cd /d d:\Projetos\BossDelphi
 ---
 
 ## 📖 Additional Documentation
+* **[Boss4D 1.7.1 Release](docs/releases/1.7.1.md)**: Fix release for Delphi Library Path integration, plus validation evidence.
 * **[Boss4D 1.7.0 Release](docs/releases/1.7.0.md)**: Downloads, delivered capabilities, certified compiler/test evidence, supply-chain assets, and current Registry status.
 * **[Start with Your Use Case](docs/use-cases.md)**: Everyday, risk-aware workflows for dependencies, Registry credentials, publication, compliance, Multi-Delphi builds, IDE recovery, Linux, CI, releases, and self-update.
 * **[SBOM Feature Guide](docs/sbom.md)**: Motivation, evidence model, coverage, VEX, attestations, limitations, and recommended release workflow.

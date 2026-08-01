@@ -2,13 +2,24 @@
 
 ## Unreleased
 
-### Changed
+## 1.7.1 - 2026-08-01
 
-- Delphi and FPC help contracts now expose the current `1.7.0` version,
-  implemented commands, command-specific flag ownership, IDE profiles, GetIt,
-  plugins, CI restore, and all supported help aliases.
-- Release, compatibility, competitive-positioning, Registry, and validation
-  documentation now reflects the final v1.7.0 evidence.
+### Fixed
+
+- Delphi Library Path integration now skips missing
+  `modules\dcu\<Platform>\Debug` directories instead of creating stale global
+  IDE search path entries.
+- Library Path deduplication now compares individual normalized entries,
+  avoiding partial-match false positives.
+- IDE plugin, CLI, POSIX, SBOM, Dependency Graph detector, package provenance,
+  installer, and manifest metadata now report version `1.7.1`.
+
+### Validation
+
+- Delphi 13 IDE plugin package compiles cleanly.
+- Windows DUnitX suite compiles and runs with 332 passing tests; the two
+  remaining failures are unrelated documentation fixture checks for missing
+  executable examples.
 
 ## 1.7.0 - 2026-07-31
 

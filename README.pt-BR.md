@@ -173,7 +173,7 @@ cd /d d:\Projetos\BossDelphi
 * `boss4d config git shallow <true/false>`
   Habilita ou desabilita o uso de clones rasos (shallow clone) para downloads mais velozes.
 * `boss4d version`
-  Exibe a versão atual do Boss4D (`v1.7.0-delphi-native`).
+  Exibe a versão atual do Boss4D (`v1.7.1-delphi-native`).
 * `boss4d self-update`
   Atualiza Windows ou Linux com os arquivos oficiais, verificação por
   `SHA256SUMS.txt`, staging transacional e rollback.
@@ -197,6 +197,7 @@ cd /d d:\Projetos\BossDelphi
 ---
 
 ## 📖 Documentação Adicional
+* **[Release Boss4D 1.7.1](docs/releases/1.7.1.pt-BR.md)**: Release corretiva para a integração com o Library Path do Delphi, com evidências de validação.
 * **[Release Boss4D 1.7.0](docs/releases/1.7.0.pt-BR.md)**: Downloads, funcionalidades entregues, evidências certificadas de compiladores/testes, ativos de supply chain e estado atual no Registry.
 * **[Comece pelo seu Caso de Uso](docs/use-cases.pt-BR.md)**: Fluxos cotidianos orientados a risco para dependências, credenciais de Registry, publicação, conformidade, builds Multi-Delphi, recuperação da IDE, Linux, CI, releases e autoatualização.
 * **[Guia da Feature SBOM](docs/sbom.pt-BR.md)**: Motivação, modelo de evidências, cobertura, VEX, atestações, limites e fluxo recomendado de release.

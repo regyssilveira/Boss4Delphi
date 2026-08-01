@@ -62,7 +62,7 @@ const
 
 function Boss4DVersion: string;
 begin
-  Result := '1.7.0';
+  Result := '1.7.1';
 end;
 
 function Boss4DHelpText: string;

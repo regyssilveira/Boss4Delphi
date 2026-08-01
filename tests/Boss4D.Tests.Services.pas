@@ -230,6 +230,8 @@ type
 
     [Test]
     procedure TestIDEIntegration;
+    [Test]
+    procedure TestIDEIntegrationSkipsMissingDcuPath;
 
     [Test]
     procedure TestToolGlobalInstallation;
@@ -3776,7 +3778,7 @@ begin
   try
     // Testa o comando "version"
     LParser.ParseAndExecute(TArray<string>.Create('version'));
-    Assert.AreEqual('v1.7.0-delphi-native', LLogger.LastLogMessage.Trim);
+    Assert.AreEqual('v1.7.1-delphi-native', LLogger.LastLogMessage.Trim);
 
     // Testa o comando "help"
     LParser.ParseAndExecute(TArray<string>.Create('-h'));
@@ -4546,6 +4548,8 @@ begin
     end;
 
     // 3. Executa a integracao para a plataforma Win32
+    TDirectory.CreateDirectory(TPath.Combine(TDirectory.GetCurrentDirectory,
+      TPath.Combine('modules', TPath.Combine('dcu', TPath.Combine('Win32', 'Debug')))));
     LIntegration.IntegrateLibraryPaths('Win32');
 
     // 4. Valida se o caminho do DCU unificado foi inserido com sucesso
@@ -4571,6 +4575,52 @@ begin
     end;
   finally
     LIntegration.Free;
+  end;
+end;
+
+procedure TTestsServices.TestIDEIntegrationSkipsMissingDcuPath;
+var
+  LRegistryMock: IBoss4DRegistryService;
+  LIntegration: TBoss4DIDEIntegrationService;
+  LReg: TRegistry;
+  LTestKey: string;
+begin
+  LRegistryMock := TRegistryMock.Create;
+  LIntegration := TBoss4DIDEIntegrationService.Create(LRegistryMock, TTestLogger.Create);
+  try
+    LIntegration.RegistryKeyPrefix := 'Software\Boss4DTests\BDS\';
+    LTestKey := 'Software\Boss4DTests\BDS\22.0\Library\Win32';
+
+    LReg := TRegistry.Create(KEY_READ or KEY_WRITE);
+    try
+      LReg.RootKey := HKEY_CURRENT_USER;
+      LReg.DeleteKey('Software\Boss4DTests');
+    except
+      // ignora se nao existir
+    end;
+    LReg.Free;
+
+    LIntegration.IntegrateLibraryPaths('Win32');
+
+    LReg := TRegistry.Create(KEY_READ);
+    try
+      LReg.RootKey := HKEY_CURRENT_USER;
+      Assert.IsFalse(LReg.OpenKey(LTestKey, False),
+        'Library Path inexistente nao deve criar chave no Registro.');
+    finally
+      LReg.Free;
+    end;
+  finally
+    LIntegration.Free;
+
+    LReg := TRegistry.Create(KEY_READ or KEY_WRITE);
+    try
+      LReg.RootKey := HKEY_CURRENT_USER;
+      LReg.DeleteKey('Software\Boss4DTests');
+    except
+      // ignora se nao existir
+    end;
+    LReg.Free;
   end;
 end;
 
@@ -4880,6 +4930,11 @@ begin
       // ignora se nao existir
     end;
     LReg.Free;
+
+    TDirectory.CreateDirectory(TPath.Combine(TDirectory.GetCurrentDirectory,
+      TPath.Combine('modules', TPath.Combine('dcu', TPath.Combine('Win32', 'Debug')))));
+    TDirectory.CreateDirectory(TPath.Combine(TDirectory.GetCurrentDirectory,
+      TPath.Combine('modules', TPath.Combine('dcu', TPath.Combine('Win64', 'Debug')))));
 
     LIDEIntegration.IntegrateLibraryPaths('Win32');
     LIDEIntegration.IntegrateLibraryPaths('Win64');
