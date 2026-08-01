@@ -6,6 +6,8 @@
 
 [Read in English](README.md) | [Leia em Português](README.pt-BR.md)
 
+**[Browse the public package registry](https://regyssilveira.github.io/Boss4Delphi/)**
+
 **Boss4D** is a modern native dependency manager for Delphi and Lazarus
 projects. The Windows CLI is built with Delphi 13, the IDE plugin targets
 Delphi 10/10.1 and is validated locally with Delphi 10, 11, 12, and 13. Native

@@ -4,6 +4,8 @@
   <img src="docs/imgs/header_boss4d.jpg" alt="Boss4D Header" width="100%">
 </p>
 
+**[Acesse o registro público de pacotes](https://regyssilveira.github.io/Boss4Delphi/)**
+
 O **Boss4D** é um gerenciador de dependências nativo e moderno para projetos
 Delphi e Lazarus. A CLI Windows é compilada com Delphi 13, o plugin da IDE tem
 como alvo os Delphi 10/10.1 e é validado localmente com Delphi 10, 11, 12 e 13, e a
