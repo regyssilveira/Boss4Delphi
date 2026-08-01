@@ -43,6 +43,18 @@ try {
   & $validator -Root $current -BaseRoot $base `
     -ChangedFiles 'registry/packages/demo.json' -Submitter 'demo-owner'
 
+  $external = $v1.Replace(
+    '"repository":"github.com/demo/package"',
+    '"repository":"github.com/upstream/package",' +
+    '"publisherRepository":"github.com/upstream/package",' +
+    '"distributionRepository":"github.com/demo/package"')
+  Write-Utf8 (Join-Path $base 'registry\packages\demo.json') $external
+  Write-Utf8 (Join-Path $current 'registry\packages\demo.json') $external
+  & $validator -Root $current -BaseRoot $base `
+    -ChangedFiles 'registry/packages/demo.json' -Submitter 'demo-owner'
+  Write-Utf8 (Join-Path $base 'registry\packages\demo.json') $v1
+  Write-Utf8 (Join-Path $current 'registry\packages\demo.json') $v1
+
   Expect-Failure {
     & $validator -Root $current -BaseRoot $base `
       -ChangedFiles 'registry/packages/demo.json' -Submitter 'attacker'

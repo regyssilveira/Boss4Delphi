@@ -224,8 +224,12 @@ foreach ($relativePath in $ChangedFiles) {
     throw "$relativePath signer fingerprint is not authorized for the publisher."
   }
   $repositoryAllowed = $false
+  $scopeRepository = $package.distributionRepository
+  if ([string]::IsNullOrWhiteSpace($scopeRepository)) {
+    $scopeRepository = $package.repository
+  }
   foreach ($prefix in @($publisher.repositories)) {
-    if ($package.repository.StartsWith($prefix,
+    if ($scopeRepository.StartsWith($prefix,
         [System.StringComparison]::OrdinalIgnoreCase)) {
       $repositoryAllowed = $true
     }
