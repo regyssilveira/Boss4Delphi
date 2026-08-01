@@ -3,9 +3,13 @@ unit Boss4D.GUI.Health.Presenter;
 interface
 
 uses
-  Boss4D.Core.Services.Doctor;
+  Boss4D.Core.Services.Doctor,
+  Boss4D.Core.Services.BuildDoctor;
 
 type
+  TBoss4DGUIHealthAction = (HealthActionNone, HealthActionRebuild,
+    HealthActionReregister);
+
   TBoss4DGUIHealthRow = record
     Group: string;
     Status: string;
@@ -14,6 +18,9 @@ type
     Remediation: string;
     Fixable: Boolean;
     Fixed: Boolean;
+    Action: TBoss4DGUIHealthAction;
+    ActionTarget: string;
+    function ActionLabel: string;
   end;
 
   TBoss4DGUIHealthSummary = record
@@ -30,6 +37,10 @@ type
       TArray<TBoss4DGUIHealthRow>; static;
     class function Summarize(const AReport: TBoss4DDoctorReport):
       TBoss4DGUIHealthSummary; static;
+    class function AppendBuildRows(
+      const ARows: TArray<TBoss4DGUIHealthRow>;
+      const ABuildReport: TBoss4DBuildDoctorResult):
+      TArray<TBoss4DGUIHealthRow>; static;
   end;
 
 implementation
@@ -37,12 +48,68 @@ implementation
 uses
   System.SysUtils;
 
+function TBoss4DGUIHealthRow.ActionLabel: string;
+begin
+  case Action of
+    HealthActionRebuild: Result := 'Rebuild completo';
+    HealthActionReregister: Result := 'Registrar novamente';
+  else
+    Result := '';
+  end;
+end;
+
 function TBoss4DGUIHealthSummary.Text: string;
 begin
   Result := Format('%d saudavel(is), %d aviso(s), %d erro(s)',
     [Healthy, Warnings, Errors]);
   if Fixed > 0 then
     Result := Result + Format(', %d corrigido(s)', [Fixed]);
+end;
+
+class function TBoss4DGUIHealthPresenter.AppendBuildRows(
+  const ARows: TArray<TBoss4DGUIHealthRow>;
+  const ABuildReport: TBoss4DBuildDoctorResult):
+  TArray<TBoss4DGUIHealthRow>;
+begin
+  Result := Copy(ARows);
+  if not Assigned(ABuildReport) then
+    Exit;
+  if ABuildReport.Issues.Count = 0 then
+  begin
+    SetLength(Result, Length(Result) + 1);
+    Result[High(Result)] := Default(TBoss4DGUIHealthRow);
+    Result[High(Result)].Group := 'Projeto/Build';
+    Result[High(Result)].Status := 'Saudavel';
+    Result[High(Result)].Code := 'BUILD_READY';
+    Result[High(Result)].Message :=
+      'Matriz, grafo, projetos, outputs e registros estao consistentes.';
+    Result[High(Result)].Remediation :=
+      'Use rebuild completo para recompilar todos os targets.';
+    Result[High(Result)].Action := HealthActionRebuild;
+    Exit;
+  end;
+
+  for var LIssue in ABuildReport.Issues do
+  begin
+    SetLength(Result, Length(Result) + 1);
+    var LIndex := High(Result);
+    Result[LIndex] := Default(TBoss4DGUIHealthRow);
+    Result[LIndex].Group := 'Projeto/Build';
+    Result[LIndex].Code := LIssue.Code;
+    Result[LIndex].Message := LIssue.Message;
+    Result[LIndex].Remediation := LIssue.Remediation;
+    case LIssue.Severity of
+      TBoss4DDoctorSeverity.Error: Result[LIndex].Status := 'Erro';
+      TBoss4DDoctorSeverity.Warning: Result[LIndex].Status := 'Aviso';
+    else
+      Result[LIndex].Status := 'Saudavel';
+    end;
+    if SameText(LIssue.Code, 'IDE_REGISTRY_DRIFT') then
+    begin
+      Result[LIndex].Action := HealthActionReregister;
+      Result[LIndex].ActionTarget := LIssue.Message;
+    end;
+  end;
 end;
 
 class function TBoss4DGUIHealthPresenter.BuildRows(
