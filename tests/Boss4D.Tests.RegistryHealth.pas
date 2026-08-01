@@ -15,7 +15,7 @@ type
     [Setup] procedure Setup;
     [TearDown] procedure TearDown;
     [Test] procedure TestMixedCatalogReportsLegacyAndTrustedPackages;
-    [Test] procedure TestPublisherRepositoryCanDifferFromUpstream;
+    [Test] procedure TestDistributionRepositoryCanDifferFromPublisher;
     [Test] procedure TestDuplicatePackageFailsHealthAudit;
     [Test] procedure TestMissingSparseFileFailsHealthAudit;
   end;
@@ -79,13 +79,14 @@ begin
   Assert.AreEqual(2, LResult.WarningCount);
 end;
 
-procedure TTestsRegistryHealth.TestPublisherRepositoryCanDifferFromUpstream;
+procedure TTestsRegistryHealth.TestDistributionRepositoryCanDifferFromPublisher;
 begin
   WriteRegistryFile('index-v2.json',
     '{"schemaVersion":2,"includes":[],"sparse":[],"packages":[' +
     '{"name":"Upstream","publisher":"demo",' +
     '"repository":"github.com/upstream/project",' +
-    '"publisherRepository":"github.com/demo/project",' +
+    '"publisherRepository":"github.com/upstream/project",' +
+    '"distributionRepository":"github.com/demo/project",' +
     '"signerFingerprint":"' + StringOfChar('A', 40) +
     '","versions":[{"version":"1.0.0"}]}]}');
   var LService := TBoss4DRegistryHealthService.Create;

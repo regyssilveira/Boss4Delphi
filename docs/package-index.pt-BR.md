@@ -57,7 +57,8 @@ pacotes em arquivos ou repositórios separados:
   "packages": [{
     "name": "InternalLib",
     "repository": "git.example.com/team/internal",
-    "publisherRepository": "github.com/distribuidor/pacote-interno",
+    "publisherRepository": "git.example.com/team/internal",
+    "distributionRepository": "github.com/distribuidor/pacote-interno",
     "description": "Biblioteca Delphi interna",
     "license": "MIT",
     "versions": [{
@@ -84,13 +85,13 @@ pacotes em arquivos ou repositórios separados:
 }
 ```
 
-`repository` sempre identifica a origem canônica usada pelo fallback Git e
-exibida aos usuários. Quando um publisher cadastrado empacota e assina um
-upstream externo em outro repositório, o campo opcional
-`publisherRepository` identifica esse repositório de distribuição para a
-validação do namespace do publisher. URLs de artefato, assinatura e
-proveniência podem permanecer no repositório de distribuição; isso não altera
-a autoria do upstream.
+`repository` identifica a origem canônica usada pelo fallback Git e exibida
+aos usuários. `publisherRepository` identifica o repositório canônico do
+publisher original e normalmente coincide com `repository`. Quando um
+distribuidor cadastrado empacota e assina esse upstream em outro repositório,
+o campo opcional `distributionRepository` identifica o host dos artefatos para
+validação do namespace e do signatário. URLs de artefato, assinatura e
+proveniência podem permanecer ali; isso não altera a autoria do upstream.
 
 As referências podem ser URLs HTTP(S), caminhos locais absolutos ou caminhos
 relativos ao índice que as declara. Ciclos são detectados e carregados apenas

@@ -2327,7 +2327,8 @@ begin
     'packages/secure.json',
     '{"schemaVersion":2,"packages":[{"name":"Secure",' +
     '"publisher":"demo","repository":"github.com/upstream/secure",' +
-    '"publisherRepository":"github.com/demo/secure",' +
+    '"publisherRepository":"github.com/upstream/secure",' +
+    '"distributionRepository":"github.com/demo/secure",' +
     '"signerFingerprint":"' + StringOfChar('A', 40) +
     '","versions":[{"version":"1.0.0"}]}]}');
   LResult := AuditRegistryHealth(LRoot);

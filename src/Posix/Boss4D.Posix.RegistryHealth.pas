@@ -67,7 +67,9 @@ begin
   if not (APublishers.Find('publishers') is TJSONArray) then Exit;
   LEntries := TJSONArray(APublishers.Find('publishers'));
   LPublisherId := APackage.Get('publisher', '');
-  LRepository := APackage.Get('publisherRepository', '');
+  LRepository := APackage.Get('distributionRepository', '');
+  if LRepository = '' then
+    LRepository := APackage.Get('publisherRepository', '');
   if LRepository = '' then
     LRepository := APackage.Get('repository', '');
   LFingerprint := APackage.Get('signerFingerprint', '');

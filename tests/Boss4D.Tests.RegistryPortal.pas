@@ -61,7 +61,8 @@ begin
       '"publisher":"boss4d","signerFingerprint":' +
       '"1111111111111111111111111111111111111111",' +
       '"repository":"github.com/cesarliws/dext",' +
-      '"publisherRepository":"github.com/regyssilveira/dext",' +
+      '"publisherRepository":"github.com/cesarliws/dext",' +
+      '"distributionRepository":"github.com/regyssilveira/dext",' +
       '"versions":[' +
       '{"version":"1.0.0","sha256":"abc"}]}]}', TEncoding.UTF8);
     TFile.WriteAllText(TPath.Combine(LRoot, 'publishers.json'),
@@ -165,7 +166,8 @@ begin
     TFile.WriteAllText(TPath.Combine(LRootDirectory, 'index.json'),
       '{"schemaVersion":2,"packages":[{"name":"Dext",' +
       '"repository":"github.com/cesarliws/dext",' +
-      '"publisherRepository":"github.com/regyssilveira/dext",' +
+      '"publisherRepository":"github.com/cesarliws/dext",' +
+      '"distributionRepository":"github.com/regyssilveira/dext",' +
       '"description":"Framework","license":"Apache-2.0"}]}',
       TEncoding.UTF8);
     LService := TBoss4DRegistryPortalService.Create;

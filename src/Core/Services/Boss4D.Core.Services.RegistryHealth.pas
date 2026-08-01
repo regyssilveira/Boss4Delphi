@@ -51,8 +51,9 @@ var
 begin
   Result := False;
   LPublisherId := APackage.GetValue<string>('publisher', '');
-  LRepository := APackage.GetValue<string>('publisherRepository',
-    APackage.GetValue<string>('repository', ''));
+  LRepository := APackage.GetValue<string>('distributionRepository',
+    APackage.GetValue<string>('publisherRepository',
+      APackage.GetValue<string>('repository', '')));
   LFingerprint := APackage.GetValue<string>('signerFingerprint', '');
   LPublishers := APublishers.GetValue<TJSONArray>('publishers');
   if not Assigned(LPublishers) then Exit;

@@ -176,8 +176,9 @@ provenance, conformance, and verified no-fallback installation.
 
 `Dext` `v1.0.0-rc.2`, whose canonical upstream is
 `github.com/cesarliws/dext`, completed a publisher-packaged migration. The
-Boss4D distribution repository is recorded separately through
-`publisherRepository`; it hosts the signed package without replacing or
+original publisher repository is also `github.com/cesarliws/dext`. The Boss4D
+artifact host is recorded separately through `distributionRepository`; it
+hosts the signed package without replacing or
 misrepresenting the official source. A dedicated
 direct-DCC runner avoids the Windows MSBuild command-line limit while retaining
 the project's complete 132-test core suite. Five consecutive runs plus a clean
@@ -187,7 +188,7 @@ conformance, and verified no-fallback installation.
 
 All packages produced by the registered publisher have now completed the
 release and schema-v2 migration gates, including externally maintained
-upstreams whose distribution relationship is declared explicitly.
+upstreams whose artifact distribution relationship is declared explicitly.
 
 ## Wave 3 — external publisher onboarding
 
