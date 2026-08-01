@@ -332,7 +332,7 @@ object FormMain: TFormMain
           Left = 0
           Top = 0
           Width = 689
-          Height = 88
+          Height = 124
           Align = alTop
           BevelOuter = bvNone
           TabOrder = 0
@@ -383,17 +383,37 @@ object FormMain: TFormMain
           end
           object LblDocSummary: TLabel
             Left = 10
-            Top = 56
+            Top = 96
             Width = 167
             Height = 15
             Caption = 'Diagnostico ainda nao executado'
           end
+          object BtnDocRebuild: TButton
+            Left = 10
+            Top = 50
+            Width = 160
+            Height = 30
+            Caption = 'Rebuild completo'
+            Enabled = False
+            TabOrder = 5
+            OnClick = BtnDocRebuildClick
+          end
+          object BtnDocReregister: TButton
+            Left = 178
+            Top = 50
+            Width = 190
+            Height = 30
+            Caption = 'Registrar target novamente'
+            Enabled = False
+            TabOrder = 6
+            OnClick = BtnDocReregisterClick
+          end
         end
         object ListDoctorHealth: TListView
           Left = 0
-          Top = 88
+          Top = 124
           Width = 689
-          Height = 322
+          Height = 286
           Align = alClient
           Columns = <
             item
@@ -415,12 +435,17 @@ object FormMain: TFormMain
             item
               Caption = 'Acao recomendada'
               Width = 300
+            end
+            item
+              Caption = 'Acao direta'
+              Width = 145
             end>
           GridLines = True
           ReadOnly = True
           RowSelect = True
           TabOrder = 1
           ViewStyle = vsReport
+          OnSelectItem = ListDoctorHealthSelectItem
         end
       end
       object TabCache: TTabSheet

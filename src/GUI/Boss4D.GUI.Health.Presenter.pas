@@ -108,6 +108,10 @@ begin
     begin
       Result[LIndex].Action := HealthActionReregister;
       Result[LIndex].ActionTarget := LIssue.Message;
+      const LPrefix = 'Registro IDE divergente: ';
+      if Result[LIndex].ActionTarget.StartsWith(LPrefix, True) then
+        Result[LIndex].ActionTarget :=
+          Result[LIndex].ActionTarget.Substring(Length(LPrefix));
     end;
   end;
 end;

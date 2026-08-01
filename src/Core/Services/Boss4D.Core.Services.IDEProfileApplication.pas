@@ -42,6 +42,8 @@ type
     function BuildOptions(const AProfile: TBoss4DIDEProfile;
       const AConflictPolicy: TBoss4DIDEConflictPolicy):
       TBoss4DBuildCommandOptions;
+    function ExecuteRepair(const AProfileId, AIdentity: string):
+      TBoss4DIDEProfileOperationSummary;
   public
     constructor Create(const AProfiles: TBoss4DIDEProfileService;
       const ABuildInventory: TBoss4DBuildInventory;
@@ -62,6 +64,8 @@ type
     function Uninstall(const AProfileId,
       AOwnerPackage: string): TBoss4DIDEProfileOperationSummary;
     function Repair(const AProfileId: string):
+      TBoss4DIDEProfileOperationSummary;
+    function RepairTarget(const AProfileId, AIdentity: string):
       TBoss4DIDEProfileOperationSummary;
     function FindDrift(const AProfileId: string): TArray<string>;
     function UndoLatest: TBoss4DIDEProfileOperationSummary;
@@ -412,19 +416,52 @@ end;
 function TBoss4DIDEProfileApplication.Repair(
   const AProfileId: string): TBoss4DIDEProfileOperationSummary;
 begin
+  Result := ExecuteRepair(AProfileId, '');
+end;
+
+function TBoss4DIDEProfileApplication.RepairTarget(
+  const AProfileId, AIdentity: string):
+  TBoss4DIDEProfileOperationSummary;
+begin
+  if AIdentity.Trim.IsEmpty then
+    raise EArgumentException.Create(
+      'A identidade do registro IDE e obrigatoria.');
+  Result := ExecuteRepair(AProfileId, AIdentity.Trim);
+end;
+
+function TBoss4DIDEProfileApplication.ExecuteRepair(
+  const AProfileId, AIdentity: string):
+  TBoss4DIDEProfileOperationSummary;
+var
+  LKind: string;
+  LTarget: string;
+begin
   Result := Default(TBoss4DIDEProfileOperationSummary);
   var LProfile := FProfiles.Get(AProfileId);
+  if AIdentity.IsEmpty then
+  begin
+    LKind := 'profile-repair';
+    LTarget := LProfile.Id;
+  end
+  else
+  begin
+    LKind := 'registration-repair';
+    LTarget := AIdentity;
+  end;
   var LOperation := TBoss4DIDEOperationResult.New(
-    'profile-repair', LProfile.Id, LProfile.Id);
+    LKind, LProfile.Id, LTarget);
   try
     try
       var LRegistrationService := FRegistrationFactory(LProfile);
       try
-        Result.Affected := LRegistrationService.Repair;
+        if AIdentity.IsEmpty then
+          Result.Affected := LRegistrationService.Repair
+        else
+          Result.Affected := LRegistrationService.Repair(AIdentity);
       finally
         LRegistrationService.Free;
       end;
-      LOperation.CompletedActions.Add('repair ' + LProfile.Id);
+      LOperation.CompletedActions.Add('repair ' + LTarget);
       LOperation.Complete;
       if Assigned(FResultStore) then
         FResultStore.Save(LOperation);

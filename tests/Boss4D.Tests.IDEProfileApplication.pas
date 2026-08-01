@@ -44,9 +44,9 @@ uses
   Boss4D.Tests.IDEProcessPolicy,
   Boss4D.Tests.Mocks;
 
-procedure IntroduceAndAssertProfileDrift(
+function IntroduceAndAssertProfileDrift(
   const AApplication: TBoss4DIDEProfileApplication;
-  const ARegistry: TIDERegistryStoreMock);
+  const ARegistry: TIDERegistryStoreMock): string;
 begin
   Assert.AreEqual<Integer>(0,
     Length(AApplication.FindDrift('isolated')));
@@ -55,7 +55,9 @@ begin
   var LKnownPackageNames := ARegistry.ListValueNames(
     LKnownPackageKey);
   ARegistry.DeleteValue(LKnownPackageKey, LKnownPackageNames[0]);
-  Assert.IsTrue(Length(AApplication.FindDrift('isolated')) > 0);
+  var LDrift := AApplication.FindDrift('isolated');
+  Assert.AreEqual<Integer>(1, Length(LDrift));
+  Result := LDrift[0];
 end;
 
 procedure AssertInstallResultAndProgress(
@@ -110,6 +112,7 @@ var
   LRemovalPlan: TBoss4DIDERemovalPlan;
   LSummary: TBoss4DIDEProfileOperationSummary;
   LProgress: TList<TBoss4DBuildTargetProgressEvent>;
+  LDriftIdentity: string;
 begin
   TFile.WriteAllText(TPath.Combine(FDirectory, 'Design.dproj'),
     '<Project/>', TEncoding.UTF8);
@@ -195,7 +198,8 @@ begin
         TBoss4DIDEOpenPolicy.Fail);
       AssertInstallResultAndProgress(
         LSummary, LProgress, LRegistryMock);
-      IntroduceAndAssertProfileDrift(LApplication, LRegistryMock);
+      LDriftIdentity := IntroduceAndAssertProfileDrift(
+        LApplication, LRegistryMock);
       LProfile := LProfiles.Get('isolated');
       try
         Assert.AreEqual<Integer>(1, LProfile.Packages.Count,
@@ -205,7 +209,8 @@ begin
         LProfile.Free;
       end;
 
-      LSummary := LApplication.Repair('isolated');
+      LSummary := LApplication.RepairTarget(
+        'isolated', LDriftIdentity);
       Assert.IsTrue(LSummary.Affected > 0);
       Assert.AreEqual<Integer>(0,
         Length(LApplication.FindDrift('isolated')));

@@ -24,7 +24,7 @@ uses
 
 type
   TBoss4DGUIOperationKind = (OperationNone, OperationRegistryInstall,
-    OperationProjectInstall, OperationIDEInstall);
+    OperationProjectInstall, OperationProjectRebuild, OperationIDEInstall);
 
   TFormMain = class(TForm, IBoss4DIDEManagementView)
     PanelSidebar: TPanel;
@@ -68,6 +68,8 @@ type
     BtnDocRepairIDE: TButton;
     BtnDocUndoIDE: TButton;
     BtnDocOptimizeCache: TButton;
+    BtnDocRebuild: TButton;
+    BtnDocReregister: TButton;
     LblDocSummary: TLabel;
     ListDoctorHealth: TListView;
     PanelCacheTop: TPanel;
@@ -143,6 +145,10 @@ type
     procedure BtnDocRepairIDEClick(Sender: TObject);
     procedure BtnDocUndoIDEClick(Sender: TObject);
     procedure BtnDocOptimizeCacheClick(Sender: TObject);
+    procedure BtnDocRebuildClick(Sender: TObject);
+    procedure BtnDocReregisterClick(Sender: TObject);
+    procedure ListDoctorHealthSelectItem(Sender: TObject;
+      Item: TListItem; Selected: Boolean);
     procedure BtnCacheCleanClick(Sender: TObject);
     procedure BtnCachePruneClick(Sender: TObject);
     procedure ComboIDEProfilesChange(Sender: TObject);
@@ -191,6 +197,7 @@ type
     FHasLastIDEInstallRequest: Boolean;
     FOperationKind: TBoss4DGUIOperationKind;
     FOperationTitle: string;
+    FHealthRows: TArray<TBoss4DGUIHealthRow>;
     procedure InitializeIDEManagement;
     function SelectedIDEPackage: string;
     procedure LoadProjectDependencies(const AProjectDir: string);
@@ -223,6 +230,8 @@ type
       const ACancelled: Boolean);
     procedure UpdateOperationUI;
     procedure RunHealthCheck(const AFix: Boolean);
+    procedure RunAsyncProjectRebuild;
+    procedure UpdateHealthActions;
     procedure PopulateHealth(const ARows: TArray<TBoss4DGUIHealthRow>;
       const ASummary: string);
     function FindBoss4DExecutable: string;
@@ -273,6 +282,9 @@ uses
   Boss4D.Core.Domain.Env,
   Boss4D.Core.Domain.IDEProfile,
   Boss4D.Core.Services.IDERegistration,
+  Boss4D.Core.Services.BuildDoctor,
+  Boss4D.Core.Services.BuildCommand,
+  Boss4D.Core.Services.BuildCoordinator,
   Boss4D.Core.Services.IDEOperationResult,
   Boss4D.Core.Services.IDEProcessPolicy,
   Boss4D.GUI.IDE.Backend,
@@ -801,7 +813,14 @@ end;
 procedure TFormMain.FinishProjectInstall(const AError,
   AProjectDirectory: string);
 begin
-  if not AError.IsEmpty then
+  if (FOperationKind = OperationProjectRebuild) and
+     (TInterlocked.CompareExchange(FCancelRequested, 0, 0) <> 0) then
+  begin
+    FOperationPresenter.Cancel(GetTickCount64);
+    LogStructured(TBoss4DLogLevel.Warning, 'Project Build',
+      'Rebuild cancelado pelo usuario.');
+  end
+  else if not AError.IsEmpty then
   begin
     FOperationPresenter.Fail(AError, GetTickCount64);
     LogStructured(TBoss4DLogLevel.Error, 'Project Build', AError);
@@ -811,7 +830,7 @@ begin
     FOperationPresenter.Complete(GetTickCount64);
     LoadProjectDependencies(AProjectDirectory);
     LogStructured(TBoss4DLogLevel.Info, 'Project Build',
-      'Instalacao e build do projeto concluidos.');
+      'Operacao de projeto concluida.');
   end;
   UpdateOperationUI;
 end;
@@ -1364,8 +1383,12 @@ end;
 procedure TFormMain.RunHealthCheck(const AFix: Boolean);
 var
   LFix: Boolean;
+  LProjectDirectory: string;
+  LProfileId: string;
 begin
   LFix := AFix;
+  LProjectDirectory := FCurrentProjectDir;
+  LProfileId := FIDEPresenter.SelectedProfile;
   ListDoctorHealth.Items.Clear;
   if LFix then
     LblDocSummary.Caption := 'Aplicando correcoes e verificando...'
@@ -1383,6 +1406,10 @@ begin
       LRows: TArray<TBoss4DGUIHealthRow>;
       LSummary: string;
       LError: string;
+      LPackageRepository: IBoss4DPackageRepository;
+      LPackage: TBoss4DPackage;
+      LBuildDoctor: TBoss4DBuildDoctor;
+      LBuildReport: TBoss4DBuildDoctorResult;
     begin
       LError := '';
       LLogger := TGUILogger.Create(Self);
@@ -1396,6 +1423,41 @@ begin
             LSummary := TBoss4DGUIHealthPresenter.Summarize(LReport).Text;
           finally
             LReport.Free;
+          end;
+          if not LProjectDirectory.IsEmpty and
+             TFile.Exists(TPath.Combine(
+            LProjectDirectory, 'boss.json')) then
+          begin
+            LPackageRepository := TBoss4DPackageJsonRepository.Create;
+            LPackage := LPackageRepository.Load(TPath.Combine(
+              LProjectDirectory, 'boss.json'));
+            try
+              LBuildDoctor := TBoss4DBuildDoctor.Create(LRegistry,
+                function: TArray<string>
+                begin
+                  if LProfileId.IsEmpty then
+                    Result := nil
+                  else
+                    Result := FIDEOperations.FindDrift(LProfileId);
+                end);
+              try
+                LBuildReport := LBuildDoctor.Diagnose(
+                  LPackage, LProjectDirectory);
+                try
+                  LRows := TBoss4DGUIHealthPresenter.AppendBuildRows(
+                    LRows, LBuildReport);
+                  LSummary := LSummary + Format(
+                    '; projeto/build: %d diagnostico(s)',
+                    [LBuildReport.Issues.Count]);
+                finally
+                  LBuildReport.Free;
+                end;
+              finally
+                LBuildDoctor.Free;
+              end;
+            finally
+              LPackage.Free;
+            end;
           end;
         except
           on E: Exception do
@@ -1427,6 +1489,7 @@ end;
 procedure TFormMain.PopulateHealth(
   const ARows: TArray<TBoss4DGUIHealthRow>; const ASummary: string);
 begin
+  FHealthRows := Copy(ARows);
   ListDoctorHealth.Items.BeginUpdate;
   try
     ListDoctorHealth.Items.Clear;
@@ -1438,10 +1501,31 @@ begin
       LItem.SubItems.Add(LRow.Code);
       LItem.SubItems.Add(LRow.Message);
       LItem.SubItems.Add(LRow.Remediation);
+      LItem.SubItems.Add(LRow.ActionLabel);
     end;
     LblDocSummary.Caption := ASummary;
   finally
     ListDoctorHealth.Items.EndUpdate;
+  end;
+  UpdateHealthActions;
+end;
+
+procedure TFormMain.ListDoctorHealthSelectItem(Sender: TObject;
+  Item: TListItem; Selected: Boolean);
+begin
+  UpdateHealthActions;
+end;
+
+procedure TFormMain.UpdateHealthActions;
+begin
+  BtnDocRebuild.Enabled := False;
+  BtnDocReregister.Enabled := False;
+  if not Assigned(ListDoctorHealth.Selected) or
+     (ListDoctorHealth.Selected.Index >= Length(FHealthRows)) then
+    Exit;
+  case FHealthRows[ListDoctorHealth.Selected.Index].Action of
+    HealthActionRebuild: BtnDocRebuild.Enabled := True;
+    HealthActionReregister: BtnDocReregister.Enabled := True;
   end;
 end;
 
@@ -1458,6 +1542,132 @@ end;
 procedure TFormMain.BtnDocOptimizeCacheClick(Sender: TObject);
 begin
   BtnCachePruneClick(Sender);
+end;
+
+procedure TFormMain.BtnDocRebuildClick(Sender: TObject);
+begin
+  RunAsyncProjectRebuild;
+end;
+
+procedure TFormMain.BtnDocReregisterClick(Sender: TObject);
+begin
+  if not Assigned(ListDoctorHealth.Selected) or
+     (ListDoctorHealth.Selected.Index >= Length(FHealthRows)) then
+    Exit;
+  var LRow := FHealthRows[ListDoctorHealth.Selected.Index];
+  if (LRow.Action <> HealthActionReregister) or
+     LRow.ActionTarget.IsEmpty then
+    Exit;
+  if FIDEPresenter.SelectedProfile.IsEmpty then
+  begin
+    ShowMessage('Selecione um perfil IDE antes de registrar novamente.');
+    Exit;
+  end;
+  if MessageDlg('Registrar novamente apenas o target ' +
+    LRow.ActionTarget + '?', mtConfirmation, [mbYes, mbNo], 0) <> mrYes then
+    Exit;
+  try
+    var LAffected := FIDEBackend.RepairTarget(
+      FIDEPresenter.SelectedProfile, LRow.ActionTarget);
+    ShowIDEStatus(Format(
+      'Novo registro exato concluido: %d alteracao(oes).',
+      [LAffected]));
+    RunHealthCheck(False);
+  except
+    on E: Exception do
+      ShowIDEError(E.Message);
+  end;
+end;
+
+procedure TFormMain.RunAsyncProjectRebuild;
+var
+  LProjectDirectory: string;
+begin
+  if FCurrentProjectDir.IsEmpty then
+  begin
+    ShowMessage('Selecione a pasta do projeto antes do rebuild.');
+    Exit;
+  end;
+  if FOperationPresenter.State = GUIRunning then
+  begin
+    ShowMessage('Aguarde ou cancele a operacao atual.');
+    Exit;
+  end;
+  LProjectDirectory := FCurrentProjectDir;
+  FOperationKind := OperationProjectRebuild;
+  FOperationTitle := 'Rebuild completo';
+  TInterlocked.Exchange(FCancelRequested, 0);
+  FOperationPresenter.Start(GetTickCount64);
+  ProgressOperation.Style := pbstMarquee;
+  ProgressOperation.Position := 0;
+  UpdateOperationUI;
+  TTask.Run(
+    procedure
+    var
+      LLogger: IBoss4DLogger;
+      LRegistry: IBoss4DRegistryService;
+      LCompiler: IBoss4DCompiler;
+      LPackageRepository: IBoss4DPackageRepository;
+      LLockRepository: IBoss4DLockRepository;
+      LInventory: TBoss4DBuildInventory;
+      LCoordinator: TBoss4DBuildCoordinator;
+      LOptions: TBoss4DBuildCommandOptions;
+      LError: string;
+    begin
+      LError := '';
+      try
+        LLogger := TGUILogger.Create(Self);
+        LRegistry := TBoss4DWindowsRegistryAdapter.Create;
+        LCompiler := TBoss4DDelphiCompilerAdapter.Create(
+          LRegistry, LLogger);
+        LPackageRepository := TBoss4DPackageJsonRepository.Create;
+        LLockRepository := TBoss4DLockJsonRepository.Create;
+        LInventory := TBoss4DBuildInventory.Create(TPath.Combine(
+          GetBossHome, 'build-inventory.json'));
+        try
+          LInventory.Load;
+          LCoordinator := TBoss4DBuildCoordinator.Create(
+            LCompiler, LLogger, LPackageRepository, LLockRepository,
+            nil, LInventory);
+          try
+            LOptions := Default(TBoss4DBuildCommandOptions);
+            LOptions.Force := True;
+            LOptions.Jobs := 1;
+            LOptions.Cancellation :=
+              function: Boolean
+              begin
+                Result := TInterlocked.CompareExchange(
+                  FCancelRequested, 0, 0) <> 0;
+              end;
+            LOptions.TargetProgress :=
+              procedure(
+                const AEvent: TBoss4DBuildTargetProgressEvent)
+              begin
+                var LPhase := TBoss4DProgressPhase.Compiling;
+                if AEvent.State = TargetFailed then
+                  LPhase := TBoss4DProgressPhase.Failed;
+                QueueProjectProgress(TBoss4DProgressEvent.Create(
+                  'project-rebuild', 'projeto', LPhase,
+                  AEvent.Current, AEvent.Total,
+                  AEvent.TargetIdentity + ': ' + AEvent.Message));
+              end;
+            LCoordinator.Execute(LProjectDirectory, LOptions);
+          finally
+            LCoordinator.Free;
+          end;
+        finally
+          LInventory.Free;
+        end;
+      except
+        on E: Exception do
+          LError := E.Message;
+      end;
+      TThread.Queue(nil,
+        procedure
+        begin
+          FinishProjectInstall(LError, LProjectDirectory);
+        end);
+    end);
 end;
 
 procedure TFormMain.BtnCacheCleanClick(Sender: TObject);

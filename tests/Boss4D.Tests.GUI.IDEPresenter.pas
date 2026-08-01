@@ -53,6 +53,7 @@ type
       const AIDEOpenPolicy: TBoss4DIDEOpenPolicy): Integer;
     function Uninstall(const AProfileId, APackage: string): Integer;
     function Repair(const AProfileId: string): Integer;
+    function RepairTarget(const AProfileId, AIdentity: string): Integer;
     function Undo: Integer;
     function History: TArray<TBoss4DGUITimelineRow>;
     function Dashboard: TArray<TBoss4DGUIProfileDashboardRow>;
@@ -288,6 +289,13 @@ end;
 procedure TViewMock.AddTarget(const AIdentity: string);
 begin
   Targets.Add(AIdentity);
+end;
+
+function TBackendMock.RepairTarget(const AProfileId,
+  AIdentity: string): Integer;
+begin
+  LastAction := 'repair-target:' + AProfileId + ':' + AIdentity;
+  Result := 1;
 end;
 
 function TBackendMock.Dashboard:

@@ -70,7 +70,8 @@ begin
     Assert.AreEqual('Aviso', LRows[0].Status);
     Assert.AreEqual(HealthActionReregister, LRows[0].Action);
     Assert.AreEqual('Registrar novamente', LRows[0].ActionLabel);
-    Assert.IsTrue(LRows[0].ActionTarget.Contains('HorseDesign'));
+    Assert.AreEqual('HorseDesign|37.0|Win32|Release',
+      LRows[0].ActionTarget);
   finally
     LBuild.Free;
   end;
