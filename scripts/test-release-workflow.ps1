@@ -15,6 +15,7 @@ $required = @(
   'Boss4DPosixTests',
   'build_release.bat',
   'test-delphi-plugin-matrix.ps1',
+  '-RequiredVersions 10,13',
   'boss4d-linux-x86_64.tar.gz',
   'macos-15',
   'brew install fpc',

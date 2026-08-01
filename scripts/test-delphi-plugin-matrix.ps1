@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
   [string]$OutputRoot = (Join-Path $PSScriptRoot '..\.codex-build\plugin-matrix'),
-  [string[]]$Versions = @('10', '10.1', '11', '12', '13')
+  [string[]]$Versions = @('10', '10.1', '11', '12', '13'),
+  [string[]]$RequiredVersions = @('10', '13')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -14,6 +15,7 @@ $versionMap = [ordered]@{
 }
 $ideRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\src\IDE')).Path
 $OutputRoot = [IO.Path]::GetFullPath($OutputRoot)
+$builtVersions = [Collections.Generic.List[string]]::new()
 
 foreach ($version in $Versions) {
   if (-not $versionMap.Contains($version)) {
@@ -23,7 +25,11 @@ foreach ($version in $Versions) {
   $root = (Get-ItemProperty -Path "HKCU:\Software\Embarcadero\BDS\$bds" `
     -Name RootDir -ErrorAction SilentlyContinue).RootDir
   if ([string]::IsNullOrWhiteSpace($root)) {
-    throw "Delphi $version (BDS $bds) is required for the plugin matrix."
+    if ($RequiredVersions -contains $version) {
+      throw "Delphi $version (BDS $bds) is required for the plugin matrix."
+    }
+    Write-Warning "Skipping optional Delphi $version (BDS $bds): not installed."
+    continue
   }
   $output = Join-Path $OutputRoot $version
   New-Item -ItemType Directory -Force $output | Out-Null
@@ -50,6 +56,7 @@ foreach ($version in $Versions) {
   if (-not (Test-Path -LiteralPath (Join-Path $output 'Boss4D.IDE.Plugin.bpl'))) {
     throw "Plugin output is missing for Delphi $version."
   }
+  $builtVersions.Add($version)
 }
 
-Write-Output "Delphi plugin matrix $($Versions -join '/'): OK"
+Write-Output "Delphi plugin matrix $($builtVersions -join '/'): OK"
