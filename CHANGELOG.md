@@ -74,6 +74,9 @@
 
 ### Changed
 
+- Dext now resolves and links to its canonical `cesarliws/dext` upstream,
+  while signed Boss4D artifacts retain their separate distribution repository
+  through explicit `publisherRepository` metadata.
 - Delphi aliases from `xe` through `d13`, their package suffixes, compiler
   symbols, platforms, and path tokens are normalized through tested convention
   and capability tables.

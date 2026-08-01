@@ -56,6 +56,7 @@ package families in separate files or repositories:
   "packages": [{
     "name": "InternalLib",
     "repository": "git.example.com/team/internal",
+    "publisherRepository": "github.com/distributor/internal-package",
     "description": "Internal Delphi library",
     "license": "MIT",
     "versions": [{
@@ -81,6 +82,13 @@ package families in separate files or repositories:
   }]
 }
 ```
+
+`repository` always identifies the canonical upstream source used by Git
+fallback and displayed to users. When a registered publisher packages and
+signs an external upstream from a separate repository, the optional
+`publisherRepository` identifies that distribution repository for publisher
+namespace validation. Artifact, signature, and provenance URLs may remain on
+the distribution repository; this does not change upstream ownership.
 
 References may be HTTP(S) URLs, absolute local paths, or paths relative to the
 index containing them. Cycles are detected and loaded only once. Unsafe parent

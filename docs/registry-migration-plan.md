@@ -174,15 +174,20 @@ post-merge run covered successful CRUD operations and HTTP 404 behavior
 without leaks. The signed 16-file bundle passed independent signature,
 provenance, conformance, and verified no-fallback installation.
 
-`Dext` `v1.0.0-rc.2` completed the publisher-controlled migration. A dedicated
+`Dext` `v1.0.0-rc.2`, whose canonical upstream is
+`github.com/cesarliws/dext`, completed a publisher-packaged migration. The
+Boss4D distribution repository is recorded separately through
+`publisherRepository`; it hosts the signed package without replacing or
+misrepresenting the official source. A dedicated
 direct-DCC runner avoids the Windows MSBuild command-line limit while retaining
 the project's complete 132-test core suite. Five consecutive runs plus a clean
 post-merge run passed before the immutable tag was packed. The signed
 3,170-file release candidate passed independent signature, provenance,
 conformance, and verified no-fallback installation.
 
-All packages controlled by the registered publisher have now completed the
-release and schema-v2 migration gates.
+All packages produced by the registered publisher have now completed the
+release and schema-v2 migration gates, including externally maintained
+upstreams whose distribution relationship is declared explicitly.
 
 ## Wave 3 — external publisher onboarding
 
